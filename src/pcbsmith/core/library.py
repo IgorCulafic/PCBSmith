@@ -38,12 +38,12 @@ class Symbol(BaseModel):
 
     id: str
     name: str
-    pins: list[Pin] = Field(default_factory=list)
+    pins: tuple[Pin, ...] = ()
     default_footprint_id: str | None = None
 
     @field_validator("pins")
     @classmethod
-    def pin_numbers_are_unique(cls, pins: list[Pin]) -> list[Pin]:
+    def pin_numbers_are_unique(cls, pins: tuple[Pin, ...]) -> tuple[Pin, ...]:
         numbers = [pin.number for pin in pins]
         if len(numbers) != len(set(numbers)):
             raise ValueError("Symbol pin numbers must be unique")
@@ -61,10 +61,10 @@ class Pad(BaseModel):
 
     number: str
     position: Point
-    size_x: int
-    size_y: int
+    size_x: int = Field(gt=0)
+    size_y: int = Field(gt=0)
     shape: PadShape = PadShape.RECT
-    drill: int | None = None
+    drill: int | None = Field(default=None, gt=0)
 
 
 class Footprint(BaseModel):
@@ -72,11 +72,11 @@ class Footprint(BaseModel):
 
     id: str
     name: str
-    pads: list[Pad] = Field(default_factory=list)
+    pads: tuple[Pad, ...] = ()
 
     @field_validator("pads")
     @classmethod
-    def pad_numbers_are_unique(cls, pads: list[Pad]) -> list[Pad]:
+    def pad_numbers_are_unique(cls, pads: tuple[Pad, ...]) -> tuple[Pad, ...]:
         numbers = [pad.number for pad in pads]
         if len(numbers) != len(set(numbers)):
             raise ValueError("Footprint pad numbers must be unique")

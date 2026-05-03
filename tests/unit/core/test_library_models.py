@@ -19,8 +19,18 @@ def test_symbol_pin_lookup_by_number() -> None:
         id="stdlib:R",
         name="Resistor",
         pins=[
-            Pin(number="1", name="A", position=Point(x=0, y=0), electrical_type=PinElectricalType.PASSIVE),
-            Pin(number="2", name="B", position=Point(x=10, y=0), electrical_type=PinElectricalType.PASSIVE),
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=0, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="B",
+                position=Point(x=10, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
         ],
     )
     assert symbol.pin_by_number("2").name == "B"
@@ -32,10 +42,56 @@ def test_symbol_rejects_duplicate_pin_numbers() -> None:
             id="bad:dup",
             name="Bad",
             pins=[
-                Pin(number="1", name="A", position=Point(x=0, y=0), electrical_type=PinElectricalType.PASSIVE),
-                Pin(number="1", name="B", position=Point(x=1, y=0), electrical_type=PinElectricalType.PASSIVE),
+                Pin(
+                    number="1",
+                    name="A",
+                    position=Point(x=0, y=0),
+                    electrical_type=PinElectricalType.PASSIVE,
+                ),
+                Pin(
+                    number="1",
+                    name="B",
+                    position=Point(x=1, y=0),
+                    electrical_type=PinElectricalType.PASSIVE,
+                ),
             ],
         )
+
+
+def test_symbol_pin_lookup_missing_number_raises_key_error() -> None:
+    symbol = Symbol(
+        id="stdlib:R",
+        name="Resistor",
+        pins=[
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=0, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    )
+
+    with pytest.raises(KeyError):
+        symbol.pin_by_number("2")
+
+
+def test_symbol_pins_cannot_be_appended_after_construction() -> None:
+    symbol = Symbol(
+        id="stdlib:R",
+        name="Resistor",
+        pins=[
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=0, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    )
+
+    with pytest.raises(AttributeError):
+        symbol.pins.append(Pin(number="2", name="B", position=Point(x=10, y=0)))
 
 
 def test_footprint_pad_lookup_by_number() -> None:
@@ -43,8 +99,76 @@ def test_footprint_pad_lookup_by_number() -> None:
         id="stdlib:R_0603",
         name="R_0603",
         pads=[
-            Pad(number="1", position=Point(x=-500_000, y=0), size_x=800_000, size_y=900_000, shape=PadShape.RECT),
-            Pad(number="2", position=Point(x=500_000, y=0), size_x=800_000, size_y=900_000, shape=PadShape.RECT),
+            Pad(
+                number="1",
+                position=Point(x=-500_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=500_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
         ],
     )
     assert footprint.pad_by_number("1").position.x == -500_000
+
+
+def test_footprint_rejects_duplicate_pad_numbers() -> None:
+    with pytest.raises(ValidationError):
+        Footprint(
+            id="bad:dup",
+            name="Bad",
+            pads=[
+                Pad(number="1", position=Point(x=0, y=0), size_x=800_000, size_y=900_000),
+                Pad(number="1", position=Point(x=1, y=0), size_x=800_000, size_y=900_000),
+            ],
+        )
+
+
+def test_footprint_pad_lookup_missing_number_raises_key_error() -> None:
+    footprint = Footprint(
+        id="stdlib:R_0603",
+        name="R_0603",
+        pads=[
+            Pad(number="1", position=Point(x=-500_000, y=0), size_x=800_000, size_y=900_000),
+        ],
+    )
+
+    with pytest.raises(KeyError):
+        footprint.pad_by_number("2")
+
+
+def test_footprint_pads_cannot_be_appended_after_construction() -> None:
+    footprint = Footprint(
+        id="stdlib:R_0603",
+        name="R_0603",
+        pads=[
+            Pad(number="1", position=Point(x=-500_000, y=0), size_x=800_000, size_y=900_000),
+        ],
+    )
+
+    with pytest.raises(AttributeError):
+        footprint.pads.append(
+            Pad(number="2", position=Point(x=500_000, y=0), size_x=800_000, size_y=900_000)
+        )
+
+
+@pytest.mark.parametrize(
+    ("size_x", "size_y", "drill"),
+    [
+        (0, 900_000, None),
+        (800_000, 0, None),
+        (800_000, 900_000, 0),
+        (800_000, 900_000, -1),
+    ],
+)
+def test_pad_rejects_invalid_dimensions_and_drill(
+    size_x: int, size_y: int, drill: int | None
+) -> None:
+    with pytest.raises(ValidationError):
+        Pad(number="1", position=Point(x=0, y=0), size_x=size_x, size_y=size_y, drill=drill)
