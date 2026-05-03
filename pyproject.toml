@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling>=1.25"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pcbsmith"
+version = "0.1.0"
+description = "Prompt-aware PCB design foundation with validated schematic and board data models."
+readme = "README.md"
+requires-python = ">=3.11,<3.14"
+license = "AGPL-3.0-or-later"
+authors = [{ name = "PCBSmith contributors" }]
+dependencies = [
+  "pydantic>=2.7,<3",
+]
+
+[project.optional-dependencies]
+dev = [
+  "hypothesis>=6.100",
+  "import-linter>=2.0",
+  "mypy>=1.10",
+  "pytest>=8.0",
+  "ruff>=0.5",
+]
+
+[project.scripts]
+pcbsmith = "pcbsmith.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pcbsmith"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+mypy_path = "src"
+plugins = ["pydantic.mypy"]
+
+[tool.importlinter]
+root_package = "pcbsmith"
+
+[[tool.importlinter.contracts]]
+name = "Core does not import services or CLI"
+type = "forbidden"
+source_modules = ["pcbsmith.core"]
+forbidden_modules = ["pcbsmith.services", "pcbsmith.cli"]
+
+[[tool.importlinter.contracts]]
+name = "Services do not import CLI"
+type = "forbidden"
+source_modules = ["pcbsmith.services"]
+forbidden_modules = ["pcbsmith.cli"]
