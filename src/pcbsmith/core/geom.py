@@ -13,6 +13,13 @@ def nm_to_mm(value: int) -> float:
     return value / NM_PER_MM
 
 
+def _snap_axis(value: int, grid_nm: int) -> int:
+    """Snap to the nearest grid line, with half-grid ties away from zero."""
+    magnitude = abs(value)
+    snapped = ((magnitude * 2 + grid_nm) // (grid_nm * 2)) * grid_nm
+    return snapped if value >= 0 else -snapped
+
+
 class Vec(BaseModel):
     model_config = ConfigDict(frozen=True)
 
@@ -70,6 +77,6 @@ def snap(point: Point, grid_nm: int) -> Point:
     if grid_nm <= 0:
         raise ValueError("grid_nm must be positive")
     return Point(
-        x=round(point.x / grid_nm) * grid_nm,
-        y=round(point.y / grid_nm) * grid_nm,
+        x=_snap_axis(point.x, grid_nm),
+        y=_snap_axis(point.y, grid_nm),
     )

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from hypothesis import given, strategies as st
+from hypothesis import given
+from hypothesis import strategies as st
 
 from pcbsmith.core.geom import Box, Point, Vec, mm_to_nm, nm_to_mm, snap
 
@@ -36,6 +37,27 @@ def test_snap_is_idempotent(x: int, y: int) -> None:
     assert once == twice
     assert once.x % grid == 0
     assert once.y % grid == 0
+
+
+def test_snap_half_grid_positive_rounds_away_from_zero() -> None:
+    assert snap(Point(5, 0), 10) == Point(10, 0)
+
+
+def test_snap_half_grid_negative_rounds_away_from_zero() -> None:
+    assert snap(Point(-5, 0), 10) == Point(-10, 0)
+
+
+def test_snap_negative_values_round_to_nearest_grid() -> None:
+    assert snap(Point(-14, -16), 10) == Point(-10, -20)
+
+
+def test_snap_rejects_non_positive_grid() -> None:
+    try:
+        snap(Point(0, 0), 0)
+    except ValueError as error:
+        assert str(error) == "grid_nm must be positive"
+    else:
+        raise AssertionError("Expected ValueError")
 
 
 def test_box_contains_closed_edges() -> None:
