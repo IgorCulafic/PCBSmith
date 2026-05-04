@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "name": "Voltage Divider",
+  "schematics": ["schematics/main.sch.json"],
+  "boards": ["boards/main.brd.json"],
+  "libraries": [{"id": "stdlib", "path": null}],
+  "design_rules": {
+    "min_trace_width": 150000,
+    "min_clearance": 150000,
+    "min_drill": 300000
+  }
+}

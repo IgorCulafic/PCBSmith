@@ -1,0 +1,21 @@
+{
+  "id": "main",
+  "symbols": [
+    {"reference": "V1", "symbol_id": "stdlib:VCC", "value": "VCC", "position": {"x": 0, "y": 0}, "rotation_deg": 0, "footprint_id": null},
+    {"reference": "R1", "symbol_id": "stdlib:R", "value": "10k", "position": {"x": 5080000, "y": 0}, "rotation_deg": 0, "footprint_id": "stdlib:R_0603"},
+    {"reference": "R2", "symbol_id": "stdlib:R", "value": "10k", "position": {"x": 20320000, "y": 0}, "rotation_deg": 0, "footprint_id": "stdlib:R_0603"},
+    {"reference": "G1", "symbol_id": "stdlib:GND", "value": "GND", "position": {"x": 30480000, "y": 0}, "rotation_deg": 0, "footprint_id": null}
+  ],
+  "wires": [
+    {"points": [{"x": 0, "y": 0}, {"x": 0, "y": 0}]},
+    {"points": [{"x": 10160000, "y": 0}, {"x": 15240000, "y": 0}]},
+    {"points": [{"x": 25400000, "y": 0}, {"x": 30480000, "y": 0}]}
+  ],
+  "junctions": [],
+  "labels": [
+    {"name": "VCC", "position": {"x": 0, "y": 0}},
+    {"name": "OUT", "position": {"x": 15240000, "y": 0}},
+    {"name": "GND", "position": {"x": 30480000, "y": 0}}
+  ],
+  "no_connects": []
+}
