@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from enum import StrEnum
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pcbsmith.core.geom import Point
 
@@ -30,7 +30,7 @@ class Trace(BaseModel):
     net_name: str
     layer: Layer
     points: tuple[Point, ...] = Field(min_length=2)
-    width: int
+    width: int = Field(gt=0)
 
 
 class Via(BaseModel):
@@ -38,8 +38,14 @@ class Via(BaseModel):
 
     net_name: str
     position: Point
-    drill: int
-    diameter: int
+    drill: int = Field(gt=0)
+    diameter: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def diameter_must_fit_drill(self) -> Via:
+        if self.diameter < self.drill:
+            raise ValueError("diameter must be greater than or equal to drill")
+        return self
 
 
 class Zone(BaseModel):
