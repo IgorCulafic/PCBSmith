@@ -19,6 +19,8 @@ from pcbsmith.services.project_io import (
 
 def _cmd_new(args: argparse.Namespace) -> int:
     project_dir = Path(args.project)
+    if project_dir.exists() or (project_dir / "project.pcbsmith.json").exists():
+        raise ValueError(f"Project target already exists: {project_dir}")
     project = create_project(project_dir, args.name)
     print(f"Created project '{project.name}' at {project_dir}")
     return 0
