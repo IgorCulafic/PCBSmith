@@ -4,6 +4,20 @@ PCBSmith is an open-source PCB design application foundation. The long-term goal
 
 Phase 0 is deliberately headless. It builds the data model, project I/O, netlist derivation, minimal ERC, and CLI before any GUI or LLM workflow.
 
+## Phase 0 CLI
+
+The Phase 0 CLI is available through the installed `pcbsmith` script or as a Python module:
+
+```powershell
+python -m pcbsmith.cli new .\demo --name "Demo Board"
+python -m pcbsmith.cli info .\demo
+python -m pcbsmith.cli validate .\demo
+python -m pcbsmith.cli netlist .\demo
+python -m pcbsmith.cli erc .\demo
+```
+
+The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
+
 ## Hard Rules
 
 - Schematic and PCB are separate domains linked by a netlist.
