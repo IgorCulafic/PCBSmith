@@ -172,3 +172,8 @@ def test_pad_rejects_invalid_dimensions_and_drill(
 ) -> None:
     with pytest.raises(ValidationError):
         Pad(number="1", position=Point(x=0, y=0), size_x=size_x, size_y=size_y, drill=drill)
+
+
+def test_symbol_rejects_unknown_fields() -> None:
+    with pytest.raises(ValidationError):
+        Symbol.model_validate({"id": "stdlib:R", "name": "Resistor", "pinz": []})

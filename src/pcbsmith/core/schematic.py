@@ -6,7 +6,7 @@ from pcbsmith.core.geom import Point
 
 
 class SymbolInstance(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     reference: str
     symbol_id: str
@@ -17,32 +17,32 @@ class SymbolInstance(BaseModel):
 
 
 class Wire(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     points: tuple[Point, ...] = Field(min_length=2)
 
 
 class Junction(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     position: Point
 
 
 class NetLabel(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: str
     position: Point
 
 
 class NoConnect(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     position: Point
 
 
 class Schematic(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
     symbols: tuple[SymbolInstance, ...] = ()

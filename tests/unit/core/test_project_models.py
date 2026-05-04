@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+from pydantic import ValidationError
+
 from pcbsmith.core.project import DesignRules, Project
 
 
@@ -16,3 +19,8 @@ def test_design_rules_reject_non_positive_clearance() -> None:
         assert "positive" in str(exc)
     else:
         raise AssertionError("zero clearance should fail")
+
+
+def test_project_rejects_unknown_json_fields() -> None:
+    with pytest.raises(ValidationError):
+        Project.model_validate_json('{"name": "Voltage Divider", "schematicz": []}')

@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import pytest
+from pydantic import ValidationError
+
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, Schematic, SymbolInstance, Wire
 
@@ -40,3 +43,8 @@ def test_schematic_accepts_wires_and_labels() -> None:
         labels=[NetLabel(name="VIN", position=Point(x=0, y=0))],
     )
     assert schematic.labels[0].name == "VIN"
+
+
+def test_schematic_rejects_unknown_json_fields() -> None:
+    with pytest.raises(ValidationError):
+        Schematic.model_validate_json('{"id": "main", "symbolz": []}')

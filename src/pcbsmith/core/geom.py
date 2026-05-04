@@ -21,7 +21,7 @@ def _snap_axis(value: int, grid_nm: int) -> int:
 
 
 class Vec(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     dx: int
     dy: int
@@ -31,7 +31,7 @@ class Vec(BaseModel):
 
 
 class Point(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     x: int
     y: int
@@ -51,7 +51,7 @@ class Point(BaseModel):
 
 
 class Box(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     left: int
     top: int
