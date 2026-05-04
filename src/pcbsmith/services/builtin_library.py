@@ -9,8 +9,18 @@ SYMBOLS: dict[str, Symbol] = {
         name="Resistor",
         default_footprint_id="stdlib:R_0603",
         pins=[
-            Pin(number="1", name="A", position=Point(x=-5_080_000, y=0), electrical_type=PinElectricalType.PASSIVE),
-            Pin(number="2", name="B", position=Point(x=5_080_000, y=0), electrical_type=PinElectricalType.PASSIVE),
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="B",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
         ],
     ),
     "stdlib:C": Symbol(
@@ -18,8 +28,18 @@ SYMBOLS: dict[str, Symbol] = {
         name="Capacitor",
         default_footprint_id="stdlib:C_0603",
         pins=[
-            Pin(number="1", name="A", position=Point(x=-5_080_000, y=0), electrical_type=PinElectricalType.PASSIVE),
-            Pin(number="2", name="B", position=Point(x=5_080_000, y=0), electrical_type=PinElectricalType.PASSIVE),
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="B",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
         ],
     ),
     "stdlib:LED": Symbol(
@@ -27,22 +47,42 @@ SYMBOLS: dict[str, Symbol] = {
         name="LED",
         default_footprint_id="stdlib:LED_0603",
         pins=[
-            Pin(number="1", name="K", position=Point(x=-5_080_000, y=0), electrical_type=PinElectricalType.PASSIVE),
-            Pin(number="2", name="A", position=Point(x=5_080_000, y=0), electrical_type=PinElectricalType.PASSIVE),
+            Pin(
+                number="1",
+                name="K",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="A",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
         ],
     ),
     "stdlib:VCC": Symbol(
         id="stdlib:VCC",
         name="Power Flag VCC",
         pins=[
-            Pin(number="1", name="VCC", position=Point(x=0, y=0), electrical_type=PinElectricalType.POWER_OUT),
+            Pin(
+                number="1",
+                name="VCC",
+                position=Point(x=0, y=0),
+                electrical_type=PinElectricalType.POWER_OUT,
+            ),
         ],
     ),
     "stdlib:GND": Symbol(
         id="stdlib:GND",
         name="Power Flag GND",
         pins=[
-            Pin(number="1", name="GND", position=Point(x=0, y=0), electrical_type=PinElectricalType.POWER_OUT),
+            Pin(
+                number="1",
+                name="GND",
+                position=Point(x=0, y=0),
+                electrical_type=PinElectricalType.POWER_OUT,
+            ),
         ],
     ),
     "stdlib:CONN_01X02": Symbol(
@@ -50,8 +90,18 @@ SYMBOLS: dict[str, Symbol] = {
         name="Connector 1x02",
         default_footprint_id="stdlib:PinHeader_1x02_P2.54mm",
         pins=[
-            Pin(number="1", name="Pin_1", position=Point(x=0, y=0), electrical_type=PinElectricalType.PASSIVE),
-            Pin(number="2", name="Pin_2", position=Point(x=0, y=2_540_000), electrical_type=PinElectricalType.PASSIVE),
+            Pin(
+                number="1",
+                name="Pin_1",
+                position=Point(x=0, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="Pin_2",
+                position=Point(x=0, y=2_540_000),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
         ],
     ),
 }
@@ -61,24 +111,60 @@ FOOTPRINTS: dict[str, Footprint] = {
         id="stdlib:R_0603",
         name="R_0603",
         pads=[
-            Pad(number="1", position=Point(x=-800_000, y=0), size_x=800_000, size_y=900_000, shape=PadShape.RECT),
-            Pad(number="2", position=Point(x=800_000, y=0), size_x=800_000, size_y=900_000, shape=PadShape.RECT),
+            Pad(
+                number="1",
+                position=Point(x=-800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
         ],
     ),
     "stdlib:C_0603": Footprint(
         id="stdlib:C_0603",
         name="C_0603",
         pads=[
-            Pad(number="1", position=Point(x=-800_000, y=0), size_x=800_000, size_y=900_000, shape=PadShape.RECT),
-            Pad(number="2", position=Point(x=800_000, y=0), size_x=800_000, size_y=900_000, shape=PadShape.RECT),
+            Pad(
+                number="1",
+                position=Point(x=-800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
         ],
     ),
     "stdlib:LED_0603": Footprint(
         id="stdlib:LED_0603",
         name="LED_0603",
         pads=[
-            Pad(number="1", position=Point(x=-800_000, y=0), size_x=800_000, size_y=900_000, shape=PadShape.RECT),
-            Pad(number="2", position=Point(x=800_000, y=0), size_x=800_000, size_y=900_000, shape=PadShape.RECT),
+            Pad(
+                number="1",
+                position=Point(x=-800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
         ],
     ),
     "stdlib:PinHeader_1x02_P2.54mm": Footprint(
