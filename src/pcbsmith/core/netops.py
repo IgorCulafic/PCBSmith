@@ -174,6 +174,7 @@ def derive_netlist(schematic: Schematic, symbols: dict[str, Symbol]) -> Netlist:
 
     conductor_roots = {uf.find(anchor) for anchor in conductor_anchors}
 
+    labelled_pins: dict[str, set[PinRef]] = defaultdict(set)
     nets: list[Net] = []
     unnamed_index = 1
     for _root, names in grouped_names.items():
@@ -188,9 +189,13 @@ def derive_netlist(schematic: Schematic, symbols: dict[str, Symbol]) -> Netlist:
         names = sorted(set(grouped_names.get(root, [])))
         if root not in conductor_roots and len(pins) == 1:
             continue
-        name = names[0] if names else f"N${unnamed_index}"
-        if not names:
-            unnamed_index += 1
+        if names:
+            labelled_pins[names[0]].update(pins)
+            continue
+        nets.append(Net(name=f"N${unnamed_index}", pins=frozenset(pins)))
+        unnamed_index += 1
+
+    for name, pins in labelled_pins.items():
         nets.append(Net(name=name, pins=frozenset(pins)))
 
     return Netlist(nets=tuple(sorted(nets, key=lambda net: net.name)))

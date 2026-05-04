@@ -166,6 +166,39 @@ def test_derive_netlist_preserves_single_pin_labelled_net() -> None:
     assert netlist.net_by_name("TEST").pins == frozenset({("R1", "1")})
 
 
+def test_derive_netlist_merges_disconnected_groups_with_same_label() -> None:
+    schematic = Schematic(
+        id="main",
+        symbols=[
+            SymbolInstance(
+                reference="R1",
+                symbol_id="stdlib:R",
+                value="10k",
+                position=Point(x=0, y=0),
+            ),
+            SymbolInstance(
+                reference="R2",
+                symbol_id="stdlib:R",
+                value="20k",
+                position=Point(x=100, y=0),
+            ),
+        ],
+        wires=[
+            Wire(points=[Point(x=-20, y=0), Point(x=0, y=0)]),
+            Wire(points=[Point(x=80, y=0), Point(x=100, y=0)]),
+        ],
+        labels=[
+            NetLabel(name="BUS", position=Point(x=-10, y=0)),
+            NetLabel(name="BUS", position=Point(x=90, y=0)),
+        ],
+    )
+
+    netlist = netops.derive_netlist(schematic, _symbols())
+
+    assert netlist.net_by_name("BUS").pins == frozenset({("R1", "1"), ("R2", "1")})
+    assert sum(net.name == "BUS" for net in netlist.nets) == 1
+
+
 def test_derive_netlist_connects_wire_endpoint_to_segment_t() -> None:
     symbols = {"test:T": _terminal_symbol()}
     schematic = Schematic(
@@ -324,6 +357,70 @@ def test_derive_netlist_honors_180_degree_symbol_rotation() -> None:
     netlist = netops.derive_netlist(schematic, symbols)
 
     assert netlist.net_by_name("ROT").pins == frozenset({("J1", "1"), ("J2", "1")})
+
+
+def test_derive_netlist_honors_90_degree_symbol_rotation() -> None:
+    symbols = {
+        "test:OFFSET": _offset_pin_symbol(),
+        "test:T": _terminal_symbol(),
+    }
+    schematic = Schematic(
+        id="main",
+        symbols=[
+            SymbolInstance(
+                reference="J1",
+                symbol_id="test:OFFSET",
+                value="test",
+                position=Point(x=0, y=0),
+                rotation_deg=90,
+            ),
+            SymbolInstance(
+                reference="J2",
+                symbol_id="test:T",
+                value="test",
+                position=Point(x=0, y=10),
+            ),
+        ],
+        wires=[Wire(points=[Point(x=0, y=0), Point(x=0, y=10)])],
+        labels=[NetLabel(name="ROT90", position=Point(x=0, y=5))],
+    )
+
+    netlist = netops.derive_netlist(schematic, symbols)
+
+    assert netlist.net_by_name("ROT90").pins == frozenset({("J1", "1"), ("J2", "1")})
+
+
+def test_derive_netlist_honors_270_degree_symbol_rotation() -> None:
+    symbols = {
+        "test:OFFSET": _offset_pin_symbol(),
+        "test:T": _terminal_symbol(),
+    }
+    schematic = Schematic(
+        id="main",
+        symbols=[
+            SymbolInstance(
+                reference="J1",
+                symbol_id="test:OFFSET",
+                value="test",
+                position=Point(x=0, y=0),
+                rotation_deg=270,
+            ),
+            SymbolInstance(
+                reference="J2",
+                symbol_id="test:T",
+                value="test",
+                position=Point(x=0, y=-10),
+            ),
+        ],
+        wires=[Wire(points=[Point(x=0, y=-10), Point(x=0, y=0)])],
+        labels=[NetLabel(name="ROT270", position=Point(x=0, y=-5))],
+    )
+
+    netlist = netops.derive_netlist(schematic, symbols)
+
+    assert netlist.net_by_name("ROT270").pins == frozenset(
+        {("J1", "1"), ("J2", "1")}
+    )
 
 
 def test_derive_netlist_raises_for_unsupported_symbol_rotation() -> None:
