@@ -66,6 +66,34 @@ def test_new_creates_project_files(tmp_path: Path) -> None:
     assert (project_dir / "boards" / "main.brd.json").exists()
 
 
+def test_new_refuses_to_overwrite_existing_directory(tmp_path: Path) -> None:
+    project_dir = tmp_path / "created"
+    project_dir.mkdir()
+
+    result = _run_cli("new", str(project_dir), "--name", "Created Board")
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert result.stderr.startswith("error:")
+    assert not (project_dir / "project.pcbsmith.json").exists()
+    assert not (project_dir / "schematics" / "main.sch.json").exists()
+    assert not (project_dir / "boards" / "main.brd.json").exists()
+
+
+def test_new_refuses_to_overwrite_existing_project_file(tmp_path: Path) -> None:
+    project_dir = tmp_path / "created"
+    project_dir.mkdir()
+    project_file = project_dir / "project.pcbsmith.json"
+    project_file.write_text("existing project\n", encoding="utf-8")
+
+    result = _run_cli("new", str(project_dir), "--name", "Created Board")
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert result.stderr.startswith("error:")
+    assert project_file.read_text(encoding="utf-8") == "existing project\n"
+
+
 def test_validate_loads_referenced_design_files(tmp_path: Path) -> None:
     project_dir = tmp_path / "voltage_divider"
     shutil.copytree(FIXTURE, project_dir)
