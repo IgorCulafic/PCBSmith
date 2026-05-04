@@ -1,2 +1,12 @@
 .superpowers/
 .worktrees/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.codex-tmp/
+.tmp/
+pytest-*/
+pytest-cache-files-*/
+phase0-*-pytest*/
+phase0-pytest-basetemp/
+docs/reference/PCB_Application_Specification.docx
