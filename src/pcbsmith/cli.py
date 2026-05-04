@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import sys
+from collections.abc import Callable
 from pathlib import Path
 
 from pcbsmith.core.netops import derive_netlist
@@ -107,7 +108,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(argv)
     try:
-        return args.func(args)
+        command: Callable[[argparse.Namespace], int] = args.func
+        return command(args)
     except (ProjectIOError, KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
