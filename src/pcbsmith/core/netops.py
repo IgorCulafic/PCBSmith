@@ -167,8 +167,8 @@ def derive_netlist(schematic: Schematic, symbols: dict[str, Symbol]) -> Netlist:
 
     grouped_pins: dict[Hashable, set[PinRef]] = defaultdict(set)
     grouped_names: dict[Hashable, list[str]] = defaultdict(list)
-    for anchor, pins in pin_at_anchor.items():
-        grouped_pins[uf.find(anchor)].update(pins)
+    for anchor, anchor_pins in pin_at_anchor.items():
+        grouped_pins[uf.find(anchor)].update(anchor_pins)
     for anchor, names in label_at_anchor.items():
         grouped_names[uf.find(anchor)].extend(names)
 
@@ -177,25 +177,25 @@ def derive_netlist(schematic: Schematic, symbols: dict[str, Symbol]) -> Netlist:
     labelled_pins: dict[str, set[PinRef]] = defaultdict(set)
     nets: list[Net] = []
     unnamed_index = 1
-    for _root, names in grouped_names.items():
-        distinct_names = sorted(set(names))
+    for _root, net_names in grouped_names.items():
+        distinct_names = sorted(set(net_names))
         if len(distinct_names) > 1:
             labels = ", ".join(distinct_names)
             raise NetlistDerivationError(f"Conflicting net labels: {labels}")
 
-    for root, pins in grouped_pins.items():
-        if not pins:
+    for root, net_pins in grouped_pins.items():
+        if not net_pins:
             continue
-        names = sorted(set(grouped_names.get(root, [])))
-        if root not in conductor_roots and len(pins) == 1:
+        net_names = sorted(set(grouped_names.get(root, [])))
+        if root not in conductor_roots and len(net_pins) == 1:
             continue
-        if names:
-            labelled_pins[names[0]].update(pins)
+        if net_names:
+            labelled_pins[net_names[0]].update(net_pins)
             continue
-        nets.append(Net(name=f"N${unnamed_index}", pins=frozenset(pins)))
+        nets.append(Net(name=f"N${unnamed_index}", pins=frozenset(net_pins)))
         unnamed_index += 1
 
-    for name, pins in labelled_pins.items():
-        nets.append(Net(name=name, pins=frozenset(pins)))
+    for name, net_pins in labelled_pins.items():
+        nets.append(Net(name=name, pins=frozenset(net_pins)))
 
     return Netlist(nets=tuple(sorted(nets, key=lambda net: net.name)))
