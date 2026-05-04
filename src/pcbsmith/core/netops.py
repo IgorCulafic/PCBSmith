@@ -20,14 +20,14 @@ class NetlistDerivationError(ValueError):
 
 
 class Net(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     name: str
     pins: frozenset[PinRef]
 
 
 class Netlist(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     nets: tuple[Net, ...]
 

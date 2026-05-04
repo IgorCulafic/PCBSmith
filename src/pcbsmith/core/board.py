@@ -16,7 +16,7 @@ class Layer(StrEnum):
 
 
 class FootprintInstance(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     reference: str
     footprint_id: str
@@ -25,7 +25,7 @@ class FootprintInstance(BaseModel):
 
 
 class Trace(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     net_name: str
     layer: Layer
@@ -34,7 +34,7 @@ class Trace(BaseModel):
 
 
 class Via(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     net_name: str
     position: Point
@@ -49,7 +49,7 @@ class Via(BaseModel):
 
 
 class Zone(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     net_name: str
     layer: Layer
@@ -57,7 +57,7 @@ class Zone(BaseModel):
 
 
 class Board(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
     footprints: tuple[FootprintInstance, ...] = ()

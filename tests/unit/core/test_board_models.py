@@ -71,3 +71,8 @@ def test_board_round_trips_json_collections_as_tuples() -> None:
     assert isinstance(restored.traces, tuple)
     assert isinstance(restored.traces[0].points, tuple)
     assert isinstance(restored.vias, tuple)
+
+
+def test_board_rejects_unknown_fields() -> None:
+    with pytest.raises(ValidationError):
+        Board.model_validate({"id": "main", "footprintz": []})

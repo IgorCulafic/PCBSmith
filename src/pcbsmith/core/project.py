@@ -4,7 +4,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class DesignRules(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     min_trace_width: int = 150_000
     min_clearance: int = 150_000
@@ -19,14 +19,14 @@ class DesignRules(BaseModel):
 
 
 class LibraryRef(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
     path: str | None = None
 
 
 class Project(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     version: int = 1
     name: str

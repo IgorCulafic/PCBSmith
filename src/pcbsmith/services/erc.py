@@ -9,7 +9,7 @@ from pcbsmith.core.schematic import Schematic, SymbolInstance
 
 
 class ERCIssue(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     code: str
     message: str

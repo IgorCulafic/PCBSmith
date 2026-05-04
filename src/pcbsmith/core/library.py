@@ -25,7 +25,7 @@ class PadShape(StrEnum):
 
 
 class Pin(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     number: str
     name: str
@@ -34,7 +34,7 @@ class Pin(BaseModel):
 
 
 class Symbol(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
     name: str
@@ -57,7 +57,7 @@ class Symbol(BaseModel):
 
 
 class Pad(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     number: str
     position: Point
@@ -68,7 +68,7 @@ class Pad(BaseModel):
 
 
 class Footprint(BaseModel):
-    model_config = ConfigDict(frozen=True)
+    model_config = ConfigDict(frozen=True, extra="forbid")
 
     id: str
     name: str
