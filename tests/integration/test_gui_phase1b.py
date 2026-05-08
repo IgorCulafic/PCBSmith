@@ -62,3 +62,27 @@ def test_scene_selected_key_returns_none_for_multiple_selected_items() -> None:
         item.setSelected(True)
 
     assert scene.selected_key() is None
+
+
+def test_scene_undo_redo_tracks_edit_commands() -> None:
+    scene = SchematicScene()
+    scene.place_resistor(Point(x=0, y=0))
+    scene.move_selection(SelectionKey("symbol", "R1"), Point(x=2_540_000, y=0))
+
+    scene.undo()
+    assert scene.editor_state.to_schematic().symbols[0].position == Point(x=0, y=0)
+
+    scene.redo()
+    assert scene.editor_state.to_schematic().symbols[0].position == Point(
+        x=2_540_000, y=0
+    )
+
+
+def test_load_editor_state_resets_history() -> None:
+    scene = SchematicScene()
+    scene.place_resistor(Point(x=0, y=0))
+
+    scene.load_editor_state(EditorState.blank("replacement"))
+
+    assert not scene.can_undo
+    assert not scene.can_redo

@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsSceneMouseE
 
 from pcbsmith.core.geom import Point, snap
 from pcbsmith.ui.editor_state import EditorState
+from pcbsmith.ui.history import EditHistory
 from pcbsmith.ui.items import NetLabelItem, NoConnectItem, SymbolItem, WireItem
 from pcbsmith.ui.schematic_view import GRID_NM
 from pcbsmith.ui.selection import SelectionKey
@@ -25,6 +26,7 @@ class SchematicScene(QGraphicsScene):
 
         super().__init__(parent)
         self._editor_state = EditorState.blank("main")
+        self._history = EditHistory(self._editor_state)
         self._symbol_items: list[SymbolItem] = []
         self._wire_items: list[WireItem] = []
         self._label_items: list[NetLabelItem] = []
@@ -36,7 +38,15 @@ class SchematicScene(QGraphicsScene):
     def editor_state(self) -> EditorState:
         return self._editor_state
 
-    def load_editor_state(self, state: EditorState) -> None:
+    @property
+    def can_undo(self) -> bool:
+        return self._history.can_undo
+
+    @property
+    def can_redo(self) -> bool:
+        return self._history.can_redo
+
+    def _render_editor_state(self, state: EditorState) -> None:
         self.clear()
         self._editor_state = state
         self._pending_wire_start = None
@@ -60,6 +70,10 @@ class SchematicScene(QGraphicsScene):
         ):
             self.addItem(item)
 
+    def load_editor_state(self, state: EditorState) -> None:
+        self._history.reset(state)
+        self._render_editor_state(state)
+
     def symbol_items(self) -> tuple[SymbolItem, ...]:
         return tuple(self._symbol_items)
 
@@ -73,7 +87,14 @@ class SchematicScene(QGraphicsScene):
         return tuple(self._no_connect_items)
 
     def apply_editor_state(self, state: EditorState) -> None:
-        self.load_editor_state(state)
+        committed = self._history.commit(state)
+        self._render_editor_state(committed)
+
+    def undo(self) -> None:
+        self._render_editor_state(self._history.undo())
+
+    def redo(self) -> None:
+        self._render_editor_state(self._history.redo())
 
     def set_tool(self, tool: ToolName) -> None:
         if tool not in self._tools:
