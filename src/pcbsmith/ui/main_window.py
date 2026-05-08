@@ -16,7 +16,7 @@ from PySide6.QtWidgets import (
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.project import Project
-from pcbsmith.services import project_io
+from pcbsmith.services import erc, project_io
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.project_io import ProjectIOError
 from pcbsmith.ui.editor_state import EditorState
@@ -81,9 +81,31 @@ class MainWindow(QMainWindow):
         fit_action.triggered.connect(self.view.fit_to_contents)
         toolbar.addAction(fit_action)
 
+        run_erc = QAction("ERC", self)
+        run_erc.triggered.connect(self.run_erc)
+        toolbar.addAction(run_erc)
+
     def place_resistor_at_origin(self) -> None:
         self.scene.place_resistor(Point(x=0, y=0))
         self.console.append("Placed resistor")
+
+    def run_erc(self) -> None:
+        try:
+            issues = erc.run_erc(self.scene.editor_state.to_schematic(), SYMBOLS)
+        except KeyError as exc:
+            symbol_id = exc.args[0] if exc.args else str(exc)
+            self.show_error(f"ERC failed: Unknown symbol {symbol_id}")
+            return
+        except ValueError as exc:
+            self.show_error(f"ERC failed: {exc}")
+            return
+
+        if not issues:
+            self.console.append("ERC passed")
+            return
+
+        for issue in issues:
+            self.console.append(f"{issue.code}: {issue.message} ({issue.where})")
 
     def create_project(self, project_dir: Path, name: str) -> None:
         try:
