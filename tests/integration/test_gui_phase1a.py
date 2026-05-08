@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pcbsmith.core.geom import Point
 from pcbsmith.ui.editor_state import EditorState
+from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
 
 
@@ -37,3 +38,22 @@ def test_scene_represents_bent_wire_segments() -> None:
 
     wire_item = scene.wire_items()[0]
     assert wire_item.segments() == ((start, bend), (bend, end))
+
+
+def test_main_window_has_phase1a_docks(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.library_dock.windowTitle() == "Library"
+    assert window.console_dock.windowTitle() == "Console"
+    assert window.scene is not None
+    assert window.view is not None
+
+
+def test_library_can_place_resistor(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.place_resistor_at_origin()
+
+    assert [item.symbol.reference for item in window.scene.symbol_items()] == ["R1"]
