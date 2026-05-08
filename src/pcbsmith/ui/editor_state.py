@@ -6,7 +6,6 @@ from dataclasses import dataclass, replace
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import Schematic, SymbolInstance, Wire
 
-
 _REFERENCE_PATTERN = re.compile(r"^([A-Z]+)([0-9]+)$")
 _PREFIX_BY_SYMBOL = {
     "stdlib:R": "R",

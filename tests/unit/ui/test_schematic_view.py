@@ -7,9 +7,9 @@ from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsScene
 from pcbsmith.core.geom import mm_to_nm
 from pcbsmith.ui.schematic_view import (
     GRID_NM,
-    SchematicView,
     ZOOM_IN_FACTOR,
     ZOOM_OUT_FACTOR,
+    SchematicView,
 )
 
 
