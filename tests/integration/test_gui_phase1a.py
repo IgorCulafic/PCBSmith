@@ -1,6 +1,12 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from pcbsmith.core.geom import Point
+from pcbsmith.core.project import Project
+from pcbsmith.core.schematic import Schematic
+from pcbsmith.services import project_io
+from pcbsmith.services.project_io import ProjectIOError
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
@@ -57,3 +63,127 @@ def test_library_can_place_resistor(qtbot) -> None:  # type: ignore[no-untyped-d
     window.place_resistor_at_origin()
 
     assert [item.symbol.reference for item in window.scene.symbol_items()] == ["R1"]
+
+
+def test_gui_saves_and_reopens_schematic(tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
+    project_dir = tmp_path / "demo"
+    project_io.create_project(project_dir, "Demo")
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.open_project(project_dir)
+    window.scene.place_resistor(Point(x=0, y=0), value="10k")
+    window.scene.place_resistor(Point(x=20_320_000, y=0), value="1k")
+    window.scene.add_wire(Point(x=5_080_000, y=0), Point(x=15_240_000, y=0))
+    window.save_project()
+
+    reopened = MainWindow()
+    qtbot.addWidget(reopened)
+    reopened.open_project(project_dir)
+
+    schematic = reopened.scene.editor_state.to_schematic()
+    assert [symbol.reference for symbol in schematic.symbols] == ["R1", "R2"]
+    assert len(schematic.wires) == 1
+
+
+def test_open_project_reports_project_io_errors(tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    errors: list[str] = []
+    window.show_error = errors.append  # type: ignore[method-assign]
+
+    window.open_project(tmp_path / "missing")
+
+    assert errors == [f"Project file not found: {tmp_path / 'missing' / project_io.PROJECT_FILE}"]
+    assert window.project_dir is None
+    assert window.project is None
+
+
+def test_open_project_reports_missing_schematic_list(tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
+    project_dir = tmp_path / "demo"
+    project_io.save_project(project_dir, Project(name="Demo", schematics=()))
+    window = MainWindow()
+    qtbot.addWidget(window)
+    errors: list[str] = []
+    window.show_error = errors.append  # type: ignore[method-assign]
+
+    window.open_project(project_dir)
+
+    assert errors == ["Project has no schematics"]
+    assert window.project_dir is None
+    assert window.project is None
+
+
+def test_create_project_reports_project_io_errors(monkeypatch, tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
+    def fail_create_project(project_dir, name):  # type: ignore[no-untyped-def]
+        raise ProjectIOError("create failed")
+
+    monkeypatch.setattr(project_io, "create_project", fail_create_project)
+    window = MainWindow()
+    qtbot.addWidget(window)
+    errors: list[str] = []
+    window.show_error = errors.append  # type: ignore[method-assign]
+
+    window.create_project(tmp_path / "demo", "Demo")
+
+    assert errors == ["create failed"]
+    assert window.project_dir is None
+    assert window.project is None
+
+
+def test_save_project_reports_project_io_errors(monkeypatch, tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
+    project_dir = tmp_path / "demo"
+    project_io.create_project(project_dir, "Demo")
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.open_project(project_dir)
+    errors: list[str] = []
+    window.show_error = errors.append  # type: ignore[method-assign]
+
+    def fail_save_schematic(project_dir, relative_path, schematic):  # type: ignore[no-untyped-def]
+        raise ProjectIOError("save failed")
+
+    monkeypatch.setattr(project_io, "save_schematic", fail_save_schematic)
+
+    window.save_project()
+
+    assert errors == ["save failed"]
+
+
+def test_save_project_reports_missing_schematic_list(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.project_dir = Path("demo")
+    window.project = Project(name="Demo", schematics=())
+    errors: list[str] = []
+    window.show_error = errors.append  # type: ignore[method-assign]
+
+    window.save_project()
+
+    assert errors == ["No schematic is open"]
+
+
+def test_save_project_uses_opened_schematic_path(tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
+    project_dir = tmp_path / "demo"
+    project_io.create_project(project_dir, "Demo")
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.open_project(project_dir)
+    window.scene.place_resistor(Point(x=0, y=0), value="10k")
+
+    project_io.save_schematic(project_dir, "schematics/other.sch.json", Schematic(id="other"))
+    project_io.save_project(
+        project_dir,
+        Project(name="Demo", schematics=("schematics/other.sch.json",)),
+    )
+
+    window.save_project()
+
+    opened_schematic = project_io.load_schematic(project_dir, "schematics/main.sch.json")
+    changed_manifest_schematic = project_io.load_schematic(
+        project_dir,
+        "schematics/other.sch.json",
+    )
+    assert [symbol.reference for symbol in opened_schematic.symbols] == ["R1"]
+    assert changed_manifest_schematic.symbols == ()
