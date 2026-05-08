@@ -12,6 +12,7 @@ license = "AGPL-3.0-or-later"
 authors = [{ name = "PCBSmith contributors" }]
 dependencies = [
   "pydantic>=2.7,<3",
+  "PySide6>=6.10,<7",
 ]
 
 [project.optional-dependencies]
@@ -20,11 +21,13 @@ dev = [
   "import-linter>=2.0",
   "mypy>=1.10",
   "pytest>=8.0",
+  "pytest-qt>=4.4",
   "ruff>=0.5",
 ]
 
 [project.scripts]
 pcbsmith = "pcbsmith.cli:main"
+pcbsmith-gui = "pcbsmith.ui.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pcbsmith"]
@@ -32,6 +35,7 @@ packages = ["src/pcbsmith"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-q"
+qt_api = "pyside6"
 
 [tool.ruff]
 line-length = 100
@@ -61,3 +65,9 @@ name = "Services do not import CLI"
 type = "forbidden"
 source_modules = ["pcbsmith.services"]
 forbidden_modules = ["pcbsmith.cli"]
+
+[[tool.importlinter.contracts]]
+name = "UI is the only layer that may import Qt"
+type = "forbidden"
+source_modules = ["pcbsmith.core", "pcbsmith.services", "pcbsmith.cli"]
+forbidden_modules = ["PySide6", "pcbsmith.ui"]
