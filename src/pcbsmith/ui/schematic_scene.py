@@ -2,17 +2,21 @@ from __future__ import annotations
 
 import sys
 
-from PySide6.QtCore import QObject
-from PySide6.QtWidgets import QApplication, QGraphicsScene
+from PySide6.QtCore import QObject, Qt
+from PySide6.QtGui import QKeyEvent
+from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsSceneMouseEvent
 
 from pcbsmith.core.geom import Point, snap
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.items import SymbolItem, WireItem
 from pcbsmith.ui.schematic_view import GRID_NM
 
+ToolName = str
+
 
 class SchematicScene(QGraphicsScene):
     _app: QApplication | None = None
+    _tools = frozenset(("select", "place_resistor", "wire"))
 
     def __init__(self, parent: QObject | None = None) -> None:
         if QApplication.instance() is None:
@@ -22,6 +26,8 @@ class SchematicScene(QGraphicsScene):
         self._editor_state = EditorState.blank("main")
         self._symbol_items: list[SymbolItem] = []
         self._wire_items: list[WireItem] = []
+        self._tool: ToolName = "select"
+        self._pending_wire_start: Point | None = None
 
     @property
     def editor_state(self) -> EditorState:
@@ -30,6 +36,7 @@ class SchematicScene(QGraphicsScene):
     def load_editor_state(self, state: EditorState) -> None:
         self.clear()
         self._editor_state = state
+        self._pending_wire_start = None
         self._symbol_items = [SymbolItem(symbol) for symbol in state.symbols]
         self._wire_items = [WireItem(wire) for wire in state.wires]
 
@@ -41,6 +48,27 @@ class SchematicScene(QGraphicsScene):
 
     def wire_items(self) -> tuple[WireItem, ...]:
         return tuple(self._wire_items)
+
+    def set_tool(self, tool: ToolName) -> None:
+        if tool not in self._tools:
+            raise ValueError(f"Unknown schematic tool: {tool}")
+
+        self._tool = tool
+        self._pending_wire_start = None
+
+    def handle_canvas_click(self, position: Point) -> None:
+        if self._tool == "place_resistor":
+            self.place_resistor(position)
+            return
+
+        if self._tool == "wire":
+            snapped_position = snap(position, GRID_NM)
+            if self._pending_wire_start is None:
+                self._pending_wire_start = snapped_position
+                return
+
+            self.add_wire(self._pending_wire_start, snapped_position)
+            self._pending_wire_start = None
 
     def place_resistor(self, position: Point, value: str = "10k") -> SymbolItem:
         state = self._editor_state.place_symbol(
@@ -55,6 +83,23 @@ class SchematicScene(QGraphicsScene):
         state = self._editor_state.add_wire((snap(start, GRID_NM), snap(end, GRID_NM)))
         self.load_editor_state(state)
         return self._wire_items[-1]
+
+    def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        if event.button() == Qt.MouseButton.LeftButton and self._tool != "select":
+            scene_pos = event.scenePos()
+            self.handle_canvas_click(Point(x=int(scene_pos.x()), y=int(scene_pos.y())))
+            event.accept()
+            return
+
+        super().mousePressEvent(event)
+
+    def keyPressEvent(self, event: QKeyEvent) -> None:
+        if event.key() == Qt.Key.Key_Escape:
+            self.set_tool("select")
+            event.accept()
+            return
+
+        super().keyPressEvent(event)
 
 
 __all__ = ["SchematicScene"]

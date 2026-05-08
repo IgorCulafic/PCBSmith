@@ -46,6 +46,39 @@ def test_scene_represents_bent_wire_segments() -> None:
     assert wire_item.segments() == ((start, bend), (bend, end))
 
 
+def test_scene_tools_place_resistor_and_wire() -> None:
+    scene = SchematicScene()
+
+    scene.set_tool("place_resistor")
+    scene.handle_canvas_click(Point(x=0, y=0))
+    scene.handle_canvas_click(Point(x=20_320_000, y=0))
+    scene.set_tool("wire")
+    scene.handle_canvas_click(Point(x=5_080_000, y=0))
+    scene.handle_canvas_click(Point(x=15_240_000, y=0))
+
+    schematic = scene.editor_state.to_schematic()
+    assert [symbol.reference for symbol in schematic.symbols] == ["R1", "R2"]
+    assert len(schematic.wires) == 1
+
+
+def test_scene_load_editor_state_clears_pending_wire_start() -> None:
+    scene = SchematicScene()
+    replacement_state = EditorState.blank("replacement").place_symbol(
+        "stdlib:R",
+        "10k",
+        Point(x=20_320_000, y=0),
+    )
+
+    scene.set_tool("wire")
+    scene.handle_canvas_click(Point(x=0, y=0))
+    scene.load_editor_state(replacement_state)
+    scene.handle_canvas_click(Point(x=15_240_000, y=0))
+
+    schematic = scene.editor_state.to_schematic()
+    assert [symbol.reference for symbol in schematic.symbols] == ["R1"]
+    assert schematic.wires == ()
+
+
 def test_main_window_has_phase1a_docks(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = MainWindow()
     qtbot.addWidget(window)
