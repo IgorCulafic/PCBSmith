@@ -12,12 +12,14 @@ from PySide6.QtWidgets import (
 )
 
 from pcbsmith.core.geom import Point
-from pcbsmith.core.schematic import SymbolInstance, Wire
+from pcbsmith.core.schematic import NetLabel, NoConnect, SymbolInstance, Wire
 
 SYMBOL_WIDTH = 6_000_000
 SYMBOL_HEIGHT = 2_200_000
 WIRE_BOUNDS_MARGIN = 250_000
 WIRE_PEN = QPen(QColor(20, 68, 130), 0)
+LABEL_TEXT_SCALE = 120_000
+NO_CONNECT_SIZE = 1_200_000
 
 
 class SymbolItem(QGraphicsItem):
@@ -104,7 +106,69 @@ class WireItem(QGraphicsItem):
         painter.restore()
 
 
+class NetLabelItem(QGraphicsTextItem):
+    def __init__(
+        self,
+        label: NetLabel,
+        index: int,
+        parent: QGraphicsItem | None = None,
+    ) -> None:
+        super().__init__(label.name, parent)
+        self.label = label
+        self.index = index
+
+        self.setPos(label.position.x, label.position.y)
+        self.setDefaultTextColor(QColor(152, 86, 18))
+        self.setScale(LABEL_TEXT_SCALE)
+        self.setFlags(
+            QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
+            | QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+        )
+
+
+class NoConnectItem(QGraphicsItem):
+    def __init__(
+        self,
+        no_connect: NoConnect,
+        index: int,
+        parent: QGraphicsItem | None = None,
+    ) -> None:
+        super().__init__(parent)
+        self.no_connect = no_connect
+        self.index = index
+
+        self.setPos(no_connect.position.x, no_connect.position.y)
+        self.setFlags(
+            QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
+            | QGraphicsItem.GraphicsItemFlag.ItemIsMovable
+        )
+
+    def boundingRect(self) -> QRectF:
+        half_size = NO_CONNECT_SIZE / 2
+        return QRectF(-half_size, -half_size, NO_CONNECT_SIZE, NO_CONNECT_SIZE)
+
+    def paint(
+        self,
+        painter: QPainter,
+        option: QStyleOptionGraphicsItem,
+        widget: QWidget | None = None,
+    ) -> None:
+        del option, widget
+
+        half_size = int(NO_CONNECT_SIZE / 2)
+        painter.save()
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        painter.setPen(QPen(QColor(152, 86, 18), 0))
+        painter.drawLine(-half_size, -half_size, half_size, half_size)
+        painter.drawLine(-half_size, half_size, half_size, -half_size)
+        painter.restore()
+
+
 __all__ = [
+    "LABEL_TEXT_SCALE",
+    "NO_CONNECT_SIZE",
+    "NetLabelItem",
+    "NoConnectItem",
     "SYMBOL_HEIGHT",
     "SYMBOL_WIDTH",
     "SymbolItem",
