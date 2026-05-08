@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, NoConnect, SymbolInstance, Wire
+from pcbsmith.ui.selection import SelectionKey
 
 SYMBOL_WIDTH = 6_000_000
 SYMBOL_HEIGHT = 2_200_000
@@ -48,6 +49,9 @@ class SymbolItem(QGraphicsItem):
             SYMBOL_HEIGHT,
         )
 
+    def selection_key(self) -> SelectionKey:
+        return SelectionKey("symbol", self.symbol.reference)
+
     def paint(
         self,
         painter: QPainter,
@@ -74,13 +78,22 @@ class SymbolItem(QGraphicsItem):
 
 
 class WireItem(QGraphicsItem):
-    def __init__(self, wire: Wire, parent: QGraphicsItem | None = None) -> None:
+    def __init__(
+        self,
+        wire: Wire,
+        index: int,
+        parent: QGraphicsItem | None = None,
+    ) -> None:
         super().__init__(parent)
         self.wire = wire
+        self.index = index
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
 
     def segments(self) -> tuple[tuple[Point, Point], ...]:
         return tuple(pairwise(self.wire.points))
+
+    def selection_key(self) -> SelectionKey:
+        return SelectionKey("wire", str(self.index))
 
     def boundingRect(self) -> QRectF:
         xs = [point.x for point in self.wire.points]
@@ -125,6 +138,9 @@ class NetLabelItem(QGraphicsTextItem):
             | QGraphicsItem.GraphicsItemFlag.ItemIsMovable
         )
 
+    def selection_key(self) -> SelectionKey:
+        return SelectionKey("label", str(self.index))
+
 
 class NoConnectItem(QGraphicsItem):
     def __init__(
@@ -142,6 +158,9 @@ class NoConnectItem(QGraphicsItem):
             QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
             | QGraphicsItem.GraphicsItemFlag.ItemIsMovable
         )
+
+    def selection_key(self) -> SelectionKey:
+        return SelectionKey("no_connect", str(self.index))
 
     def boundingRect(self) -> QRectF:
         half_size = NO_CONNECT_SIZE / 2
