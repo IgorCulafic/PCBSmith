@@ -187,3 +187,31 @@ def test_save_project_uses_opened_schematic_path(tmp_path, qtbot) -> None:  # ty
     )
     assert [symbol.reference for symbol in opened_schematic.symbols] == ["R1"]
     assert changed_manifest_schematic.symbols == ()
+
+
+def test_gui_runs_erc_to_console(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.scene.place_resistor(Point(x=0, y=0), value="10k")
+
+    window.run_erc()
+
+    assert "ERC001" in window.console.toPlainText()
+
+
+def test_gui_reports_erc_errors(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    errors: list[str] = []
+    window.show_error = errors.append  # type: ignore[method-assign]
+    window.scene.load_editor_state(
+        EditorState.blank("main").place_symbol(
+            "stdlib:UNKNOWN",
+            "bad",
+            Point(x=0, y=0),
+        )
+    )
+
+    window.run_erc()
+
+    assert errors == ["ERC failed: Unknown symbol stdlib:UNKNOWN"]
