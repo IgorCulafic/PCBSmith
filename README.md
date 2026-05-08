@@ -18,6 +18,18 @@ python -m pcbsmith.cli erc .\demo
 
 The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
 
+## Phase 1A GUI
+
+Phase 1A adds the first PySide6 schematic editor slice. After installation, launch it with:
+
+```powershell
+pcbsmith-gui
+```
+
+The editor can open or create a PCBSmith project, place resistor symbols, draw a basic wire, save and reopen the schematic, navigate with zoom, pan, and scroll controls, fit the view, and run ERC from the console dock. It reuses the Phase 0 project JSON format.
+
+LLM-assisted editing, first-run tutorials, component family filters, labels, junction automation, and PCB layout are planned for future phases.
+
 ## Hard Rules
 
 - Schematic and PCB are separate domains linked by a netlist.
