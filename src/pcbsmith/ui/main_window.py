@@ -74,8 +74,14 @@ class MainWindow(QMainWindow):
         toolbar = self.addToolBar("Schematic")
 
         place_resistor_action = QAction("Place R", self)
-        place_resistor_action.triggered.connect(self.place_resistor_at_origin)
+        place_resistor_action.triggered.connect(
+            lambda: self.scene.set_tool("place_resistor")
+        )
         toolbar.addAction(place_resistor_action)
+
+        wire_action = QAction("Wire", self)
+        wire_action.triggered.connect(lambda: self.scene.set_tool("wire"))
+        toolbar.addAction(wire_action)
 
         fit_action = QAction("Fit", self)
         fit_action.triggered.connect(self.view.fit_to_contents)
