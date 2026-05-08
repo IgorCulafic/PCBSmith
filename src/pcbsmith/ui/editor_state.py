@@ -4,7 +4,7 @@ import re
 from dataclasses import dataclass, replace
 
 from pcbsmith.core.geom import Point
-from pcbsmith.core.schematic import Schematic, SymbolInstance, Wire
+from pcbsmith.core.schematic import Junction, NetLabel, NoConnect, Schematic, SymbolInstance, Wire
 
 _REFERENCE_PATTERN = re.compile(r"^([A-Z]+)([0-9]+)$")
 _PREFIX_BY_SYMBOL = {
@@ -22,6 +22,9 @@ class EditorState:
     schematic_id: str
     symbols: tuple[SymbolInstance, ...] = ()
     wires: tuple[Wire, ...] = ()
+    junctions: tuple[Junction, ...] = ()
+    labels: tuple[NetLabel, ...] = ()
+    no_connects: tuple[NoConnect, ...] = ()
 
     @classmethod
     def blank(cls, schematic_id: str) -> EditorState:
@@ -33,6 +36,9 @@ class EditorState:
             schematic_id=schematic.id,
             symbols=tuple(schematic.symbols),
             wires=tuple(schematic.wires),
+            junctions=tuple(schematic.junctions),
+            labels=tuple(schematic.labels),
+            no_connects=tuple(schematic.no_connects),
         )
 
     def place_symbol(
@@ -57,7 +63,14 @@ class EditorState:
         return replace(self, wires=(*self.wires, Wire(points=points)))
 
     def to_schematic(self) -> Schematic:
-        return Schematic(id=self.schematic_id, symbols=self.symbols, wires=self.wires)
+        return Schematic(
+            id=self.schematic_id,
+            symbols=self.symbols,
+            wires=self.wires,
+            junctions=self.junctions,
+            labels=self.labels,
+            no_connects=self.no_connects,
+        )
 
     def _next_reference(self, symbol_id: str) -> str:
         prefix = _PREFIX_BY_SYMBOL.get(symbol_id, "U")

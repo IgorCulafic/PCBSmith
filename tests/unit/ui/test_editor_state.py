@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from pcbsmith.core.geom import Point
-from pcbsmith.core.schematic import Schematic
+from pcbsmith.core.schematic import Junction, NetLabel, NoConnect, Schematic
 from pcbsmith.ui.editor_state import EditorState
 
 
@@ -48,3 +48,16 @@ def test_load_existing_references_continues_counter() -> None:
     updated = state.place_symbol("stdlib:R", "1k", Point(x=20_320_000, y=0))
 
     assert [symbol.reference for symbol in updated.to_schematic().symbols] == ["R1", "R2"]
+
+
+def test_round_trip_preserves_non_rendered_schematic_fields() -> None:
+    schematic = Schematic(
+        id="main",
+        junctions=(Junction(position=Point(x=1, y=2)),),
+        labels=(NetLabel(name="VIN", position=Point(x=3, y=4)),),
+        no_connects=(NoConnect(position=Point(x=5, y=6)),),
+    )
+
+    restored = EditorState.from_schematic(schematic).to_schematic()
+
+    assert restored == schematic
