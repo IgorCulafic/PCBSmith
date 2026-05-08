@@ -8,7 +8,7 @@ from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsSceneMouseE
 
 from pcbsmith.core.geom import Point, snap
 from pcbsmith.ui.editor_state import EditorState
-from pcbsmith.ui.items import SymbolItem, WireItem
+from pcbsmith.ui.items import NetLabelItem, NoConnectItem, SymbolItem, WireItem
 from pcbsmith.ui.schematic_view import GRID_NM
 
 ToolName = str
@@ -26,6 +26,8 @@ class SchematicScene(QGraphicsScene):
         self._editor_state = EditorState.blank("main")
         self._symbol_items: list[SymbolItem] = []
         self._wire_items: list[WireItem] = []
+        self._label_items: list[NetLabelItem] = []
+        self._no_connect_items: list[NoConnectItem] = []
         self._tool: ToolName = "select"
         self._pending_wire_start: Point | None = None
 
@@ -39,8 +41,20 @@ class SchematicScene(QGraphicsScene):
         self._pending_wire_start = None
         self._symbol_items = [SymbolItem(symbol) for symbol in state.symbols]
         self._wire_items = [WireItem(wire) for wire in state.wires]
+        self._label_items = [
+            NetLabelItem(label, index) for index, label in enumerate(state.labels)
+        ]
+        self._no_connect_items = [
+            NoConnectItem(no_connect, index)
+            for index, no_connect in enumerate(state.no_connects)
+        ]
 
-        for item in (*self._wire_items, *self._symbol_items):
+        for item in (
+            *self._wire_items,
+            *self._symbol_items,
+            *self._label_items,
+            *self._no_connect_items,
+        ):
             self.addItem(item)
 
     def symbol_items(self) -> tuple[SymbolItem, ...]:
@@ -48,6 +62,12 @@ class SchematicScene(QGraphicsScene):
 
     def wire_items(self) -> tuple[WireItem, ...]:
         return tuple(self._wire_items)
+
+    def label_items(self) -> tuple[NetLabelItem, ...]:
+        return tuple(self._label_items)
+
+    def no_connect_items(self) -> tuple[NoConnectItem, ...]:
+        return tuple(self._no_connect_items)
 
     def set_tool(self, tool: ToolName) -> None:
         if tool not in self._tools:
