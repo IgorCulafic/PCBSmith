@@ -243,6 +243,11 @@ class MainWindow(QMainWindow):
 
         self.project_dir = project_dir
         self.project = project
+        self.component_browser.set_project_preferences(
+            enabled_group_ids=project.catalog_preferences.enabled_group_ids,
+            visible_entry_ids=project.catalog_preferences.visible_entry_ids,
+            hidden_entry_ids=project.catalog_preferences.hidden_entry_ids,
+        )
         self.scene.load_editor_state(EditorState.from_schematic(schematic))
         self.refresh_inspector()
         self.console.append(f"Opened {project.name}")
