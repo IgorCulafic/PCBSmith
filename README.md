@@ -36,8 +36,8 @@ pcbsmith-gui
 ```
 
 The GUI reuses the Phase 0 project JSON format. Text-to-schematic, real LLM
-provider hooks, component family catalogs, circuit simulation, PCB layout, and
-manufacturing exports are future phases.
+provider hooks, component family catalogs, circuit simulation, PCB layout, SVG,
+laser-ready PCB outputs, and manufacturing exports are future phases.
 
 ## Hard Rules
 
