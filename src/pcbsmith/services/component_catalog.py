@@ -9,6 +9,7 @@ from pcbsmith.core.catalog import (
     CatalogSearchQuery,
     ComponentFamily,
     ComponentVariant,
+    DeveloperLibraryProposal,
     MissingPartRequest,
 )
 from pcbsmith.services.builtin_library import FOOTPRINTS, SYMBOLS
@@ -250,4 +251,17 @@ def create_missing_part_request(
         requested_name=requested_name,
         reason=reason,
         requested_tags=tags,
+    )
+
+
+def create_developer_proposal(
+    *,
+    requested_name: str,
+    proposed_entry_id: str,
+    notes: str,
+) -> DeveloperLibraryProposal:
+    return DeveloperLibraryProposal(
+        requested_name=requested_name,
+        proposed_entry_id=proposed_entry_id,
+        notes=notes,
     )

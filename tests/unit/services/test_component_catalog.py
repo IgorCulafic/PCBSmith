@@ -6,6 +6,7 @@ from pcbsmith.core.catalog import CatalogGroup, CatalogPreferences, CatalogSearc
 from pcbsmith.services.component_catalog import (
     ComponentCatalog,
     builtin_catalog,
+    create_developer_proposal,
     create_missing_part_request,
     entry_by_id,
     search_catalog,
@@ -125,3 +126,25 @@ def test_create_missing_part_request_returns_requested_fields() -> None:
 
     assert request.requested_name == "NE555 DIP-8"
     assert request.requested_tags == ("ic", "dip-8")
+
+
+def test_create_developer_proposal() -> None:
+    proposal = create_developer_proposal(
+        requested_name="NE555 DIP-8",
+        proposed_entry_id="pcbs:ne555_dip8",
+        notes="Needs exact pin map before normal-user placement.",
+    )
+
+    assert proposal.requested_name == "NE555 DIP-8"
+    assert proposal.proposed_entry_id == "pcbs:ne555_dip8"
+    assert proposal.notes == "Needs exact pin map before normal-user placement."
+    assert proposal.status == "draft"
+
+
+def test_developer_proposal_rejects_non_namespaced_id() -> None:
+    with pytest.raises(ValueError, match="namespaced"):
+        create_developer_proposal(
+            requested_name="Bad",
+            proposed_entry_id="bad",
+            notes="Invalid id",
+        )
