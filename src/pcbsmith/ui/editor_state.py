@@ -11,7 +11,10 @@ _REFERENCE_PATTERN = re.compile(r"^([A-Z]+)([0-9]+)$")
 _PREFIX_BY_SYMBOL = {
     "stdlib:R": "R",
     "stdlib:C": "C",
+    "stdlib:D": "D",
     "stdlib:LED": "LED",
+    "stdlib:SW_PUSH": "SW",
+    "stdlib:SW_SPST": "SW",
     "stdlib:VCC": "PWR",
     "stdlib:GND": "PWR",
     "stdlib:CONN_01X02": "J",

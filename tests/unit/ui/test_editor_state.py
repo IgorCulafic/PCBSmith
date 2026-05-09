@@ -21,6 +21,31 @@ def test_place_resistors_generates_references_and_schematic() -> None:
     assert [symbol.value for symbol in schematic.symbols] == ["10k", "1k"]
 
 
+def test_place_symbol_uses_prefix_for_new_basic_symbols() -> None:
+    state = EditorState.blank("main")
+
+    state = state.place_symbol(
+        "stdlib:D",
+        "D",
+        Point(x=0, y=0),
+        footprint_id="stdlib:D_0603",
+    )
+    state = state.place_symbol(
+        "stdlib:SW_PUSH",
+        "Button",
+        Point(x=2_540_000, y=0),
+        footprint_id="stdlib:SW_PUSH_TH",
+    )
+    state = state.place_symbol(
+        "stdlib:SW_SPST",
+        "Switch",
+        Point(x=5_080_000, y=0),
+        footprint_id="stdlib:SW_SPST_TH",
+    )
+
+    assert [symbol.reference for symbol in state.symbols] == ["D1", "SW1", "SW2"]
+
+
 def test_add_wire_round_trips_through_schematic() -> None:
     schematic = (
         EditorState.blank("main")
