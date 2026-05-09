@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 from pcbsmith.core.catalog import (
@@ -13,6 +14,8 @@ from pcbsmith.core.catalog import (
     MissingPartRequest,
 )
 from pcbsmith.services.builtin_library import FOOTPRINTS, SYMBOLS
+
+_SEARCH_SPLIT_PATTERN = re.compile(r"[\s-]+")
 
 
 @dataclass(frozen=True)
@@ -200,6 +203,8 @@ def search_catalog(
 
     results: list[CatalogEntry] = []
     for entry in catalog.entries:
+        if not entry.normal_user_visible:
+            continue
         if query.preferred_only and entry.id not in preferred_ids:
             continue
         if query.group_ids and not (set(entry.group_ids) & set(query.group_ids)):
@@ -207,11 +212,29 @@ def search_catalog(
         if query.tags and not set(query.tags).issubset(entry.tags):
             continue
 
-        search_text = entry.search_text.lower().replace(" ", "-")
-        if text_terms and not all(term in search_text for term in text_terms):
+        search_tokens = _search_tokens(entry)
+        if text_terms and not all(term in search_tokens for term in text_terms):
             continue
         results.append(entry)
     return tuple(results)
+
+
+def _search_tokens(entry: CatalogEntry) -> set[str]:
+    tokens: set[str] = set()
+    values = (
+        entry.family.name,
+        entry.variant.name,
+        entry.variant.package or "",
+        *entry.tags,
+        *entry.aliases,
+    )
+    for value in values:
+        normalized = value.strip().lower().replace("_", "-")
+        if not normalized:
+            continue
+        tokens.add(normalized)
+        tokens.update(term for term in _SEARCH_SPLIT_PATTERN.split(normalized) if term)
+    return tokens
 
 
 def _preferred_entry_ids(
@@ -239,7 +262,8 @@ def _preferred_entry_ids(
         for entry in catalog.entries
         if entry.normal_user_visible and set(entry.group_ids).intersection(enabled_group_ids)
     }
-    preferred_ids.update(visible_entry_ids)
+    user_visible_ids = {entry.id for entry in catalog.entries if entry.normal_user_visible}
+    preferred_ids.update(visible_entry_ids & user_visible_ids)
     preferred_ids.difference_update(hidden_entry_ids)
     return preferred_ids
 
