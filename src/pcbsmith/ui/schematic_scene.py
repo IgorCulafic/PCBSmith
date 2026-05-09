@@ -6,6 +6,7 @@ from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsSceneMouseEvent
 
+from pcbsmith.core.catalog import CatalogEntry
 from pcbsmith.core.geom import Point, snap
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.history import EditHistory
@@ -162,6 +163,17 @@ class SchematicScene(QGraphicsScene):
             "stdlib:R",
             value,
             snap(position, GRID_NM),
+            footprint_id="stdlib:R_0603",
+        )
+        self.apply_editor_state(state)
+        return self._symbol_items[-1]
+
+    def place_catalog_entry(self, entry: CatalogEntry, position: Point) -> SymbolItem:
+        state = self._editor_state.place_symbol(
+            entry.symbol_id,
+            entry.variant.default_value or entry.family.name,
+            snap(position, GRID_NM),
+            footprint_id=entry.footprint_id,
         )
         self.apply_editor_state(state)
         return self._symbol_items[-1]
