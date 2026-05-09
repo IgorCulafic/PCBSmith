@@ -61,6 +61,63 @@ SYMBOLS: dict[str, Symbol] = {
             ),
         ],
     ),
+    "stdlib:D": Symbol(
+        id="stdlib:D",
+        name="Diode",
+        default_footprint_id="stdlib:D_0603",
+        pins=[
+            Pin(
+                number="1",
+                name="K",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="A",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
+    "stdlib:SW_PUSH": Symbol(
+        id="stdlib:SW_PUSH",
+        name="Push Button",
+        default_footprint_id="stdlib:SW_PUSH_TH",
+        pins=[
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="B",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
+    "stdlib:SW_SPST": Symbol(
+        id="stdlib:SW_SPST",
+        name="Switch SPST",
+        default_footprint_id="stdlib:SW_SPST_TH",
+        pins=[
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="B",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
     "stdlib:VCC": Symbol(
         id="stdlib:VCC",
         name="Power Flag VCC",
@@ -164,6 +221,70 @@ FOOTPRINTS: dict[str, Footprint] = {
                 size_x=800_000,
                 size_y=900_000,
                 shape=PadShape.RECT,
+            ),
+        ],
+    ),
+    "stdlib:D_0603": Footprint(
+        id="stdlib:D_0603",
+        name="D_0603",
+        pads=[
+            Pad(
+                number="1",
+                position=Point(x=-800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+        ],
+    ),
+    "stdlib:SW_PUSH_TH": Footprint(
+        id="stdlib:SW_PUSH_TH",
+        name="SW_PUSH_TH",
+        pads=[
+            Pad(
+                number="1",
+                position=Point(x=-2_540_000, y=0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=2_540_000, y=0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            ),
+        ],
+    ),
+    "stdlib:SW_SPST_TH": Footprint(
+        id="stdlib:SW_SPST_TH",
+        name="SW_SPST_TH",
+        pads=[
+            Pad(
+                number="1",
+                position=Point(x=-2_540_000, y=0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=2_540_000, y=0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
             ),
         ],
     ),
