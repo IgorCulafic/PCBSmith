@@ -150,3 +150,83 @@ def test_main_window_registers_shortcut_actions_and_toolbar_tools(qtbot) -> None
     assert [marker.position for marker in schematic.no_connects] == [
         Point(x=2_540_000, y=0)
     ]
+
+
+def test_main_window_applies_symbol_inspector_edits(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.scene.place_resistor(Point(x=0, y=0))
+    window.scene.symbol_items()[0].setSelected(True)
+    window.refresh_inspector()
+
+    window.apply_symbol_field_change((SelectionKey("symbol", "R1"), "value", "4.7k"))
+    assert window.scene.selected_key() == SelectionKey("symbol", "R1")
+    assert window.inspector.item_type_label.text() == "Symbol"
+    assert window.inspector.value_edit.text() == "4.7k"
+
+    window.apply_symbol_field_change(
+        (SelectionKey("symbol", "R1"), "footprint", "R_0603")
+    )
+
+    symbol = window.scene.editor_state.to_schematic().symbols[0]
+    assert symbol.value == "4.7k"
+    assert symbol.footprint_id == "R_0603"
+
+
+def test_main_window_rejects_duplicate_reference_from_inspector(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.scene.place_resistor(Point(x=0, y=0))
+    window.scene.place_resistor(Point(x=2_540_000, y=0))
+    errors: list[str] = []
+    window.show_error = errors.append  # type: ignore[method-assign]
+
+    window.apply_symbol_field_change((SelectionKey("symbol", "R2"), "reference", "R1"))
+
+    assert errors == ["Duplicate reference designator: R1"]
+    assert [
+        symbol.reference
+        for symbol in window.scene.editor_state.to_schematic().symbols
+    ] == ["R1", "R2"]
+
+
+def test_main_window_applies_label_text_edits(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.scene.set_tool("label")
+    window.scene.handle_canvas_click(Point(x=0, y=0))
+
+    window.apply_label_text_change((SelectionKey("label", "0"), "VIN"))
+
+    assert [label.name for label in window.scene.editor_state.to_schematic().labels] == [
+        "VIN"
+    ]
+
+
+def test_main_window_restores_selection_after_reference_rename(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.scene.place_resistor(Point(x=0, y=0))
+    window.scene.symbol_items()[0].setSelected(True)
+    window.refresh_inspector()
+
+    window.apply_symbol_field_change(
+        (SelectionKey("symbol", "R1"), "reference", "R10")
+    )
+
+    assert window.scene.selected_key() == SelectionKey("symbol", "R10")
+    assert window.inspector.item_type_label.text() == "Symbol"
+    assert window.inspector.reference_edit.text() == "R10"
+
+
+def test_main_window_rejects_non_cardinal_rotation_from_inspector(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.scene.place_resistor(Point(x=0, y=0))
+    errors: list[str] = []
+    window.show_error = errors.append  # type: ignore[method-assign]
+
+    window.apply_symbol_field_change((SelectionKey("symbol", "R1"), "rotation", "45"))
+
+    assert errors == ["Invalid rotation: 45"]
+    assert window.scene.editor_state.to_schematic().symbols[0].rotation_deg == 0

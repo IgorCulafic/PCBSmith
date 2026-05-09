@@ -23,6 +23,7 @@ from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.inspector import InspectorWidget
 from pcbsmith.ui.schematic_scene import SchematicScene
 from pcbsmith.ui.schematic_view import SchematicView
+from pcbsmith.ui.selection import SelectionKey, parse_index_key
 
 
 class MainWindow(QMainWindow):
@@ -49,6 +50,8 @@ class MainWindow(QMainWindow):
         self._create_library_dock()
         self._create_console_dock()
         self._create_inspector_dock()
+        self.inspector.symbol_field_changed.connect(self.apply_symbol_field_change)
+        self.inspector.label_text_changed.connect(self.apply_label_text_change)
         self._create_file_menu()
         self._create_toolbar()
         self.scene.selectionChanged.connect(self.refresh_inspector)
@@ -265,6 +268,58 @@ class MainWindow(QMainWindow):
             self.scene.rotate_selection(selection, 90)
         except ValueError as exc:
             self.show_error(str(exc))
+        self.refresh_inspector()
+
+    def apply_symbol_field_change(self, change: tuple[SelectionKey, str, str]) -> None:
+        selection, field, value = change
+        if selection.kind != "symbol":
+            return
+
+        updates: dict[str, object] = {}
+        restored_selection = selection
+        if field == "reference":
+            new_reference = value.strip()
+            updates["new_reference"] = new_reference
+            restored_selection = SelectionKey("symbol", new_reference)
+        elif field == "value":
+            updates["value"] = value.strip()
+        elif field == "rotation":
+            try:
+                rotation_deg = int(value)
+            except ValueError:
+                self.show_error(f"Invalid rotation: {value}")
+                return
+            if rotation_deg not in {0, 90, 180, 270}:
+                self.show_error(f"Invalid rotation: {value}")
+                return
+            updates["rotation_deg"] = rotation_deg
+        elif field == "footprint":
+            updates["footprint_id"] = value.strip()
+        else:
+            self.show_error(f"Unknown symbol field: {field}")
+            return
+
+        try:
+            self.scene.update_symbol(selection.key, **updates)
+        except ValueError as exc:
+            self.show_error(str(exc))
+            return
+
+        self.scene.select_key(restored_selection)
+        self.refresh_inspector()
+
+    def apply_label_text_change(self, change: tuple[SelectionKey, str]) -> None:
+        selection, value = change
+        if selection.kind != "label":
+            return
+
+        try:
+            self.scene.update_label(parse_index_key(selection), name=value)
+        except ValueError as exc:
+            self.show_error(str(exc))
+            return
+
+        self.scene.select_key(selection)
         self.refresh_inspector()
 
     def refresh_inspector(self) -> None:

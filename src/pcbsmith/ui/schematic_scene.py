@@ -86,9 +86,39 @@ class SchematicScene(QGraphicsScene):
     def no_connect_items(self) -> tuple[NoConnectItem, ...]:
         return tuple(self._no_connect_items)
 
+    def select_key(self, selection: SelectionKey | None) -> None:
+        self.clearSelection()
+        if selection is None:
+            return
+
+        for item in (
+            *self._wire_items,
+            *self._symbol_items,
+            *self._label_items,
+            *self._no_connect_items,
+        ):
+            selection_key = getattr(item, "selection_key", None)
+            if selection_key is not None and selection_key() == selection:
+                item.setSelected(True)
+                return
+
     def apply_editor_state(self, state: EditorState) -> None:
         committed = self._history.commit(state)
         self._render_editor_state(committed)
+
+    def update_symbol(self, reference: str, **updates: object) -> None:
+        self.apply_editor_state(self._editor_state.update_symbol(reference, **updates))
+
+    def update_label(
+        self,
+        index: int,
+        *,
+        name: str | None = None,
+        position: Point | None = None,
+    ) -> None:
+        self.apply_editor_state(
+            self._editor_state.update_label(index, name=name, position=position)
+        )
 
     def undo(self) -> None:
         self._render_editor_state(self._history.undo())
