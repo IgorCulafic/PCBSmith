@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction
+from PySide6.QtGui import QAction, QKeySequence
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -20,6 +20,7 @@ from pcbsmith.services import erc, project_io
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.project_io import ProjectIOError
 from pcbsmith.ui.editor_state import EditorState
+from pcbsmith.ui.inspector import InspectorWidget
 from pcbsmith.ui.schematic_scene import SchematicScene
 from pcbsmith.ui.schematic_view import SchematicView
 
@@ -35,13 +36,22 @@ class MainWindow(QMainWindow):
         self.library_dock = QDockWidget("Library", self)
         self.console = QTextEdit()
         self.console_dock = QDockWidget("Console", self)
+        self.inspector = InspectorWidget()
+        self.inspector_dock = QDockWidget("Inspector", self)
+        self.schematic_toolbar = None
+        self.undo_action = QAction("Undo", self)
+        self.redo_action = QAction("Redo", self)
+        self.delete_action = QAction("Delete", self)
+        self.rotate_action = QAction("Rotate", self)
 
         self.setWindowTitle("PCBSmith")
         self.setCentralWidget(self.view)
         self._create_library_dock()
         self._create_console_dock()
+        self._create_inspector_dock()
         self._create_file_menu()
         self._create_toolbar()
+        self.scene.selectionChanged.connect(self.refresh_inspector)
 
     def _create_file_menu(self) -> None:
         file_menu = self.menuBar().addMenu("&File")
@@ -70,8 +80,17 @@ class MainWindow(QMainWindow):
         self.console_dock.setWidget(self.console)
         self.addDockWidget(Qt.DockWidgetArea.BottomDockWidgetArea, self.console_dock)
 
+    def _create_inspector_dock(self) -> None:
+        self.inspector_dock.setWidget(self.inspector)
+        self.addDockWidget(Qt.DockWidgetArea.RightDockWidgetArea, self.inspector_dock)
+
     def _create_toolbar(self) -> None:
-        toolbar = self.addToolBar("Schematic")
+        self.schematic_toolbar = self.addToolBar("Schematic")
+        toolbar = self.schematic_toolbar
+
+        select_action = QAction("Select", self)
+        select_action.triggered.connect(lambda: self.scene.set_tool("select"))
+        toolbar.addAction(select_action)
 
         place_resistor_action = QAction("Place R", self)
         place_resistor_action.triggered.connect(
@@ -82,6 +101,38 @@ class MainWindow(QMainWindow):
         wire_action = QAction("Wire", self)
         wire_action.triggered.connect(lambda: self.scene.set_tool("wire"))
         toolbar.addAction(wire_action)
+
+        label_action = QAction("Label", self)
+        label_action.triggered.connect(lambda: self.scene.set_tool("label"))
+        toolbar.addAction(label_action)
+
+        no_connect_action = QAction("No Connect", self)
+        no_connect_action.triggered.connect(lambda: self.scene.set_tool("no_connect"))
+        toolbar.addAction(no_connect_action)
+
+        toolbar.addSeparator()
+
+        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self.undo_action.triggered.connect(self.undo)
+        self.addAction(self.undo_action)
+        toolbar.addAction(self.undo_action)
+
+        self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
+        self.redo_action.triggered.connect(self.redo)
+        self.addAction(self.redo_action)
+        toolbar.addAction(self.redo_action)
+
+        self.delete_action.setShortcut(QKeySequence.StandardKey.Delete)
+        self.delete_action.triggered.connect(self.delete_selected)
+        self.addAction(self.delete_action)
+        toolbar.addAction(self.delete_action)
+
+        self.rotate_action.setShortcut(QKeySequence("Ctrl+R"))
+        self.rotate_action.triggered.connect(self.rotate_selected)
+        self.addAction(self.rotate_action)
+        toolbar.addAction(self.rotate_action)
+
+        toolbar.addSeparator()
 
         fit_action = QAction("Fit", self)
         fit_action.triggered.connect(self.view.fit_to_contents)
@@ -154,6 +205,7 @@ class MainWindow(QMainWindow):
         self.project_dir = project_dir
         self.project = project
         self.scene.load_editor_state(EditorState.from_schematic(schematic))
+        self.refresh_inspector()
         self.console.append(f"Opened {project.name}")
 
     def save_project(self) -> None:
@@ -180,3 +232,43 @@ class MainWindow(QMainWindow):
     def show_error(self, message: str) -> None:
         self.console.append(message)
         QMessageBox.warning(self, "PCBSmith", message)
+
+    def undo(self) -> None:
+        try:
+            self.scene.undo()
+        except IndexError as exc:
+            self.show_error(str(exc))
+        self.refresh_inspector()
+
+    def redo(self) -> None:
+        try:
+            self.scene.redo()
+        except IndexError as exc:
+            self.show_error(str(exc))
+        self.refresh_inspector()
+
+    def delete_selected(self) -> None:
+        selection = self.scene.selected_key()
+        if selection is None:
+            return
+        try:
+            self.scene.delete_selection(selection)
+        except ValueError as exc:
+            self.show_error(str(exc))
+        self.refresh_inspector()
+
+    def rotate_selected(self) -> None:
+        selection = self.scene.selected_key()
+        if selection is None:
+            return
+        try:
+            self.scene.rotate_selection(selection, 90)
+        except ValueError as exc:
+            self.show_error(str(exc))
+        self.refresh_inspector()
+
+    def refresh_inspector(self) -> None:
+        self.inspector.show_selection(
+            self.scene.editor_state,
+            self.scene.selected_key(),
+        )

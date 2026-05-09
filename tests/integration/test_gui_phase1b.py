@@ -1,7 +1,10 @@
 from __future__ import annotations
 
+from PySide6.QtGui import QKeySequence
+
 from pcbsmith.core.geom import Point
 from pcbsmith.ui.editor_state import EditorState
+from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
 from pcbsmith.ui.selection import SelectionKey
 
@@ -86,3 +89,64 @@ def test_load_editor_state_resets_history() -> None:
 
     assert not scene.can_undo
     assert not scene.can_redo
+
+
+def test_main_window_has_inspector_and_edit_actions(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.inspector_dock.windowTitle() == "Inspector"
+    action_texts = {action.text() for action in window.schematic_toolbar.actions()}
+    assert {
+        "Select",
+        "Label",
+        "No Connect",
+        "Undo",
+        "Redo",
+        "Delete",
+        "Rotate",
+    }.issubset(action_texts)
+
+
+def test_main_window_undo_redo_actions_update_scene(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.scene.place_resistor(Point(x=0, y=0))
+
+    window.undo()
+    assert window.scene.editor_state.to_schematic().symbols == ()
+
+    window.redo()
+    assert [
+        symbol.reference
+        for symbol in window.scene.editor_state.to_schematic().symbols
+    ] == ["R1"]
+
+
+def test_main_window_registers_shortcut_actions_and_toolbar_tools(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window_actions = {action.text(): action for action in window.actions()}
+    assert window_actions["Undo"] is window.undo_action
+    assert window_actions["Redo"] is window.redo_action
+    assert window_actions["Delete"] is window.delete_action
+    assert window_actions["Rotate"] is window.rotate_action
+    assert window.delete_action.shortcut() == QKeySequence(
+        QKeySequence.StandardKey.Delete
+    )
+    assert window.rotate_action.shortcut() == QKeySequence("Ctrl+R")
+
+    toolbar_actions = {
+        action.text(): action for action in window.schematic_toolbar.actions()
+    }
+    toolbar_actions["Label"].trigger()
+    window.scene.handle_canvas_click(Point(x=0, y=0))
+    toolbar_actions["No Connect"].trigger()
+    window.scene.handle_canvas_click(Point(x=2_540_000, y=0))
+
+    schematic = window.scene.editor_state.to_schematic()
+    assert [label.name for label in schematic.labels] == ["NET"]
+    assert [marker.position for marker in schematic.no_connects] == [
+        Point(x=2_540_000, y=0)
+    ]
