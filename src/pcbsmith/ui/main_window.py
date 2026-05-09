@@ -8,7 +8,6 @@ from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
     QInputDialog,
-    QListWidget,
     QMainWindow,
     QMessageBox,
     QTextEdit,
@@ -16,9 +15,10 @@ from PySide6.QtWidgets import (
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.project import Project
-from pcbsmith.services import erc, project_io
+from pcbsmith.services import component_catalog, erc, project_io
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.project_io import ProjectIOError
+from pcbsmith.ui.component_browser import ComponentBrowser
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.inspector import InspectorWidget
 from pcbsmith.ui.schematic_scene import SchematicScene
@@ -33,7 +33,7 @@ class MainWindow(QMainWindow):
         self.project: Project | None = None
         self.scene = SchematicScene(self)
         self.view = SchematicView(self.scene, self)
-        self.library_list = QListWidget()
+        self.component_browser = ComponentBrowser()
         self.library_dock = QDockWidget("Library", self)
         self.console = QTextEdit()
         self.console_dock = QDockWidget("Console", self)
@@ -72,10 +72,8 @@ class MainWindow(QMainWindow):
         file_menu.addAction(save_project_action)
 
     def _create_library_dock(self) -> None:
-        for symbol in SYMBOLS.values():
-            self.library_list.addItem(symbol.name)
-
-        self.library_dock.setWidget(self.library_list)
+        self.component_browser.entry_activated.connect(self.place_catalog_entry_by_id)
+        self.library_dock.setWidget(self.component_browser)
         self.addDockWidget(Qt.DockWidgetArea.LeftDockWidgetArea, self.library_dock)
 
     def _create_console_dock(self) -> None:
@@ -100,6 +98,22 @@ class MainWindow(QMainWindow):
             lambda: self.scene.set_tool("place_resistor")
         )
         toolbar.addAction(place_resistor_action)
+
+        place_capacitor_action = QAction("Add C", self)
+        place_capacitor_action.triggered.connect(
+            lambda: self.place_catalog_entry_by_id("pcbs:capacitor_0603")
+        )
+        toolbar.addAction(place_capacitor_action)
+
+        place_led_action = QAction("Add LED", self)
+        place_led_action.triggered.connect(
+            lambda: self.place_catalog_entry_by_id("pcbs:led_0603")
+        )
+        toolbar.addAction(place_led_action)
+
+        more_components_action = QAction("More Components", self)
+        more_components_action.triggered.connect(self.focus_component_browser_search)
+        toolbar.addAction(more_components_action)
 
         wire_action = QAction("Wire", self)
         wire_action.triggered.connect(lambda: self.scene.set_tool("wire"))
@@ -148,6 +162,28 @@ class MainWindow(QMainWindow):
     def place_resistor_at_origin(self) -> None:
         self.scene.place_resistor(Point(x=0, y=0))
         self.console.append("Placed resistor")
+
+    def place_catalog_entry_by_id(self, entry_id: str) -> None:
+        try:
+            entry = component_catalog.entry_by_id(self.component_browser.catalog, entry_id)
+        except KeyError as exc:
+            self.show_error(str(exc))
+            return
+        self.scene.place_catalog_entry(entry, Point(x=0, y=0))
+        self.console.append(f"Placed {entry.variant.name}")
+
+    def place_selected_component_at_origin(self) -> None:
+        entry = self.component_browser.selected_entry()
+        if entry is None:
+            self.show_error("No component is selected")
+            return
+        self.scene.place_catalog_entry(entry, Point(x=0, y=0))
+        self.console.append(f"Placed {entry.variant.name}")
+
+    def focus_component_browser_search(self) -> None:
+        self.library_dock.show()
+        self.library_dock.raise_()
+        self.component_browser.search_box.setFocus()
 
     def run_erc(self) -> None:
         try:

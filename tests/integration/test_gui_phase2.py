@@ -2,7 +2,16 @@ from __future__ import annotations
 
 from pcbsmith.core.geom import Point
 from pcbsmith.services import component_catalog
+from pcbsmith.ui.component_browser import ComponentBrowser
+from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
+
+
+def _toolbar_action(window: MainWindow, text: str):
+    for action in window.schematic_toolbar.actions():
+        if action.text() == text:
+            return action
+    raise AssertionError(f"Toolbar action not found: {text}")
 
 
 def test_scene_places_catalog_component(qtbot) -> None:
@@ -17,3 +26,60 @@ def test_scene_places_catalog_component(qtbot) -> None:
     assert symbol.symbol_id == "stdlib:C"
     assert symbol.value == "100nF"
     assert symbol.footprint_id == "stdlib:C_0603"
+
+
+def test_component_browser_filters_by_search_text(qtbot) -> None:
+    browser = ComponentBrowser()
+    qtbot.addWidget(browser)
+
+    browser.search_box.setText("led")
+
+    assert browser.visible_entry_ids() == ("pcbs:led_0603",)
+
+
+def test_component_browser_preferred_only_can_hide_entries(qtbot) -> None:
+    browser = ComponentBrowser()
+    qtbot.addWidget(browser)
+
+    browser.set_project_preferences(hidden_entry_ids=("pcbs:led_0603",))
+    browser.preferred_only.setChecked(True)
+    browser.search_box.setText("led")
+
+    assert browser.visible_entry_ids() == ()
+
+
+def test_main_window_places_selected_browser_component(qtbot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    window.component_browser.search_box.setText("capacitor")
+    window.component_browser.select_entry("pcbs:capacitor_0603")
+    window.place_selected_component_at_origin()
+
+    symbol = window.scene.editor_state.symbols[0]
+    assert symbol.symbol_id == "stdlib:C"
+    assert symbol.value == "100nF"
+
+
+def test_main_window_add_c_toolbar_action_places_capacitor_at_origin(qtbot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    _toolbar_action(window, "Add C").trigger()
+
+    symbol = window.scene.editor_state.symbols[0]
+    assert symbol.symbol_id == "stdlib:C"
+    assert symbol.value == "100nF"
+    assert symbol.position == Point(x=0, y=0)
+
+
+def test_main_window_add_led_toolbar_action_places_led_at_origin(qtbot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    _toolbar_action(window, "Add LED").trigger()
+
+    symbol = window.scene.editor_state.symbols[0]
+    assert symbol.symbol_id == "stdlib:LED"
+    assert symbol.value == "LED"
+    assert symbol.position == Point(x=0, y=0)
