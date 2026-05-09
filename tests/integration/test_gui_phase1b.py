@@ -3,6 +3,7 @@ from __future__ import annotations
 from PySide6.QtGui import QKeySequence
 
 from pcbsmith.core.geom import Point
+from pcbsmith.services import project_io
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
@@ -230,3 +231,30 @@ def test_main_window_rejects_non_cardinal_rotation_from_inspector(qtbot) -> None
 
     assert errors == ["Invalid rotation: 45"]
     assert window.scene.editor_state.to_schematic().symbols[0].rotation_deg == 0
+
+
+def test_gui_saves_and_reopens_labels_and_no_connects(tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
+    project_dir = tmp_path / "demo"
+    project_io.create_project(project_dir, "Demo")
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.open_project(project_dir)
+    window.scene.set_tool("label")
+    window.scene.handle_canvas_click(Point(x=0, y=0))
+    window.apply_label_text_change((SelectionKey("label", "0"), "VIN"))
+    window.scene.set_tool("no_connect")
+    window.scene.handle_canvas_click(Point(x=2_540_000, y=0))
+    window.save_project()
+
+    reopened = MainWindow()
+    qtbot.addWidget(reopened)
+    reopened.open_project(project_dir)
+
+    schematic = reopened.scene.editor_state.to_schematic()
+    assert [(label.name, label.position) for label in schematic.labels] == [
+        ("VIN", Point(x=0, y=0))
+    ]
+    assert [marker.position for marker in schematic.no_connects] == [
+        Point(x=2_540_000, y=0)
+    ]
