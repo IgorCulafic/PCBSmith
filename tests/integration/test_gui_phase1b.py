@@ -92,6 +92,62 @@ def test_load_editor_state_resets_history() -> None:
     assert not scene.can_redo
 
 
+def test_scene_commits_dragged_symbol_position_to_state_and_history() -> None:
+    scene = SchematicScene()
+    symbol_item = scene.place_resistor(Point(x=0, y=0))
+    symbol_item.setSelected(True)
+    symbol_item.setPos(2_540_000, 0)
+
+    scene.commit_selected_item_position()
+
+    assert scene.editor_state.to_schematic().symbols[0].position == Point(
+        x=2_540_000,
+        y=0,
+    )
+    assert scene.selected_key() == SelectionKey("symbol", "R1")
+
+    scene.undo()
+
+    assert scene.editor_state.to_schematic().symbols[0].position == Point(x=0, y=0)
+
+
+def test_scene_restores_dragged_item_when_snap_keeps_same_position() -> None:
+    scene = SchematicScene()
+    symbol_item = scene.place_resistor(Point(x=0, y=0))
+    symbol_item.setSelected(True)
+    symbol_item.setPos(100_000, 0)
+
+    scene.commit_selected_item_position()
+
+    assert scene.editor_state.to_schematic().symbols[0].position == Point(x=0, y=0)
+    assert symbol_item.pos().x() == 0
+    assert symbol_item.pos().y() == 0
+    assert scene.selected_key() == SelectionKey("symbol", "R1")
+
+
+def test_scene_commits_dragged_label_and_no_connect_positions() -> None:
+    scene = SchematicScene()
+    scene.set_tool("label")
+    scene.handle_canvas_click(Point(x=0, y=0))
+    scene.set_tool("no_connect")
+    scene.handle_canvas_click(Point(x=5_080_000, y=0))
+
+    label_item = scene.label_items()[0]
+    label_item.setSelected(True)
+    label_item.setPos(2_540_000, 0)
+    scene.commit_selected_item_position()
+
+    scene.clearSelection()
+    no_connect_item = scene.no_connect_items()[0]
+    no_connect_item.setSelected(True)
+    no_connect_item.setPos(7_620_000, 0)
+    scene.commit_selected_item_position()
+
+    schematic = scene.editor_state.to_schematic()
+    assert schematic.labels[0].position == Point(x=2_540_000, y=0)
+    assert schematic.no_connects[0].position == Point(x=7_620_000, y=0)
+
+
 def test_main_window_has_inspector_and_edit_actions(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = MainWindow()
     qtbot.addWidget(window)

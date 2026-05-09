@@ -175,6 +175,27 @@ class SchematicScene(QGraphicsScene):
         state = self._editor_state.move_item(selection, snap(position, GRID_NM))
         self.apply_editor_state(state)
 
+    def commit_selected_item_position(self) -> None:
+        selection = self.selected_key()
+        if selection is None or selection.kind == "wire":
+            return
+
+        selected = self.selectedItems()
+        if len(selected) != 1:
+            return
+
+        position = selected[0].pos()
+        snapped_position = snap(
+            Point(x=int(position.x()), y=int(position.y())),
+            GRID_NM,
+        )
+        state = self._editor_state.move_item(selection, snapped_position)
+        if state != self._editor_state:
+            self.apply_editor_state(state)
+        else:
+            selected[0].setPos(snapped_position.x, snapped_position.y)
+        self.select_key(selection)
+
     def delete_selection(self, selection: SelectionKey) -> None:
         state = self._editor_state.delete_item(selection)
         self.apply_editor_state(state)
@@ -205,6 +226,11 @@ class SchematicScene(QGraphicsScene):
             return
 
         super().mousePressEvent(event)
+
+    def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        super().mouseReleaseEvent(event)
+        if event.button() == Qt.MouseButton.LeftButton and self._tool == "select":
+            self.commit_selected_item_position()
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Escape:
