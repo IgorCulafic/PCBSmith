@@ -1,7 +1,8 @@
 from __future__ import annotations
 
+from pcbsmith.core.catalog import CatalogPreferences
 from pcbsmith.core.geom import Point
-from pcbsmith.services import component_catalog
+from pcbsmith.services import component_catalog, project_io
 from pcbsmith.ui.component_browser import ComponentBrowser
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
@@ -83,3 +84,27 @@ def test_main_window_add_led_toolbar_action_places_led_at_origin(qtbot) -> None:
     assert symbol.symbol_id == "stdlib:LED"
     assert symbol.value == "LED"
     assert symbol.position == Point(x=0, y=0)
+
+
+def test_open_project_applies_project_catalog_preferences(qtbot, tmp_path) -> None:
+    project_dir = tmp_path / "preferred-project"
+    project = project_io.create_project(project_dir, "Preferred")
+    project_io.save_project(
+        project_dir,
+        project.model_copy(
+            update={
+                "catalog_preferences": CatalogPreferences(
+                    enabled_group_ids=("basic-components",),
+                    hidden_entry_ids=("pcbs:led_0603",),
+                )
+            }
+        ),
+    )
+
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.open_project(project_dir)
+    window.component_browser.preferred_only.setChecked(True)
+    window.component_browser.search_box.setText("led")
+
+    assert window.component_browser.visible_entry_ids() == ()
