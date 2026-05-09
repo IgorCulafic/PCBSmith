@@ -1,8 +1,14 @@
 from __future__ import annotations
 
-from pcbsmith.core.catalog import CatalogPreferences
+from pcbsmith.core.catalog import (
+    CatalogEntry,
+    CatalogPreferences,
+    ComponentFamily,
+    ComponentVariant,
+)
 from pcbsmith.core.geom import Point
 from pcbsmith.services import component_catalog, project_io
+from pcbsmith.services.component_catalog import ComponentCatalog
 from pcbsmith.ui.component_browser import ComponentBrowser
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
@@ -49,6 +55,35 @@ def test_component_browser_preferred_only_can_hide_entries(qtbot) -> None:
     assert browser.visible_entry_ids() == ()
 
 
+def test_component_browser_cannot_select_non_visible_entry(qtbot) -> None:
+    browser = ComponentBrowser()
+    qtbot.addWidget(browser)
+    hidden_entry = CatalogEntry(
+        id="pcbs:hidden_dev_part",
+        family=ComponentFamily(id="developer", name="Developer"),
+        variant=ComponentVariant(name="Hidden Developer Part"),
+        symbol_id="stdlib:R",
+        tags=("hidden",),
+        group_ids=("basic-components",),
+        normal_user_visible=False,
+    )
+    browser.catalog = ComponentCatalog(
+        groups=browser.catalog.groups,
+        entries=(*browser.catalog.entries, hidden_entry),
+    )
+
+    browser.set_project_preferences(visible_entry_ids=("pcbs:hidden_dev_part",))
+    browser.search_box.setText("hidden")
+
+    assert browser.visible_entry_ids() == ()
+    try:
+        browser.select_entry("pcbs:hidden_dev_part")
+    except ValueError as exc:
+        assert "Catalog entry is not visible" in str(exc)
+    else:
+        raise AssertionError("Expected hidden catalog entry to stay unavailable")
+
+
 def test_main_window_places_selected_browser_component(qtbot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
@@ -60,6 +95,19 @@ def test_main_window_places_selected_browser_component(qtbot) -> None:
     symbol = window.scene.editor_state.symbols[0]
     assert symbol.symbol_id == "stdlib:C"
     assert symbol.value == "100nF"
+
+
+def test_main_window_add_r_toolbar_action_places_catalog_resistor(qtbot) -> None:
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    _toolbar_action(window, "Add R").trigger()
+
+    symbol = window.scene.editor_state.symbols[0]
+    assert symbol.symbol_id == "stdlib:R"
+    assert symbol.value == "10k"
+    assert symbol.footprint_id == "stdlib:R_0603"
+    assert symbol.position == Point(x=0, y=0)
 
 
 def test_main_window_add_c_toolbar_action_places_capacitor_at_origin(qtbot) -> None:

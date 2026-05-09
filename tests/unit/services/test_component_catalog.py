@@ -2,7 +2,14 @@ from __future__ import annotations
 
 import pytest
 
-from pcbsmith.core.catalog import CatalogGroup, CatalogPreferences, CatalogSearchQuery
+from pcbsmith.core.catalog import (
+    CatalogEntry,
+    CatalogGroup,
+    CatalogPreferences,
+    CatalogSearchQuery,
+    ComponentFamily,
+    ComponentVariant,
+)
 from pcbsmith.services.component_catalog import (
     ComponentCatalog,
     builtin_catalog,
@@ -61,6 +68,61 @@ def test_search_catalog_matches_text_package_tags_and_aliases() -> None:
     ]
     assert search_catalog(catalog, CatalogSearchQuery(tags=("smd",)))
     assert search_catalog(catalog, CatalogSearchQuery(text="through hole"))
+
+
+def test_search_catalog_matches_short_aliases_exactly() -> None:
+    catalog = builtin_catalog()
+
+    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="r"))) == [
+        "pcbs:resistor_0603"
+    ]
+    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="c"))) == [
+        "pcbs:capacitor_0603"
+    ]
+
+
+def test_search_catalog_excludes_non_user_visible_entries() -> None:
+    hidden_entry = CatalogEntry(
+        id="pcbs:hidden_dev_part",
+        family=ComponentFamily(id="developer", name="Developer"),
+        variant=ComponentVariant(name="Hidden Developer Part"),
+        symbol_id="stdlib:R",
+        tags=("hidden",),
+        group_ids=("basic-components",),
+        normal_user_visible=False,
+    )
+    catalog = ComponentCatalog(
+        groups=builtin_catalog().groups,
+        entries=(*builtin_catalog().entries, hidden_entry),
+    )
+
+    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="hidden"))) == []
+
+
+def test_preferred_search_cannot_force_non_user_visible_entries_visible() -> None:
+    hidden_entry = CatalogEntry(
+        id="pcbs:hidden_dev_part",
+        family=ComponentFamily(id="developer", name="Developer"),
+        variant=ComponentVariant(name="Hidden Developer Part"),
+        symbol_id="stdlib:R",
+        tags=("hidden",),
+        group_ids=("basic-components",),
+        normal_user_visible=False,
+    )
+    catalog = ComponentCatalog(
+        groups=builtin_catalog().groups,
+        entries=(*builtin_catalog().entries, hidden_entry),
+    )
+
+    results = search_catalog(
+        catalog,
+        CatalogSearchQuery(preferred_only=True),
+        project_preferences=CatalogPreferences(
+            visible_entry_ids=("pcbs:hidden_dev_part",)
+        ),
+    )
+
+    assert "pcbs:hidden_dev_part" not in _entry_ids(results)
 
 
 def test_search_catalog_group_filter_matches_any_requested_group() -> None:

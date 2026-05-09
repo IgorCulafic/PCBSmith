@@ -93,9 +93,9 @@ class MainWindow(QMainWindow):
         select_action.triggered.connect(lambda: self.scene.set_tool("select"))
         toolbar.addAction(select_action)
 
-        place_resistor_action = QAction("Place R", self)
+        place_resistor_action = QAction("Add R", self)
         place_resistor_action.triggered.connect(
-            lambda: self.scene.set_tool("place_resistor")
+            lambda: self.place_catalog_entry_by_id("pcbs:resistor_0603")
         )
         toolbar.addAction(place_resistor_action)
 
