@@ -29,6 +29,22 @@ Phase 1B adds safer schematic editing: selecting items, moving/deleting/rotating
 symbols, basic undo/redo, inspector edits for core symbol fields, and minimal net
 label/no-connect marker editing.
 
+## Component Catalog
+
+PCBSmith includes a native component catalog for real CAD components. The first
+catalog group, Basic Components, provides generic real variants such as 0603
+resistors, 0603 capacitors, 0603 LEDs, diodes, switches, push buttons, headers,
+and power symbols.
+
+Catalog entries carry tags and aliases so users and future AI tools can search
+by names, families, packages, and common terms. Simple starter parts use generic
+real variants; chips and specialized components will use exact designations when
+they are added.
+
+External libraries such as LibrePCB and KiCad are future import sources. PCBSmith
+keeps its own internal catalog schema so those sources can be adapted without
+changing project files or the UI contract.
+
 Run the GUI after installing the project:
 
 ```powershell
