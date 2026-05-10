@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from PySide6.QtGui import QKeySequence
 
-from pcbsmith.core.geom import Point
+from pcbsmith.core.geom import Point, mm_to_nm
 from pcbsmith.services import project_io
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.main_window import MainWindow
@@ -55,6 +55,37 @@ def test_scene_tools_place_label_and_no_connect() -> None:
     assert [marker.position for marker in schematic.no_connects] == [
         Point(x=2_540_000, y=0)
     ]
+
+
+def test_wire_tool_snaps_near_click_to_real_symbol_pin_anchor() -> None:
+    scene = SchematicScene()
+    scene.place_resistor(Point(x=0, y=0))
+    scene.set_tool("wire")
+
+    scene.handle_canvas_click(Point(x=-mm_to_nm(3.7), y=0))
+    scene.handle_canvas_click(Point(x=mm_to_nm(3.7), y=0))
+
+    wire = scene.editor_state.to_schematic().wires[0]
+    assert wire.points == (
+        Point(x=-mm_to_nm(5.08), y=0),
+        Point(x=mm_to_nm(5.08), y=0),
+    )
+
+
+def test_wire_tool_preserves_off_grid_endpoint_anchor_snap() -> None:
+    scene = SchematicScene()
+    scene.load_editor_state(
+        EditorState.blank("main").add_wire(
+            (Point(x=mm_to_nm(1), y=0), Point(x=mm_to_nm(4), y=0))
+        )
+    )
+    scene.set_tool("wire")
+
+    scene.handle_canvas_click(Point(x=mm_to_nm(1.2), y=0))
+    scene.handle_canvas_click(Point(x=mm_to_nm(6), y=0))
+
+    wire = scene.editor_state.to_schematic().wires[1]
+    assert wire.points[0] == Point(x=mm_to_nm(1), y=0)
 
 
 def test_scene_selected_key_returns_none_for_multiple_selected_items() -> None:

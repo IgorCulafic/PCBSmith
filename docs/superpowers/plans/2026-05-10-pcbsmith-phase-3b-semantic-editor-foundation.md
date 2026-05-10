@@ -71,15 +71,15 @@ Expected: PASS.
 - Modify: `src/pcbsmith/ui/items.py`
 - Modify: `src/pcbsmith/ui/schematic_scene.py`
 
-- [ ] **Step 1: Write anchor tests**
+- [x] **Step 1: Write anchor tests**
 
 Test that symbol library pins become absolute schematic anchor positions and that nearest-anchor lookup prefers pins/endpoints over grid points within a configured tolerance.
 
-- [ ] **Step 2: Implement anchor extraction**
+- [x] **Step 2: Implement anchor extraction**
 
 Create service functions that accept `Schematic` plus library symbols and return semantic anchors with IDs like `R1.1`, `R1.2`, and `wire:0:end`.
 
-- [ ] **Step 3: Render anchors through UI items**
+- [x] **Step 3: Render anchors through UI items**
 
 Keep pin dots as visual handles, but drive them from the same anchor positions used by snapping.
 

@@ -4,7 +4,9 @@ from PySide6.QtCore import QRectF
 from PySide6.QtGui import QPainter
 from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsScene
 
-from pcbsmith.core.geom import mm_to_nm
+from pcbsmith.core.geom import Point, mm_to_nm
+from pcbsmith.core.schematic import SymbolInstance
+from pcbsmith.ui.items import SymbolItem
 from pcbsmith.ui.schematic_view import (
     GRID_NM,
     ZOOM_IN_FACTOR,
@@ -66,3 +68,21 @@ def test_fit_to_contents_uses_centered_default_view_when_empty(
     view.fit_to_contents()
 
     assert view.fitted_rect == view.default_view_rect()
+
+
+def test_symbol_item_uses_library_pin_positions_for_connection_handles() -> None:
+    item = SymbolItem(
+        SymbolInstance(
+            reference="R1",
+            symbol_id="stdlib:R",
+            value="10k",
+            position=Point(x=0, y=0),
+        )
+    )
+
+    assert item.local_pin_positions() == (
+        Point(x=-mm_to_nm(5.08), y=0),
+        Point(x=mm_to_nm(5.08), y=0),
+    )
+    assert item.boundingRect().contains(-mm_to_nm(5.08), 0)
+    assert item.boundingRect().contains(mm_to_nm(5.08), 0)
