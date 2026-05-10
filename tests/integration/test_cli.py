@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -7,6 +8,28 @@ import sys
 from pathlib import Path
 
 FIXTURE = Path("tests/fixtures/voltage_divider")
+
+
+def _write_plan(path: Path) -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "description": "CLI resistor plan",
+                "schematic": "schematics/main.sch.json",
+                "commands": [
+                    {
+                        "type": "place_symbol",
+                        "symbol_id": "stdlib:R",
+                        "value": "1k",
+                        "position": {"x": 15_240_000, "y": 0},
+                        "footprint_id": "stdlib:R_0603",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
 
 
 def _run_cli(
@@ -216,3 +239,44 @@ def test_kicad_export_creates_skeleton_and_handoff_manifest(tmp_path: Path) -> N
     )
     assert (output_project / "Voltage_Divider.kicad_pro").exists()
     assert (output_project / "pcbsmith_handoff.json").exists()
+
+
+def test_kicad_plan_dry_run_prints_proposed_commands(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    package_path = tmp_path / "plan.json"
+    create_result = _run_cli("new", str(project_dir), "--name", "Plan Demo")
+    assert create_result.returncode == 0
+    _write_plan(package_path)
+
+    result = _run_cli("kicad-plan", str(project_dir), str(package_path))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Plan: CLI resistor plan",
+        "Target schematic: schematics/main.sch.json",
+        "1. place_symbol stdlib:R value=1k at 15.24, 0 mm",
+        "Dry run only; no files changed. Pass --apply to save changes.",
+    ]
+    assert not (project_dir / ".pcbsmith" / "action-log.jsonl").exists()
+
+
+def test_kicad_plan_apply_writes_project_and_action_log(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    package_path = tmp_path / "plan.json"
+    create_result = _run_cli("new", str(project_dir), "--name", "Plan Demo")
+    assert create_result.returncode == 0
+    _write_plan(package_path)
+
+    result = _run_cli("kicad-plan", str(project_dir), str(package_path), "--apply")
+    schematic_text = (project_dir / "schematics" / "main.sch.json").read_text(
+        encoding="utf-8"
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines()[-1] == (
+        "Applied 1 commands and wrote .pcbsmith/action-log.jsonl"
+    )
+    assert '"reference": "R1"' in schematic_text
+    assert (project_dir / ".pcbsmith" / "action-log.jsonl").exists()
