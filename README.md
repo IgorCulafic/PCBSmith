@@ -19,6 +19,7 @@ python -m pcbsmith.cli kicad-doctor
 python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 python -m pcbsmith.cli kicad-validate .\kicad-demo
+python -m pcbsmith.cli kicad-plan .\demo .\plan.json
 ```
 
 The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
@@ -80,6 +81,39 @@ python -m pcbsmith.cli kicad-validate .\kicad-demo
 ```
 
 This discovers one `.kicad_sch` and one `.kicad_pcb` file, runs `kicad-cli sch erc` and `kicad-cli pcb drc`, writes JSON reports under `.pcbsmith/kicad-reports`, and summarizes pass/fail status. Use `--skip-execution` to verify project discovery and KiCad configuration without launching KiCad.
+
+To review a structured command package before changing a PCBSmith project:
+
+```powershell
+python -m pcbsmith.cli kicad-plan .\demo .\plan.json
+```
+
+Apply only after review:
+
+```powershell
+python -m pcbsmith.cli kicad-plan .\demo .\plan.json --apply
+```
+
+The first approval-loop package format targets a project schematic and reuses PCBSmith's structured schematic command models:
+
+```json
+{
+  "version": 1,
+  "description": "Add one resistor",
+  "schematic": "schematics/main.sch.json",
+  "commands": [
+    {
+      "type": "place_symbol",
+      "symbol_id": "stdlib:R",
+      "value": "330",
+      "position": {"x": 15240000, "y": 0},
+      "footprint_id": "stdlib:R_0603"
+    }
+  ]
+}
+```
+
+Dry-run is the default and prints the proposed operations without writing files. `--apply` saves the schematic and appends an audit entry to `.pcbsmith/action-log.jsonl`. This is the first command-approval path that future AI planners will use before real KiCad edits.
 
 ## Phase 1A and 1B GUI
 

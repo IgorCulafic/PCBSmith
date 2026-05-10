@@ -15,6 +15,7 @@ from pcbsmith.services.kicad_doctor import (
     run_kicad_doctor,
 )
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
+from pcbsmith.services.kicad_plan import KiCadPlanError, run_kicad_plan
 from pcbsmith.services.kicad_project import create_kicad_project_skeleton
 from pcbsmith.services.kicad_validate import (
     format_kicad_validation_report,
@@ -133,6 +134,17 @@ def _cmd_kicad_validate(args: argparse.Namespace) -> int:
     return report.exit_code
 
 
+def _cmd_kicad_plan(args: argparse.Namespace) -> int:
+    result = run_kicad_plan(
+        Path(args.project),
+        Path(args.package),
+        apply=args.apply,
+    )
+    for line in result.lines:
+        print(line)
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -204,6 +216,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     kicad_validate_parser.set_defaults(func=_cmd_kicad_validate)
 
+    kicad_plan_parser = subparsers.add_parser(
+        "kicad-plan",
+        help="review or apply a structured PCBSmith command package",
+    )
+    kicad_plan_parser.add_argument("project")
+    kicad_plan_parser.add_argument("package")
+    kicad_plan_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="save the proposed changes and append an action log",
+    )
+    kicad_plan_parser.set_defaults(func=_cmd_kicad_plan)
+
     return parser
 
 
@@ -213,7 +238,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         command: Callable[[argparse.Namespace], int] = args.func
         return command(args)
-    except (FileExistsError, ProjectIOError, KeyError, ValueError) as exc:
+    except (FileExistsError, KiCadPlanError, ProjectIOError, KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
