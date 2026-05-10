@@ -3,7 +3,7 @@ from __future__ import annotations
 from itertools import pairwise
 
 from PySide6.QtCore import QRectF, Qt
-from PySide6.QtGui import QColor, QPainter, QPen
+from PySide6.QtGui import QColor, QPainter, QPen, QTransform
 from PySide6.QtWidgets import (
     QGraphicsItem,
     QGraphicsTextItem,
@@ -33,6 +33,7 @@ class SymbolItem(QGraphicsItem):
     def __init__(self, symbol: SymbolInstance, parent: QGraphicsItem | None = None) -> None:
         super().__init__(parent)
         self.symbol = symbol
+        self._mirrored_horizontally = False
 
         self.setPos(symbol.position.x, symbol.position.y)
         self.setRotation(symbol.rotation_deg)
@@ -57,6 +58,13 @@ class SymbolItem(QGraphicsItem):
 
     def selection_key(self) -> SelectionKey:
         return SelectionKey("symbol", self.symbol.reference)
+
+    def is_mirrored_horizontally(self) -> bool:
+        return self._mirrored_horizontally
+
+    def set_mirrored_horizontally(self, mirrored: bool) -> None:
+        self._mirrored_horizontally = mirrored
+        self.setTransform(QTransform.fromScale(-1 if mirrored else 1, 1), combine=False)
 
     def paint(
         self,
