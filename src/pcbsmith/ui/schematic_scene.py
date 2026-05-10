@@ -8,6 +8,7 @@ from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsSceneMouseE
 
 from pcbsmith.core.catalog import CatalogEntry
 from pcbsmith.core.geom import Point, snap
+from pcbsmith.core.schematic import SymbolInstance
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.history import EditHistory
 from pcbsmith.ui.items import NetLabelItem, NoConnectItem, SymbolItem, WireItem
@@ -19,7 +20,9 @@ ToolName = str
 
 class SchematicScene(QGraphicsScene):
     _app: QApplication | None = None
-    _tools = frozenset(("select", "place_resistor", "wire", "label", "no_connect"))
+    _tools = frozenset(
+        ("select", "place_resistor", "place_catalog", "wire", "label", "no_connect")
+    )
 
     def __init__(self, parent: QObject | None = None) -> None:
         if QApplication.instance() is None:
@@ -34,6 +37,8 @@ class SchematicScene(QGraphicsScene):
         self._no_connect_items: list[NoConnectItem] = []
         self._tool: ToolName = "select"
         self._pending_wire_start: Point | None = None
+        self._armed_catalog_entry: CatalogEntry | None = None
+        self._placement_preview: SymbolItem | None = None
 
     @property
     def editor_state(self) -> EditorState:
@@ -51,6 +56,7 @@ class SchematicScene(QGraphicsScene):
         self.clear()
         self._editor_state = state
         self._pending_wire_start = None
+        self._placement_preview = None
         self._symbol_items = [SymbolItem(symbol) for symbol in state.symbols]
         self._wire_items = [
             WireItem(wire, index) for index, wire in enumerate(state.wires)
@@ -132,11 +138,37 @@ class SchematicScene(QGraphicsScene):
             raise ValueError(f"Unknown schematic tool: {tool}")
 
         self._tool = tool
+        if tool != "place_catalog":
+            self._armed_catalog_entry = None
+            self._clear_placement_preview()
         self._pending_wire_start = None
+
+    def arm_catalog_entry(self, entry: CatalogEntry) -> None:
+        self._tool = "place_catalog"
+        self._armed_catalog_entry = entry
+        self._pending_wire_start = None
+        self._clear_placement_preview()
+
+    def armed_catalog_entry_id(self) -> str | None:
+        if self._armed_catalog_entry is None:
+            return None
+        return self._armed_catalog_entry.id
+
+    def cancel_active_tool(self) -> None:
+        self._tool = "select"
+        self._armed_catalog_entry = None
+        self._pending_wire_start = None
+        self._clear_placement_preview()
 
     def handle_canvas_click(self, position: Point) -> None:
         if self._tool == "place_resistor":
             self.place_resistor(position)
+            return
+
+        if self._tool == "place_catalog" and self._armed_catalog_entry is not None:
+            entry = self._armed_catalog_entry
+            self.place_catalog_entry(entry, position)
+            self.cancel_active_tool()
             return
 
         if self._tool == "wire":
@@ -219,6 +251,46 @@ class SchematicScene(QGraphicsScene):
         state = self._editor_state.rotate_symbol(selection.key, delta_deg)
         self.apply_editor_state(state)
 
+    def mirror_selection_horizontally(self, selection: SelectionKey) -> None:
+        if selection.kind != "symbol":
+            raise ValueError(f"Cannot mirror {selection.kind}")
+
+        for item in self._symbol_items:
+            if item.selection_key() == selection:
+                item.set_mirrored_horizontally(not item.is_mirrored_horizontally())
+                return
+
+        raise ValueError(f"Unknown selected symbol: {selection.key}")
+
+    def _clear_placement_preview(self) -> None:
+        if self._placement_preview is None:
+            return
+
+        self.removeItem(self._placement_preview)
+        self._placement_preview = None
+
+    def _update_placement_preview(self, position: Point) -> None:
+        if self._armed_catalog_entry is None:
+            self._clear_placement_preview()
+            return
+
+        snapped_position = snap(position, GRID_NM)
+        if self._placement_preview is None:
+            entry = self._armed_catalog_entry
+            symbol = SymbolInstance(
+                reference="PLACE",
+                symbol_id=entry.symbol_id,
+                value=entry.variant.default_value or entry.family.name,
+                position=snapped_position,
+                footprint_id=entry.footprint_id,
+            )
+            self._placement_preview = SymbolItem(symbol)
+            self._placement_preview.setOpacity(0.55)
+            self._placement_preview.setAcceptedMouseButtons(Qt.MouseButton.NoButton)
+            self.addItem(self._placement_preview)
+
+        self._placement_preview.setPos(snapped_position.x, snapped_position.y)
+
     def selected_key(self) -> SelectionKey | None:
         selected = self.selectedItems()
         if len(selected) != 1:
@@ -239,6 +311,15 @@ class SchematicScene(QGraphicsScene):
 
         super().mousePressEvent(event)
 
+    def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
+        if self._tool == "place_catalog":
+            scene_pos = event.scenePos()
+            self._update_placement_preview(
+                Point(x=int(scene_pos.x()), y=int(scene_pos.y()))
+            )
+
+        super().mouseMoveEvent(event)
+
     def mouseReleaseEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         super().mouseReleaseEvent(event)
         if event.button() == Qt.MouseButton.LeftButton and self._tool == "select":
@@ -246,7 +327,7 @@ class SchematicScene(QGraphicsScene):
 
     def keyPressEvent(self, event: QKeyEvent) -> None:
         if event.key() == Qt.Key.Key_Escape:
-            self.set_tool("select")
+            self.cancel_active_tool()
             event.accept()
             return
 

@@ -40,10 +40,18 @@ class MainWindow(QMainWindow):
         self.inspector = InspectorWidget()
         self.inspector_dock = QDockWidget("Inspector", self)
         self.schematic_toolbar = None
+        self.select_action = QAction("Select", self)
+        self.pan_action = QAction("Pan", self)
+        self.wire_action = QAction("Wire", self)
+        self.label_action = QAction("Label", self)
+        self.no_connect_action = QAction("No Connect", self)
+        self.fit_action = QAction("Fit", self)
+        self.run_erc_action = QAction("ERC", self)
         self.undo_action = QAction("Undo", self)
         self.redo_action = QAction("Redo", self)
         self.delete_action = QAction("Delete", self)
         self.rotate_action = QAction("Rotate", self)
+        self.mirror_horizontal_action = QAction("Mirror H", self)
 
         self.setWindowTitle("PCBSmith")
         self.setCentralWidget(self.view)
@@ -52,12 +60,63 @@ class MainWindow(QMainWindow):
         self._create_inspector_dock()
         self.inspector.symbol_field_changed.connect(self.apply_symbol_field_change)
         self.inspector.label_text_changed.connect(self.apply_label_text_change)
-        self._create_file_menu()
+        self._configure_actions()
+        self._create_menus()
         self._create_toolbar()
         self.scene.selectionChanged.connect(self.refresh_inspector)
 
-    def _create_file_menu(self) -> None:
+    def _configure_actions(self) -> None:
+        self.select_action.setShortcut(QKeySequence("V"))
+        self.select_action.triggered.connect(lambda: self.scene.set_tool("select"))
+        self.addAction(self.select_action)
+
+        self.wire_action.setShortcut(QKeySequence("W"))
+        self.wire_action.triggered.connect(lambda: self.scene.set_tool("wire"))
+        self.addAction(self.wire_action)
+
+        self.label_action.setShortcut(QKeySequence("T"))
+        self.label_action.triggered.connect(lambda: self.scene.set_tool("label"))
+        self.addAction(self.label_action)
+
+        self.no_connect_action.triggered.connect(lambda: self.scene.set_tool("no_connect"))
+
+        self.fit_action.triggered.connect(self.view.fit_to_contents)
+        self.run_erc_action.triggered.connect(self.run_erc)
+
+        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self.undo_action.triggered.connect(self.undo)
+        self.addAction(self.undo_action)
+
+        self.redo_action.setShortcuts(
+            [
+                QKeySequence(QKeySequence.StandardKey.Redo),
+                QKeySequence("Ctrl+Shift+Z"),
+            ]
+        )
+        self.redo_action.triggered.connect(self.redo)
+        self.addAction(self.redo_action)
+
+        self.delete_action.setShortcut(QKeySequence.StandardKey.Delete)
+        self.delete_action.triggered.connect(self.delete_selected)
+        self.addAction(self.delete_action)
+
+        self.rotate_action.setShortcut(QKeySequence("Ctrl+R"))
+        self.rotate_action.triggered.connect(self.rotate_selected)
+        self.addAction(self.rotate_action)
+
+        self.mirror_horizontal_action.setShortcut(QKeySequence("H"))
+        self.mirror_horizontal_action.triggered.connect(self.mirror_horizontal_selected)
+        self.addAction(self.mirror_horizontal_action)
+
+    def _create_menus(self) -> None:
         file_menu = self.menuBar().addMenu("&File")
+        edit_menu = self.menuBar().addMenu("&Edit")
+        view_menu = self.menuBar().addMenu("&View")
+        components_menu = self.menuBar().addMenu("&Components")
+        tools_menu = self.menuBar().addMenu("&Tools")
+        options_menu = self.menuBar().addMenu("&Options")
+        project_menu = self.menuBar().addMenu("&Project")
+        help_menu = self.menuBar().addMenu("&Help")
 
         new_project_action = QAction("New Project", self)
         new_project_action.triggered.connect(self.create_project_dialog)
@@ -68,8 +127,43 @@ class MainWindow(QMainWindow):
         file_menu.addAction(open_project_action)
 
         save_project_action = QAction("Save", self)
+        save_project_action.setShortcut(QKeySequence.StandardKey.Save)
         save_project_action.triggered.connect(self.save_project)
         file_menu.addAction(save_project_action)
+
+        edit_menu.addAction(self.undo_action)
+        edit_menu.addAction(self.redo_action)
+        edit_menu.addAction(self.delete_action)
+        edit_menu.addAction(self.rotate_action)
+        edit_menu.addAction(self.mirror_horizontal_action)
+
+        view_menu.addAction(self.fit_action)
+
+        components_menu.addAction(
+            self._component_action("Resistor", "pcbs:resistor_0603", "R")
+        )
+        components_menu.addAction(
+            self._component_action("Capacitor", "pcbs:capacitor_0603", "C")
+        )
+        components_menu.addAction(self._component_action("Diode", "pcbs:diode_0603", "D"))
+        components_menu.addAction(self._component_action("LED", "pcbs:led_0603", "L"))
+
+        tools_menu.addAction(self.select_action)
+        tools_menu.addAction(self.wire_action)
+        tools_menu.addAction(self.label_action)
+        tools_menu.addAction(self.no_connect_action)
+        tools_menu.addAction(self.run_erc_action)
+
+        options_menu.addAction(QAction("Grid And Snap Settings", self))
+        project_menu.addAction(QAction("Project Settings", self))
+        help_menu.addAction(QAction("About PCBSmith", self))
+
+    def _component_action(self, text: str, entry_id: str, shortcut: str) -> QAction:
+        action = QAction(text, self)
+        action.setShortcut(QKeySequence(shortcut))
+        action.triggered.connect(lambda: self.arm_catalog_entry_by_id(entry_id))
+        self.addAction(action)
+        return action
 
     def _create_library_dock(self) -> None:
         self.component_browser.entry_activated.connect(self.place_catalog_entry_by_id)
@@ -89,96 +183,51 @@ class MainWindow(QMainWindow):
         self.schematic_toolbar = self.addToolBar("Schematic")
         toolbar = self.schematic_toolbar
 
-        select_action = QAction("Select", self)
-        select_action.triggered.connect(lambda: self.scene.set_tool("select"))
-        toolbar.addAction(select_action)
-
-        place_resistor_action = QAction("Add R", self)
-        place_resistor_action.triggered.connect(
-            lambda: self.place_catalog_entry_by_id("pcbs:resistor_0603")
-        )
-        toolbar.addAction(place_resistor_action)
-
-        place_capacitor_action = QAction("Add C", self)
-        place_capacitor_action.triggered.connect(
-            lambda: self.place_catalog_entry_by_id("pcbs:capacitor_0603")
-        )
-        toolbar.addAction(place_capacitor_action)
-
-        place_led_action = QAction("Add LED", self)
-        place_led_action.triggered.connect(
-            lambda: self.place_catalog_entry_by_id("pcbs:led_0603")
-        )
-        toolbar.addAction(place_led_action)
-
-        more_components_action = QAction("More Components", self)
-        more_components_action.triggered.connect(self.focus_component_browser_search)
-        toolbar.addAction(more_components_action)
-
-        wire_action = QAction("Wire", self)
-        wire_action.triggered.connect(lambda: self.scene.set_tool("wire"))
-        toolbar.addAction(wire_action)
-
-        label_action = QAction("Label", self)
-        label_action.triggered.connect(lambda: self.scene.set_tool("label"))
-        toolbar.addAction(label_action)
-
-        no_connect_action = QAction("No Connect", self)
-        no_connect_action.triggered.connect(lambda: self.scene.set_tool("no_connect"))
-        toolbar.addAction(no_connect_action)
+        toolbar.addAction(self.select_action)
+        toolbar.addAction(self.pan_action)
+        toolbar.addAction(self.wire_action)
+        toolbar.addAction(self.label_action)
+        toolbar.addAction(self.no_connect_action)
 
         toolbar.addSeparator()
 
-        self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
-        self.undo_action.triggered.connect(self.undo)
-        self.addAction(self.undo_action)
         toolbar.addAction(self.undo_action)
 
-        self.redo_action.setShortcut(QKeySequence.StandardKey.Redo)
-        self.redo_action.triggered.connect(self.redo)
-        self.addAction(self.redo_action)
         toolbar.addAction(self.redo_action)
 
-        self.delete_action.setShortcut(QKeySequence.StandardKey.Delete)
-        self.delete_action.triggered.connect(self.delete_selected)
-        self.addAction(self.delete_action)
         toolbar.addAction(self.delete_action)
 
-        self.rotate_action.setShortcut(QKeySequence("Ctrl+R"))
-        self.rotate_action.triggered.connect(self.rotate_selected)
-        self.addAction(self.rotate_action)
         toolbar.addAction(self.rotate_action)
+        toolbar.addAction(self.mirror_horizontal_action)
 
         toolbar.addSeparator()
 
-        fit_action = QAction("Fit", self)
-        fit_action.triggered.connect(self.view.fit_to_contents)
-        toolbar.addAction(fit_action)
-
-        run_erc = QAction("ERC", self)
-        run_erc.triggered.connect(self.run_erc)
-        toolbar.addAction(run_erc)
+        toolbar.addAction(self.fit_action)
+        toolbar.addAction(self.run_erc_action)
 
     def place_resistor_at_origin(self) -> None:
         self.scene.place_resistor(Point(x=0, y=0))
         self.console.append("Placed resistor")
 
-    def place_catalog_entry_by_id(self, entry_id: str) -> None:
+    def arm_catalog_entry_by_id(self, entry_id: str) -> None:
         try:
             entry = component_catalog.entry_by_id(self.component_browser.catalog, entry_id)
         except KeyError as exc:
             self.show_error(str(exc))
             return
-        self.scene.place_catalog_entry(entry, Point(x=0, y=0))
-        self.console.append(f"Placed {entry.variant.name}")
+        self.scene.arm_catalog_entry(entry)
+        self.console.append(f"Ready to place {entry.variant.name}")
+
+    def place_catalog_entry_by_id(self, entry_id: str) -> None:
+        self.arm_catalog_entry_by_id(entry_id)
 
     def place_selected_component_at_origin(self) -> None:
         entry = self.component_browser.selected_entry()
         if entry is None:
             self.show_error("No component is selected")
             return
-        self.scene.place_catalog_entry(entry, Point(x=0, y=0))
-        self.console.append(f"Placed {entry.variant.name}")
+        self.scene.arm_catalog_entry(entry)
+        self.console.append(f"Ready to place {entry.variant.name}")
 
     def focus_component_browser_search(self) -> None:
         self.library_dock.show()
@@ -307,6 +356,16 @@ class MainWindow(QMainWindow):
             return
         try:
             self.scene.rotate_selection(selection, 90)
+        except ValueError as exc:
+            self.show_error(str(exc))
+        self.refresh_inspector()
+
+    def mirror_horizontal_selected(self) -> None:
+        selection = self.scene.selected_key()
+        if selection is None:
+            return
+        try:
+            self.scene.mirror_selection_horizontally(selection)
         except ValueError as exc:
             self.show_error(str(exc))
         self.refresh_inspector()
