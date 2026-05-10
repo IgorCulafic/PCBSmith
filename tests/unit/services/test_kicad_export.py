@@ -23,8 +23,14 @@ def _assert_hidden_label(schematic_text: str, name: str, x_mm: str, y_mm: str) -
     assert re.search(
         rf'\(label "{re.escape(name)}"\s+'
         rf"\(at {re.escape(x_mm)} {re.escape(y_mm)} 0\)"
-        r".*?\(size 0\.01 0\.01\)"
-        r".*?\(hide yes\)",
+        r"\s+\(effects\s+"
+        r"\(font\s+"
+        r"\(size 0\.01 0\.01\)"
+        r"\s+\)\s+"
+        r"\(hide yes\)"
+        r"\s+\)\s+"
+        r'\(uuid "[^"]+"\)'
+        r"\s+\)",
         schematic_text,
         re.DOTALL,
     )
@@ -305,8 +311,7 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     assert "(xy 45.72 25.4) (xy 60.96 25.4)" in schematic_text
     assert "(xy 71.12 25.4) (xy 86.36 25.4)" in schematic_text
     _assert_hidden_label(schematic_text, "VCC", "35.56", "25.4")
-    assert '(label "LED_A"' in schematic_text
-    assert "(at 53.34 25.4 0)" in schematic_text
+    _assert_hidden_label(schematic_text, "LED_A", "53.34", "25.4")
     _assert_hidden_label(schematic_text, "GND", "71.12", "25.4")
     assert {
         "type": "place_symbol",
