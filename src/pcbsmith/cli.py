@@ -9,6 +9,7 @@ from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
+from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
 from pcbsmith.services.project_io import (
     ProjectIOError,
     create_project,
@@ -76,6 +77,19 @@ def _cmd_erc(args: argparse.Namespace) -> int:
     return 1 if issues else 0
 
 
+def _cmd_kicad_status(_args: argparse.Namespace) -> int:
+    install = find_kicad_cli()
+    if install is None:
+        print(
+            "KiCad CLI not found. Install KiCad or set "
+            f"{KICAD_CLI_ENV}=<path-to-kicad-cli>."
+        )
+        return 1
+
+    print(f"KiCad CLI: {install.cli_path} ({install.source})")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -100,6 +114,12 @@ def build_parser() -> argparse.ArgumentParser:
     erc_parser = subparsers.add_parser("erc", help="run ERC on the first schematic")
     erc_parser.add_argument("project")
     erc_parser.set_defaults(func=_cmd_erc)
+
+    kicad_status_parser = subparsers.add_parser(
+        "kicad-status",
+        help="check whether a KiCad CLI backend is available",
+    )
+    kicad_status_parser.set_defaults(func=_cmd_kicad_status)
 
     return parser
 

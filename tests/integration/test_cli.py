@@ -9,9 +9,15 @@ from pathlib import Path
 FIXTURE = Path("tests/fixtures/voltage_divider")
 
 
-def _run_cli(*args: str, cwd: Path | None = None) -> subprocess.CompletedProcess[str]:
+def _run_cli(
+    *args: str,
+    cwd: Path | None = None,
+    extra_env: dict[str, str] | None = None,
+) -> subprocess.CompletedProcess[str]:
     env = os.environ.copy()
     env["PYTHONPATH"] = str(Path.cwd() / "src")
+    if extra_env is not None:
+        env.update(extra_env)
     return subprocess.run(
         [sys.executable, "-m", "pcbsmith.cli", *args],
         cwd=cwd,
@@ -111,3 +117,16 @@ def test_missing_project_returns_cli_error(tmp_path: Path) -> None:
     assert result.returncode == 2
     assert result.stdout == ""
     assert result.stderr.startswith("error: Project file not found:")
+
+
+def test_kicad_status_reports_explicit_cli_path() -> None:
+    result = _run_cli(
+        "kicad-status",
+        extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == (
+        "KiCad CLI: C:\\Tools\\KiCad\\bin\\kicad-cli.exe (PCBSMITH_KICAD_CLI)"
+    )
