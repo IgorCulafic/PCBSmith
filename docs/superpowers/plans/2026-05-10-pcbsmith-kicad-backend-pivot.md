@@ -214,6 +214,30 @@ Add `pcbsmith kicad-validate <project>` with `--skip-execution` for discovery/co
 
 Add KiCad setup notes, validation examples, and ignored `.pcbsmith/` generated reports.
 
+## Task 9: KiCad-Native Schematic Primitive Export
+
+**Files:**
+- Modify: `src/pcbsmith/services/kicad_export.py`
+- Modify: `src/pcbsmith/services/kicad_project.py`
+- Modify: `tests/unit/services/test_kicad_export.py`
+- Modify: `README.md`
+
+- [x] **Step 1: Write failing export tests**
+
+Cover net labels and no-connect markers being written into the generated `.kicad_sch`.
+
+- [x] **Step 2: Implement KiCad schematic item rendering**
+
+Render PCBSmith `NetLabel` and `NoConnect` objects as KiCad `label` and `no_connect` records, converting nanometer coordinates to millimeters.
+
+- [x] **Step 3: Keep symbols and wires deferred**
+
+Leave symbols and wires in `pcbsmith_handoff.json` until the KiCad symbol/library mapping is ready.
+
+- [x] **Step 4: Update README**
+
+Document that `kicad-export` now writes safe native schematic primitives in addition to the handoff manifest.
+
 ## Verification
 
 Run before commit:

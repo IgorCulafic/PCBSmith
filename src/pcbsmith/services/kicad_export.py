@@ -6,10 +6,14 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
 
-from pcbsmith.core.geom import Point
+from pcbsmith.core.geom import Point, nm_to_mm
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
-from pcbsmith.services.kicad_project import KiCadProjectSkeleton, create_kicad_project_skeleton
+from pcbsmith.services.kicad_project import (
+    KiCadProjectSkeleton,
+    create_kicad_project_skeleton,
+    render_kicad_schematic_file,
+)
 from pcbsmith.services.project_io import load_project, load_schematic
 
 HANDOFF_FILE_NAME = "pcbsmith_handoff.json"
@@ -37,6 +41,13 @@ def export_pcbs_project_to_kicad(
         output_project_dir,
         project_name or project.name,
         uuid_factory=uuid_factory,
+    )
+    skeleton.schematic_file.write_text(
+        render_kicad_schematic_file(
+            uuid_factory(),
+            render_kicad_schematic_items(schematic, uuid_factory=uuid_factory),
+        ),
+        encoding="utf-8",
     )
     handoff_file = skeleton.project_dir / HANDOFF_FILE_NAME
     handoff_file.write_text(
@@ -84,6 +95,20 @@ def schematic_handoff_commands(schematic: Schematic) -> list[dict[str, object]]:
     return commands
 
 
+def render_kicad_schematic_items(
+    schematic: Schematic,
+    *,
+    uuid_factory: Callable[[], UUID] = uuid4,
+) -> tuple[str, ...]:
+    items: list[str] = []
+    items.extend(_render_kicad_label(label, uuid_factory()) for label in schematic.labels)
+    items.extend(
+        _render_kicad_no_connect(no_connect, uuid_factory())
+        for no_connect in schematic.no_connects
+    )
+    return tuple(items)
+
+
 def _symbol_command(symbol: SymbolInstance) -> dict[str, object]:
     return {
         "type": "place_symbol",
@@ -123,6 +148,34 @@ def _point(point: Point) -> dict[str, int]:
     return {"x": point.x, "y": point.y}
 
 
+def _render_kicad_label(label: NetLabel, item_uuid: UUID) -> str:
+    return f"""  (label "{_escape_kicad_string(label.name)}"
+    (at {_format_mm(label.position.x)} {_format_mm(label.position.y)} 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "{item_uuid}")
+  )"""
+
+
+def _render_kicad_no_connect(no_connect: NoConnect, item_uuid: UUID) -> str:
+    return f"""  (no_connect
+    (at {_format_mm(no_connect.position.x)} {_format_mm(no_connect.position.y)})
+    (uuid "{item_uuid}")
+  )"""
+
+
+def _format_mm(value_nm: int) -> str:
+    value = nm_to_mm(value_nm)
+    return f"{value:.6f}".rstrip("0").rstrip(".")
+
+
+def _escape_kicad_string(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
 def _first_schematic_path(project: Project) -> str:
     if not project.schematics:
         raise ValueError("Project has no schematics")
@@ -140,6 +193,7 @@ __all__ = [
     "HANDOFF_SCHEMA",
     "KiCadExportResult",
     "export_pcbs_project_to_kicad",
+    "render_kicad_schematic_items",
     "render_handoff_manifest",
     "schematic_handoff_commands",
 ]

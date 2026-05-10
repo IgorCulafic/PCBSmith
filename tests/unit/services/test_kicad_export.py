@@ -5,7 +5,10 @@ import shutil
 from pathlib import Path
 from uuid import UUID
 
+from pcbsmith.core.geom import Point
+from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
+from pcbsmith.services.project_io import create_project, save_schematic
 
 FIXTURE = Path("tests/fixtures/voltage_divider")
 
@@ -97,3 +100,53 @@ def test_export_handoff_manifest_emits_ordered_schematic_commands(tmp_path: Path
         "name": "GND",
         "position_nm": {"x": 30480000, "y": 0},
     }
+
+
+def test_export_writes_net_labels_to_kicad_schematic(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    shutil.copytree(FIXTURE, source_project)
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+
+    assert '(label "VCC"' in schematic_text
+    assert "(at 0 0 0)" in schematic_text
+    assert '(label "OUT"' in schematic_text
+    assert "(at 15.24 0 0)" in schematic_text
+    assert '(label "GND"' in schematic_text
+    assert "(at 30.48 0 0)" in schematic_text
+    assert schematic_text.count("(label ") == 3
+
+
+def test_export_writes_no_connect_markers_to_kicad_schematic(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "No Connect Demo")
+    save_schematic(
+        source_project,
+        "schematics/main.sch.json",
+        Schematic(
+            id="main",
+            labels=(NetLabel(name="SIG", position=Point.from_mm(2.54, 5.08)),),
+            no_connects=(NoConnect(position=Point.from_mm(7.62, 10.16)),),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+
+    assert '(label "SIG"' in schematic_text
+    assert "(at 2.54 5.08 0)" in schematic_text
+    assert "(no_connect" in schematic_text
+    assert "(at 7.62 10.16)" in schematic_text
