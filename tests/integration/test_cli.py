@@ -130,3 +130,28 @@ def test_kicad_status_reports_explicit_cli_path() -> None:
     assert result.stdout.strip() == (
         "KiCad CLI: C:\\Tools\\KiCad\\bin\\kicad-cli.exe (PCBSMITH_KICAD_CLI)"
     )
+
+
+def test_kicad_new_creates_kicad_project_skeleton(tmp_path: Path) -> None:
+    project_dir = tmp_path / "kicad-demo"
+
+    result = _run_cli("kicad-new", str(project_dir), "--name", "LED Blinker")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == f"Created KiCad project skeleton at {project_dir}"
+    assert (project_dir / "LED_Blinker.kicad_pro").exists()
+    assert (project_dir / "LED_Blinker.kicad_sch").exists()
+    assert (project_dir / "LED_Blinker.kicad_pcb").exists()
+
+
+def test_kicad_new_refuses_existing_directory(tmp_path: Path) -> None:
+    project_dir = tmp_path / "kicad-demo"
+    project_dir.mkdir()
+    (project_dir / "existing.txt").write_text("existing\n", encoding="utf-8")
+
+    result = _run_cli("kicad-new", str(project_dir), "--name", "LED Blinker")
+
+    assert result.returncode == 2
+    assert result.stdout == ""
+    assert result.stderr.startswith("error: Project target already exists:")

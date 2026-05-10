@@ -10,6 +10,7 @@ from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
+from pcbsmith.services.kicad_project import create_kicad_project_skeleton
 from pcbsmith.services.project_io import (
     ProjectIOError,
     create_project,
@@ -90,6 +91,12 @@ def _cmd_kicad_status(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_kicad_new(args: argparse.Namespace) -> int:
+    result = create_kicad_project_skeleton(Path(args.project), args.name)
+    print(f"Created KiCad project skeleton at {result.project_dir}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -121,6 +128,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     kicad_status_parser.set_defaults(func=_cmd_kicad_status)
 
+    kicad_new_parser = subparsers.add_parser(
+        "kicad-new",
+        help="create a KiCad project skeleton for PCBSmith handoff",
+    )
+    kicad_new_parser.add_argument("project")
+    kicad_new_parser.add_argument("--name", required=True)
+    kicad_new_parser.set_defaults(func=_cmd_kicad_new)
+
     return parser
 
 
@@ -130,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         command: Callable[[argparse.Namespace], int] = args.func
         return command(args)
-    except (ProjectIOError, KeyError, ValueError) as exc:
+    except (FileExistsError, ProjectIOError, KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
