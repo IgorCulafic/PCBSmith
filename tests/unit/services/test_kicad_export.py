@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import shutil
 from pathlib import Path
 from uuid import UUID
@@ -16,6 +17,17 @@ LED_SERIES_FIXTURE = Path("tests/fixtures/led_series_circuit")
 
 def _fixed_uuid() -> UUID:
     return UUID("11111111-2222-3333-4444-555555555555")
+
+
+def _assert_hidden_label(schematic_text: str, name: str, x_mm: str, y_mm: str) -> None:
+    assert re.search(
+        rf'\(label "{re.escape(name)}"\s+'
+        rf"\(at {re.escape(x_mm)} {re.escape(y_mm)} 0\)"
+        r".*?\(size 0\.01 0\.01\)"
+        r".*?\(hide yes\)",
+        schematic_text,
+        re.DOTALL,
+    )
 
 
 def test_export_pcbs_project_to_kicad_creates_skeleton_and_handoff_manifest(
@@ -129,10 +141,10 @@ def test_export_writes_native_symbols_wires_and_connected_net_labels(
     assert "(wire" in schematic_text
     assert "(xy 35.56 25.4) (xy 40.64 25.4)" in schematic_text
     assert "(xy 50.8 25.4) (xy 55.88 25.4)" in schematic_text
-    assert '(label "VCC"' in schematic_text
+    assert '(label "VCC"' not in schematic_text
     assert '(label "OUT"' in schematic_text
-    assert '(label "GND"' in schematic_text
-    assert "(at 50.8 25.4 0)" in schematic_text
+    _assert_hidden_label(schematic_text, "GND", "50.8", "25.4")
+    assert "(at 40.64 25.4 0)" in schematic_text
     assert {
         "type": "add_wire",
         "points_nm": [{"x": 10160000, "y": 0}, {"x": 15240000, "y": 0}],
@@ -292,10 +304,10 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     assert "(xy 25.4 25.4) (xy 35.56 25.4)" in schematic_text
     assert "(xy 45.72 25.4) (xy 60.96 25.4)" in schematic_text
     assert "(xy 71.12 25.4) (xy 86.36 25.4)" in schematic_text
-    assert '(label "VCC"' in schematic_text
+    _assert_hidden_label(schematic_text, "VCC", "35.56", "25.4")
     assert '(label "LED_A"' in schematic_text
     assert "(at 53.34 25.4 0)" in schematic_text
-    assert '(label "GND"' in schematic_text
+    _assert_hidden_label(schematic_text, "GND", "71.12", "25.4")
     assert {
         "type": "place_symbol",
         "reference": "LED1",
