@@ -126,12 +126,12 @@ def test_export_writes_native_symbols_wires_and_connected_net_labels(
     assert '(property "Reference" "R1"' in schematic_text
     assert '(property "Value" "10k"' in schematic_text
     assert "(wire" in schematic_text
-    assert "(xy 10.16 0) (xy 15.24 0)" in schematic_text
-    assert "(xy 25.4 0) (xy 30.48 0)" in schematic_text
+    assert "(xy 35.56 25.4) (xy 40.64 25.4)" in schematic_text
+    assert "(xy 50.8 25.4) (xy 55.88 25.4)" in schematic_text
     assert '(label "VCC"' in schematic_text
     assert '(label "OUT"' in schematic_text
     assert '(label "GND"' in schematic_text
-    assert "(at 25.4 0 0)" in schematic_text
+    assert "(at 50.8 25.4 0)" in schematic_text
     assert {
         "type": "add_wire",
         "points_nm": [{"x": 10160000, "y": 0}, {"x": 15240000, "y": 0}],
@@ -162,6 +162,46 @@ def test_export_writes_project_local_pcbs_library(tmp_path: Path) -> None:
     assert '(symbol "GND"' in library_text
     assert '(name "PCBSmith")' in symbol_table_text
     assert '${KIPRJMOD}/PCBSmith.kicad_sym' in symbol_table_text
+
+
+def test_export_translates_source_origin_into_visible_sheet_area(
+    tmp_path: Path,
+) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Visible Origin Demo")
+    save_schematic(
+        source_project,
+        "schematics/main.sch.json",
+        Schematic(
+            id="main",
+            symbols=(
+                SymbolInstance(
+                    reference="R1",
+                    symbol_id="stdlib:R",
+                    value="10k",
+                    position=Point.from_mm(0, 0),
+                    footprint_id="stdlib:R_0603",
+                ),
+            ),
+            no_connects=(
+                NoConnect(position=Point.from_mm(-5.08, 0)),
+                NoConnect(position=Point.from_mm(5.08, 0)),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+
+    assert "(at 25.4 25.4 0)" in schematic_text
+    assert "(at 20.32 25.4)" in schematic_text
+    assert "(at 30.48 25.4)" in schematic_text
 
 
 def test_export_writes_common_passive_and_diode_family_symbols(tmp_path: Path) -> None:
@@ -277,4 +317,4 @@ def test_export_writes_no_connect_markers_to_kicad_schematic(tmp_path: Path) -> 
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
 
     assert "(no_connect" in schematic_text
-    assert "(at 7.62 10.16)" in schematic_text
+    assert "(at 33.02 35.56)" in schematic_text

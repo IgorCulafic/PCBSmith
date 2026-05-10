@@ -22,6 +22,8 @@ HANDOFF_SCHEMA = "pcbsmith-kicad-handoff-v1"
 PCBSMITH_SYMBOL_LIBRARY_FILE_NAME = "PCBSmith.kicad_sym"
 PCBSMITH_SYMBOL_TABLE_FILE_NAME = "sym-lib-table"
 PCBSMITH_LIBRARY_NAME = "PCBSmith"
+KICAD_ZERO_OFFSET = Vec(0, 0)
+KICAD_SCHEMATIC_ITEM_OFFSET = Vec(25_400_000, 25_400_000)
 
 
 @dataclass(frozen=True)
@@ -234,21 +236,40 @@ def render_kicad_schematic_items(
 
     items: list[str] = []
     items.extend(
-        _render_kicad_symbol(symbol, project_name=project_name)
+        _render_kicad_symbol(
+            symbol,
+            project_name=project_name,
+            offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+        )
         for symbol in native_symbols
     )
-    items.extend(_render_kicad_wire(wire, uuid_factory()) for wire in native_wires)
     items.extend(
-        _render_kicad_label(label, uuid_factory())
+        _render_kicad_wire(wire, uuid_factory(), offset=KICAD_SCHEMATIC_ITEM_OFFSET)
+        for wire in native_wires
+    )
+    items.extend(
+        _render_kicad_label(
+            label,
+            uuid_factory(),
+            offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+        )
         for label in schematic.labels
         if _should_render_native_label(label, connected_points)
     )
     items.extend(
-        _render_kicad_label(label, uuid_factory())
+        _render_kicad_label(
+            label,
+            uuid_factory(),
+            offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+        )
         for label in _power_wire_endpoint_labels(native_wires, power_points)
     )
     items.extend(
-        _render_kicad_no_connect(no_connect, uuid_factory())
+        _render_kicad_no_connect(
+            no_connect,
+            uuid_factory(),
+            offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+        )
         for no_connect in schematic.no_connects
     )
     return tuple(items)
@@ -356,41 +377,47 @@ def _power_wire_endpoint_labels(
     return tuple(labels)
 
 
-def _render_kicad_symbol(symbol: NativeSymbolInstance, *, project_name: str) -> str:
+def _render_kicad_symbol(
+    symbol: NativeSymbolInstance,
+    *,
+    project_name: str,
+    offset: Vec = KICAD_ZERO_OFFSET,
+) -> str:
     source = symbol.source
+    position = source.position + offset
     reference = symbol.reference
     value = source.value or symbol.spec.value
     reference_property = _render_symbol_property(
         "Reference",
         reference,
-        source.position.x,
-        source.position.y - 2_540_000,
+        position.x,
+        position.y - 2_540_000,
         hidden=symbol.spec.power,
     )
-    value_y = source.position.y + (
+    value_y = position.y + (
         2_540_000 if not symbol.spec.power else -2_540_000
     )
-    value_property = _render_symbol_property("Value", value, source.position.x, value_y)
+    value_property = _render_symbol_property("Value", value, position.x, value_y)
     footprint_property = _render_symbol_property(
-        "Footprint", "", source.position.x, source.position.y, hidden=True
+        "Footprint", "", position.x, position.y, hidden=True
     )
     datasheet_property = _render_symbol_property(
         "Datasheet",
         symbol.spec.datasheet,
-        source.position.x,
-        source.position.y,
+        position.x,
+        position.y,
         hidden=True,
     )
     description_property = _render_symbol_property(
         "Description",
         symbol.spec.description,
-        source.position.x,
-        source.position.y,
+        position.x,
+        position.y,
         hidden=True,
     )
     return f"""  (symbol
     (lib_id "{symbol.lib_id}")
-    (at {_format_mm(source.position.x)} {_format_mm(source.position.y)} {source.rotation_deg})
+    (at {_format_mm(position.x)} {_format_mm(position.y)} {source.rotation_deg})
     (unit 1)
     (exclude_from_sim no)
     (in_bom yes)
@@ -442,9 +469,15 @@ def _render_symbol_property(
     )"""
 
 
-def _render_kicad_label(label: NetLabel, item_uuid: UUID) -> str:
+def _render_kicad_label(
+    label: NetLabel,
+    item_uuid: UUID,
+    *,
+    offset: Vec = KICAD_ZERO_OFFSET,
+) -> str:
+    position = label.position + offset
     return f"""  (label "{_escape_kicad_string(label.name)}"
-    (at {_format_mm(label.position.x)} {_format_mm(label.position.y)} 0)
+    (at {_format_mm(position.x)} {_format_mm(position.y)} 0)
     (effects
       (font
         (size 1.27 1.27)
@@ -454,9 +487,15 @@ def _render_kicad_label(label: NetLabel, item_uuid: UUID) -> str:
   )"""
 
 
-def _render_kicad_wire(wire: Wire, item_uuid: UUID) -> str:
+def _render_kicad_wire(
+    wire: Wire,
+    item_uuid: UUID,
+    *,
+    offset: Vec = KICAD_ZERO_OFFSET,
+) -> str:
     points = " ".join(
-        f"(xy {_format_mm(point.x)} {_format_mm(point.y)})" for point in wire.points
+        f"(xy {_format_mm(point.x + offset.dx)} {_format_mm(point.y + offset.dy)})"
+        for point in wire.points
     )
     return f"""  (wire
     (pts
@@ -470,9 +509,15 @@ def _render_kicad_wire(wire: Wire, item_uuid: UUID) -> str:
   )"""
 
 
-def _render_kicad_no_connect(no_connect: NoConnect, item_uuid: UUID) -> str:
+def _render_kicad_no_connect(
+    no_connect: NoConnect,
+    item_uuid: UUID,
+    *,
+    offset: Vec = KICAD_ZERO_OFFSET,
+) -> str:
+    position = no_connect.position + offset
     return f"""  (no_connect
-    (at {_format_mm(no_connect.position.x)} {_format_mm(no_connect.position.y)})
+    (at {_format_mm(position.x)} {_format_mm(position.y)})
     (uuid "{item_uuid}")
   )"""
 
