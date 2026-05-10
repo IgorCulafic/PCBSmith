@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor, QKeySequence
+from PySide6.QtTest import QTest
 
 from pcbsmith.core.geom import Point
 from pcbsmith.ui import items
@@ -12,11 +14,7 @@ def _menu_titles(window: MainWindow) -> set[str]:
 
 
 def _toolbar_texts(window: MainWindow) -> set[str]:
-    return {
-        action.text()
-        for action in window.schematic_toolbar.actions()
-        if action.text()
-    }
+    return {action.text() for action in window.schematic_toolbar.actions() if action.text()}
 
 
 def test_phase3a_item_theme_is_readable_on_light_canvas() -> None:
@@ -71,6 +69,16 @@ def test_phase3a_options_menu_can_switch_themes(qtbot) -> None:  # type: ignore[
     assert window.property("pcbsTheme") == "light"
 
 
+def test_phase3a_options_menu_can_change_wire_width(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    actions = {action.text(): action for action in window.actions()}
+
+    actions["Wire Width 6"].trigger()
+
+    assert window.scene.wire_stroke_width() == 6
+
+
 def test_phase3a_toolbar_is_tool_oriented(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = MainWindow()
     qtbot.addWidget(window)
@@ -90,6 +98,20 @@ def test_phase3a_toolbar_is_tool_oriented(qtbot) -> None:  # type: ignore[no-unt
     assert "Add R" not in texts
     assert "Add C" not in texts
     assert "Add LED" not in texts
+
+
+def test_phase3a_toolbar_uses_icons_and_shortcut_tooltips(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    actions = {
+        action.text(): action for action in window.schematic_toolbar.actions() if action.text()
+    }
+
+    assert not actions["Wire"].icon().isNull()
+    assert "W" in actions["Wire"].toolTip()
+    assert not actions["Rotate"].icon().isNull()
+    assert "Ctrl+R" in actions["Rotate"].toolTip()
 
 
 def test_component_action_arms_placement_without_adding_symbol(qtbot) -> None:  # type: ignore[no-untyped-def]
@@ -134,6 +156,19 @@ def test_phase3a_shortcuts_are_registered(qtbot) -> None:  # type: ignore[no-unt
     assert actions["Diode"].shortcut() == QKeySequence("D")
     assert actions["LED"].shortcut() == QKeySequence("L")
     assert actions["Mirror H"].shortcut() == QKeySequence("H")
+
+
+def test_phase3a_bare_shortcuts_activate_tools(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.show()
+    window.view.setFocus()
+
+    QTest.keyClick(window.view, Qt.Key.Key_W)
+    assert window.scene.current_tool() == "wire"
+
+    QTest.keyClick(window.view, Qt.Key.Key_R)
+    assert window.scene.armed_catalog_entry_id() == "pcbs:resistor_0603"
 
 
 def test_mirror_horizontal_updates_selected_symbol_transform(qtbot) -> None:  # type: ignore[no-untyped-def]

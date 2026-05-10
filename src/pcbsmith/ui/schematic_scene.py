@@ -20,9 +20,7 @@ ToolName = str
 
 class SchematicScene(QGraphicsScene):
     _app: QApplication | None = None
-    _tools = frozenset(
-        ("select", "place_resistor", "place_catalog", "wire", "label", "no_connect")
-    )
+    _tools = frozenset(("select", "place_resistor", "place_catalog", "wire", "label", "no_connect"))
 
     def __init__(self, parent: QObject | None = None) -> None:
         if QApplication.instance() is None:
@@ -39,6 +37,7 @@ class SchematicScene(QGraphicsScene):
         self._pending_wire_start: Point | None = None
         self._armed_catalog_entry: CatalogEntry | None = None
         self._placement_preview: SymbolItem | None = None
+        self._wire_stroke_width = 4
 
     @property
     def editor_state(self) -> EditorState:
@@ -59,14 +58,11 @@ class SchematicScene(QGraphicsScene):
         self._placement_preview = None
         self._symbol_items = [SymbolItem(symbol) for symbol in state.symbols]
         self._wire_items = [
-            WireItem(wire, index) for index, wire in enumerate(state.wires)
+            WireItem(wire, index, self._wire_stroke_width) for index, wire in enumerate(state.wires)
         ]
-        self._label_items = [
-            NetLabelItem(label, index) for index, label in enumerate(state.labels)
-        ]
+        self._label_items = [NetLabelItem(label, index) for index, label in enumerate(state.labels)]
         self._no_connect_items = [
-            NoConnectItem(no_connect, index)
-            for index, no_connect in enumerate(state.no_connects)
+            NoConnectItem(no_connect, index) for index, no_connect in enumerate(state.no_connects)
         ]
 
         for item in (
@@ -143,6 +139,18 @@ class SchematicScene(QGraphicsScene):
             self._clear_placement_preview()
         self._pending_wire_start = None
 
+    def current_tool(self) -> ToolName:
+        return self._tool
+
+    def wire_stroke_width(self) -> int:
+        return self._wire_stroke_width
+
+    def set_wire_stroke_width(self, width: int) -> None:
+        if width < 1:
+            raise ValueError("Wire width must be at least 1")
+        self._wire_stroke_width = width
+        self._render_editor_state(self._editor_state)
+
     def arm_catalog_entry(self, entry: CatalogEntry) -> None:
         self._tool = "place_catalog"
         self._armed_catalog_entry = entry
@@ -177,7 +185,7 @@ class SchematicScene(QGraphicsScene):
                 self._pending_wire_start = snapped_position
                 return
 
-            self.add_wire(self._pending_wire_start, snapped_position)
+            self.add_wire_path(self._route_wire_points(self._pending_wire_start, snapped_position))
             self._pending_wire_start = None
             return
 
@@ -214,6 +222,26 @@ class SchematicScene(QGraphicsScene):
         state = self._editor_state.add_wire((snap(start, GRID_NM), snap(end, GRID_NM)))
         self.apply_editor_state(state)
         return self._wire_items[-1]
+
+    def add_wire_path(self, points: tuple[Point, ...]) -> WireItem:
+        state = self._editor_state.add_wire(tuple(snap(point, GRID_NM) for point in points))
+        self.apply_editor_state(state)
+        return self._wire_items[-1]
+
+    def _route_wire_points(self, start: Point, end: Point) -> tuple[Point, ...]:
+        start = snap(start, GRID_NM)
+        end = snap(end, GRID_NM)
+        dx = end.x - start.x
+        dy = end.y - start.y
+        if dx == 0 or dy == 0 or abs(dx) == abs(dy):
+            return (start, end)
+
+        step = min(abs(dx), abs(dy))
+        diagonal = Point(
+            x=start.x + (step if dx > 0 else -step),
+            y=start.y + (step if dy > 0 else -step),
+        )
+        return (start, diagonal, end)
 
     def move_selection(self, selection: SelectionKey, position: Point) -> None:
         state = self._editor_state.move_item(selection, snap(position, GRID_NM))
@@ -311,9 +339,7 @@ class SchematicScene(QGraphicsScene):
     def mouseMoveEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if self._tool == "place_catalog":
             scene_pos = event.scenePos()
-            self._update_placement_preview(
-                Point(x=int(scene_pos.x()), y=int(scene_pos.y()))
-            )
+            self._update_placement_preview(Point(x=int(scene_pos.x()), y=int(scene_pos.y())))
 
         super().mouseMoveEvent(event)
 

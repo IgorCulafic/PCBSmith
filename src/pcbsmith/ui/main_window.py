@@ -2,8 +2,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from PySide6.QtCore import Qt
-from PySide6.QtGui import QAction, QKeySequence
+from PySide6.QtCore import QEvent, QObject, Qt
+from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -20,6 +20,7 @@ from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.project_io import ProjectIOError
 from pcbsmith.ui.component_browser import ComponentBrowser
 from pcbsmith.ui.editor_state import EditorState
+from pcbsmith.ui.icons import tool_icon
 from pcbsmith.ui.inspector import InspectorWidget
 from pcbsmith.ui.schematic_scene import SchematicScene
 from pcbsmith.ui.schematic_view import SchematicView
@@ -55,9 +56,16 @@ class MainWindow(QMainWindow):
         self.mirror_horizontal_action = QAction("Mirror H", self)
         self.light_theme_action = QAction("Light Theme", self)
         self.dark_theme_action = QAction("Dark Theme", self)
+        self.wire_width_actions = [
+            QAction("Wire Width 2", self),
+            QAction("Wire Width 4", self),
+            QAction("Wire Width 6", self),
+        ]
 
         self.setWindowTitle("PCBSmith")
         self.setCentralWidget(self.view)
+        self.view.installEventFilter(self)
+        self.view.viewport().installEventFilter(self)
         self._create_library_dock()
         self._create_console_dock()
         self._create_inspector_dock()
@@ -71,25 +79,44 @@ class MainWindow(QMainWindow):
 
     def _configure_actions(self) -> None:
         self.select_action.setShortcut(QKeySequence("V"))
+        self.select_action.setIcon(tool_icon("select"))
         self.select_action.triggered.connect(lambda: self.scene.set_tool("select"))
-        self.addAction(self.select_action)
+        self._register_action(self.select_action)
+
+        self.pan_action.setShortcut(QKeySequence("P"))
+        self.pan_action.setIcon(tool_icon("pan"))
+        self.pan_action.triggered.connect(lambda: self.view.setFocus())
+        self._register_action(self.pan_action)
 
         self.wire_action.setShortcut(QKeySequence("W"))
+        self.wire_action.setIcon(tool_icon("wire"))
         self.wire_action.triggered.connect(lambda: self.scene.set_tool("wire"))
-        self.addAction(self.wire_action)
+        self._register_action(self.wire_action)
 
         self.label_action.setShortcut(QKeySequence("T"))
+        self.label_action.setIcon(tool_icon("label"))
         self.label_action.triggered.connect(lambda: self.scene.set_tool("label"))
-        self.addAction(self.label_action)
+        self._register_action(self.label_action)
 
+        self.no_connect_action.setShortcut(QKeySequence("X"))
+        self.no_connect_action.setIcon(tool_icon("no_connect"))
         self.no_connect_action.triggered.connect(lambda: self.scene.set_tool("no_connect"))
+        self._register_action(self.no_connect_action)
 
+        self.fit_action.setShortcut(QKeySequence("Ctrl+0"))
+        self.fit_action.setIcon(tool_icon("fit"))
         self.fit_action.triggered.connect(self.view.fit_to_contents)
+        self._register_action(self.fit_action)
+
+        self.run_erc_action.setShortcut(QKeySequence("F8"))
+        self.run_erc_action.setIcon(tool_icon("erc"))
         self.run_erc_action.triggered.connect(self.run_erc)
+        self._register_action(self.run_erc_action)
 
         self.undo_action.setShortcut(QKeySequence.StandardKey.Undo)
+        self.undo_action.setIcon(tool_icon("undo"))
         self.undo_action.triggered.connect(self.undo)
-        self.addAction(self.undo_action)
+        self._register_action(self.undo_action)
 
         self.redo_action.setShortcuts(
             [
@@ -97,25 +124,47 @@ class MainWindow(QMainWindow):
                 QKeySequence("Ctrl+Shift+Z"),
             ]
         )
+        self.redo_action.setIcon(tool_icon("redo"))
         self.redo_action.triggered.connect(self.redo)
-        self.addAction(self.redo_action)
+        self._register_action(self.redo_action)
 
         self.delete_action.setShortcut(QKeySequence.StandardKey.Delete)
+        self.delete_action.setIcon(tool_icon("delete"))
         self.delete_action.triggered.connect(self.delete_selected)
-        self.addAction(self.delete_action)
+        self._register_action(self.delete_action)
 
         self.rotate_action.setShortcut(QKeySequence("Ctrl+R"))
+        self.rotate_action.setIcon(tool_icon("rotate"))
         self.rotate_action.triggered.connect(self.rotate_selected)
-        self.addAction(self.rotate_action)
+        self._register_action(self.rotate_action)
 
         self.mirror_horizontal_action.setShortcut(QKeySequence("H"))
+        self.mirror_horizontal_action.setIcon(tool_icon("mirror"))
         self.mirror_horizontal_action.triggered.connect(self.mirror_horizontal_selected)
-        self.addAction(self.mirror_horizontal_action)
+        self._register_action(self.mirror_horizontal_action)
 
         self.light_theme_action.triggered.connect(lambda: self.apply_theme("light"))
         self.dark_theme_action.triggered.connect(lambda: self.apply_theme("dark"))
-        self.addAction(self.light_theme_action)
-        self.addAction(self.dark_theme_action)
+        self._register_action(self.light_theme_action)
+        self._register_action(self.dark_theme_action)
+
+        for action, width in zip(self.wire_width_actions, (2, 4, 6), strict=True):
+            action.triggered.connect(
+                lambda _checked=False, width=width: self.scene.set_wire_stroke_width(width)
+            )
+            self._register_action(action)
+
+    def _register_action(self, action: QAction) -> None:
+        action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+        self._refresh_action_tooltip(action)
+        self.addAction(action)
+
+    def _refresh_action_tooltip(self, action: QAction) -> None:
+        shortcuts = action.shortcuts()
+        if shortcuts:
+            action.setToolTip(f"{action.text()} ({shortcuts[0].toString()})")
+        else:
+            action.setToolTip(action.text())
 
     def _create_menus(self) -> None:
         file_menu = self.menuBar().addMenu("&File")
@@ -148,12 +197,8 @@ class MainWindow(QMainWindow):
 
         view_menu.addAction(self.fit_action)
 
-        components_menu.addAction(
-            self._component_action("Resistor", "pcbs:resistor_0603", "R")
-        )
-        components_menu.addAction(
-            self._component_action("Capacitor", "pcbs:capacitor_0603", "C")
-        )
+        components_menu.addAction(self._component_action("Resistor", "pcbs:resistor_0603", "R"))
+        components_menu.addAction(self._component_action("Capacitor", "pcbs:capacitor_0603", "C"))
         components_menu.addAction(self._component_action("Diode", "pcbs:diode_0603", "D"))
         components_menu.addAction(self._component_action("LED", "pcbs:led_0603", "L"))
 
@@ -166,6 +211,9 @@ class MainWindow(QMainWindow):
         options_menu.addAction(self.light_theme_action)
         options_menu.addAction(self.dark_theme_action)
         options_menu.addSeparator()
+        for action in self.wire_width_actions:
+            options_menu.addAction(action)
+        options_menu.addSeparator()
         options_menu.addAction(QAction("Grid And Snap Settings", self))
         project_menu.addAction(QAction("Project Settings", self))
         help_menu.addAction(QAction("About PCBSmith", self))
@@ -173,9 +221,47 @@ class MainWindow(QMainWindow):
     def _component_action(self, text: str, entry_id: str, shortcut: str) -> QAction:
         action = QAction(text, self)
         action.setShortcut(QKeySequence(shortcut))
+        action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
         action.triggered.connect(lambda: self.arm_catalog_entry_by_id(entry_id))
+        self._refresh_action_tooltip(action)
         self.addAction(action)
         return action
+
+    def eventFilter(self, watched: QObject, event: QEvent) -> bool:
+        if (
+            watched in (self.view, self.view.viewport())
+            and event.type() == QEvent.Type.KeyPress
+            and isinstance(event, QKeyEvent)
+            and event.modifiers() == Qt.KeyboardModifier.NoModifier
+            and self._handle_bare_shortcut(event.key())
+        ):
+            event.accept()
+            return True
+
+        return super().eventFilter(watched, event)
+
+    def _handle_bare_shortcut(self, key: int) -> bool:
+        if key == Qt.Key.Key_V:
+            self.select_action.trigger()
+        elif key == Qt.Key.Key_W:
+            self.wire_action.trigger()
+        elif key == Qt.Key.Key_T:
+            self.label_action.trigger()
+        elif key == Qt.Key.Key_X:
+            self.no_connect_action.trigger()
+        elif key == Qt.Key.Key_R:
+            self.arm_catalog_entry_by_id("pcbs:resistor_0603")
+        elif key == Qt.Key.Key_C:
+            self.arm_catalog_entry_by_id("pcbs:capacitor_0603")
+        elif key == Qt.Key.Key_D:
+            self.arm_catalog_entry_by_id("pcbs:diode_0603")
+        elif key == Qt.Key.Key_L:
+            self.arm_catalog_entry_by_id("pcbs:led_0603")
+        elif key == Qt.Key.Key_H:
+            self.mirror_horizontal_action.trigger()
+        else:
+            return False
+        return True
 
     def _create_library_dock(self) -> None:
         self.component_browser.entry_activated.connect(self.place_catalog_entry_by_id)
@@ -194,6 +280,7 @@ class MainWindow(QMainWindow):
     def _create_toolbar(self) -> None:
         self.schematic_toolbar = self.addToolBar("Schematic")
         toolbar = self.schematic_toolbar
+        toolbar.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonIconOnly)
 
         toolbar.addAction(self.select_action)
         toolbar.addAction(self.pan_action)

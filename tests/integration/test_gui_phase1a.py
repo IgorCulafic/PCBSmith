@@ -46,6 +46,29 @@ def test_scene_represents_bent_wire_segments() -> None:
     assert wire_item.segments() == ((start, bend), (bend, end))
 
 
+def test_wire_tool_routes_diagonal_segments_at_45_degrees() -> None:
+    scene = SchematicScene()
+
+    scene.set_tool("wire")
+    scene.handle_canvas_click(Point(x=0, y=0))
+    scene.handle_canvas_click(Point(x=5_080_000, y=10_160_000))
+
+    wire = scene.editor_state.to_schematic().wires[0]
+    assert wire.points == (
+        Point(x=0, y=0),
+        Point(x=5_080_000, y=5_080_000),
+        Point(x=5_080_000, y=10_160_000),
+    )
+
+
+def test_wire_item_uses_adjustable_visible_stroke_width() -> None:
+    scene = SchematicScene()
+    scene.set_wire_stroke_width(6)
+    scene.add_wire(Point(x=0, y=0), Point(x=5_080_000, y=0))
+
+    assert scene.wire_items()[0].stroke_width() == 6
+
+
 def test_scene_tools_place_resistor_and_wire() -> None:
     scene = SchematicScene()
 
