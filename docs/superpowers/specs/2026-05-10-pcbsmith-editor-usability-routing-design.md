@@ -8,6 +8,7 @@ Make the current Phase 2 GUI feel like the beginning of a real electronics CAD t
 
 - **Phase 3A: Editor Usability Reset** fixes readability, menus, component browsing, placement, selection, keyboard shortcuts, and basic transform controls.
 - **Phase 3B: Routing Interaction Pass** improves connection-point snapping, wire/trace previews, free positioning, and 45-degree routing behavior.
+- **Phase 3C: CAD Polish And Annotation** adds silkscreen text, richer style/property controls, deeper transform tools, and board-layer UI hooks after the core editor interactions are usable.
 
 This design keeps the current PySide6 desktop app and the existing model/service/UI boundaries. It does not add LLM hooks, external library imports, simulation, PCB board layout, or first-run tutorials yet.
 
@@ -145,6 +146,21 @@ Initial modes:
 
 Phase 3B should store the resulting wire points in the existing schematic model unless model changes become unavoidable. Future PCB trace routing can add board-specific trace models and design rules.
 
+## Phase 3C Scope: CAD Polish And Annotation
+
+Phase 3C should happen after 3A and 3B, because annotation and polish are much easier to build once placement, selection, snapping, and routing previews are reliable.
+
+Expected Phase 3C work:
+
+- Silkscreen text and markings with position, rotation, layer, and size controls.
+- More complete mirror/flip behavior for polarized and asymmetric symbols.
+- Richer inspector/style controls for references, values, text, labels, and future board annotations.
+- Options and Project dialogs that expose settings without crowding the canvas.
+- Toolbar polish and icon refinement once the stable tool set is known.
+- Early board-layer UI hooks for future copper, silkscreen, solder mask, and mechanical layers.
+
+Phase 3C is not required before the app can be useful for schematic editing. It is the next polish layer after the core editor and routing interactions feel solid.
+
 ## Testing Strategy
 
 Phase 3A tests:
@@ -167,6 +183,14 @@ Phase 3B tests:
 - 45-degree mode constrains segment endpoints.
 - Existing save/load and ERC behavior still work.
 
+Phase 3C tests:
+
+- Silkscreen text can be placed, selected, edited, moved, rotated, saved, and reopened.
+- Inspector/style controls update the selected annotation without affecting unrelated objects.
+- Mirror/flip behavior is preserved through save/load for supported symbol types.
+- Options and Project dialogs open from their menus and persist only explicitly supported settings.
+- Toolbar/menu actions remain discoverable through labels, shortcuts, and tooltips.
+
 ## Out Of Scope
 
 - Full PCB board editor.
@@ -175,7 +199,6 @@ Phase 3B tests:
 - KiCad/LibrePCB import.
 - LLM tool execution.
 - First-run tutorial.
-- Full symbol artwork library.
 - Advanced component metadata for exact chips and manufacturer part numbers.
 
 ## Implementation Order
@@ -184,10 +207,13 @@ Phase 3B tests:
 2. Phase 3A collapsible component browser.
 3. Phase 3A armed placement and placement preview.
 4. Phase 3A selection transform controls and shortcuts.
-5. Phase 3A verification and commit.
+5. Phase 3A verification, GUI launch, and commit.
 6. Phase 3B endpoint/pin indicators.
 7. Phase 3B snap modes and wire preview.
 8. Phase 3B 45-degree/orthogonal routing modes.
-9. Phase 3B verification and commit.
+9. Phase 3B verification, GUI launch, and commit.
+10. Phase 3C silkscreen text and annotation model.
+11. Phase 3C richer inspector/options/project surfaces.
+12. Phase 3C toolbar polish, GUI launch, and commit.
 
 Each chunk should keep the app runnable and testable before moving on.
