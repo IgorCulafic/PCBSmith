@@ -19,9 +19,11 @@ class KiCadInstall(BaseModel):
 
 def default_kicad_cli_candidates() -> tuple[Path, ...]:
     return (
+        Path("C:/Program Files/KiCad/10.0/bin/kicad-cli.exe"),
         Path("C:/Program Files/KiCad/9.0/bin/kicad-cli.exe"),
         Path("C:/Program Files/KiCad/8.0/bin/kicad-cli.exe"),
         Path("C:/Program Files/KiCad/bin/kicad-cli.exe"),
+        Path("C:/Program Files (x86)/KiCad/10.0/bin/kicad-cli.exe"),
         Path("C:/Program Files (x86)/KiCad/9.0/bin/kicad-cli.exe"),
         Path("C:/Program Files (x86)/KiCad/8.0/bin/kicad-cli.exe"),
         Path("C:/Program Files (x86)/KiCad/bin/kicad-cli.exe"),

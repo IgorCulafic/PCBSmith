@@ -17,6 +17,10 @@ from pcbsmith.services.kicad_doctor import (
 )
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.kicad_plan import KiCadPlanError, run_kicad_plan
+from pcbsmith.services.kicad_preview import (
+    format_kicad_preview_report,
+    run_kicad_preview,
+)
 from pcbsmith.services.kicad_project import create_kicad_project_skeleton
 from pcbsmith.services.kicad_validate import (
     format_kicad_validation_report,
@@ -135,6 +139,16 @@ def _cmd_kicad_validate(args: argparse.Namespace) -> int:
     return report.exit_code
 
 
+def _cmd_kicad_preview(args: argparse.Namespace) -> int:
+    report = run_kicad_preview(
+        Path(args.project),
+        execute=not args.skip_execution,
+    )
+    for line in format_kicad_preview_report(report):
+        print(line)
+    return report.exit_code
+
+
 def _cmd_kicad_plan(args: argparse.Namespace) -> int:
     result = run_kicad_plan(
         Path(args.project),
@@ -226,6 +240,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="discover project files and configured kicad-cli without running KiCad",
     )
     kicad_validate_parser.set_defaults(func=_cmd_kicad_validate)
+
+    kicad_preview_parser = subparsers.add_parser(
+        "kicad-preview",
+        help="export KiCad schematic and board SVG previews for AI review",
+    )
+    kicad_preview_parser.add_argument("project")
+    kicad_preview_parser.add_argument(
+        "--skip-execution",
+        action="store_true",
+        help="discover project files and configured kicad-cli without exporting previews",
+    )
+    kicad_preview_parser.set_defaults(func=_cmd_kicad_preview)
 
     kicad_plan_parser = subparsers.add_parser(
         "kicad-plan",
