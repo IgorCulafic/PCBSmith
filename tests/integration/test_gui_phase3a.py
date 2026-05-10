@@ -50,6 +50,27 @@ def test_phase3a_main_window_has_cad_menus(qtbot) -> None:  # type: ignore[no-un
     }.issubset(_menu_titles(window))
 
 
+def test_phase3a_main_window_uses_light_chrome_by_default(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    assert window.property("pcbsTheme") == "light"
+    assert "#f3f5f7" in window.styleSheet()
+    assert "#17202a" in window.styleSheet()
+
+
+def test_phase3a_options_menu_can_switch_themes(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    actions = {action.text(): action for action in window.actions()}
+
+    actions["Dark Theme"].trigger()
+    assert window.property("pcbsTheme") == "dark"
+
+    actions["Light Theme"].trigger()
+    assert window.property("pcbsTheme") == "light"
+
+
 def test_phase3a_toolbar_is_tool_oriented(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = MainWindow()
     qtbot.addWidget(window)

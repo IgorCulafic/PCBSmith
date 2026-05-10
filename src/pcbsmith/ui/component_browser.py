@@ -97,8 +97,14 @@ class ComponentBrowser(QWidget):
     def _build_family_page(self, entries: list[CatalogEntry]) -> QWidget:
         page = QWidget()
         grid = QGridLayout()
+        grid.setAlignment(Qt.AlignmentFlag.AlignTop)
+        grid.setContentsMargins(10, 10, 10, 10)
+        grid.setHorizontalSpacing(8)
+        grid.setVerticalSpacing(8)
         for index, entry in enumerate(entries):
-            button = QPushButton(entry.family.name)
+            button = QPushButton(self._family_button_text(entry))
+            button.setMaximumHeight(36)
+            button.setMinimumHeight(28)
             button.setToolTip(entry.variant.name)
             button.setProperty(BUTTON_ENTRY_ID_PROPERTY, entry.id)
             button.clicked.connect(
@@ -109,6 +115,11 @@ class ComponentBrowser(QWidget):
             grid.addWidget(button, index // 3, index % 3)
         page.setLayout(grid)
         return page
+
+    def _family_button_text(self, entry: CatalogEntry) -> str:
+        if entry.symbol_id in {"stdlib:VCC", "stdlib:GND"}:
+            return entry.variant.name
+        return entry.family.name
 
     def set_project_preferences(
         self,
