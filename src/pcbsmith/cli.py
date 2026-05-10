@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.services.ai_context import write_ai_context
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
@@ -145,6 +146,16 @@ def _cmd_kicad_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_kicad_context(args: argparse.Namespace) -> int:
+    write_ai_context(
+        Path(args.project),
+        Path(args.output),
+        kicad_project_dir=Path(args.kicad_project) if args.kicad_project else None,
+    )
+    print(f"Wrote AI context package to {Path(args.output)}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -228,6 +239,18 @@ def build_parser() -> argparse.ArgumentParser:
         help="save the proposed changes and append an action log",
     )
     kicad_plan_parser.set_defaults(func=_cmd_kicad_plan)
+
+    kicad_context_parser = subparsers.add_parser(
+        "kicad-context",
+        help="write a structured AI context package for a PCBSmith project",
+    )
+    kicad_context_parser.add_argument("project")
+    kicad_context_parser.add_argument("output")
+    kicad_context_parser.add_argument(
+        "--kicad-project",
+        help="optional KiCad handoff project with reports and visual references",
+    )
+    kicad_context_parser.set_defaults(func=_cmd_kicad_context)
 
     return parser
 
