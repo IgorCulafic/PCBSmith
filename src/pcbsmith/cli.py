@@ -7,6 +7,7 @@ from pathlib import Path
 
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.services.ai_brief import write_ai_brief
 from pcbsmith.services.ai_context import write_ai_context
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
@@ -186,6 +187,18 @@ def _cmd_kicad_review_bundle(args: argparse.Namespace) -> int:
     return result.exit_code
 
 
+def _cmd_ai_brief(args: argparse.Namespace) -> int:
+    request_text = Path(args.request).read_text(encoding="utf-8")
+    write_ai_brief(
+        Path(args.project),
+        request_text,
+        Path(args.output),
+        kicad_project_dir=Path(args.kicad_project) if args.kicad_project else None,
+    )
+    print(f"Wrote AI engineering brief to {Path(args.output)}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -307,6 +320,19 @@ def build_parser() -> argparse.ArgumentParser:
         help="create the bundle without running KiCad validation or preview exports",
     )
     kicad_review_bundle_parser.set_defaults(func=_cmd_kicad_review_bundle)
+
+    ai_brief_parser = subparsers.add_parser(
+        "ai-brief",
+        help="write a structured engineering brief from a user request",
+    )
+    ai_brief_parser.add_argument("project")
+    ai_brief_parser.add_argument("request")
+    ai_brief_parser.add_argument("output")
+    ai_brief_parser.add_argument(
+        "--kicad-project",
+        help="optional KiCad review bundle with reports and visual references",
+    )
+    ai_brief_parser.set_defaults(func=_cmd_ai_brief)
 
     return parser
 

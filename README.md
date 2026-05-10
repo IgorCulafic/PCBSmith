@@ -21,6 +21,7 @@ python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 python -m pcbsmith.cli kicad-validate .\kicad-demo
 python -m pcbsmith.cli kicad-preview .\kicad-demo
 python -m pcbsmith.cli kicad-review-bundle .\demo .\review-bundle
+python -m pcbsmith.cli ai-brief .\demo .\request.txt .\brief.json --kicad-project .\review-bundle
 python -m pcbsmith.cli kicad-plan .\demo .\plan.json
 python -m pcbsmith.cli kicad-context .\demo .\ai-context.json
 ```
@@ -101,6 +102,14 @@ python -m pcbsmith.cli kicad-review-bundle .\demo .\review-bundle
 
 This exports the PCBSmith project into a KiCad handoff folder, runs KiCad validation, exports SVG previews, and writes `ai-context.json` in the same output folder. Use `--skip-execution` to create the KiCad files and context package without launching KiCad checks or preview exports.
 
+To turn a user request into a structured engineering brief for future AI planning:
+
+```powershell
+python -m pcbsmith.cli ai-brief .\demo .\request.txt .\brief.json --kicad-project .\review-bundle
+```
+
+The brief is provider-neutral JSON. It records the user goal, classified intent, explicit assumptions, missing questions, safety checks, required capabilities, and the current project context. It does not call an LLM or mutate design files; it prepares the next AI/planner step.
+
 To review a structured command package before changing a PCBSmith project:
 
 ```powershell
@@ -156,7 +165,7 @@ Run the standard local check before committing:
 python tools/dev_check.py
 ```
 
-The dev check runs linting, the test suite with a repository-local pytest temp directory, a fixture validation smoke test, a KiCad preview discovery smoke test, and an AI context smoke test.
+The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad preview/review-bundle discovery, AI context, and AI brief smoke tests.
 
 Generated cache folders and old one-off pytest workspaces can be reviewed with:
 

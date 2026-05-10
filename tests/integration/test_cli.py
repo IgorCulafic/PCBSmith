@@ -374,3 +374,25 @@ def test_kicad_context_can_include_kicad_project_refs(tmp_path: Path) -> None:
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["kicad"]["project_dir"] == str(kicad_dir)
     assert data["kicad"]["reports"][0]["name"] == "erc"
+
+
+def test_ai_brief_writes_engineering_brief_from_request_file(tmp_path: Path) -> None:
+    project_dir = tmp_path / "source"
+    request_path = tmp_path / "request.txt"
+    output_path = tmp_path / "brief.json"
+    shutil.copytree(FIXTURE, project_dir)
+    request_path.write_text("Check this LED circuit before changing it\n", encoding="utf-8")
+
+    result = _run_cli(
+        "ai-brief",
+        str(project_dir),
+        str(request_path),
+        str(output_path),
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == f"Wrote AI engineering brief to {output_path}"
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["schema"] == "pcbsmith-ai-brief-v1"
+    assert data["intent"]["next_operation_type"] == "review_only"
