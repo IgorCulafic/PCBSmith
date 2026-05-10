@@ -50,6 +50,42 @@ def main() -> int:
         "fixture validate",
         [python, "-m", "pcbsmith.cli", "validate", "tests/fixtures/voltage_divider"],
     )
+    library_smoke_dir = tmp_dir / "kicad-library-index-smoke"
+    if library_smoke_dir.exists():
+        if not library_smoke_dir.resolve().is_relative_to(tmp_dir.resolve()):
+            raise RuntimeError(f"Refusing to remove path outside .tmp: {library_smoke_dir}")
+        shutil.rmtree(library_smoke_dir)
+    symbols_dir = library_smoke_dir / "symbols"
+    footprints_dir = library_smoke_dir / "footprints"
+    footprint_library_dir = footprints_dir / "Resistor_SMD.pretty"
+    symbols_dir.mkdir(parents=True)
+    footprint_library_dir.mkdir(parents=True)
+    (symbols_dir / "Device.kicad_sym").write_text(
+        '(kicad_symbol_lib\n\t(symbol "R")\n)\n',
+        encoding="utf-8",
+    )
+    (footprint_library_dir / "R_0603_1608Metric.kicad_mod").write_text(
+        '(footprint "R_0603_1608Metric")\n',
+        encoding="utf-8",
+    )
+    run_step(
+        "KiCad library index smoke",
+        [
+            python,
+            "-m",
+            "pcbsmith.cli",
+            "kicad-library-index",
+            str(tmp_dir / "dev-check-kicad-library-index.json"),
+            "--symbols-dir",
+            str(symbols_dir),
+            "--footprints-dir",
+            str(footprints_dir),
+            "--symbol-library",
+            "Device",
+            "--footprint-library",
+            "Resistor_SMD",
+        ],
+    )
     run_step(
         "KiCad skeleton smoke",
         [

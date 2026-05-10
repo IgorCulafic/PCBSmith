@@ -219,6 +219,53 @@ def test_kicad_preview_can_skip_execution(tmp_path: Path) -> None:
     ]
 
 
+def test_kicad_library_index_writes_read_only_library_manifest(tmp_path: Path) -> None:
+    symbols_dir = tmp_path / "symbols"
+    footprints_dir = tmp_path / "footprints"
+    output_path = tmp_path / "kicad-library-index.json"
+    footprints_library = footprints_dir / "Resistor_SMD.pretty"
+    symbols_dir.mkdir()
+    footprints_library.mkdir(parents=True)
+    (symbols_dir / "Device.kicad_sym").write_text(
+        """
+(kicad_symbol_lib
+\t(symbol "R")
+)
+""".lstrip(),
+        encoding="utf-8",
+    )
+    (footprints_library / "R_0603_1608Metric.kicad_mod").write_text(
+        "(footprint \"R_0603_1608Metric\")\n",
+        encoding="utf-8",
+    )
+
+    result = _run_cli(
+        "kicad-library-index",
+        str(output_path),
+        "--symbols-dir",
+        str(symbols_dir),
+        "--footprints-dir",
+        str(footprints_dir),
+        "--symbol-library",
+        "Device",
+        "--footprint-library",
+        "Resistor_SMD",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == f"Wrote KiCad library index to {output_path}"
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["symbols"] == [{"library": "Device", "name": "R", "id": "Device:R"}]
+    assert data["footprints"] == [
+        {
+            "library": "Resistor_SMD",
+            "name": "R_0603_1608Metric",
+            "id": "Resistor_SMD:R_0603_1608Metric",
+        }
+    ]
+
+
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "review-bundle"
