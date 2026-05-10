@@ -155,3 +155,25 @@ def test_kicad_new_refuses_existing_directory(tmp_path: Path) -> None:
     assert result.returncode == 2
     assert result.stdout == ""
     assert result.stderr.startswith("error: Project target already exists:")
+
+
+def test_kicad_export_creates_skeleton_and_handoff_manifest(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad-export"
+    shutil.copytree(FIXTURE, source_project)
+
+    result = _run_cli(
+        "kicad-export",
+        str(source_project),
+        str(output_project),
+        "--name",
+        "Voltage Divider",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == (
+        f"Exported PCBSmith project to KiCad handoff at {output_project}"
+    )
+    assert (output_project / "Voltage_Divider.kicad_pro").exists()
+    assert (output_project / "pcbsmith_handoff.json").exists()
