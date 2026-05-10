@@ -102,7 +102,7 @@ def test_export_handoff_manifest_emits_ordered_schematic_commands(tmp_path: Path
     }
 
 
-def test_export_writes_wires_and_connected_net_labels_to_kicad_schematic(
+def test_export_keeps_wires_and_labels_in_handoff_until_symbols_are_native(
     tmp_path: Path,
 ) -> None:
     source_project = tmp_path / "source"
@@ -116,16 +116,21 @@ def test_export_writes_wires_and_connected_net_labels_to_kicad_schematic(
     )
 
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    manifest = json.loads(result.handoff_file.read_text(encoding="utf-8"))
 
-    assert "(wire" in schematic_text
-    assert "(xy 10.16 0) (xy 15.24 0)" in schematic_text
-    assert "(xy 25.4 0) (xy 30.48 0)" in schematic_text
+    assert "(wire" not in schematic_text
     assert '(label "VCC"' not in schematic_text
-    assert '(label "OUT"' in schematic_text
-    assert "(at 15.24 0 0)" in schematic_text
-    assert '(label "GND"' in schematic_text
-    assert "(at 30.48 0 0)" in schematic_text
-    assert schematic_text.count("(label ") == 2
+    assert '(label "OUT"' not in schematic_text
+    assert '(label "GND"' not in schematic_text
+    assert {
+        "type": "add_wire",
+        "points_nm": [{"x": 10160000, "y": 0}, {"x": 15240000, "y": 0}],
+    } in manifest["commands"]
+    assert {
+        "type": "add_label",
+        "name": "OUT",
+        "position_nm": {"x": 15240000, "y": 0},
+    } in manifest["commands"]
 
 
 def test_export_keeps_floating_labels_in_handoff_only(tmp_path: Path) -> None:
