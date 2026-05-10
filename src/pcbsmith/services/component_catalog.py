@@ -11,6 +11,7 @@ from pcbsmith.core.catalog import (
     ComponentFamily,
     ComponentVariant,
     DeveloperLibraryProposal,
+    KiCadPartBinding,
     MissingPartRequest,
 )
 from pcbsmith.services.builtin_library import FOOTPRINTS, SYMBOLS
@@ -47,6 +48,10 @@ def builtin_catalog() -> ComponentCatalog:
             ),
             symbol_id="stdlib:R",
             footprint_id="stdlib:R_0603",
+            kicad=KiCadPartBinding(
+                symbol_id="Device:R",
+                footprint_id="Resistor_SMD:R_0603_1608Metric",
+            ),
             tags=("basic", "passive", "resistor", "smd", "0603"),
             aliases=("r", "chip resistor", "res 0603"),
             group_ids=("basic-components",),
@@ -62,6 +67,10 @@ def builtin_catalog() -> ComponentCatalog:
             ),
             symbol_id="stdlib:C",
             footprint_id="stdlib:C_0603",
+            kicad=KiCadPartBinding(
+                symbol_id="Device:C",
+                footprint_id="Capacitor_SMD:C_0603_1608Metric",
+            ),
             tags=("basic", "passive", "capacitor", "smd", "0603"),
             aliases=("c", "cap", "chip capacitor"),
             group_ids=("basic-components",),
@@ -72,6 +81,10 @@ def builtin_catalog() -> ComponentCatalog:
             variant=ComponentVariant(name="LED 0603", package="0603", mounting="smd"),
             symbol_id="stdlib:LED",
             footprint_id="stdlib:LED_0603",
+            kicad=KiCadPartBinding(
+                symbol_id="Device:LED",
+                footprint_id="LED_SMD:LED_0603_1608Metric",
+            ),
             tags=("basic", "diode", "indicator", "smd", "0603"),
             aliases=("light emitting diode",),
             group_ids=("basic-components",),
@@ -82,6 +95,10 @@ def builtin_catalog() -> ComponentCatalog:
             variant=ComponentVariant(name="Diode 0603", package="0603", mounting="smd"),
             symbol_id="stdlib:D",
             footprint_id="stdlib:D_0603",
+            kicad=KiCadPartBinding(
+                symbol_id="Device:D",
+                footprint_id="Diode_SMD:D_0603_1608Metric",
+            ),
             tags=("basic", "diode", "smd", "0603"),
             aliases=("signal diode",),
             group_ids=("basic-components",),
@@ -137,6 +154,7 @@ def builtin_catalog() -> ComponentCatalog:
                 default_value="VCC",
             ),
             symbol_id="stdlib:VCC",
+            kicad=KiCadPartBinding(symbol_id="power:VCC"),
             tags=("basic", "power", "vcc", "virtual"),
             aliases=("positive supply",),
             group_ids=("basic-components",),
@@ -150,6 +168,7 @@ def builtin_catalog() -> ComponentCatalog:
                 default_value="GND",
             ),
             symbol_id="stdlib:GND",
+            kicad=KiCadPartBinding(symbol_id="power:GND"),
             tags=("basic", "power", "ground", "virtual"),
             aliases=("gnd", "0v"),
             group_ids=("basic-components",),

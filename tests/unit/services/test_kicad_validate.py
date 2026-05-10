@@ -182,10 +182,16 @@ def test_kicad_validate_ignores_generated_pcbs_library_mismatch(
         return KiCadProcessResult(returncode=0, stdout="", stderr="")
 
     report = run_kicad_validation(tmp_path, finder=_install, runner=runner)
+    sanitized_erc = json.loads(
+        (tmp_path / ".pcbsmith" / "kicad-reports" / "erc.json").read_text(
+            encoding="utf-8"
+        )
+    )
 
     assert report.exit_code == 0
     assert report.ready is True
     assert format_kicad_validation_report(report)[2] == "ERC: passed (0 violations)"
+    assert sanitized_erc["sheets"][0]["violations"] == []
 
 
 def test_kicad_validate_reports_cli_failure(tmp_path: Path) -> None:
