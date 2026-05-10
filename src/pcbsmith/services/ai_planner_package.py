@@ -26,7 +26,13 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
         "schema": AI_PLANNER_PACKAGE_SCHEMA,
         "planner_mode": "structured_command_proposal",
         "brief": brief,
-        "allowed_command_types": ["place_symbol", "add_wire", "add_label"],
+        "allowed_command_types": [
+            "place_symbol",
+            "add_wire",
+            "add_label",
+            "route_segment",
+            "place_text",
+        ],
         "target_plan_schema": _target_plan_schema(brief),
         "planner_rules": _planner_rules(review_only=False),
     }
@@ -79,6 +85,25 @@ def _target_plan_schema(brief: dict[str, Any]) -> dict[str, Any]:
                 "name": "NET",
                 "position": {"x": 0, "y": 0},
             },
+            {
+                "type": "route_segment",
+                "net_name": "NET",
+                "layer": "F.Cu",
+                "points": [
+                    {"x": 4_000_000, "y": 31_000_000},
+                    {"x": 46_000_000, "y": 31_000_000},
+                ],
+                "width": 250_000,
+            },
+            {
+                "type": "place_text",
+                "text": "AI note",
+                "layer": "F.SilkS",
+                "position": {"x": 25_000_000, "y": 31_000_000},
+                "rotation_deg": 0,
+                "size": 1_500_000,
+                "thickness": 150_000,
+            },
         ],
     }
 
@@ -103,6 +128,9 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         "Do not mutate files directly; propose commands for the approval loop.",
         "Preserve the user's intent, assumptions, missing questions, and safety checks.",
         "Use integer nanometre coordinates for schematic command positions.",
+        "Use board-local integer nanometre coordinates for route_segment and place_text commands.",
+        "Only use F.Cu for route_segment until back-copper routing is enabled.",
+        "Only use F.SilkS or B.SilkS for place_text.",
     ]
     if review_only:
         return [

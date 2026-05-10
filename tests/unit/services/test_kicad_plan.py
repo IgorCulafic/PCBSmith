@@ -43,6 +43,40 @@ def _write_plan(path: Path, *, schematic: str = "schematics/main.sch.json") -> N
     )
 
 
+def _write_board_plan(path: Path, *, layer: str = "F.Cu") -> None:
+    path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "description": "Add board route and silkscreen",
+                "schematic": "schematics/main.sch.json",
+                "commands": [
+                    {
+                        "type": "route_segment",
+                        "net_name": "LED_A",
+                        "layer": layer,
+                        "points": [
+                            {"x": 4_000_000, "y": 31_000_000},
+                            {"x": 46_000_000, "y": 31_000_000},
+                        ],
+                        "width": 250_000,
+                    },
+                    {
+                        "type": "place_text",
+                        "text": "AI LED Demo",
+                        "layer": "F.SilkS",
+                        "position": {"x": 25_000_000, "y": 31_000_000},
+                        "rotation_deg": 0,
+                        "size": 1_500_000,
+                        "thickness": 150_000,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+
 def test_load_kicad_plan_package_parses_structured_commands(tmp_path: Path) -> None:
     package_path = tmp_path / "plan.json"
     _write_plan(package_path)
@@ -53,6 +87,18 @@ def test_load_kicad_plan_package_parses_structured_commands(tmp_path: Path) -> N
     assert package.description == "Add one resistor and one wire"
     assert package.schematic == "schematics/main.sch.json"
     assert [command.type for command in package.commands] == ["place_symbol", "add_wire"]
+
+
+def test_load_kicad_plan_package_parses_board_commands(tmp_path: Path) -> None:
+    package_path = tmp_path / "plan.json"
+    _write_board_plan(package_path)
+
+    package = load_kicad_plan_package(package_path)
+
+    assert [command.type for command in package.commands] == [
+        "route_segment",
+        "place_text",
+    ]
 
 
 def test_run_kicad_plan_dry_run_leaves_project_unchanged(tmp_path: Path) -> None:
@@ -77,6 +123,30 @@ def test_run_kicad_plan_dry_run_leaves_project_unchanged(tmp_path: Path) -> None
     )
     assert before == after
     assert not (project_dir / ".pcbsmith" / "action-log.jsonl").exists()
+
+
+def test_run_kicad_plan_dry_run_summarizes_board_commands_without_mutation(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "project"
+    package_path = tmp_path / "plan.json"
+    create_project(project_dir, "Plan Demo")
+    _write_board_plan(package_path)
+
+    before = (project_dir / "boards" / "main.brd.json").read_text(encoding="utf-8")
+    result = run_kicad_plan(project_dir, package_path, apply=False)
+    after = (project_dir / "boards" / "main.brd.json").read_text(encoding="utf-8")
+
+    assert result.applied is False
+    assert result.lines == (
+        "Plan: Add board route and silkscreen",
+        "Target schematic: schematics/main.sch.json",
+        "Target board: boards/main.brd.json",
+        "1. route_segment LED_A on F.Cu 4, 31 mm -> 46, 31 mm width=0.25 mm",
+        "2. place_text AI LED Demo on F.SilkS at 25, 31 mm",
+        "Dry run only; no files changed. Pass --apply to save changes.",
+    )
+    assert before == after
 
 
 def test_run_kicad_plan_apply_saves_schematic_and_action_log(tmp_path: Path) -> None:
@@ -104,6 +174,51 @@ def test_run_kicad_plan_apply_saves_schematic_and_action_log(tmp_path: Path) -> 
         "place_symbol stdlib:R value=330 at 15.24, 0 mm",
         "add_wire 0, 0 mm -> 10.16, 0 mm",
     ]
+
+
+def test_run_kicad_plan_apply_saves_board_commands(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    package_path = tmp_path / "plan.json"
+    create_project(project_dir, "Plan Demo")
+    _write_board_plan(package_path)
+
+    result = run_kicad_plan(project_dir, package_path, apply=True)
+    board = json.loads((project_dir / "boards" / "main.brd.json").read_text())
+
+    assert result.applied is True
+    assert result.changed_symbol_count == 0
+    assert result.changed_wire_count == 0
+    assert board["traces"] == [
+        {
+            "net_name": "LED_A",
+            "layer": "F.Cu",
+            "points": [
+                {"x": 4_000_000, "y": 31_000_000},
+                {"x": 46_000_000, "y": 31_000_000},
+            ],
+            "width": 250_000,
+        }
+    ]
+    assert board["texts"] == [
+        {
+            "text": "AI LED Demo",
+            "layer": "F.SilkS",
+            "position": {"x": 25_000_000, "y": 31_000_000},
+            "rotation_deg": 0,
+            "size": 1_500_000,
+            "thickness": 150_000,
+        }
+    ]
+
+
+def test_run_kicad_plan_rejects_back_copper_routes_until_enabled(
+    tmp_path: Path,
+) -> None:
+    package_path = tmp_path / "plan.json"
+    _write_board_plan(package_path, layer="B.Cu")
+
+    with pytest.raises(KiCadPlanError, match="B.Cu routing is not enabled"):
+        load_kicad_plan_package(package_path)
 
 
 def test_run_kicad_plan_rejects_schematic_not_in_project(tmp_path: Path) -> None:

@@ -510,7 +510,13 @@ def test_ai_planner_package_writes_provider_neutral_package(tmp_path: Path) -> N
     assert result.stdout.strip() == f"Wrote AI planner package to {output_path}"
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["schema"] == "pcbsmith-ai-planner-package-v1"
-    assert data["allowed_command_types"] == ["place_symbol", "add_wire", "add_label"]
+    assert data["allowed_command_types"] == [
+        "place_symbol",
+        "add_wire",
+        "add_label",
+        "route_segment",
+        "place_text",
+    ]
 
 
 def test_ai_plan_check_validates_candidate_plan(tmp_path: Path) -> None:
