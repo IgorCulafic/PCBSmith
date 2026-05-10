@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from PySide6.QtWidgets import QToolBox
+from PySide6.QtCore import Qt
+from PySide6.QtWidgets import QPushButton, QToolBox
 
 from pcbsmith.ui.component_browser import ComponentBrowser
 
@@ -28,3 +29,15 @@ def test_component_browser_basic_family_contains_quick_parts(qtbot) -> None:  # 
     assert "pcbs:led_0603" in visible
     assert "pcbs:push_button_th" in visible
     assert "pcbs:switch_spst_th" in visible
+
+
+def test_component_browser_family_tiles_are_compact(qtbot) -> None:  # type: ignore[no-untyped-def]
+    browser = ComponentBrowser()
+    qtbot.addWidget(browser)
+
+    page = browser.family_box.widget(0)
+    buttons = page.findChildren(QPushButton)
+
+    assert buttons
+    assert all(button.maximumHeight() <= 44 for button in buttons)
+    assert page.layout().alignment() & Qt.AlignmentFlag.AlignTop

@@ -24,6 +24,7 @@ from pcbsmith.ui.inspector import InspectorWidget
 from pcbsmith.ui.schematic_scene import SchematicScene
 from pcbsmith.ui.schematic_view import SchematicView
 from pcbsmith.ui.selection import SelectionKey, parse_index_key
+from pcbsmith.ui.theme import apply_window_theme
 
 
 class MainWindow(QMainWindow):
@@ -52,6 +53,8 @@ class MainWindow(QMainWindow):
         self.delete_action = QAction("Delete", self)
         self.rotate_action = QAction("Rotate", self)
         self.mirror_horizontal_action = QAction("Mirror H", self)
+        self.light_theme_action = QAction("Light Theme", self)
+        self.dark_theme_action = QAction("Dark Theme", self)
 
         self.setWindowTitle("PCBSmith")
         self.setCentralWidget(self.view)
@@ -63,6 +66,7 @@ class MainWindow(QMainWindow):
         self._configure_actions()
         self._create_menus()
         self._create_toolbar()
+        self.apply_theme("light")
         self.scene.selectionChanged.connect(self.refresh_inspector)
 
     def _configure_actions(self) -> None:
@@ -107,6 +111,11 @@ class MainWindow(QMainWindow):
         self.mirror_horizontal_action.setShortcut(QKeySequence("H"))
         self.mirror_horizontal_action.triggered.connect(self.mirror_horizontal_selected)
         self.addAction(self.mirror_horizontal_action)
+
+        self.light_theme_action.triggered.connect(lambda: self.apply_theme("light"))
+        self.dark_theme_action.triggered.connect(lambda: self.apply_theme("dark"))
+        self.addAction(self.light_theme_action)
+        self.addAction(self.dark_theme_action)
 
     def _create_menus(self) -> None:
         file_menu = self.menuBar().addMenu("&File")
@@ -154,6 +163,9 @@ class MainWindow(QMainWindow):
         tools_menu.addAction(self.no_connect_action)
         tools_menu.addAction(self.run_erc_action)
 
+        options_menu.addAction(self.light_theme_action)
+        options_menu.addAction(self.dark_theme_action)
+        options_menu.addSeparator()
         options_menu.addAction(QAction("Grid And Snap Settings", self))
         project_menu.addAction(QAction("Project Settings", self))
         help_menu.addAction(QAction("About PCBSmith", self))
@@ -208,6 +220,9 @@ class MainWindow(QMainWindow):
     def place_resistor_at_origin(self) -> None:
         self.scene.place_resistor(Point(x=0, y=0))
         self.console.append("Placed resistor")
+
+    def apply_theme(self, theme: str) -> None:
+        apply_window_theme(self, theme)
 
     def arm_catalog_entry_by_id(self, entry_id: str) -> None:
         try:
