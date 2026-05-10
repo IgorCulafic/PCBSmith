@@ -7,7 +7,7 @@ from pathlib import Path
 from uuid import UUID
 
 from pcbsmith.core.geom import Point
-from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance
+from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.project_io import create_project, save_schematic
 
@@ -351,6 +351,78 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
         "footprint_id": "stdlib:LED_0603",
         "mirrored_x": False,
     } in manifest["commands"]
+
+
+def test_export_keeps_signal_net_labels_visible_on_wire_interiors(
+    tmp_path: Path,
+) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "RC Filter Demo")
+    save_schematic(
+        source_project,
+        "schematics/main.sch.json",
+        Schematic(
+            id="main",
+            symbols=(
+                SymbolInstance(
+                    reference="V1",
+                    symbol_id="stdlib:VCC",
+                    value="VCC",
+                    position=Point.from_mm(0, 0),
+                ),
+                SymbolInstance(
+                    reference="R1",
+                    symbol_id="stdlib:R",
+                    value="10k",
+                    position=Point.from_mm(15.24, 0),
+                    footprint_id="stdlib:R_0603",
+                ),
+                SymbolInstance(
+                    reference="C1",
+                    symbol_id="stdlib:C",
+                    value="100nF",
+                    position=Point.from_mm(40.64, 0),
+                    footprint_id="stdlib:C_0603",
+                ),
+                SymbolInstance(
+                    reference="G1",
+                    symbol_id="stdlib:GND",
+                    value="GND",
+                    position=Point.from_mm(60.96, 0),
+                ),
+            ),
+            wires=(
+                Wire(points=(Point.from_mm(0, 0), Point.from_mm(10.16, 0))),
+                Wire(points=(Point.from_mm(20.32, 0), Point.from_mm(35.56, 0))),
+                Wire(points=(Point.from_mm(45.72, 0), Point.from_mm(60.96, 0))),
+            ),
+            labels=(
+                NetLabel(name="VCC", position=Point.from_mm(0, 0)),
+                NetLabel(name="OUT", position=Point.from_mm(27.94, 0)),
+                NetLabel(name="GND", position=Point.from_mm(60.96, 0)),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
+
+    assert '(label "OUT"' in schematic_text
+    assert "(at 53.34 25.4 0)" in schematic_text
+    assert "(hide yes)" not in re.search(
+        r'\(label "OUT".*?\(uuid "[^"]+"\)\s+\)',
+        schematic_text,
+        re.DOTALL,
+    ).group(0)
+    assert '(footprint "PCBSmith_C_0603"' in board_text
+    assert '(net 2 "OUT")' in board_text
 
 
 def test_export_keeps_floating_labels_in_handoff_only(tmp_path: Path) -> None:

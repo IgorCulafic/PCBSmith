@@ -477,9 +477,16 @@ def _is_wire_interior_label(
     connected_points: set[tuple[int, int]],
     native_wires: list[Wire],
 ) -> bool:
-    return (label.position.x, label.position.y) not in connected_points and any(
+    return _is_internal_net_label(label.name) and (
+        label.position.x,
+        label.position.y,
+    ) not in connected_points and any(
         _point_on_wire(label.position, wire) for wire in native_wires
     )
+
+
+def _is_internal_net_label(name: str) -> bool:
+    return "_" in name
 
 
 def _duplicates_power_symbol_label(
