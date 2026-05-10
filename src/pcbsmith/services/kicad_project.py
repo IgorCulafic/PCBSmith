@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 from uuid import UUID, uuid4
 
@@ -85,7 +85,12 @@ def render_kicad_project_file(project_name: str) -> str:
     return json.dumps(project, indent=2, sort_keys=True) + "\n"
 
 
-def render_kicad_schematic_file(root_uuid: UUID) -> str:
+def render_kicad_schematic_file(
+    root_uuid: UUID,
+    schematic_body_items: Sequence[str] = (),
+) -> str:
+    body = "\n\n".join(schematic_body_items)
+    body_section = f"\n\n{body}" if body else ""
     return f"""(kicad_sch
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "{GENERATOR}")
@@ -95,7 +100,7 @@ def render_kicad_schematic_file(root_uuid: UUID) -> str:
   (paper "A4")
 
   (lib_symbols)
-
+{body_section}
   (sheet_instances
     (path "/" (page "1"))
   )

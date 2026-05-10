@@ -69,7 +69,7 @@ To export an existing PCBSmith project into a KiCad handoff folder:
 python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 ```
 
-This creates the KiCad skeleton plus `pcbsmith_handoff.json`, a structured manifest of the source schematic symbols, wires, labels, and no-connect markers. That manifest is the contract a future KiCad plugin or IPC/API mapper can consume.
+This creates the KiCad skeleton plus `pcbsmith_handoff.json`, a structured manifest of the source schematic symbols, wires, labels, and no-connect markers. The export also writes safe KiCad-native schematic primitives for net labels and no-connect markers. Symbols and wires remain in the manifest until the KiCad library/component mapping is mature enough to generate them directly.
 
 To run KiCad's own checks on a KiCad project folder:
 
