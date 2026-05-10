@@ -255,12 +255,9 @@ class SchematicScene(QGraphicsScene):
         if selection.kind != "symbol":
             raise ValueError(f"Cannot mirror {selection.kind}")
 
-        for item in self._symbol_items:
-            if item.selection_key() == selection:
-                item.set_mirrored_horizontally(not item.is_mirrored_horizontally())
-                return
-
-        raise ValueError(f"Unknown selected symbol: {selection.key}")
+        state = self._editor_state.mirror_symbol_horizontally(selection.key)
+        self.apply_editor_state(state)
+        self.select_key(selection)
 
     def _clear_placement_preview(self) -> None:
         if self._placement_preview is None:
