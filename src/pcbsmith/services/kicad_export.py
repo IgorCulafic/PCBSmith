@@ -30,6 +30,11 @@ KICAD_BOARD_DISPLAY_OFFSET_X_MM = 123.5
 KICAD_BOARD_DISPLAY_OFFSET_Y_MM = 87.5
 KICAD_BOARD_OUTLINE_START_MM = "123.5 87.5"
 KICAD_BOARD_OUTLINE_END_MM = "173.5 122.5"
+KICAD_LAYER_FRONT_COPPER = "F.Cu"
+KICAD_LAYER_BACK_COPPER = "B.Cu"
+KICAD_LAYER_FRONT_SILK = "F.SilkS"
+KICAD_LAYER_BACK_SILK = "B.SilkS"
+KICAD_LAYER_EDGE_CUTS = "Edge.Cuts"
 
 
 @dataclass(frozen=True)
@@ -389,6 +394,14 @@ def render_kicad_board_items(
         for footprint in footprints
     )
     items.extend(_render_board_segments(board_pads, uuid_factory=uuid_factory))
+    items.append(
+        _render_board_silkscreen_text(
+            "PCBSmith Demo",
+            x_mm=_board_x_mm(25),
+            y_mm=_board_y_mm(31),
+            uuid=uuid_factory(),
+        )
+    )
     return tuple(items)
 
 
@@ -838,7 +851,7 @@ def _render_board_footprint(
     (at {footprint.center_x_mm} {footprint.center_y_mm})
     (property "Reference" "{_escape_kicad_string(reference)}"
       (at 0 -1.6 0)
-      (layer "F.SilkS")
+      (layer "{KICAD_LAYER_FRONT_SILK}")
       (uuid {uuid_factory()})
       (effects
         (font
@@ -911,7 +924,7 @@ def _render_board_power_footprint(
     (at {x_mm} {y_mm})
     (property "Reference" "{_escape_kicad_string(net.name)}"
       (at 0 -2 0)
-      (layer "F.SilkS")
+      (layer "{KICAD_LAYER_FRONT_SILK}")
       (uuid {uuid_factory()})
       (effects
         (font
@@ -957,8 +970,29 @@ def _render_board_segment(
     return (
         f"  (segment (start {start_x_mm} {start_y_mm}) "
         f"(end {end_x_mm} {end_y_mm}) (width 0.25) "
-        f'(layer "F.Cu") (net {net.number}) (uuid {uuid}))'
+        f'(layer "{KICAD_LAYER_FRONT_COPPER}") (net {net.number}) (uuid {uuid}))'
     )
+
+
+def _render_board_silkscreen_text(
+    text: str,
+    *,
+    x_mm: str,
+    y_mm: str,
+    uuid: UUID,
+) -> str:
+    return f"""  (gr_text "{_escape_kicad_string(text)}"
+    (at {x_mm} {y_mm} 0)
+    (layer "{KICAD_LAYER_FRONT_SILK}")
+    (uuid {uuid})
+    (effects
+      (font
+        (size 1.5 1.5)
+        (thickness 0.15)
+      )
+      (justify left)
+    )
+  )"""
 
 
 def _render_board_segments(

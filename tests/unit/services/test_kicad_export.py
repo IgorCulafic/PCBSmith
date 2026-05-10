@@ -349,6 +349,9 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     assert "(gr_rect" in board_text
     assert "(start 123.5 87.5)" in board_text
     assert "(end 173.5 122.5)" in board_text
+    assert '(gr_text "PCBSmith Demo"' in board_text
+    assert '(layer "F.SilkS")' in board_text
+    assert '(layer "B.Cu") (net' not in board_text
     assert {
         "type": "place_symbol",
         "reference": "LED1",
