@@ -1,8 +1,9 @@
 from __future__ import annotations
 
 from pcbsmith.core.geom import Point
-from pcbsmith.core.schematic import Schematic, SymbolInstance, Wire
+from pcbsmith.core.schematic import NetLabel, Schematic, SymbolInstance, Wire
 from pcbsmith.services.schematic_commands import (
+    AddLabelCommand,
     AddWireCommand,
     PlaceSymbolCommand,
     apply_schematic_command,
@@ -71,3 +72,17 @@ def test_add_wire_command_appends_wire_and_message() -> None:
         Wire(points=(Point(x=0, y=0), Point(x=2_540_000, y=0))),
     )
     assert result.messages == ("Added wire with 2 points",)
+
+
+def test_add_label_command_appends_net_label_and_message() -> None:
+    schematic = Schematic(id="main")
+
+    result = apply_schematic_command(
+        schematic,
+        AddLabelCommand(name="LED_A", position=Point(x=27_940_000, y=0)),
+    )
+
+    assert result.schematic.labels == (
+        NetLabel(name="LED_A", position=Point(x=27_940_000, y=0)),
+    )
+    assert result.messages == ("Added label LED_A",)

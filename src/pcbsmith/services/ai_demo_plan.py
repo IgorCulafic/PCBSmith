@@ -12,6 +12,9 @@ def build_ai_demo_plan(planner_package: dict[str, Any]) -> dict[str, Any]:
     request_text = _request_text(planner_package).lower()
     schematic = _target_schematic(planner_package)
 
+    if _requests_led_circuit(request_text):
+        return _led_series_circuit_plan(schematic)
+
     if "capacitor" in request_text or "100nf" in request_text:
         return _single_symbol_plan(
             description="Demo plan: add a capacitor",
@@ -28,6 +31,96 @@ def build_ai_demo_plan(planner_package: dict[str, Any]) -> dict[str, Any]:
         value="330",
         footprint_id="stdlib:R_0603",
     )
+
+
+def _requests_led_circuit(request_text: str) -> bool:
+    return "led" in request_text and (
+        "complete" in request_text
+        or "series circuit" in request_text
+        or "create" in request_text
+        or "make" in request_text
+        or "build" in request_text
+    )
+
+
+def _led_series_circuit_plan(schematic: str) -> dict[str, Any]:
+    return {
+        "version": 1,
+        "description": "Demo plan: create a current-limited LED circuit",
+        "schematic": schematic,
+        "commands": [
+            _place_symbol_command(
+                symbol_id="stdlib:VCC",
+                value="VCC",
+                x=0,
+                y=0,
+                footprint_id=None,
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:R",
+                value="330",
+                x=15_240_000,
+                y=0,
+                footprint_id="stdlib:R_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:LED",
+                value="Red LED",
+                x=40_640_000,
+                y=0,
+                footprint_id="stdlib:LED_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:GND",
+                value="GND",
+                x=60_960_000,
+                y=0,
+                footprint_id=None,
+            ),
+            _wire_command((0, 0), (10_160_000, 0)),
+            _wire_command((20_320_000, 0), (35_560_000, 0)),
+            _wire_command((45_720_000, 0), (60_960_000, 0)),
+            _label_command("VCC", 0, 0),
+            _label_command("LED_A", 27_940_000, 0),
+            _label_command("GND", 60_960_000, 0),
+        ],
+    }
+
+
+def _place_symbol_command(
+    *,
+    symbol_id: str,
+    value: str,
+    x: int,
+    y: int,
+    footprint_id: str | None,
+) -> dict[str, Any]:
+    return {
+        "type": "place_symbol",
+        "symbol_id": symbol_id,
+        "value": value,
+        "position": {"x": x, "y": y},
+        "rotation_deg": 0,
+        "footprint_id": footprint_id,
+    }
+
+
+def _wire_command(start: tuple[int, int], end: tuple[int, int]) -> dict[str, Any]:
+    return {
+        "type": "add_wire",
+        "points": [
+            {"x": start[0], "y": start[1]},
+            {"x": end[0], "y": end[1]},
+        ],
+    }
+
+
+def _label_command(name: str, x: int, y: int) -> dict[str, Any]:
+    return {
+        "type": "add_label",
+        "name": name,
+        "position": {"x": x, "y": y},
+    }
 
 
 def write_ai_demo_plan(planner_package_path: Path, output_path: Path) -> None:
@@ -84,14 +177,13 @@ def _single_symbol_plan(
         "description": description,
         "schematic": schematic,
         "commands": [
-            {
-                "type": "place_symbol",
-                "symbol_id": symbol_id,
-                "value": value,
-                "position": {"x": 0, "y": 0},
-                "rotation_deg": 0,
-                "footprint_id": footprint_id,
-            }
+            _place_symbol_command(
+                symbol_id=symbol_id,
+                value=value,
+                x=0,
+                y=0,
+                footprint_id=footprint_id,
+            )
         ],
     }
 

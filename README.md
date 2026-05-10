@@ -129,7 +129,7 @@ To wrap that brief with the allowed planner output contract:
 python -m pcbsmith.cli ai-planner-package .\brief.json .\planner-package.json
 ```
 
-The planner package tells a future LLM or local model whether it should produce a review response or a structured command proposal. For editable briefs, the current allowed command contract is the same approval-loop package consumed by `kicad-plan`: `place_symbol` and `add_wire` commands targeting a project schematic.
+The planner package tells a future LLM or local model whether it should produce a review response or a structured command proposal. For editable briefs, the current allowed command contract is the same approval-loop package consumed by `kicad-plan`: `place_symbol`, `add_wire`, and `add_label` commands targeting a project schematic.
 
 To generate a deterministic demo candidate plan without calling a model:
 
@@ -138,6 +138,8 @@ python -m pcbsmith.cli ai-demo-plan .\planner-package.json .\candidate-plan.json
 ```
 
 This is a local smoke-test planner. It only supports tiny known examples, but it exercises the same candidate-plan file that future OpenAI, Ollama, LM Studio, or other local model providers should produce.
+
+The current demo examples include single resistor/capacitor placement and a complete current-limited LED series circuit with VCC, resistor, LED, GND, wires, and net labels. The LED example can be applied through `ai-plan-review --apply`, then exported with `kicad-review-bundle` to produce a KiCad-rendered SVG preview.
 
 To validate a future model's candidate command plan before it reaches the approval loop:
 

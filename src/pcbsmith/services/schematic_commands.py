@@ -6,7 +6,7 @@ from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
 from pcbsmith.core.geom import Point
-from pcbsmith.core.schematic import Schematic, SymbolInstance, Wire
+from pcbsmith.core.schematic import NetLabel, Schematic, SymbolInstance, Wire
 
 _REFERENCE_PATTERN = re.compile(r"^([A-Z]+)([0-9]+)$")
 _PREFIX_BY_SYMBOL = {
@@ -40,7 +40,15 @@ class AddWireCommand(BaseModel):
     points: tuple[Point, ...] = Field(min_length=2)
 
 
-SchematicCommand = PlaceSymbolCommand | AddWireCommand
+class AddLabelCommand(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["add_label"] = "add_label"
+    name: str
+    position: Point
+
+
+SchematicCommand = PlaceSymbolCommand | AddWireCommand | AddLabelCommand
 
 
 class SchematicCommandResult(BaseModel):
@@ -58,6 +66,8 @@ def apply_schematic_command(
         return _place_symbol(schematic, command)
     if isinstance(command, AddWireCommand):
         return _add_wire(schematic, command)
+    if isinstance(command, AddLabelCommand):
+        return _add_label(schematic, command)
 
 
 def _place_symbol(
@@ -86,6 +96,15 @@ def _add_wire(schematic: Schematic, command: AddWireCommand) -> SchematicCommand
     )
 
 
+def _add_label(schematic: Schematic, command: AddLabelCommand) -> SchematicCommandResult:
+    label = NetLabel(name=command.name, position=command.position)
+    updated = schematic.model_copy(update={"labels": (*schematic.labels, label)})
+    return SchematicCommandResult(
+        schematic=updated,
+        messages=(f"Added label {command.name}",),
+    )
+
+
 def _next_reference(schematic: Schematic, symbol_id: str) -> str:
     prefix = _PREFIX_BY_SYMBOL.get(symbol_id, "U")
     used = [
@@ -97,6 +116,7 @@ def _next_reference(schematic: Schematic, symbol_id: str) -> str:
 
 
 __all__ = [
+    "AddLabelCommand",
     "AddWireCommand",
     "PlaceSymbolCommand",
     "SchematicCommand",

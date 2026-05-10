@@ -14,6 +14,7 @@ from pcbsmith.services.project_io import (
     save_schematic,
 )
 from pcbsmith.services.schematic_commands import (
+    AddLabelCommand,
     AddWireCommand,
     PlaceSymbolCommand,
     SchematicCommand,
@@ -117,6 +118,8 @@ def _summarize_command(command: SchematicCommand) -> str:
         first = command.points[0]
         last = command.points[-1]
         return f"add_wire {_format_point(first)} -> {_format_point(last)}"
+    if isinstance(command, AddLabelCommand):
+        return f"add_label {command.name} at {_format_point(command.position)}"
 
 
 def _format_point(point: Point) -> str:
