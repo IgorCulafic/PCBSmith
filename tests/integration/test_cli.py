@@ -463,6 +463,40 @@ def test_ai_plan_check_validates_candidate_plan(tmp_path: Path) -> None:
     ]
 
 
+def test_ai_demo_plan_writes_candidate_plan(tmp_path: Path) -> None:
+    planner_path = tmp_path / "planner-package.json"
+    candidate_path = tmp_path / "candidate-plan.json"
+    planner_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-ai-planner-package-v1",
+                "planner_mode": "structured_command_proposal",
+                "brief": {
+                    "request": {
+                        "text": "Add a resistor to the LED circuit",
+                    },
+                },
+                "allowed_command_types": ["place_symbol", "add_wire"],
+                "target_plan_schema": {
+                    "version": 1,
+                    "schematic": "schematics/main.sch.json",
+                    "commands": [],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_cli("ai-demo-plan", str(planner_path), str(candidate_path))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == f"Wrote AI demo candidate plan to {candidate_path}"
+    data = json.loads(candidate_path.read_text(encoding="utf-8"))
+    assert data["description"] == "Demo plan: add a resistor"
+    assert data["commands"][0]["symbol_id"] == "stdlib:R"
+
+
 def test_ai_plan_review_validates_and_dry_runs_candidate_plan(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     planner_path = tmp_path / "planner-package.json"

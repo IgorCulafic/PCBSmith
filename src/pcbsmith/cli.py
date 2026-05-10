@@ -9,6 +9,7 @@ from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.ai_brief import write_ai_brief
 from pcbsmith.services.ai_context import write_ai_context
+from pcbsmith.services.ai_demo_plan import write_ai_demo_plan
 from pcbsmith.services.ai_plan_check import check_ai_plan
 from pcbsmith.services.ai_plan_review import run_ai_plan_review
 from pcbsmith.services.ai_planner_package import write_ai_planner_package
@@ -208,6 +209,12 @@ def _cmd_ai_planner_package(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ai_demo_plan(args: argparse.Namespace) -> int:
+    write_ai_demo_plan(Path(args.planner_package), Path(args.output))
+    print(f"Wrote AI demo candidate plan to {Path(args.output)}")
+    return 0
+
+
 def _cmd_ai_plan_check(args: argparse.Namespace) -> int:
     result = check_ai_plan(Path(args.planner_package), Path(args.candidate_plan))
     for line in result.lines:
@@ -369,6 +376,14 @@ def build_parser() -> argparse.ArgumentParser:
     ai_planner_package_parser.add_argument("brief")
     ai_planner_package_parser.add_argument("output")
     ai_planner_package_parser.set_defaults(func=_cmd_ai_planner_package)
+
+    ai_demo_plan_parser = subparsers.add_parser(
+        "ai-demo-plan",
+        help="write a deterministic demo candidate plan from a planner package",
+    )
+    ai_demo_plan_parser.add_argument("planner_package")
+    ai_demo_plan_parser.add_argument("output")
+    ai_demo_plan_parser.set_defaults(func=_cmd_ai_demo_plan)
 
     ai_plan_check_parser = subparsers.add_parser(
         "ai-plan-check",

@@ -23,6 +23,7 @@ python -m pcbsmith.cli kicad-preview .\kicad-demo
 python -m pcbsmith.cli kicad-review-bundle .\demo .\review-bundle
 python -m pcbsmith.cli ai-brief .\demo .\request.txt .\brief.json --kicad-project .\review-bundle
 python -m pcbsmith.cli ai-planner-package .\brief.json .\planner-package.json
+python -m pcbsmith.cli ai-demo-plan .\planner-package.json .\candidate-plan.json
 python -m pcbsmith.cli ai-plan-check .\planner-package.json .\candidate-plan.json
 python -m pcbsmith.cli ai-plan-review .\demo .\planner-package.json .\candidate-plan.json
 python -m pcbsmith.cli kicad-plan .\demo .\plan.json
@@ -121,6 +122,14 @@ python -m pcbsmith.cli ai-planner-package .\brief.json .\planner-package.json
 
 The planner package tells a future LLM or local model whether it should produce a review response or a structured command proposal. For editable briefs, the current allowed command contract is the same approval-loop package consumed by `kicad-plan`: `place_symbol` and `add_wire` commands targeting a project schematic.
 
+To generate a deterministic demo candidate plan without calling a model:
+
+```powershell
+python -m pcbsmith.cli ai-demo-plan .\planner-package.json .\candidate-plan.json
+```
+
+This is a local smoke-test planner. It only supports tiny known examples, but it exercises the same candidate-plan file that future OpenAI, Ollama, LM Studio, or other local model providers should produce.
+
 To validate a future model's candidate command plan before it reaches the approval loop:
 
 ```powershell
@@ -192,7 +201,7 @@ Run the standard local check before committing:
 python tools/dev_check.py
 ```
 
-The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad preview/review-bundle discovery, AI context, AI brief, planner package, AI plan-check, and AI plan-review smoke tests.
+The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad preview/review-bundle discovery, AI context, AI brief, planner package, demo plan, AI plan-check, and AI plan-review smoke tests.
 
 Generated cache folders and old one-off pytest workspaces can be reviewed with:
 
