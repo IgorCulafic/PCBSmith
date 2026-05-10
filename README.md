@@ -15,6 +15,7 @@ python -m pcbsmith.cli validate .\demo
 python -m pcbsmith.cli netlist .\demo
 python -m pcbsmith.cli erc .\demo
 python -m pcbsmith.cli kicad-status
+python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 ```
 
 The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
@@ -42,6 +43,14 @@ $env:PCBSMITH_KICAD_CLI = "C:\Path\To\KiCad\bin\kicad-cli.exe"
 ```
 
 Future KiCad integration should prefer KiCad project files, `kicad-cli`, the KiCad IPC API, and official `kicad-python` bindings. PCBSmith should avoid modifying KiCad source unless the companion/plugin approach proves insufficient.
+
+To create a first KiCad handoff skeleton:
+
+```powershell
+python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
+```
+
+This writes the core KiCad project filenames: `.kicad_pro`, `.kicad_sch`, and `.kicad_pcb`. The generated files are intentionally minimal and marked as PCBSmith-generated; once KiCad is installed, open/save or CLI validation can canonicalize them before deeper automation is built on top.
 
 ## Phase 1A and 1B GUI
 

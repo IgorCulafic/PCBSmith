@@ -81,6 +81,35 @@ Document KiCad as the real CAD backend/editor and PCBSmith as the AI command lay
 
 Add KiCad backend direction, `kicad-status`, and install/configuration notes.
 
+## Task 4: KiCad Project Skeleton
+
+**Files:**
+- Create: `src/pcbsmith/services/kicad_project.py`
+- Create: `tests/unit/services/test_kicad_project.py`
+- Modify: `src/pcbsmith/cli.py`
+- Modify: `tests/integration/test_cli.py`
+- Modify: `README.md`
+
+- [x] **Step 1: Write failing skeleton service tests**
+
+Cover project name sanitization, core KiCad file creation, generated metadata, schematic header/root UUID, board header/layers, and overwrite refusal.
+
+- [x] **Step 2: Implement skeleton service**
+
+Create `create_kicad_project_skeleton()` and render minimal `.kicad_pro`, `.kicad_sch`, and `.kicad_pcb` files using `PCBSmith` as generator.
+
+- [x] **Step 3: Add CLI tests**
+
+Cover `pcbsmith kicad-new <project> --name <name>` success and existing-directory refusal.
+
+- [x] **Step 4: Implement `kicad-new`**
+
+Wire the CLI command to `create_kicad_project_skeleton()`.
+
+- [x] **Step 5: Update README**
+
+Document the first KiCad handoff skeleton command and clarify that KiCad should canonicalize generated files later.
+
 ## Verification
 
 Run before commit:
