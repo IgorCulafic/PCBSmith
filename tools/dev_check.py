@@ -104,7 +104,7 @@ def main() -> int:
         ],
     )
     request_path = tmp_dir / "dev-check-request.txt"
-    request_path.write_text("Check this LED circuit before changing it\n", encoding="utf-8")
+    request_path.write_text("Add a resistor to the LED circuit\n", encoding="utf-8")
     run_step(
         "AI brief smoke",
         [
@@ -128,6 +128,36 @@ def main() -> int:
             "ai-planner-package",
             str(tmp_dir / "dev-check-ai-brief.json"),
             str(tmp_dir / "dev-check-ai-planner-package.json"),
+        ],
+    )
+    candidate_plan_path = tmp_dir / "dev-check-candidate-plan.json"
+    candidate_plan_path.write_text(
+        """{
+  "version": 1,
+  "description": "Dev check candidate plan",
+  "schematic": "schematics/main.sch.json",
+  "commands": [
+    {
+      "type": "place_symbol",
+      "symbol_id": "stdlib:R",
+      "value": "330",
+      "position": {"x": 0, "y": 0},
+      "footprint_id": "stdlib:R_0603"
+    }
+  ]
+}
+""",
+        encoding="utf-8",
+    )
+    run_step(
+        "AI plan check smoke",
+        [
+            python,
+            "-m",
+            "pcbsmith.cli",
+            "ai-plan-check",
+            str(tmp_dir / "dev-check-ai-planner-package.json"),
+            str(candidate_plan_path),
         ],
     )
     print("\nDev check completed.")
