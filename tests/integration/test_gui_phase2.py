@@ -13,14 +13,6 @@ from pcbsmith.ui.component_browser import ComponentBrowser
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
 
-
-def _toolbar_action(window: MainWindow, text: str):
-    for action in window.schematic_toolbar.actions():
-        if action.text() == text:
-            return action
-    raise AssertionError(f"Toolbar action not found: {text}")
-
-
 def test_scene_places_catalog_component(qtbot) -> None:
     scene = SchematicScene()
     catalog = component_catalog.builtin_catalog()
@@ -91,18 +83,26 @@ def test_main_window_places_selected_browser_component(qtbot) -> None:
     window.component_browser.search_box.setText("capacitor")
     window.component_browser.select_entry("pcbs:capacitor_0603")
     window.place_selected_component_at_origin()
+    assert window.scene.armed_catalog_entry_id() == "pcbs:capacitor_0603"
+    assert window.scene.editor_state.symbols == ()
 
+    window.scene.handle_canvas_click(Point(x=0, y=0))
     symbol = window.scene.editor_state.symbols[0]
     assert symbol.symbol_id == "stdlib:C"
     assert symbol.value == "100nF"
 
 
-def test_main_window_add_r_toolbar_action_places_catalog_resistor(qtbot) -> None:
+def test_main_window_resistor_action_arms_catalog_resistor(qtbot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    _toolbar_action(window, "Add R").trigger()
+    actions = {action.text(): action for action in window.actions()}
+    actions["Resistor"].trigger()
 
+    assert window.scene.armed_catalog_entry_id() == "pcbs:resistor_0603"
+    assert window.scene.editor_state.symbols == ()
+
+    window.scene.handle_canvas_click(Point(x=0, y=0))
     symbol = window.scene.editor_state.symbols[0]
     assert symbol.symbol_id == "stdlib:R"
     assert symbol.value == "10k"
@@ -110,24 +110,34 @@ def test_main_window_add_r_toolbar_action_places_catalog_resistor(qtbot) -> None
     assert symbol.position == Point(x=0, y=0)
 
 
-def test_main_window_add_c_toolbar_action_places_capacitor_at_origin(qtbot) -> None:
+def test_main_window_capacitor_action_arms_capacitor(qtbot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    _toolbar_action(window, "Add C").trigger()
+    actions = {action.text(): action for action in window.actions()}
+    actions["Capacitor"].trigger()
 
+    assert window.scene.armed_catalog_entry_id() == "pcbs:capacitor_0603"
+    assert window.scene.editor_state.symbols == ()
+
+    window.scene.handle_canvas_click(Point(x=0, y=0))
     symbol = window.scene.editor_state.symbols[0]
     assert symbol.symbol_id == "stdlib:C"
     assert symbol.value == "100nF"
     assert symbol.position == Point(x=0, y=0)
 
 
-def test_main_window_add_led_toolbar_action_places_led_at_origin(qtbot) -> None:
+def test_main_window_led_action_arms_led(qtbot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    _toolbar_action(window, "Add LED").trigger()
+    actions = {action.text(): action for action in window.actions()}
+    actions["LED"].trigger()
 
+    assert window.scene.armed_catalog_entry_id() == "pcbs:led_0603"
+    assert window.scene.editor_state.symbols == ()
+
+    window.scene.handle_canvas_click(Point(x=0, y=0))
     symbol = window.scene.editor_state.symbols[0]
     assert symbol.symbol_id == "stdlib:LED"
     assert symbol.value == "LED"

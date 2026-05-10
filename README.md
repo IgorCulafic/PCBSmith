@@ -29,6 +29,12 @@ Phase 1B adds safer schematic editing: selecting items, moving/deleting/rotating
 symbols, basic undo/redo, inspector edits for core symbol fields, and minimal net
 label/no-connect marker editing.
 
+Phase 3A begins the editor usability pass: the GUI now uses a readable light
+schematic canvas, CAD-style menus, a tool-oriented toolbar, keyboard shortcuts,
+collapsible component families, and click-to-place component placement.
+Component browser and menu actions arm placement; click the canvas to place the
+previewed part.
+
 ## Component Catalog
 
 PCBSmith includes a native component catalog for real CAD components. The first
