@@ -6,7 +6,7 @@ from pathlib import Path
 from uuid import UUID
 
 from pcbsmith.core.geom import Point
-from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic
+from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.project_io import create_project, save_schematic
 
@@ -162,6 +162,67 @@ def test_export_writes_project_local_pcbs_library(tmp_path: Path) -> None:
     assert '(symbol "GND"' in library_text
     assert '(name "PCBSmith")' in symbol_table_text
     assert '${KIPRJMOD}/PCBSmith.kicad_sym' in symbol_table_text
+
+
+def test_export_writes_common_passive_and_diode_family_symbols(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Common Parts Demo")
+    save_schematic(
+        source_project,
+        "schematics/main.sch.json",
+        Schematic(
+            id="main",
+            symbols=(
+                SymbolInstance(
+                    reference="C1",
+                    symbol_id="stdlib:C",
+                    value="100nF",
+                    position=Point.from_mm(10.16, 0),
+                    footprint_id="stdlib:C_0603",
+                ),
+                SymbolInstance(
+                    reference="D1",
+                    symbol_id="stdlib:D",
+                    value="D",
+                    position=Point.from_mm(30.48, 0),
+                    footprint_id="stdlib:D_0603",
+                ),
+                SymbolInstance(
+                    reference="LED1",
+                    symbol_id="stdlib:LED",
+                    value="LED",
+                    position=Point.from_mm(50.8, 0),
+                    footprint_id="stdlib:LED_0603",
+                ),
+            ),
+            no_connects=(
+                NoConnect(position=Point.from_mm(5.08, 0)),
+                NoConnect(position=Point.from_mm(15.24, 0)),
+                NoConnect(position=Point.from_mm(25.4, 0)),
+                NoConnect(position=Point.from_mm(35.56, 0)),
+                NoConnect(position=Point.from_mm(45.72, 0)),
+                NoConnect(position=Point.from_mm(55.88, 0)),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    library_text = (output_project / "PCBSmith.kicad_sym").read_text(encoding="utf-8")
+
+    assert '(lib_id "PCBSmith:C")' in schematic_text
+    assert '(lib_id "PCBSmith:D")' in schematic_text
+    assert '(lib_id "PCBSmith:LED")' in schematic_text
+    assert '(symbol "C"' in library_text
+    assert '(symbol "D"' in library_text
+    assert '(symbol "LED"' in library_text
+    assert schematic_text.count("(no_connect") == 6
 
 
 def test_export_keeps_floating_labels_in_handoff_only(tmp_path: Path) -> None:

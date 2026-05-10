@@ -69,6 +69,30 @@ NATIVE_SYMBOL_SPECS: dict[str, NativeSymbolSpec] = {
         description="Generic resistor",
         pin_offsets=(Vec(-5_080_000, 0), Vec(5_080_000, 0)),
     ),
+    "stdlib:C": NativeSymbolSpec(
+        source_symbol_id="stdlib:C",
+        library_symbol_name="C",
+        reference_prefix="C",
+        value="C",
+        description="Generic capacitor",
+        pin_offsets=(Vec(-5_080_000, 0), Vec(5_080_000, 0)),
+    ),
+    "stdlib:D": NativeSymbolSpec(
+        source_symbol_id="stdlib:D",
+        library_symbol_name="D",
+        reference_prefix="D",
+        value="D",
+        description="Generic diode",
+        pin_offsets=(Vec(-5_080_000, 0), Vec(5_080_000, 0)),
+    ),
+    "stdlib:LED": NativeSymbolSpec(
+        source_symbol_id="stdlib:LED",
+        library_symbol_name="LED",
+        reference_prefix="LED",
+        value="LED",
+        description="Generic LED",
+        pin_offsets=(Vec(-5_080_000, 0), Vec(5_080_000, 0)),
+    ),
     "stdlib:VCC": NativeSymbolSpec(
         source_symbol_id="stdlib:VCC",
         library_symbol_name="VCC",
@@ -495,7 +519,37 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
         else spec.library_symbol_name
     )
     if spec.library_symbol_name == "R":
-        return _render_resistor_library_symbol(name)
+        return _render_two_pin_box_library_symbol(
+            name,
+            reference="R",
+            value="R",
+            description="Generic resistor",
+            drawing=_resistor_symbol_drawing(),
+        )
+    if spec.library_symbol_name == "C":
+        return _render_two_pin_box_library_symbol(
+            name,
+            reference="C",
+            value="C",
+            description="Generic capacitor",
+            drawing=_capacitor_symbol_drawing(),
+        )
+    if spec.library_symbol_name == "D":
+        return _render_two_pin_box_library_symbol(
+            name,
+            reference="D",
+            value="D",
+            description="Generic diode",
+            drawing=_diode_symbol_drawing("D_0_1"),
+        )
+    if spec.library_symbol_name == "LED":
+        return _render_two_pin_box_library_symbol(
+            name,
+            reference="LED",
+            value="LED",
+            description="Generic LED",
+            drawing=_led_symbol_drawing(),
+        )
     if spec.library_symbol_name == "VCC":
         return _render_power_library_symbol(
             name,
@@ -517,7 +571,14 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
     raise ValueError(f"Unsupported native KiCad symbol: {spec.source_symbol_id}")
 
 
-def _render_resistor_library_symbol(name: str) -> str:
+def _render_two_pin_box_library_symbol(
+    name: str,
+    *,
+    reference: str,
+    value: str,
+    description: str,
+    drawing: str,
+) -> str:
     return f"""  (symbol "{name}"
     (pin_numbers
       (hide yes)
@@ -528,25 +589,13 @@ def _render_resistor_library_symbol(name: str) -> str:
     (exclude_from_sim no)
     (in_bom yes)
     (on_board yes)
-    {_render_symbol_property("Reference", "R", 0, -2_540_000)}
-    {_render_symbol_property("Value", "R", 0, 2_540_000)}
+    {_render_symbol_property("Reference", reference, 0, -2_540_000)}
+    {_render_symbol_property("Value", value, 0, 2_540_000)}
     {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
     {_render_symbol_property("Datasheet", "~", 0, 0, hidden=True)}
-    {_render_symbol_property("Description", "Generic resistor", 0, 0, hidden=True)}
-    (symbol "R_0_1"
-      (rectangle
-        (start -2.54 -1.27)
-        (end 2.54 1.27)
-        (stroke
-          (width 0.254)
-          (type default)
-        )
-        (fill
-          (type none)
-        )
-      )
-    )
-    (symbol "R_1_1"
+    {_render_symbol_property("Description", description, 0, 0, hidden=True)}
+{drawing}
+    (symbol "{value}_1_1"
       (pin passive line
         (at -5.08 0 0)
         (length 0)
@@ -635,6 +684,110 @@ def _render_power_library_symbol(
       )
     )
   )"""
+
+
+def _resistor_symbol_drawing() -> str:
+    return """    (symbol "R_0_1"
+      (rectangle
+        (start -2.54 -1.27)
+        (end 2.54 1.27)
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )"""
+
+
+def _capacitor_symbol_drawing() -> str:
+    return """    (symbol "C_0_1"
+      (polyline
+        (pts
+          (xy -0.762 1.905) (xy -0.762 -1.905)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 0.762 1.905) (xy 0.762 -1.905)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )"""
+
+
+def _diode_symbol_drawing(symbol_name: str) -> str:
+    return f"""    (symbol "{symbol_name}"
+      (polyline
+        (pts
+          (xy -1.27 1.905) (xy -1.27 -1.905) (xy 1.27 0) (xy -1.27 1.905)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 1.27 1.905) (xy 1.27 -1.905)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )"""
+
+
+def _led_symbol_drawing() -> str:
+    return f"""{_diode_symbol_drawing("LED_0_1")}
+    (symbol "LED_0_2"
+      (polyline
+        (pts
+          (xy 1.524 1.524) (xy 2.794 2.794)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 2.032 0.508) (xy 3.302 1.778)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )"""
 
 
 def _vcc_symbol_drawing() -> str:
