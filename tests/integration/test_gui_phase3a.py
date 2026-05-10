@@ -4,7 +4,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QBrush, QColor, QKeySequence
 from PySide6.QtTest import QTest
 
-from pcbsmith.core.geom import Point
+from pcbsmith.core.geom import Point, mm_to_nm
 from pcbsmith.ui import items
 from pcbsmith.ui.main_window import MainWindow
 
@@ -77,6 +77,41 @@ def test_phase3a_options_menu_can_change_wire_width(qtbot) -> None:  # type: ign
     actions["Wire Width 6"].trigger()
 
     assert window.scene.wire_stroke_width() == 6
+
+
+def test_phase3a_blank_canvas_fit_starts_centered_at_usable_scale(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    window.resize(1200, 800)
+    window.show()
+    qtbot.waitExposed(window)
+
+    window.view.fit_to_contents()
+
+    center = window.view.mapToScene(window.view.viewport().rect().center())
+    assert abs(center.x()) < mm_to_nm(2)
+    assert abs(center.y()) < mm_to_nm(2)
+    assert window.view.default_view_rect().width() == mm_to_nm(160)
+    assert window.view.transform().m11() > 0.0000005
+
+
+def test_phase3a_grid_units_default_to_mm_and_switch_to_cm(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+    actions = {action.text(): action for action in window.actions()}
+
+    assert window.view.grid_unit() == "mm"
+    assert window.view.grid_spacing_label() == "2.54 mm"
+
+    actions["Grid Units: cm"].trigger()
+
+    assert window.view.grid_unit() == "cm"
+    assert window.view.grid_spacing_label() == "0.254 cm"
+
+    actions["Grid Units: mm"].trigger()
+
+    assert window.view.grid_unit() == "mm"
+    assert window.view.grid_spacing_label() == "2.54 mm"
 
 
 def test_phase3a_toolbar_is_tool_oriented(qtbot) -> None:  # type: ignore[no-untyped-def]

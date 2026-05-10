@@ -1,17 +1,21 @@
 from __future__ import annotations
 
 import math
+from typing import Literal
 
 from PySide6.QtCore import QPoint, QRectF, Qt
-from PySide6.QtGui import QMouseEvent, QPainter, QPen, QWheelEvent
+from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPen, QShowEvent, QWheelEvent
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QWidget
 
 from pcbsmith.core.geom import mm_to_nm
 from pcbsmith.ui.items import CANVAS_BACKGROUND, GRID_COLOR
 
 GRID_NM = 2_540_000
+DEFAULT_VIEW_WIDTH_MM = 160
+DEFAULT_VIEW_HEIGHT_MM = 100
 ZOOM_IN_FACTOR = 1.15
 ZOOM_OUT_FACTOR = 1 / ZOOM_IN_FACTOR
+GridUnit = Literal["mm", "cm"]
 
 
 class SchematicView(QGraphicsView):
@@ -23,6 +27,8 @@ class SchematicView(QGraphicsView):
 
         super().__init__(scene, parent)
         self._last_pan_pos: QPoint | None = None
+        self._grid_unit: GridUnit = "mm"
+        self._did_initial_fit = False
         scene.setBackgroundBrush(CANVAS_BACKGROUND)
 
         self.setRenderHints(
@@ -52,6 +58,23 @@ class SchematicView(QGraphicsView):
             y += GRID_NM
 
         painter.restore()
+
+    def drawForeground(self, painter: QPainter, rect: QRectF) -> None:
+        super().drawForeground(painter, rect)
+
+        painter.save()
+        painter.resetTransform()
+        painter.setPen(QPen(QColor(76, 86, 96), 1))
+        painter.drawText(12, 20, f"Grid: {self.grid_spacing_label()}")
+        painter.restore()
+
+    def showEvent(self, event: QShowEvent) -> None:
+        super().showEvent(event)
+        if self._did_initial_fit:
+            return
+
+        self._did_initial_fit = True
+        self.reset_to_default_view()
 
     def wheelEvent(self, event: QWheelEvent) -> None:
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
@@ -90,18 +113,43 @@ class SchematicView(QGraphicsView):
 
         super().mouseReleaseEvent(event)
 
+    def default_view_rect(self) -> QRectF:
+        width = mm_to_nm(DEFAULT_VIEW_WIDTH_MM)
+        height = mm_to_nm(DEFAULT_VIEW_HEIGHT_MM)
+        return QRectF(-width / 2, -height / 2, width, height)
+
+    def reset_to_default_view(self) -> None:
+        target = self.default_view_rect()
+        self.fitInView(target, Qt.AspectRatioMode.KeepAspectRatio)
+        self.centerOn(target.center())
+
+    def grid_unit(self) -> GridUnit:
+        return self._grid_unit
+
+    def set_grid_unit(self, unit: GridUnit) -> None:
+        self._grid_unit = unit
+        self.viewport().update()
+
+    def grid_spacing_label(self) -> str:
+        if self._grid_unit == "cm":
+            return "0.254 cm"
+        return "2.54 mm"
+
     def fit_to_contents(self) -> None:
         scene = self.scene()
         target = scene.itemsBoundingRect()
         if not scene.items():
-            target = scene.sceneRect()
+            target = self.default_view_rect()
         else:
             target = target.adjusted(-GRID_NM, -GRID_NM, GRID_NM, GRID_NM)
 
         self.fitInView(target, Qt.AspectRatioMode.KeepAspectRatio)
+        self.centerOn(target.center())
 
 
 __all__ = [
+    "DEFAULT_VIEW_HEIGHT_MM",
+    "DEFAULT_VIEW_WIDTH_MM",
     "GRID_NM",
     "SchematicView",
     "ZOOM_IN_FACTOR",
