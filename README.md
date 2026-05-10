@@ -22,6 +22,7 @@ python -m pcbsmith.cli kicad-validate .\kicad-demo
 python -m pcbsmith.cli kicad-preview .\kicad-demo
 python -m pcbsmith.cli kicad-review-bundle .\demo .\review-bundle
 python -m pcbsmith.cli ai-brief .\demo .\request.txt .\brief.json --kicad-project .\review-bundle
+python -m pcbsmith.cli ai-planner-package .\brief.json .\planner-package.json
 python -m pcbsmith.cli kicad-plan .\demo .\plan.json
 python -m pcbsmith.cli kicad-context .\demo .\ai-context.json
 ```
@@ -110,6 +111,14 @@ python -m pcbsmith.cli ai-brief .\demo .\request.txt .\brief.json --kicad-projec
 
 The brief is provider-neutral JSON. It records the user goal, classified intent, explicit assumptions, missing questions, safety checks, required capabilities, and the current project context. It does not call an LLM or mutate design files; it prepares the next AI/planner step.
 
+To wrap that brief with the allowed planner output contract:
+
+```powershell
+python -m pcbsmith.cli ai-planner-package .\brief.json .\planner-package.json
+```
+
+The planner package tells a future LLM or local model whether it should produce a review response or a structured command proposal. For editable briefs, the current allowed command contract is the same approval-loop package consumed by `kicad-plan`: `place_symbol` and `add_wire` commands targeting a project schematic.
+
 To review a structured command package before changing a PCBSmith project:
 
 ```powershell
@@ -165,7 +174,7 @@ Run the standard local check before committing:
 python tools/dev_check.py
 ```
 
-The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad preview/review-bundle discovery, AI context, and AI brief smoke tests.
+The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad preview/review-bundle discovery, AI context, AI brief, and planner package smoke tests.
 
 Generated cache folders and old one-off pytest workspaces can be reviewed with:
 
