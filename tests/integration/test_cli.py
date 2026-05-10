@@ -430,3 +430,34 @@ def test_ai_planner_package_writes_provider_neutral_package(tmp_path: Path) -> N
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["schema"] == "pcbsmith-ai-planner-package-v1"
     assert data["allowed_command_types"] == ["place_symbol", "add_wire"]
+
+
+def test_ai_plan_check_validates_candidate_plan(tmp_path: Path) -> None:
+    planner_path = tmp_path / "planner-package.json"
+    candidate_path = tmp_path / "candidate-plan.json"
+    planner_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-ai-planner-package-v1",
+                "planner_mode": "structured_command_proposal",
+                "allowed_command_types": ["place_symbol", "add_wire"],
+                "target_plan_schema": {
+                    "version": 1,
+                    "schematic": "schematics/main.sch.json",
+                    "commands": [],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_plan(candidate_path)
+
+    result = _run_cli("ai-plan-check", str(planner_path), str(candidate_path))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "AI plan: valid",
+        "Target schematic: schematics/main.sch.json",
+        "Commands: 1",
+    ]
