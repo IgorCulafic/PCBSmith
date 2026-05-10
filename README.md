@@ -20,6 +20,7 @@ python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 python -m pcbsmith.cli kicad-validate .\kicad-demo
 python -m pcbsmith.cli kicad-preview .\kicad-demo
+python -m pcbsmith.cli kicad-library-index .\kicad-library-index.json
 python -m pcbsmith.cli kicad-review-bundle .\demo .\review-bundle
 python -m pcbsmith.cli ai-brief .\demo .\request.txt .\brief.json --kicad-project .\review-bundle
 python -m pcbsmith.cli ai-planner-package .\brief.json .\planner-package.json
@@ -97,6 +98,14 @@ python -m pcbsmith.cli kicad-preview .\kicad-demo
 ```
 
 This discovers one `.kicad_sch` and one `.kicad_pcb` file and writes stable preview paths under `.pcbsmith/visual`, such as `Demo-schematic.svg` and `Demo-board.svg`. The schematic preview is normalized from KiCad's generated SVG output; the board preview uses KiCad's single-file SVG export for front copper, front silkscreen, and edge cuts. Use `--skip-execution` to verify project discovery and KiCad configuration without launching KiCad.
+
+To inspect KiCad's installed symbol and footprint libraries for AI context:
+
+```powershell
+python -m pcbsmith.cli kicad-library-index .\kicad-library-index.json
+```
+
+By default this reads a small starter subset from the KiCad install discovered through `kicad-cli`: `Device`, `power`, `Resistor_SMD`, `Capacitor_SMD`, and `LED_SMD`. You can pass repeatable `--symbol-library` and `--footprint-library` options to choose other KiCad libraries. This command is read-only; it exposes real KiCad IDs for planning/context and does not make those IDs automatically applyable until the command layer supports writing them safely.
 
 To create a complete review bundle for user or AI inspection:
 
@@ -201,7 +210,7 @@ Run the standard local check before committing:
 python tools/dev_check.py
 ```
 
-The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad preview/review-bundle discovery, AI context, AI brief, planner package, demo plan, AI plan-check, and AI plan-review smoke tests.
+The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad library indexing, KiCad preview/review-bundle discovery, AI context, AI brief, planner package, demo plan, AI plan-check, and AI plan-review smoke tests.
 
 Generated cache folders and old one-off pytest workspaces can be reviewed with:
 

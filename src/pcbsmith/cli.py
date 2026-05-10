@@ -21,6 +21,11 @@ from pcbsmith.services.kicad_doctor import (
     run_kicad_doctor,
 )
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
+from pcbsmith.services.kicad_library_index import (
+    find_kicad_library_roots,
+    kicad_library_roots_from_cli,
+    write_kicad_library_index,
+)
 from pcbsmith.services.kicad_plan import KiCadPlanError, run_kicad_plan
 from pcbsmith.services.kicad_preview import (
     format_kicad_preview_report,
@@ -156,6 +161,39 @@ def _cmd_kicad_preview(args: argparse.Namespace) -> int:
     for line in format_kicad_preview_report(report):
         print(line)
     return report.exit_code
+
+
+def _cmd_kicad_library_index(args: argparse.Namespace) -> int:
+    symbols_dir = Path(args.symbols_dir) if args.symbols_dir else None
+    footprints_dir = Path(args.footprints_dir) if args.footprints_dir else None
+    if symbols_dir is None or footprints_dir is None:
+        install = find_kicad_cli()
+        if install is None:
+            raise ValueError(
+                "KiCad CLI not found. Provide --symbols-dir and --footprints-dir "
+                f"or set {KICAD_CLI_ENV}=<path-to-kicad-cli>."
+            )
+        roots = find_kicad_library_roots(install.cli_path)
+        if roots is None:
+            fallback = kicad_library_roots_from_cli(install.cli_path)
+            raise ValueError(
+                "KiCad library directories not found. Provide --symbols-dir and "
+                f"--footprints-dir. Tried {fallback.symbols_dir} and known installs."
+            )
+        symbols_dir = symbols_dir or roots.symbols_dir
+        footprints_dir = footprints_dir or roots.footprints_dir
+
+    write_kicad_library_index(
+        Path(args.output),
+        symbols_dir=symbols_dir,
+        footprints_dir=footprints_dir,
+        symbol_libraries=tuple(args.symbol_library or ["Device", "power"]),
+        footprint_libraries=tuple(
+            args.footprint_library or ["Resistor_SMD", "Capacitor_SMD", "LED_SMD"]
+        ),
+    )
+    print(f"Wrote KiCad library index to {Path(args.output)}")
+    return 0
 
 
 def _cmd_kicad_plan(args: argparse.Namespace) -> int:
@@ -316,6 +354,33 @@ def build_parser() -> argparse.ArgumentParser:
         help="discover project files and configured kicad-cli without exporting previews",
     )
     kicad_preview_parser.set_defaults(func=_cmd_kicad_preview)
+
+    kicad_library_index_parser = subparsers.add_parser(
+        "kicad-library-index",
+        help="write a read-only manifest of KiCad symbols and footprints",
+    )
+    kicad_library_index_parser.add_argument("output")
+    kicad_library_index_parser.add_argument(
+        "--symbols-dir",
+        help="KiCad symbols directory; defaults to the directory next to kicad-cli",
+    )
+    kicad_library_index_parser.add_argument(
+        "--footprints-dir",
+        help="KiCad footprints directory; defaults to the directory next to kicad-cli",
+    )
+    kicad_library_index_parser.add_argument(
+        "--symbol-library",
+        action="append",
+        default=None,
+        help="KiCad symbol library name to include, repeatable",
+    )
+    kicad_library_index_parser.add_argument(
+        "--footprint-library",
+        action="append",
+        default=None,
+        help="KiCad footprint library name to include, repeatable",
+    )
+    kicad_library_index_parser.set_defaults(func=_cmd_kicad_library_index)
 
     kicad_plan_parser = subparsers.add_parser(
         "kicad-plan",
