@@ -11,6 +11,7 @@ from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.project_io import create_project, save_schematic
 
 FIXTURE = Path("tests/fixtures/voltage_divider")
+LED_SERIES_FIXTURE = Path("tests/fixtures/led_series_circuit")
 
 
 def _fixed_uuid() -> UUID:
@@ -263,6 +264,48 @@ def test_export_writes_common_passive_and_diode_family_symbols(tmp_path: Path) -
     assert '(symbol "D"' in library_text
     assert '(symbol "LED"' in library_text
     assert schematic_text.count("(no_connect") == 6
+
+
+def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    shutil.copytree(LED_SERIES_FIXTURE, source_project)
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    manifest = json.loads(result.handoff_file.read_text(encoding="utf-8"))
+
+    assert '(lib_id "PCBSmith:VCC")' in schematic_text
+    assert '(lib_id "PCBSmith:R")' in schematic_text
+    assert '(lib_id "PCBSmith:LED")' in schematic_text
+    assert '(lib_id "PCBSmith:GND")' in schematic_text
+    assert '(property "Reference" "R1"' in schematic_text
+    assert '(property "Reference" "LED1"' in schematic_text
+    assert '(property "Value" "330"' in schematic_text
+    assert '(property "Value" "Red LED"' in schematic_text
+    assert "(at 66.04 25.4 0)" in schematic_text
+    assert "(xy 25.4 25.4) (xy 35.56 25.4)" in schematic_text
+    assert "(xy 45.72 25.4) (xy 60.96 25.4)" in schematic_text
+    assert "(xy 71.12 25.4) (xy 86.36 25.4)" in schematic_text
+    assert '(label "VCC"' in schematic_text
+    assert '(label "LED_A"' in schematic_text
+    assert "(at 53.34 25.4 0)" in schematic_text
+    assert '(label "GND"' in schematic_text
+    assert {
+        "type": "place_symbol",
+        "reference": "LED1",
+        "symbol_id": "stdlib:LED",
+        "value": "Red LED",
+        "position_nm": {"x": 40640000, "y": 0},
+        "rotation_deg": 0,
+        "footprint_id": "stdlib:LED_0603",
+        "mirrored_x": False,
+    } in manifest["commands"]
 
 
 def test_export_keeps_floating_labels_in_handoff_only(tmp_path: Path) -> None:
