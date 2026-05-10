@@ -16,6 +16,7 @@ from pcbsmith.services.ai_openai_compatible_review import run_openai_compatible_
 from pcbsmith.services.ai_plan_check import check_ai_plan
 from pcbsmith.services.ai_plan_review import run_ai_plan_review
 from pcbsmith.services.ai_planner_package import write_ai_planner_package
+from pcbsmith.services.ai_proposal_bundle import run_ai_proposal_bundle
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
@@ -311,6 +312,19 @@ def _cmd_ai_plan_review(args: argparse.Namespace) -> int:
     return result.exit_code
 
 
+def _cmd_ai_proposal_bundle(args: argparse.Namespace) -> int:
+    result = run_ai_proposal_bundle(
+        Path(args.project),
+        Path(args.planner_package),
+        Path(args.candidate_plan),
+        Path(args.output_dir),
+        execute_kicad=not args.skip_execution,
+    )
+    for line in result.lines:
+        print(line)
+    return result.exit_code
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -578,6 +592,21 @@ def build_parser() -> argparse.ArgumentParser:
         help="save the validated candidate plan through the approval loop",
     )
     ai_plan_review_parser.set_defaults(func=_cmd_ai_plan_review)
+
+    ai_proposal_bundle_parser = subparsers.add_parser(
+        "ai-proposal-bundle",
+        help="stage an AI candidate plan and export KiCad previews without mutating source",
+    )
+    ai_proposal_bundle_parser.add_argument("project")
+    ai_proposal_bundle_parser.add_argument("planner_package")
+    ai_proposal_bundle_parser.add_argument("candidate_plan")
+    ai_proposal_bundle_parser.add_argument("output_dir")
+    ai_proposal_bundle_parser.add_argument(
+        "--skip-execution",
+        action="store_true",
+        help="create KiCad files without running KiCad validation or preview exports",
+    )
+    ai_proposal_bundle_parser.set_defaults(func=_cmd_ai_proposal_bundle)
 
     return parser
 

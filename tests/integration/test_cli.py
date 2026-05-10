@@ -754,3 +754,65 @@ def test_ai_plan_review_validates_and_dry_runs_candidate_plan(tmp_path: Path) ->
         "Dry run only; no files changed. Pass --apply to save changes.",
     ]
     assert not (project_dir / ".pcbsmith" / "action-log.jsonl").exists()
+
+
+def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "project"
+    planner_path = tmp_path / "planner-package.json"
+    candidate_path = tmp_path / "candidate-plan.json"
+    output_dir = tmp_path / "proposal"
+    create_result = _run_cli("new", str(project_dir), "--name", "Proposal Demo")
+    assert create_result.returncode == 0
+    planner_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-ai-planner-package-v1",
+                "planner_mode": "structured_command_proposal",
+                "allowed_command_types": ["place_symbol"],
+                "target_plan_schema": {
+                    "version": 1,
+                    "schematic": "schematics/main.sch.json",
+                    "commands": [],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_plan(candidate_path)
+
+    result = _run_cli(
+        "ai-proposal-bundle",
+        str(project_dir),
+        str(planner_path),
+        str(candidate_path),
+        str(output_dir),
+        "--skip-execution",
+        extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        f"AI proposal bundle: {output_dir}",
+        f"Staged PCBSmith project: {output_dir / 'pcbs-project'}",
+        "AI plan: valid",
+        "Target schematic: schematics/main.sch.json",
+        "Commands: 1",
+        "Applied candidate plan to staged copy only.",
+        f"Review bundle: {output_dir / 'kicad-review'}",
+        f"Exported KiCad handoff: {output_dir / 'kicad-review'}",
+        "Validation: skipped",
+        "Preview: skipped",
+        f"AI context: {output_dir / 'kicad-review' / 'ai-context.json'}",
+    ]
+    original_text = (project_dir / "schematics" / "main.sch.json").read_text(
+        encoding="utf-8"
+    )
+    staged_text = (
+        output_dir / "pcbs-project" / "schematics" / "main.sch.json"
+    ).read_text(encoding="utf-8")
+    assert '"reference": "R1"' not in original_text
+    assert '"reference": "R1"' in staged_text
+    assert (output_dir / "kicad-review" / "Proposal_Demo.kicad_pro").exists()
