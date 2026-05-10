@@ -299,6 +299,26 @@ def main() -> int:
             str(candidate_plan_path),
         ],
     )
+    proposal_bundle_dir = tmp_dir / "dev-check-ai-proposal-bundle"
+    if proposal_bundle_dir.exists():
+        if not proposal_bundle_dir.resolve().is_relative_to(tmp_dir.resolve()):
+            raise RuntimeError(f"Refusing to remove path outside .tmp: {proposal_bundle_dir}")
+        shutil.rmtree(proposal_bundle_dir)
+    run_step(
+        "AI proposal bundle smoke",
+        [
+            python,
+            "-m",
+            "pcbsmith.cli",
+            "ai-proposal-bundle",
+            "tests/fixtures/led_series_circuit",
+            str(tmp_dir / "dev-check-ai-planner-package.json"),
+            str(candidate_plan_path),
+            str(proposal_bundle_dir),
+            "--skip-execution",
+        ],
+        extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
+    )
     print("\nDev check completed.")
     return 0
 
