@@ -48,7 +48,7 @@ def test_fit_to_contents_changes_transform(qtbot) -> None:  # type: ignore[no-un
     assert view.transform() != before
 
 
-def test_fit_to_contents_uses_unpadded_scene_rect_when_empty(
+def test_fit_to_contents_uses_centered_default_view_when_empty(
     qtbot,
 ) -> None:  # type: ignore[no-untyped-def]
     class RecordingSchematicView(SchematicView):
@@ -65,4 +65,4 @@ def test_fit_to_contents_uses_unpadded_scene_rect_when_empty(
 
     view.fit_to_contents()
 
-    assert view.fitted_rect == view.sceneRect()
+    assert view.fitted_rect == view.default_view_rect()

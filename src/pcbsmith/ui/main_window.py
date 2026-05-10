@@ -56,6 +56,10 @@ class MainWindow(QMainWindow):
         self.mirror_horizontal_action = QAction("Mirror H", self)
         self.light_theme_action = QAction("Light Theme", self)
         self.dark_theme_action = QAction("Dark Theme", self)
+        self.grid_unit_actions = [
+            QAction("Grid Units: mm", self),
+            QAction("Grid Units: cm", self),
+        ]
         self.wire_width_actions = [
             QAction("Wire Width 2", self),
             QAction("Wire Width 4", self),
@@ -148,6 +152,12 @@ class MainWindow(QMainWindow):
         self._register_action(self.light_theme_action)
         self._register_action(self.dark_theme_action)
 
+        for action, unit in zip(self.grid_unit_actions, ("mm", "cm"), strict=True):
+            action.triggered.connect(
+                lambda _checked=False, unit=unit: self.view.set_grid_unit(unit)
+            )
+            self._register_action(action)
+
         for action, width in zip(self.wire_width_actions, (2, 4, 6), strict=True):
             action.triggered.connect(
                 lambda _checked=False, width=width: self.scene.set_wire_stroke_width(width)
@@ -210,6 +220,9 @@ class MainWindow(QMainWindow):
 
         options_menu.addAction(self.light_theme_action)
         options_menu.addAction(self.dark_theme_action)
+        options_menu.addSeparator()
+        for action in self.grid_unit_actions:
+            options_menu.addAction(action)
         options_menu.addSeparator()
         for action in self.wire_width_actions:
             options_menu.addAction(action)
@@ -400,6 +413,7 @@ class MainWindow(QMainWindow):
             hidden_entry_ids=project.catalog_preferences.hidden_entry_ids,
         )
         self.scene.load_editor_state(EditorState.from_schematic(schematic))
+        self.view.fit_to_contents()
         self.refresh_inspector()
         self.console.append(f"Opened {project.name}")
 
