@@ -1,8 +1,8 @@
 # PCBSmith
 
-PCBSmith is an open-source PCB design application foundation. The long-term goal is to let users describe circuits in natural language or code-like text, validate that intent as structured intermediate data, and turn it into schematic and PCB project data.
+PCBSmith is an open-source AI companion for PCB design. The long-term goal is to let users describe circuits in natural language or code-like text, validate that intent as structured commands, and apply those commands through mature open-source EDA tooling.
 
-Phase 0 is deliberately headless. It builds the data model, project I/O, netlist derivation, minimal ERC, and CLI before any GUI or LLM workflow.
+PCBSmith is pivoting toward KiCad as the first real CAD backend/editor. The in-repo PySide6 schematic editor remains a prototype and command test harness, but the primary product direction is AI-assisted KiCad workflows rather than recreating a full PCB editor from scratch.
 
 ## Phase 0 CLI
 
@@ -14,9 +14,34 @@ python -m pcbsmith.cli info .\demo
 python -m pcbsmith.cli validate .\demo
 python -m pcbsmith.cli netlist .\demo
 python -m pcbsmith.cli erc .\demo
+python -m pcbsmith.cli kicad-status
 ```
 
 The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
+
+## KiCad Backend Direction
+
+KiCad is the first target backend for serious CAD editing, routing, checking, and manufacturing export. PCBSmith should focus on AI planning, structured command generation, validation, user approval, and automation around KiCad rather than rebuilding KiCad's editor.
+
+To check whether PCBSmith can find KiCad:
+
+```powershell
+python -m pcbsmith.cli kicad-status
+```
+
+PCBSmith looks for `kicad-cli` in this order:
+
+1. `PCBSMITH_KICAD_CLI`
+2. `PATH`
+3. common Windows KiCad install paths
+
+If KiCad is installed somewhere unusual, set:
+
+```powershell
+$env:PCBSMITH_KICAD_CLI = "C:\Path\To\KiCad\bin\kicad-cli.exe"
+```
+
+Future KiCad integration should prefer KiCad project files, `kicad-cli`, the KiCad IPC API, and official `kicad-python` bindings. PCBSmith should avoid modifying KiCad source unless the companion/plugin approach proves insufficient.
 
 ## Phase 1A and 1B GUI
 
@@ -29,11 +54,11 @@ Phase 1B adds safer schematic editing: selecting items, moving/deleting/rotating
 symbols, basic undo/redo, inspector edits for core symbol fields, and minimal net
 label/no-connect marker editing.
 
-Phase 3A begins the editor usability pass: the GUI now uses a readable light
+Phase 3A began the editor usability pass: the GUI now uses a readable light
 schematic canvas, CAD-style menus, a tool-oriented toolbar, keyboard shortcuts,
 collapsible component families, and click-to-place component placement.
 Component browser and menu actions arm placement; click the canvas to place the
-previewed part.
+previewed part. This GUI is now treated as a prototype, not the main CAD product.
 
 ## Component Catalog
 
@@ -59,7 +84,8 @@ pcbsmith-gui
 
 The GUI reuses the Phase 0 project JSON format. Text-to-schematic, real LLM
 provider hooks, component family catalogs, circuit simulation, PCB layout, SVG,
-laser-ready PCB outputs, and manufacturing exports are future phases.
+laser-ready PCB outputs, and manufacturing exports should be pursued through
+the KiCad-backed direction unless there is a strong reason to keep them native.
 
 ## Hard Rules
 
