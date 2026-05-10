@@ -280,3 +280,46 @@ def test_kicad_plan_apply_writes_project_and_action_log(tmp_path: Path) -> None:
     )
     assert '"reference": "R1"' in schematic_text
     assert (project_dir / ".pcbsmith" / "action-log.jsonl").exists()
+
+
+def test_kicad_context_writes_ai_context_package(tmp_path: Path) -> None:
+    project_dir = tmp_path / "source"
+    output_path = tmp_path / "context" / "ai-context.json"
+    shutil.copytree(FIXTURE, project_dir)
+
+    result = _run_cli("kicad-context", str(project_dir), str(output_path))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == f"Wrote AI context package to {output_path}"
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["schema"] == "pcbsmith-ai-context-v1"
+    assert data["project"]["name"] == "Voltage Divider"
+    assert data["schematics"][0]["symbol_count"] == 4
+
+
+def test_kicad_context_can_include_kicad_project_refs(tmp_path: Path) -> None:
+    project_dir = tmp_path / "source"
+    kicad_dir = tmp_path / "kicad"
+    output_path = tmp_path / "ai-context.json"
+    shutil.copytree(FIXTURE, project_dir)
+    report_dir = kicad_dir / ".pcbsmith" / "kicad-reports"
+    report_dir.mkdir(parents=True)
+    (report_dir / "erc.json").write_text(
+        json.dumps({"sheets": [{"violations": []}]}),
+        encoding="utf-8",
+    )
+
+    result = _run_cli(
+        "kicad-context",
+        str(project_dir),
+        str(output_path),
+        "--kicad-project",
+        str(kicad_dir),
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["kicad"]["project_dir"] == str(kicad_dir)
+    assert data["kicad"]["reports"][0]["name"] == "erc"

@@ -20,6 +20,7 @@ python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 python -m pcbsmith.cli kicad-validate .\kicad-demo
 python -m pcbsmith.cli kicad-plan .\demo .\plan.json
+python -m pcbsmith.cli kicad-context .\demo .\ai-context.json
 ```
 
 The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
@@ -114,6 +115,20 @@ The first approval-loop package format targets a project schematic and reuses PC
 ```
 
 Dry-run is the default and prints the proposed operations without writing files. `--apply` saves the schematic and appends an audit entry to `.pcbsmith/action-log.jsonl`. This is the first command-approval path that future AI planners will use before real KiCad edits.
+
+To generate a structured package for future AI review:
+
+```powershell
+python -m pcbsmith.cli kicad-context .\demo .\ai-context.json
+```
+
+If you also have a KiCad handoff project with `.pcbsmith/kicad-reports` or `.pcbsmith/visual` outputs, include those references:
+
+```powershell
+python -m pcbsmith.cli kicad-context .\demo .\ai-context.json --kicad-project .\kicad-demo
+```
+
+The context package includes project metadata, schematic symbol/wire/label counts, component summaries with millimetre positions, optional KiCad ERC/DRC report summaries, and optional rendered preview paths. This is the first read-only context path for future LLM and vision-model review.
 
 ## Phase 1A and 1B GUI
 
