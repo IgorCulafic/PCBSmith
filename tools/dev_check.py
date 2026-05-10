@@ -160,6 +160,18 @@ def main() -> int:
             str(candidate_plan_path),
         ],
     )
+    run_step(
+        "AI plan review smoke",
+        [
+            python,
+            "-m",
+            "pcbsmith.cli",
+            "ai-plan-review",
+            "tests/fixtures/led_series_circuit",
+            str(tmp_dir / "dev-check-ai-planner-package.json"),
+            str(candidate_plan_path),
+        ],
+    )
     print("\nDev check completed.")
     return 0
 

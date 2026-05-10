@@ -461,3 +461,48 @@ def test_ai_plan_check_validates_candidate_plan(tmp_path: Path) -> None:
         "Target schematic: schematics/main.sch.json",
         "Commands: 1",
     ]
+
+
+def test_ai_plan_review_validates_and_dry_runs_candidate_plan(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    planner_path = tmp_path / "planner-package.json"
+    candidate_path = tmp_path / "candidate-plan.json"
+    create_result = _run_cli("new", str(project_dir), "--name", "AI Review Demo")
+    assert create_result.returncode == 0
+    planner_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-ai-planner-package-v1",
+                "planner_mode": "structured_command_proposal",
+                "allowed_command_types": ["place_symbol", "add_wire"],
+                "target_plan_schema": {
+                    "version": 1,
+                    "schematic": "schematics/main.sch.json",
+                    "commands": [],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    _write_plan(candidate_path)
+
+    result = _run_cli(
+        "ai-plan-review",
+        str(project_dir),
+        str(planner_path),
+        str(candidate_path),
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "AI plan: valid",
+        "Target schematic: schematics/main.sch.json",
+        "Commands: 1",
+        "Approval preview:",
+        "Plan: CLI resistor plan",
+        "Target schematic: schematics/main.sch.json",
+        "1. place_symbol stdlib:R value=1k at 15.24, 0 mm",
+        "Dry run only; no files changed. Pass --apply to save changes.",
+    ]
+    assert not (project_dir / ".pcbsmith" / "action-log.jsonl").exists()

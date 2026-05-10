@@ -24,6 +24,7 @@ python -m pcbsmith.cli kicad-review-bundle .\demo .\review-bundle
 python -m pcbsmith.cli ai-brief .\demo .\request.txt .\brief.json --kicad-project .\review-bundle
 python -m pcbsmith.cli ai-planner-package .\brief.json .\planner-package.json
 python -m pcbsmith.cli ai-plan-check .\planner-package.json .\candidate-plan.json
+python -m pcbsmith.cli ai-plan-review .\demo .\planner-package.json .\candidate-plan.json
 python -m pcbsmith.cli kicad-plan .\demo .\plan.json
 python -m pcbsmith.cli kicad-context .\demo .\ai-context.json
 ```
@@ -128,6 +129,14 @@ python -m pcbsmith.cli ai-plan-check .\planner-package.json .\candidate-plan.jso
 
 This checks that the candidate plan is valid JSON for the current approval-loop schema, targets the expected schematic, and only uses command types allowed by the planner package. It does not apply changes.
 
+To validate that same candidate and pass it through the project approval preview:
+
+```powershell
+python -m pcbsmith.cli ai-plan-review .\demo .\planner-package.json .\candidate-plan.json
+```
+
+The review command runs `ai-plan-check` first, then runs the normal `kicad-plan` dry-run preview only if the AI plan is valid. Add `--apply` to save the validated commands through the same approval loop and action log used by `kicad-plan`.
+
 To review a structured command package before changing a PCBSmith project:
 
 ```powershell
@@ -183,7 +192,7 @@ Run the standard local check before committing:
 python tools/dev_check.py
 ```
 
-The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad preview/review-bundle discovery, AI context, AI brief, planner package, and AI plan-check smoke tests.
+The dev check runs linting, the test suite with a repository-local pytest temp directory, fixture validation, KiCad preview/review-bundle discovery, AI context, AI brief, planner package, AI plan-check, and AI plan-review smoke tests.
 
 Generated cache folders and old one-off pytest workspaces can be reviewed with:
 

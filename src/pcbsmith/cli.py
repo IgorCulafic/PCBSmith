@@ -10,6 +10,7 @@ from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.ai_brief import write_ai_brief
 from pcbsmith.services.ai_context import write_ai_context
 from pcbsmith.services.ai_plan_check import check_ai_plan
+from pcbsmith.services.ai_plan_review import run_ai_plan_review
 from pcbsmith.services.ai_planner_package import write_ai_planner_package
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
@@ -214,6 +215,18 @@ def _cmd_ai_plan_check(args: argparse.Namespace) -> int:
     return result.exit_code
 
 
+def _cmd_ai_plan_review(args: argparse.Namespace) -> int:
+    result = run_ai_plan_review(
+        Path(args.project),
+        Path(args.planner_package),
+        Path(args.candidate_plan),
+        apply=args.apply,
+    )
+    for line in result.lines:
+        print(line)
+    return result.exit_code
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -364,6 +377,20 @@ def build_parser() -> argparse.ArgumentParser:
     ai_plan_check_parser.add_argument("planner_package")
     ai_plan_check_parser.add_argument("candidate_plan")
     ai_plan_check_parser.set_defaults(func=_cmd_ai_plan_check)
+
+    ai_plan_review_parser = subparsers.add_parser(
+        "ai-plan-review",
+        help="validate a candidate AI plan and run the approval preview/apply path",
+    )
+    ai_plan_review_parser.add_argument("project")
+    ai_plan_review_parser.add_argument("planner_package")
+    ai_plan_review_parser.add_argument("candidate_plan")
+    ai_plan_review_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="save the validated candidate plan through the approval loop",
+    )
+    ai_plan_review_parser.set_defaults(func=_cmd_ai_plan_review)
 
     return parser
 
