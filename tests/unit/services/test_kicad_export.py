@@ -137,6 +137,7 @@ def test_export_writes_native_symbols_wires_and_connected_net_labels(
     )
 
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
     manifest = json.loads(result.handoff_file.read_text(encoding="utf-8"))
 
     assert '(lib_id "PCBSmith:VCC")' in schematic_text
@@ -151,6 +152,17 @@ def test_export_writes_native_symbols_wires_and_connected_net_labels(
     assert '(label "OUT"' in schematic_text
     _assert_hidden_label(schematic_text, "GND", "50.8", "25.4")
     assert "(at 40.64 25.4 0)" in schematic_text
+    assert '(net 1 "OUT")' in board_text
+    assert '(net 2 "GND")' in board_text
+    assert '(footprint "PCBSmith_R_0603"' in board_text
+    assert (
+        '(segment (start 14 20) (end 23 20) (width 0.25) '
+        '(layer "F.Cu") (net 1)'
+    ) in board_text
+    assert (
+        '(segment (start 31 20) (end 45 20) (width 0.25) '
+        '(layer "F.Cu") (net 2)'
+    ) in board_text
     assert {
         "type": "add_wire",
         "points_nm": [{"x": 10160000, "y": 0}, {"x": 15240000, "y": 0}],

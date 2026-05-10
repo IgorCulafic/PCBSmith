@@ -15,6 +15,9 @@ def build_ai_demo_plan(planner_package: dict[str, Any]) -> dict[str, Any]:
     if _requests_led_circuit(request_text):
         return _led_series_circuit_plan(schematic)
 
+    if _requests_voltage_divider(request_text):
+        return _voltage_divider_plan(schematic)
+
     if "capacitor" in request_text or "100nf" in request_text:
         return _single_symbol_plan(
             description="Demo plan: add a capacitor",
@@ -40,6 +43,12 @@ def _requests_led_circuit(request_text: str) -> bool:
         or "create" in request_text
         or "make" in request_text
         or "build" in request_text
+    )
+
+
+def _requests_voltage_divider(request_text: str) -> bool:
+    return "voltage divider" in request_text or (
+        "divider" in request_text and "voltage" in request_text
     )
 
 
@@ -83,6 +92,50 @@ def _led_series_circuit_plan(schematic: str) -> dict[str, Any]:
             _label_command("VCC", 0, 0),
             _label_command("LED_A", 27_940_000, 0),
             _label_command("GND", 60_960_000, 0),
+        ],
+    }
+
+
+def _voltage_divider_plan(schematic: str) -> dict[str, Any]:
+    return {
+        "version": 1,
+        "description": "Demo plan: create a voltage divider",
+        "schematic": schematic,
+        "commands": [
+            _place_symbol_command(
+                symbol_id="stdlib:VCC",
+                value="VCC",
+                x=0,
+                y=0,
+                footprint_id=None,
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:R",
+                value="10k",
+                x=15_240_000,
+                y=0,
+                footprint_id="stdlib:R_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:R",
+                value="10k",
+                x=30_480_000,
+                y=0,
+                footprint_id="stdlib:R_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:GND",
+                value="GND",
+                x=45_720_000,
+                y=0,
+                footprint_id=None,
+            ),
+            _wire_command((0, 0), (10_160_000, 0)),
+            _wire_command((20_320_000, 0), (25_400_000, 0)),
+            _wire_command((35_560_000, 0), (45_720_000, 0)),
+            _label_command("VCC", 0, 0),
+            _label_command("OUT", 22_860_000, 0),
+            _label_command("GND", 45_720_000, 0),
         ],
     }
 

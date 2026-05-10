@@ -122,6 +122,66 @@ def test_build_ai_demo_plan_can_create_visible_led_series_circuit() -> None:
     ]
 
 
+def test_build_ai_demo_plan_can_create_voltage_divider() -> None:
+    plan = build_ai_demo_plan(_planner_package(request="Create a voltage divider"))
+
+    assert plan["description"] == "Demo plan: create a voltage divider"
+    assert plan["schematic"] == "schematics/main.sch.json"
+    assert plan["commands"] == [
+        {
+            "type": "place_symbol",
+            "symbol_id": "stdlib:VCC",
+            "value": "VCC",
+            "position": {"x": 0, "y": 0},
+            "rotation_deg": 0,
+            "footprint_id": None,
+        },
+        {
+            "type": "place_symbol",
+            "symbol_id": "stdlib:R",
+            "value": "10k",
+            "position": {"x": 15_240_000, "y": 0},
+            "rotation_deg": 0,
+            "footprint_id": "stdlib:R_0603",
+        },
+        {
+            "type": "place_symbol",
+            "symbol_id": "stdlib:R",
+            "value": "10k",
+            "position": {"x": 30_480_000, "y": 0},
+            "rotation_deg": 0,
+            "footprint_id": "stdlib:R_0603",
+        },
+        {
+            "type": "place_symbol",
+            "symbol_id": "stdlib:GND",
+            "value": "GND",
+            "position": {"x": 45_720_000, "y": 0},
+            "rotation_deg": 0,
+            "footprint_id": None,
+        },
+        {
+            "type": "add_wire",
+            "points": [{"x": 0, "y": 0}, {"x": 10_160_000, "y": 0}],
+        },
+        {
+            "type": "add_wire",
+            "points": [{"x": 20_320_000, "y": 0}, {"x": 25_400_000, "y": 0}],
+        },
+        {
+            "type": "add_wire",
+            "points": [{"x": 35_560_000, "y": 0}, {"x": 45_720_000, "y": 0}],
+        },
+        {"type": "add_label", "name": "VCC", "position": {"x": 0, "y": 0}},
+        {
+            "type": "add_label",
+            "name": "OUT",
+            "position": {"x": 22_860_000, "y": 0},
+        },
+        {"type": "add_label", "name": "GND", "position": {"x": 45_720_000, "y": 0}},
+    ]
+
+
 def test_build_ai_demo_plan_rejects_review_only_package() -> None:
     package = _planner_package()
     package["planner_mode"] = "review_response"
