@@ -103,6 +103,22 @@ def main() -> int:
             str(tmp_dir / "dev-check-ai-context.json"),
         ],
     )
+    request_path = tmp_dir / "dev-check-request.txt"
+    request_path.write_text("Check this LED circuit before changing it\n", encoding="utf-8")
+    run_step(
+        "AI brief smoke",
+        [
+            python,
+            "-m",
+            "pcbsmith.cli",
+            "ai-brief",
+            "tests/fixtures/led_series_circuit",
+            str(request_path),
+            str(tmp_dir / "dev-check-ai-brief.json"),
+            "--kicad-project",
+            str(review_bundle_dir),
+        ],
+    )
     print("\nDev check completed.")
     return 0
 
