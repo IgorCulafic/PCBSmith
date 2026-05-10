@@ -20,6 +20,7 @@ python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 python -m pcbsmith.cli kicad-validate .\kicad-demo
 python -m pcbsmith.cli kicad-preview .\kicad-demo
+python -m pcbsmith.cli kicad-review-bundle .\demo .\review-bundle
 python -m pcbsmith.cli kicad-plan .\demo .\plan.json
 python -m pcbsmith.cli kicad-context .\demo .\ai-context.json
 ```
@@ -91,6 +92,14 @@ python -m pcbsmith.cli kicad-preview .\kicad-demo
 ```
 
 This discovers one `.kicad_sch` and one `.kicad_pcb` file and writes stable preview paths under `.pcbsmith/visual`, such as `Demo-schematic.svg` and `Demo-board.svg`. The schematic preview is normalized from KiCad's generated SVG output; the board preview uses KiCad's single-file SVG export for front copper, front silkscreen, and edge cuts. Use `--skip-execution` to verify project discovery and KiCad configuration without launching KiCad.
+
+To create a complete review bundle for user or AI inspection:
+
+```powershell
+python -m pcbsmith.cli kicad-review-bundle .\demo .\review-bundle
+```
+
+This exports the PCBSmith project into a KiCad handoff folder, runs KiCad validation, exports SVG previews, and writes `ai-context.json` in the same output folder. Use `--skip-execution` to create the KiCad files and context package without launching KiCad checks or preview exports.
 
 To review a structured command package before changing a PCBSmith project:
 
