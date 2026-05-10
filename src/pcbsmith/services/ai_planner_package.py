@@ -26,7 +26,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
         "schema": AI_PLANNER_PACKAGE_SCHEMA,
         "planner_mode": "structured_command_proposal",
         "brief": brief,
-        "allowed_command_types": ["place_symbol", "add_wire"],
+        "allowed_command_types": ["place_symbol", "add_wire", "add_label"],
         "target_plan_schema": _target_plan_schema(brief),
         "planner_rules": _planner_rules(review_only=False),
     }
@@ -73,6 +73,11 @@ def _target_plan_schema(brief: dict[str, Any]) -> dict[str, Any]:
                     {"x": 0, "y": 0},
                     {"x": 5_080_000, "y": 0},
                 ],
+            },
+            {
+                "type": "add_label",
+                "name": "NET",
+                "position": {"x": 0, "y": 0},
             },
         ],
     }

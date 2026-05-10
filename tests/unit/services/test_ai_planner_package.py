@@ -38,11 +38,12 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     assert package["schema"] == AI_PLANNER_PACKAGE_SCHEMA
     assert package["planner_mode"] == "structured_command_proposal"
     assert package["brief"]["request"]["text"] == "Add a resistor to the LED"
-    assert package["allowed_command_types"] == ["place_symbol", "add_wire"]
+    assert package["allowed_command_types"] == ["place_symbol", "add_wire", "add_label"]
     assert package["target_plan_schema"]["version"] == 1
     assert package["target_plan_schema"]["schematic"] == "schematics/main.sch.json"
     assert package["target_plan_schema"]["commands"][0]["type"] == "place_symbol"
     assert package["target_plan_schema"]["commands"][1]["type"] == "add_wire"
+    assert package["target_plan_schema"]["commands"][2]["type"] == "add_label"
     assert "Return only JSON matching target_plan_schema." in package["planner_rules"]
     assert "Do not invent unknown symbols, footprints, pins, or KiCad capabilities." in (
         package["planner_rules"]

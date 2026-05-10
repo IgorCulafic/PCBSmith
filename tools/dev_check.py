@@ -140,7 +140,10 @@ def main() -> int:
         ],
     )
     request_path = tmp_dir / "dev-check-request.txt"
-    request_path.write_text("Add a resistor to the LED circuit\n", encoding="utf-8")
+    request_path.write_text(
+        "Create a complete LED circuit with a current-limiting resistor\n",
+        encoding="utf-8",
+    )
     run_step(
         "AI brief smoke",
         [
