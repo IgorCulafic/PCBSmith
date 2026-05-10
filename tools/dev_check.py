@@ -119,6 +119,17 @@ def main() -> int:
             str(review_bundle_dir),
         ],
     )
+    run_step(
+        "AI planner package smoke",
+        [
+            python,
+            "-m",
+            "pcbsmith.cli",
+            "ai-planner-package",
+            str(tmp_dir / "dev-check-ai-brief.json"),
+            str(tmp_dir / "dev-check-ai-planner-package.json"),
+        ],
+    )
     print("\nDev check completed.")
     return 0
 

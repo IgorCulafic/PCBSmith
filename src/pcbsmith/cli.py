@@ -9,6 +9,7 @@ from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.ai_brief import write_ai_brief
 from pcbsmith.services.ai_context import write_ai_context
+from pcbsmith.services.ai_planner_package import write_ai_planner_package
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
@@ -199,6 +200,12 @@ def _cmd_ai_brief(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ai_planner_package(args: argparse.Namespace) -> int:
+    write_ai_planner_package(Path(args.brief), Path(args.output))
+    print(f"Wrote AI planner package to {Path(args.output)}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -333,6 +340,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional KiCad review bundle with reports and visual references",
     )
     ai_brief_parser.set_defaults(func=_cmd_ai_brief)
+
+    ai_planner_package_parser = subparsers.add_parser(
+        "ai-planner-package",
+        help="wrap an AI brief with the provider-neutral planner output contract",
+    )
+    ai_planner_package_parser.add_argument("brief")
+    ai_planner_package_parser.add_argument("output")
+    ai_planner_package_parser.set_defaults(func=_cmd_ai_planner_package)
 
     return parser
 

@@ -396,3 +396,37 @@ def test_ai_brief_writes_engineering_brief_from_request_file(tmp_path: Path) -> 
     data = json.loads(output_path.read_text(encoding="utf-8"))
     assert data["schema"] == "pcbsmith-ai-brief-v1"
     assert data["intent"]["next_operation_type"] == "review_only"
+
+
+def test_ai_planner_package_writes_provider_neutral_package(tmp_path: Path) -> None:
+    brief_path = tmp_path / "brief.json"
+    output_path = tmp_path / "planner-package.json"
+    brief_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-ai-brief-v1",
+                "request": {"text": "Add an LED"},
+                "intent": {
+                    "category": "schematic_edit",
+                    "next_operation_type": "schematic_edit",
+                    "confidence": "medium",
+                },
+                "context": {
+                    "project": {
+                        "name": "CLI Brief",
+                        "schematics": ["schematics/main.sch.json"],
+                    }
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_cli("ai-planner-package", str(brief_path), str(output_path))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == f"Wrote AI planner package to {output_path}"
+    data = json.loads(output_path.read_text(encoding="utf-8"))
+    assert data["schema"] == "pcbsmith-ai-planner-package-v1"
+    assert data["allowed_command_types"] == ["place_symbol", "add_wire"]
