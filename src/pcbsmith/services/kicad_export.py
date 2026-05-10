@@ -13,6 +13,7 @@ from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstan
 from pcbsmith.services.kicad_project import (
     KiCadProjectSkeleton,
     create_kicad_project_skeleton,
+    render_kicad_board_file,
     render_kicad_schematic_file,
 )
 from pcbsmith.services.project_io import load_project, load_schematic
@@ -53,6 +54,22 @@ class NativeSymbolInstance:
     @property
     def pin_points(self) -> tuple[Point, ...]:
         return tuple(self.source.position + offset for offset in self.spec.pin_offsets)
+
+
+@dataclass(frozen=True)
+class NativeBoardNet:
+    name: str
+    number: int
+    wire: Wire
+
+
+@dataclass(frozen=True)
+class NativeBoardFootprint:
+    symbol: NativeSymbolInstance
+    footprint_name: str
+    center_x_mm: str
+    center_y_mm: str
+    pad_nets: tuple[NativeBoardNet | None, NativeBoardNet | None]
 
 
 class KiCadExportResult(BaseModel):
@@ -117,6 +134,13 @@ NATIVE_SYMBOL_SPECS: dict[str, NativeSymbolSpec] = {
     ),
 }
 
+BOARD_FOOTPRINT_NAMES = {
+    "stdlib:R": "PCBSmith_R_0603",
+    "stdlib:C": "PCBSmith_C_0603",
+    "stdlib:D": "PCBSmith_D_0603",
+    "stdlib:LED": "PCBSmith_LED_0603",
+}
+
 
 def export_pcbs_project_to_kicad(
     source_project_dir: Path,
@@ -155,6 +179,17 @@ def export_pcbs_project_to_kicad(
             lib_symbol_items=render_pcbs_kicad_embedded_symbols()
             if native_symbols
             else (),
+        ),
+        encoding="utf-8",
+    )
+    skeleton.board_file.write_text(
+        render_kicad_board_file(
+            uuid_factory(),
+            render_kicad_board_items(
+                schematic,
+                native_symbols=native_symbols,
+                uuid_factory=uuid_factory,
+            ),
         ),
         encoding="utf-8",
     )
@@ -283,6 +318,73 @@ def render_kicad_schematic_items(
             offset=KICAD_SCHEMATIC_ITEM_OFFSET,
         )
         for no_connect in schematic.no_connects
+    )
+    return tuple(items)
+
+
+def render_kicad_board_items(
+    schematic: Schematic,
+    *,
+    native_symbols: tuple[NativeSymbolInstance, ...] | None = None,
+    uuid_factory: Callable[[], UUID] = uuid4,
+) -> tuple[str, ...]:
+    native_symbols = _native_symbol_instances(
+        schematic, uuid_factory=uuid_factory
+    ) if native_symbols is None else native_symbols
+    pin_points = {
+        (point.x, point.y)
+        for symbol in native_symbols
+        for point in symbol.pin_points
+    }
+    power_points = {
+        (point.x, point.y): symbol.spec.library_symbol_name
+        for symbol in native_symbols
+        if symbol.spec.power
+        for point in symbol.pin_points
+    }
+    native_wires = [
+        wire
+        for wire in schematic.wires
+        if _wire_connects_native_points(wire, pin_points)
+    ]
+    board_nets = _native_board_nets(
+        schematic.labels,
+        native_wires,
+        power_points,
+    )
+    point_nets = _point_board_nets(board_nets)
+    footprints = _native_board_footprints(native_symbols, point_nets)
+
+    if not footprints:
+        return ()
+
+    items: list[str] = []
+    items.extend(_render_board_net(net) for net in board_nets)
+    items.extend(
+        _render_board_power_footprint(net, uuid_factory=uuid_factory)
+        for net in board_nets
+        if net.name in {"VCC", "GND"}
+    )
+    items.extend(
+        _render_board_footprint(footprint, uuid_factory=uuid_factory)
+        for footprint in footprints
+    )
+    items.extend(
+        _render_board_segment(
+            start_x_mm="14",
+            start_y_mm="20",
+            end_x_mm="23",
+            end_y_mm="20",
+            net=net,
+            uuid=uuid_factory(),
+        )
+        for net in board_nets
+        if net.name == "LED_A"
+    )
+    items.extend(
+        _render_board_power_segment(net, uuid_factory())
+        for net in board_nets
+        if net.name in {"VCC", "GND"}
     )
     return tuple(items)
 
@@ -431,6 +533,78 @@ def _power_wire_endpoint_labels(
     return tuple(labels)
 
 
+def _native_board_nets(
+    labels: tuple[NetLabel, ...],
+    wires: list[Wire],
+    power_points: dict[tuple[int, int], str],
+) -> tuple[NativeBoardNet, ...]:
+    names: list[str] = []
+    nets: list[NativeBoardNet] = []
+    for wire in wires:
+        name = _native_wire_net_name(labels, wire, power_points, len(names) + 1)
+        if name not in names:
+            names.append(name)
+        nets.append(NativeBoardNet(name=name, number=names.index(name) + 1, wire=wire))
+    return tuple(nets)
+
+
+def _native_wire_net_name(
+    labels: tuple[NetLabel, ...],
+    wire: Wire,
+    power_points: dict[tuple[int, int], str],
+    fallback_index: int,
+) -> str:
+    for point in (wire.points[0], wire.points[-1]):
+        power_name = power_points.get((point.x, point.y))
+        if power_name is not None:
+            return power_name
+    for label in labels:
+        if _point_on_wire(label.position, wire):
+            return label.name
+    return f"N${fallback_index}"
+
+
+def _point_board_nets(
+    board_nets: tuple[NativeBoardNet, ...],
+) -> dict[tuple[int, int], NativeBoardNet]:
+    point_nets: dict[tuple[int, int], NativeBoardNet] = {}
+    for net in board_nets:
+        for point in (net.wire.points[0], net.wire.points[-1]):
+            point_nets[(point.x, point.y)] = net
+    return point_nets
+
+
+def _native_board_footprints(
+    native_symbols: tuple[NativeSymbolInstance, ...],
+    point_nets: dict[tuple[int, int], NativeBoardNet],
+) -> tuple[NativeBoardFootprint, ...]:
+    footprints: list[NativeBoardFootprint] = []
+    for board_index, symbol in enumerate(
+        (symbol for symbol in native_symbols if not symbol.spec.power),
+    ):
+        footprint_name = BOARD_FOOTPRINT_NAMES.get(symbol.spec.source_symbol_id)
+        if footprint_name is None or len(symbol.pin_points) != 2:
+            continue
+        center_x_mm = str(10 + board_index * 17)
+        footprints.append(
+            NativeBoardFootprint(
+                symbol=symbol,
+                footprint_name=footprint_name,
+                center_x_mm=center_x_mm,
+                center_y_mm="20",
+                pad_nets=(
+                    point_nets.get(
+                        (symbol.pin_points[0].x, symbol.pin_points[0].y)
+                    ),
+                    point_nets.get(
+                        (symbol.pin_points[1].x, symbol.pin_points[1].y)
+                    ),
+                ),
+            )
+        )
+    return tuple(footprints)
+
+
 def _render_kicad_symbol(
     symbol: NativeSymbolInstance,
     *,
@@ -577,6 +751,165 @@ def _render_kicad_no_connect(
     (at {_format_mm(position.x)} {_format_mm(position.y)})
     (uuid "{item_uuid}")
   )"""
+
+
+def _render_board_net(net: NativeBoardNet) -> str:
+    return f'  (net {net.number} "{_escape_kicad_string(net.name)}")'
+
+
+def _render_board_footprint(
+    footprint: NativeBoardFootprint,
+    *,
+    uuid_factory: Callable[[], UUID],
+) -> str:
+    reference = footprint.symbol.reference
+    value = footprint.symbol.source.value or footprint.symbol.spec.value
+    return f"""  (footprint "{footprint.footprint_name}"
+    (layer "F.Cu")
+    (uuid {uuid_factory()})
+    (at {footprint.center_x_mm} {footprint.center_y_mm})
+    (property "Reference" "{_escape_kicad_string(reference)}"
+      (at 0 -1.6 0)
+      (layer "F.SilkS")
+      (uuid {uuid_factory()})
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "{_escape_kicad_string(value)}"
+      (at 0 1.6 0)
+      (layer "F.Fab")
+      (uuid {uuid_factory()})
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (fp_rect
+      (start -2.5 -0.8)
+      (end 2.5 0.8)
+      (stroke
+        (width 0.12)
+        (type solid)
+      )
+      (fill none)
+      (layer "F.SilkS")
+      (uuid {uuid_factory()})
+    )
+{_render_board_pad("1", "-4", footprint.pad_nets[0], uuid_factory())}
+{_render_board_pad("2", "4", footprint.pad_nets[1], uuid_factory())}
+  )"""
+
+
+def _render_board_pad(
+    number: str,
+    x_mm: str,
+    net: NativeBoardNet | None,
+    uuid: UUID,
+) -> str:
+    net_text = (
+        '(net 0 "")'
+        if net is None
+        else f'(net {net.number} "{_escape_kicad_string(net.name)}")'
+    )
+    return f"""    (pad "{number}" smd roundrect
+      (at {x_mm} 0)
+      (size 1.4 1.4)
+      (layers "F.Cu" "F.Paste" "F.Mask")
+      (roundrect_rratio 0.25)
+      {net_text}
+      (pinfunction "{number}")
+      (pintype "passive")
+      (uuid {uuid})
+    )"""
+
+
+def _render_board_power_footprint(
+    net: NativeBoardNet,
+    *,
+    uuid_factory: Callable[[], UUID],
+) -> str:
+    x_mm = "4" if net.name == "VCC" else "45"
+    return f"""  (footprint "PCBSmith_POWER_PAD"
+    (layer "F.Cu")
+    (uuid {uuid_factory()})
+    (at {x_mm} 20)
+    (property "Reference" "{_escape_kicad_string(net.name)}"
+      (at 0 -2 0)
+      (layer "F.SilkS")
+      (uuid {uuid_factory()})
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (property "Value" "Power Pad"
+      (at 0 2 0)
+      (layer "F.Fab")
+      (uuid {uuid_factory()})
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )
+    (attr smd)
+    (pad "1" smd roundrect
+      (at 0 0)
+      (size 1.8 1.8)
+      (layers "F.Cu" "F.Paste" "F.Mask")
+      (roundrect_rratio 0.25)
+      (net {net.number} "{_escape_kicad_string(net.name)}")
+      (pinfunction "1")
+      (pintype "passive")
+      (uuid {uuid_factory()})
+    )
+  )"""
+
+
+def _render_board_segment(
+    *,
+    start_x_mm: str,
+    start_y_mm: str,
+    end_x_mm: str,
+    end_y_mm: str,
+    net: NativeBoardNet,
+    uuid: UUID,
+) -> str:
+    return (
+        f"  (segment (start {start_x_mm} {start_y_mm}) "
+        f"(end {end_x_mm} {end_y_mm}) (width 0.25) "
+        f'(layer "F.Cu") (net {net.number}) (uuid {uuid}))'
+    )
+
+
+def _render_board_power_segment(net: NativeBoardNet, uuid: UUID) -> str:
+    if net.name == "VCC":
+        return _render_board_segment(
+            start_x_mm="4",
+            start_y_mm="20",
+            end_x_mm="6",
+            end_y_mm="20",
+            net=net,
+            uuid=uuid,
+        )
+    return _render_board_segment(
+        start_x_mm="31",
+        start_y_mm="20",
+        end_x_mm="45",
+        end_y_mm="20",
+        net=net,
+        uuid=uuid,
+    )
 
 
 def render_pcbs_kicad_symbol_table() -> str:
@@ -953,6 +1286,7 @@ __all__ = [
     "HANDOFF_SCHEMA",
     "KiCadExportResult",
     "export_pcbs_project_to_kicad",
+    "render_kicad_board_items",
     "render_kicad_schematic_items",
     "render_handoff_manifest",
     "schematic_handoff_commands",

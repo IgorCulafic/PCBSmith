@@ -296,6 +296,7 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     )
 
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
     manifest = json.loads(result.handoff_file.read_text(encoding="utf-8"))
 
     assert '(lib_id "PCBSmith:VCC")' in schematic_text
@@ -313,6 +314,21 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     _assert_hidden_label(schematic_text, "VCC", "35.56", "25.4")
     _assert_hidden_label(schematic_text, "LED_A", "53.34", "25.4")
     _assert_hidden_label(schematic_text, "GND", "71.12", "25.4")
+    assert '(net 1 "VCC")' in board_text
+    assert '(net 2 "LED_A")' in board_text
+    assert '(net 3 "GND")' in board_text
+    assert '(footprint "PCBSmith_R_0603"' in board_text
+    assert '(footprint "PCBSmith_LED_0603"' in board_text
+    assert '(footprint "PCBSmith_POWER_PAD"' in board_text
+    assert '(property "Reference" "R1"' in board_text
+    assert '(property "Reference" "LED1"' in board_text
+    assert '(pad "1" smd roundrect' in board_text
+    assert (
+        '(segment (start 14 20) (end 23 20) (width 0.25) '
+        '(layer "F.Cu") (net 2)'
+    ) in board_text
+    assert "(gr_rect" in board_text
+    assert "(end 50 35)" in board_text
     assert {
         "type": "place_symbol",
         "reference": "LED1",
