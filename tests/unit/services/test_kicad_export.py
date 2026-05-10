@@ -102,7 +102,9 @@ def test_export_handoff_manifest_emits_ordered_schematic_commands(tmp_path: Path
     }
 
 
-def test_export_writes_net_labels_to_kicad_schematic(tmp_path: Path) -> None:
+def test_export_writes_wires_and_connected_net_labels_to_kicad_schematic(
+    tmp_path: Path,
+) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "kicad"
     shutil.copytree(FIXTURE, source_project)
@@ -115,13 +117,45 @@ def test_export_writes_net_labels_to_kicad_schematic(tmp_path: Path) -> None:
 
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
 
-    assert '(label "VCC"' in schematic_text
-    assert "(at 0 0 0)" in schematic_text
+    assert "(wire" in schematic_text
+    assert "(xy 10.16 0) (xy 15.24 0)" in schematic_text
+    assert "(xy 25.4 0) (xy 30.48 0)" in schematic_text
+    assert '(label "VCC"' not in schematic_text
     assert '(label "OUT"' in schematic_text
     assert "(at 15.24 0 0)" in schematic_text
     assert '(label "GND"' in schematic_text
     assert "(at 30.48 0 0)" in schematic_text
-    assert schematic_text.count("(label ") == 3
+    assert schematic_text.count("(label ") == 2
+
+
+def test_export_keeps_floating_labels_in_handoff_only(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Floating Label Demo")
+    save_schematic(
+        source_project,
+        "schematics/main.sch.json",
+        Schematic(
+            id="main",
+            labels=(NetLabel(name="FLOAT", position=Point.from_mm(2.54, 5.08)),),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    manifest = json.loads(result.handoff_file.read_text(encoding="utf-8"))
+
+    assert '(label "FLOAT"' not in schematic_text
+    assert {
+        "type": "add_label",
+        "name": "FLOAT",
+        "position_nm": {"x": 2540000, "y": 5080000},
+    } in manifest["commands"]
 
 
 def test_export_writes_no_connect_markers_to_kicad_schematic(tmp_path: Path) -> None:
@@ -133,7 +167,6 @@ def test_export_writes_no_connect_markers_to_kicad_schematic(tmp_path: Path) -> 
         "schematics/main.sch.json",
         Schematic(
             id="main",
-            labels=(NetLabel(name="SIG", position=Point.from_mm(2.54, 5.08)),),
             no_connects=(NoConnect(position=Point.from_mm(7.62, 10.16)),),
         ),
     )
@@ -146,7 +179,5 @@ def test_export_writes_no_connect_markers_to_kicad_schematic(tmp_path: Path) -> 
 
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
 
-    assert '(label "SIG"' in schematic_text
-    assert "(at 2.54 5.08 0)" in schematic_text
     assert "(no_connect" in schematic_text
     assert "(at 7.62 10.16)" in schematic_text

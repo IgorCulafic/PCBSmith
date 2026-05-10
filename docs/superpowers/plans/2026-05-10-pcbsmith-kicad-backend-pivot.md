@@ -228,11 +228,11 @@ Cover net labels and no-connect markers being written into the generated `.kicad
 
 - [x] **Step 2: Implement KiCad schematic item rendering**
 
-Render PCBSmith `NetLabel` and `NoConnect` objects as KiCad `label` and `no_connect` records, converting nanometer coordinates to millimeters.
+Render PCBSmith non-degenerate `Wire` objects, `NetLabel` objects attached to those wires, and `NoConnect` objects as KiCad records, converting nanometer coordinates to millimeters.
 
 - [x] **Step 3: Keep symbols and wires deferred**
 
-Leave symbols and wires in `pcbsmith_handoff.json` until the KiCad symbol/library mapping is ready.
+Leave symbols and floating labels in `pcbsmith_handoff.json` until the KiCad symbol/library mapping is ready.
 
 - [x] **Step 4: Update README**
 

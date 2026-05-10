@@ -101,7 +101,17 @@ def render_kicad_schematic_items(
     uuid_factory: Callable[[], UUID] = uuid4,
 ) -> tuple[str, ...]:
     items: list[str] = []
-    items.extend(_render_kicad_label(label, uuid_factory()) for label in schematic.labels)
+    native_wires = [wire for wire in schematic.wires if _is_non_degenerate_wire(wire)]
+    connected_points = {
+        (point.x, point.y) for wire in native_wires for point in wire.points
+    }
+
+    items.extend(_render_kicad_wire(wire, uuid_factory()) for wire in native_wires)
+    items.extend(
+        _render_kicad_label(label, uuid_factory())
+        for label in schematic.labels
+        if (label.position.x, label.position.y) in connected_points
+    )
     items.extend(
         _render_kicad_no_connect(no_connect, uuid_factory())
         for no_connect in schematic.no_connects
@@ -160,6 +170,22 @@ def _render_kicad_label(label: NetLabel, item_uuid: UUID) -> str:
   )"""
 
 
+def _render_kicad_wire(wire: Wire, item_uuid: UUID) -> str:
+    points = " ".join(
+        f"(xy {_format_mm(point.x)} {_format_mm(point.y)})" for point in wire.points
+    )
+    return f"""  (wire
+    (pts
+      {points}
+    )
+    (stroke
+      (width 0)
+      (type solid)
+    )
+    (uuid "{item_uuid}")
+  )"""
+
+
 def _render_kicad_no_connect(no_connect: NoConnect, item_uuid: UUID) -> str:
     return f"""  (no_connect
     (at {_format_mm(no_connect.position.x)} {_format_mm(no_connect.position.y)})
@@ -174,6 +200,10 @@ def _format_mm(value_nm: int) -> str:
 
 def _escape_kicad_string(value: str) -> str:
     return value.replace("\\", "\\\\").replace('"', '\\"')
+
+
+def _is_non_degenerate_wire(wire: Wire) -> bool:
+    return len({(point.x, point.y) for point in wire.points}) > 1
 
 
 def _first_schematic_path(project: Project) -> str:
