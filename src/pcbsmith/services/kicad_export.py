@@ -247,20 +247,26 @@ def render_kicad_schematic_items(
         _render_kicad_wire(wire, uuid_factory(), offset=KICAD_SCHEMATIC_ITEM_OFFSET)
         for wire in native_wires
     )
-    items.extend(
-        _render_kicad_label(
-            label,
-            uuid_factory(),
-            offset=KICAD_SCHEMATIC_ITEM_OFFSET,
-        )
-        for label in schematic.labels
-        if _should_render_native_label(
+    for label in schematic.labels:
+        if not _should_render_native_label(
             label,
             connected_points,
             native_wires,
             power_points,
+        ):
+            continue
+        items.append(
+            _render_kicad_label(
+                label,
+                uuid_factory(),
+                offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+                hidden=_is_wire_interior_label(
+                    label,
+                    connected_points,
+                    native_wires,
+                ),
+            )
         )
-    )
     items.extend(
         _render_kicad_label(
             label,
@@ -368,6 +374,16 @@ def _should_render_native_label(
     if _duplicates_power_symbol_label(label, power_points):
         return False
     return (label.position.x, label.position.y) in connected_points or any(
+        _point_on_wire(label.position, wire) for wire in native_wires
+    )
+
+
+def _is_wire_interior_label(
+    label: NetLabel,
+    connected_points: set[tuple[int, int]],
+    native_wires: list[Wire],
+) -> bool:
+    return (label.position.x, label.position.y) not in connected_points and any(
         _point_on_wire(label.position, wire) for wire in native_wires
     )
 
