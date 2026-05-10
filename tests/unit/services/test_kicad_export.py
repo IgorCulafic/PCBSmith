@@ -34,6 +34,8 @@ def test_export_pcbs_project_to_kicad_creates_skeleton_and_handoff_manifest(
     assert result.skeleton.project_file == output_project / "Voltage_Divider.kicad_pro"
     assert result.handoff_file == output_project / "pcbsmith_handoff.json"
     assert result.handoff_file.exists()
+    assert (output_project / "PCBSmith.kicad_sym").exists()
+    assert (output_project / "sym-lib-table").exists()
 
 
 def test_export_handoff_manifest_preserves_source_project_identity(tmp_path: Path) -> None:
@@ -102,7 +104,7 @@ def test_export_handoff_manifest_emits_ordered_schematic_commands(tmp_path: Path
     }
 
 
-def test_export_keeps_wires_and_labels_in_handoff_until_symbols_are_native(
+def test_export_writes_native_symbols_wires_and_connected_net_labels(
     tmp_path: Path,
 ) -> None:
     source_project = tmp_path / "source"
@@ -118,10 +120,18 @@ def test_export_keeps_wires_and_labels_in_handoff_until_symbols_are_native(
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
     manifest = json.loads(result.handoff_file.read_text(encoding="utf-8"))
 
-    assert "(wire" not in schematic_text
-    assert '(label "VCC"' not in schematic_text
-    assert '(label "OUT"' not in schematic_text
-    assert '(label "GND"' not in schematic_text
+    assert '(lib_id "PCBSmith:VCC")' in schematic_text
+    assert '(lib_id "PCBSmith:R")' in schematic_text
+    assert '(lib_id "PCBSmith:GND")' in schematic_text
+    assert '(property "Reference" "R1"' in schematic_text
+    assert '(property "Value" "10k"' in schematic_text
+    assert "(wire" in schematic_text
+    assert "(xy 10.16 0) (xy 15.24 0)" in schematic_text
+    assert "(xy 25.4 0) (xy 30.48 0)" in schematic_text
+    assert '(label "VCC"' in schematic_text
+    assert '(label "OUT"' in schematic_text
+    assert '(label "GND"' in schematic_text
+    assert "(at 25.4 0 0)" in schematic_text
     assert {
         "type": "add_wire",
         "points_nm": [{"x": 10160000, "y": 0}, {"x": 15240000, "y": 0}],
@@ -131,6 +141,27 @@ def test_export_keeps_wires_and_labels_in_handoff_until_symbols_are_native(
         "name": "OUT",
         "position_nm": {"x": 15240000, "y": 0},
     } in manifest["commands"]
+
+
+def test_export_writes_project_local_pcbs_library(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    shutil.copytree(FIXTURE, source_project)
+
+    export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    library_text = (output_project / "PCBSmith.kicad_sym").read_text(encoding="utf-8")
+    symbol_table_text = (output_project / "sym-lib-table").read_text(encoding="utf-8")
+
+    assert '(symbol "R"' in library_text
+    assert '(symbol "VCC"' in library_text
+    assert '(symbol "GND"' in library_text
+    assert '(name "PCBSmith")' in symbol_table_text
+    assert '${KIPRJMOD}/PCBSmith.kicad_sym' in symbol_table_text
 
 
 def test_export_keeps_floating_labels_in_handoff_only(tmp_path: Path) -> None:
