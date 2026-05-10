@@ -16,6 +16,10 @@ from pcbsmith.services.kicad_doctor import (
 )
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.kicad_project import create_kicad_project_skeleton
+from pcbsmith.services.kicad_validate import (
+    format_kicad_validation_report,
+    run_kicad_validation,
+)
 from pcbsmith.services.project_io import (
     ProjectIOError,
     create_project,
@@ -119,6 +123,16 @@ def _cmd_kicad_export(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_kicad_validate(args: argparse.Namespace) -> int:
+    report = run_kicad_validation(
+        Path(args.project),
+        execute=not args.skip_execution,
+    )
+    for line in format_kicad_validation_report(report):
+        print(line)
+    return report.exit_code
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -177,6 +191,18 @@ def build_parser() -> argparse.ArgumentParser:
     kicad_export_parser.add_argument("output_project")
     kicad_export_parser.add_argument("--name")
     kicad_export_parser.set_defaults(func=_cmd_kicad_export)
+
+    kicad_validate_parser = subparsers.add_parser(
+        "kicad-validate",
+        help="run KiCad ERC/DRC validation on a KiCad project folder",
+    )
+    kicad_validate_parser.add_argument("project")
+    kicad_validate_parser.add_argument(
+        "--skip-execution",
+        action="store_true",
+        help="discover project files and configured kicad-cli without running KiCad",
+    )
+    kicad_validate_parser.set_defaults(func=_cmd_kicad_validate)
 
     return parser
 

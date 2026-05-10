@@ -187,6 +187,33 @@ Added a starter 100 mm by 80 mm `gr_rect` on `Edge.Cuts`.
 
 Reran `kicad-cli sch erc` and `kicad-cli pcb drc` on a fresh exported handoff; both reported 0 violations.
 
+## Task 8: KiCad Validate Command
+
+**Files:**
+- Create: `src/pcbsmith/services/kicad_validate.py`
+- Create: `tests/unit/services/test_kicad_validate.py`
+- Create: `docs/kicad-setup.md`
+- Modify: `src/pcbsmith/cli.py`
+- Modify: `tests/integration/test_cli.py`
+- Modify: `README.md`
+- Modify: `.gitignore`
+
+- [x] **Step 1: Write failing validation tests**
+
+Cover missing KiCad, skipped execution, clean ERC/DRC JSON reports, rule violations, and KiCad process failures.
+
+- [x] **Step 2: Implement validation service**
+
+Create `run_kicad_validation()` around KiCad CLI ERC/DRC commands with report parsing and structured exit codes.
+
+- [x] **Step 3: Add CLI command**
+
+Add `pcbsmith kicad-validate <project>` with `--skip-execution` for discovery/configuration checks.
+
+- [x] **Step 4: Document setup and validation**
+
+Add KiCad setup notes, validation examples, and ignored `.pcbsmith/` generated reports.
+
 ## Verification
 
 Run before commit:

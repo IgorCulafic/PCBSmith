@@ -148,6 +148,29 @@ def test_kicad_doctor_reports_configured_cli_without_version_check() -> None:
     ]
 
 
+def test_kicad_validate_can_skip_execution(tmp_path: Path) -> None:
+    project_dir = tmp_path / "kicad-demo"
+
+    create_result = _run_cli("kicad-new", str(project_dir), "--name", "LED Blinker")
+    assert create_result.returncode == 0
+
+    result = _run_cli(
+        "kicad-validate",
+        str(project_dir),
+        "--skip-execution",
+        extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        f"KiCad project: {project_dir}",
+        "KiCad CLI: C:\\Tools\\KiCad\\bin\\kicad-cli.exe (PCBSMITH_KICAD_CLI)",
+        "ERC: skipped (LED_Blinker.kicad_sch)",
+        "DRC: skipped (LED_Blinker.kicad_pcb)",
+    ]
+
+
 def test_kicad_new_creates_kicad_project_skeleton(tmp_path: Path) -> None:
     project_dir = tmp_path / "kicad-demo"
 
