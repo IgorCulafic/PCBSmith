@@ -7,8 +7,10 @@ from PySide6.QtGui import QKeyEvent
 from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsSceneMouseEvent
 
 from pcbsmith.core.catalog import CatalogEntry
-from pcbsmith.core.geom import Point, snap
+from pcbsmith.core.geom import Point, mm_to_nm, snap
 from pcbsmith.core.schematic import SymbolInstance
+from pcbsmith.services.builtin_library import SYMBOLS
+from pcbsmith.services.schematic_anchors import nearest_anchor, schematic_anchors
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.history import EditHistory
 from pcbsmith.ui.items import NetLabelItem, NoConnectItem, SymbolItem, WireItem
@@ -16,6 +18,7 @@ from pcbsmith.ui.schematic_view import GRID_NM
 from pcbsmith.ui.selection import SelectionKey
 
 ToolName = str
+ANCHOR_SNAP_TOLERANCE_NM = mm_to_nm(1.5)
 
 
 class SchematicScene(QGraphicsScene):
@@ -180,7 +183,7 @@ class SchematicScene(QGraphicsScene):
             return
 
         if self._tool == "wire":
-            snapped_position = snap(position, GRID_NM)
+            snapped_position = self._snap_wire_position(position)
             if self._pending_wire_start is None:
                 self._pending_wire_start = snapped_position
                 return
@@ -224,13 +227,11 @@ class SchematicScene(QGraphicsScene):
         return self._wire_items[-1]
 
     def add_wire_path(self, points: tuple[Point, ...]) -> WireItem:
-        state = self._editor_state.add_wire(tuple(snap(point, GRID_NM) for point in points))
+        state = self._editor_state.add_wire(points)
         self.apply_editor_state(state)
         return self._wire_items[-1]
 
     def _route_wire_points(self, start: Point, end: Point) -> tuple[Point, ...]:
-        start = snap(start, GRID_NM)
-        end = snap(end, GRID_NM)
         dx = end.x - start.x
         dy = end.y - start.y
         if dx == 0 or dy == 0 or abs(dx) == abs(dy):
@@ -242,6 +243,16 @@ class SchematicScene(QGraphicsScene):
             y=start.y + (step if dy > 0 else -step),
         )
         return (start, diagonal, end)
+
+    def _snap_wire_position(self, position: Point) -> Point:
+        match = nearest_anchor(
+            position,
+            schematic_anchors(self._editor_state.to_schematic(), SYMBOLS),
+            tolerance_nm=ANCHOR_SNAP_TOLERANCE_NM,
+        )
+        if match is not None:
+            return match.anchor.position
+        return snap(position, GRID_NM)
 
     def move_selection(self, selection: SelectionKey, position: Point) -> None:
         state = self._editor_state.move_item(selection, snap(position, GRID_NM))
@@ -357,4 +368,4 @@ class SchematicScene(QGraphicsScene):
         super().keyPressEvent(event)
 
 
-__all__ = ["SchematicScene"]
+__all__ = ["ANCHOR_SNAP_TOLERANCE_NM", "SchematicScene"]

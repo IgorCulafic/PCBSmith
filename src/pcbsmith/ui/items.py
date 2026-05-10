@@ -13,12 +13,14 @@ from PySide6.QtWidgets import (
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, NoConnect, SymbolInstance, Wire
+from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.ui.icons import _draw_symbol_preview
 from pcbsmith.ui.selection import SelectionKey
 
 SYMBOL_WIDTH = 6_000_000
 SYMBOL_HEIGHT = 2_200_000
 WIRE_BOUNDS_MARGIN = 250_000
+CONNECTION_HANDLE_RADIUS = 220_000
 CANVAS_BACKGROUND = QColor(248, 250, 252)
 GRID_COLOR = QColor(221, 226, 232)
 SYMBOL_TEXT_COLOR = QColor(17, 24, 39)
@@ -56,15 +58,34 @@ class SymbolItem(QGraphicsItem):
         self._label = label
 
     def boundingRect(self) -> QRectF:
+        pin_positions = self.local_pin_positions()
+        xs = [point.x for point in pin_positions]
+        ys = [point.y for point in pin_positions]
+        xs.extend((-SYMBOL_WIDTH / 2, SYMBOL_WIDTH / 2))
+        ys.extend((-SYMBOL_HEIGHT / 2, SYMBOL_HEIGHT / 2))
+        margin = CONNECTION_HANDLE_RADIUS
+        left = min(xs) - margin
+        top = min(ys) - margin
+        right = max(xs) + margin
+        bottom = max(ys) + margin
         return QRectF(
-            -SYMBOL_WIDTH / 2,
-            -SYMBOL_HEIGHT / 2,
-            SYMBOL_WIDTH,
-            SYMBOL_HEIGHT,
+            left,
+            top,
+            right - left,
+            bottom - top,
         )
 
     def selection_key(self) -> SelectionKey:
         return SelectionKey("symbol", self.symbol.reference)
+
+    def local_pin_positions(self) -> tuple[Point, ...]:
+        symbol = SYMBOLS.get(self.symbol.symbol_id)
+        if symbol is None:
+            return (
+                Point(x=int(-SYMBOL_WIDTH / 2), y=0),
+                Point(x=int(SYMBOL_WIDTH / 2), y=0),
+            )
+        return tuple(pin.position for pin in symbol.pins)
 
     def is_mirrored_horizontally(self) -> bool:
         return self._mirrored_horizontally
@@ -87,21 +108,15 @@ class SymbolItem(QGraphicsItem):
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
         _draw_symbol_preview(painter, self.symbol.symbol_id, self.boundingRect())
-        handle_radius = 220_000
         painter.setPen(QPen(CONNECTION_HANDLE_COLOR, 0))
         painter.setBrush(CONNECTION_HANDLE_FILL)
-        painter.drawEllipse(
-            int(-SYMBOL_WIDTH / 2 - handle_radius / 2),
-            int(-handle_radius / 2),
-            handle_radius,
-            handle_radius,
-        )
-        painter.drawEllipse(
-            int(SYMBOL_WIDTH / 2 - handle_radius / 2),
-            int(-handle_radius / 2),
-            handle_radius,
-            handle_radius,
-        )
+        for pin_position in self.local_pin_positions():
+            painter.drawEllipse(
+                int(pin_position.x - CONNECTION_HANDLE_RADIUS / 2),
+                int(pin_position.y - CONNECTION_HANDLE_RADIUS / 2),
+                CONNECTION_HANDLE_RADIUS,
+                CONNECTION_HANDLE_RADIUS,
+            )
         painter.restore()
 
 
@@ -220,6 +235,7 @@ class NoConnectItem(QGraphicsItem):
 
 __all__ = [
     "CANVAS_BACKGROUND",
+    "CONNECTION_HANDLE_RADIUS",
     "CONNECTION_HANDLE_COLOR",
     "CONNECTION_HANDLE_FILL",
     "GRID_COLOR",
