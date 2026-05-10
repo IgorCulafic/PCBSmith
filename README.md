@@ -130,6 +130,28 @@ python -m pcbsmith.cli kicad-context .\demo .\ai-context.json --kicad-project .\
 
 The context package includes project metadata, schematic symbol/wire/label counts, component summaries with millimetre positions, optional KiCad ERC/DRC report summaries, and optional rendered preview paths. This is the first read-only context path for future LLM and vision-model review.
 
+## Developer Maintenance
+
+Run the standard local check before committing:
+
+```powershell
+python tools/dev_check.py
+```
+
+The dev check runs linting, the test suite with a repository-local pytest temp directory, a fixture validation smoke test, and an AI context smoke test.
+
+Generated cache folders and old one-off pytest workspaces can be reviewed with:
+
+```powershell
+python tools/clean_workspace.py
+```
+
+The cleanup tool is dry-run by default. Delete generated targets with `--apply`, or move them aside first:
+
+```powershell
+python tools/clean_workspace.py --archive .cleanup-archive
+```
+
 ## Phase 1A and 1B GUI
 
 Phase 1A adds the first PySide6 schematic editor slice: launch the editor, open or

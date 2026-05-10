@@ -6,8 +6,12 @@ __pycache__/
 .pcbsmith/
 .codex-tmp/
 .tmp/
+.cleanup-archive/
+.pytest-*/
+.venv.broken-*/
 pytest-*/
 pytest-cache-files-*/
 phase0-*-pytest*/
 phase0-pytest-basetemp/
+ai-context.json
 docs/reference/PCB_Application_Specification.docx
