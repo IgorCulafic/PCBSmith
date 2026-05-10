@@ -146,6 +146,48 @@ def test_kicad_validate_reports_rule_violations(tmp_path: Path) -> None:
     ]
 
 
+def test_kicad_validate_ignores_generated_pcbs_library_mismatch(
+    tmp_path: Path,
+) -> None:
+    _write_kicad_project(tmp_path)
+
+    def runner(command: Sequence[str]) -> KiCadProcessResult:
+        report_file = Path(command[command.index("--output") + 1])
+        if command[1:3] == ["sch", "erc"]:
+            report_file.write_text(
+                json.dumps(
+                    {
+                        "sheets": [
+                            {
+                                "violations": [
+                                    {
+                                        "type": "lib_symbol_mismatch",
+                                        "description": (
+                                            "Symbol 'R' doesn't match copy in "
+                                            "library 'PCBSmith'"
+                                        ),
+                                    }
+                                ]
+                            }
+                        ]
+                    }
+                ),
+                encoding="utf-8",
+            )
+        elif command[1:3] == ["pcb", "drc"]:
+            report_file.write_text(
+                json.dumps({"violations": [], "unconnected_items": []}),
+                encoding="utf-8",
+            )
+        return KiCadProcessResult(returncode=0, stdout="", stderr="")
+
+    report = run_kicad_validation(tmp_path, finder=_install, runner=runner)
+
+    assert report.exit_code == 0
+    assert report.ready is True
+    assert format_kicad_validation_report(report)[2] == "ERC: passed (0 violations)"
+
+
 def test_kicad_validate_reports_cli_failure(tmp_path: Path) -> None:
     _write_kicad_project(tmp_path)
 

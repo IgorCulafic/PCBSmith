@@ -1,12 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
 
-from pcbsmith.core.geom import Point, nm_to_mm
+from pcbsmith.core.geom import Point, Vec, nm_to_mm
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
 from pcbsmith.services.kicad_project import (
@@ -18,6 +19,38 @@ from pcbsmith.services.project_io import load_project, load_schematic
 
 HANDOFF_FILE_NAME = "pcbsmith_handoff.json"
 HANDOFF_SCHEMA = "pcbsmith-kicad-handoff-v1"
+PCBSMITH_SYMBOL_LIBRARY_FILE_NAME = "PCBSmith.kicad_sym"
+PCBSMITH_SYMBOL_TABLE_FILE_NAME = "sym-lib-table"
+PCBSMITH_LIBRARY_NAME = "PCBSmith"
+
+
+@dataclass(frozen=True)
+class NativeSymbolSpec:
+    source_symbol_id: str
+    library_symbol_name: str
+    reference_prefix: str
+    value: str
+    description: str
+    pin_offsets: tuple[Vec, ...]
+    power: bool = False
+    datasheet: str = "~"
+
+
+@dataclass(frozen=True)
+class NativeSymbolInstance:
+    source: SymbolInstance
+    spec: NativeSymbolSpec
+    reference: str
+    uuid: UUID
+    pin_uuids: tuple[UUID, ...]
+
+    @property
+    def lib_id(self) -> str:
+        return f"{PCBSMITH_LIBRARY_NAME}:{self.spec.library_symbol_name}"
+
+    @property
+    def pin_points(self) -> tuple[Point, ...]:
+        return tuple(self.source.position + offset for offset in self.spec.pin_offsets)
 
 
 class KiCadExportResult(BaseModel):
@@ -25,6 +58,38 @@ class KiCadExportResult(BaseModel):
 
     skeleton: KiCadProjectSkeleton
     handoff_file: Path
+
+
+NATIVE_SYMBOL_SPECS: dict[str, NativeSymbolSpec] = {
+    "stdlib:R": NativeSymbolSpec(
+        source_symbol_id="stdlib:R",
+        library_symbol_name="R",
+        reference_prefix="R",
+        value="R",
+        description="Generic resistor",
+        pin_offsets=(Vec(-5_080_000, 0), Vec(5_080_000, 0)),
+    ),
+    "stdlib:VCC": NativeSymbolSpec(
+        source_symbol_id="stdlib:VCC",
+        library_symbol_name="VCC",
+        reference_prefix="#PWR",
+        value="VCC",
+        description="Power symbol creates a global label with name VCC",
+        pin_offsets=(Vec(0, 0),),
+        power=True,
+        datasheet="",
+    ),
+    "stdlib:GND": NativeSymbolSpec(
+        source_symbol_id="stdlib:GND",
+        library_symbol_name="GND",
+        reference_prefix="#PWR",
+        value="GND",
+        description="Power symbol creates a global label with name GND",
+        pin_offsets=(Vec(0, 0),),
+        power=True,
+        datasheet="",
+    ),
+}
 
 
 def export_pcbs_project_to_kicad(
@@ -42,10 +107,28 @@ def export_pcbs_project_to_kicad(
         project_name or project.name,
         uuid_factory=uuid_factory,
     )
+    native_symbols = _native_symbol_instances(schematic, uuid_factory=uuid_factory)
+    if native_symbols:
+        (skeleton.project_dir / PCBSMITH_SYMBOL_LIBRARY_FILE_NAME).write_text(
+            render_pcbs_kicad_symbol_library(),
+            encoding="utf-8",
+        )
+        (skeleton.project_dir / PCBSMITH_SYMBOL_TABLE_FILE_NAME).write_text(
+            render_pcbs_kicad_symbol_table(),
+            encoding="utf-8",
+        )
     skeleton.schematic_file.write_text(
         render_kicad_schematic_file(
             uuid_factory(),
-            render_kicad_schematic_items(schematic, uuid_factory=uuid_factory),
+            render_kicad_schematic_items(
+                schematic,
+                native_symbols=native_symbols,
+                project_name=skeleton.project_name,
+                uuid_factory=uuid_factory,
+            ),
+            lib_symbol_items=render_pcbs_kicad_embedded_symbols()
+            if native_symbols
+            else (),
         ),
         encoding="utf-8",
     )
@@ -98,12 +181,53 @@ def schematic_handoff_commands(schematic: Schematic) -> list[dict[str, object]]:
 def render_kicad_schematic_items(
     schematic: Schematic,
     *,
+    native_symbols: tuple[NativeSymbolInstance, ...] | None = None,
+    project_name: str = "",
     uuid_factory: Callable[[], UUID] = uuid4,
 ) -> tuple[str, ...]:
-    return tuple(
+    native_symbols = _native_symbol_instances(
+        schematic, uuid_factory=uuid_factory
+    ) if native_symbols is None else native_symbols
+    pin_points = {
+        (point.x, point.y)
+        for symbol in native_symbols
+        for point in symbol.pin_points
+    }
+    power_points = {
+        (point.x, point.y): symbol.spec.library_symbol_name
+        for symbol in native_symbols
+        if symbol.spec.power
+        for point in symbol.pin_points
+    }
+    native_wires = [
+        wire
+        for wire in schematic.wires
+        if _wire_connects_native_points(wire, pin_points)
+    ]
+    connected_points = {
+        (point.x, point.y) for wire in native_wires for point in wire.points
+    } | pin_points
+
+    items: list[str] = []
+    items.extend(
+        _render_kicad_symbol(symbol, project_name=project_name)
+        for symbol in native_symbols
+    )
+    items.extend(_render_kicad_wire(wire, uuid_factory()) for wire in native_wires)
+    items.extend(
+        _render_kicad_label(label, uuid_factory())
+        for label in schematic.labels
+        if _should_render_native_label(label, connected_points)
+    )
+    items.extend(
+        _render_kicad_label(label, uuid_factory())
+        for label in _power_wire_endpoint_labels(native_wires, power_points)
+    )
+    items.extend(
         _render_kicad_no_connect(no_connect, uuid_factory())
         for no_connect in schematic.no_connects
     )
+    return tuple(items)
 
 
 def _symbol_command(symbol: SymbolInstance) -> dict[str, object]:
@@ -145,6 +269,183 @@ def _point(point: Point) -> dict[str, int]:
     return {"x": point.x, "y": point.y}
 
 
+def _native_symbol_instances(
+    schematic: Schematic,
+    *,
+    uuid_factory: Callable[[], UUID],
+) -> tuple[NativeSymbolInstance, ...]:
+    power_index = 1
+    native_symbols: list[NativeSymbolInstance] = []
+    for symbol in schematic.symbols:
+        spec = NATIVE_SYMBOL_SPECS.get(symbol.symbol_id)
+        if spec is None:
+            continue
+        reference = symbol.reference
+        if spec.power:
+            reference = f"{spec.reference_prefix}{power_index:02d}"
+            power_index += 1
+        native_symbols.append(
+            NativeSymbolInstance(
+                source=symbol,
+                spec=spec,
+                reference=reference,
+                uuid=uuid_factory(),
+                pin_uuids=tuple(uuid_factory() for _ in spec.pin_offsets),
+            )
+        )
+    return tuple(native_symbols)
+
+
+def _wire_connects_native_points(
+    wire: Wire,
+    pin_points: set[tuple[int, int]],
+) -> bool:
+    if len({(point.x, point.y) for point in wire.points}) <= 1:
+        return False
+    return (
+        (wire.points[0].x, wire.points[0].y) in pin_points
+        and (wire.points[-1].x, wire.points[-1].y) in pin_points
+    )
+
+
+def _should_render_native_label(
+    label: NetLabel,
+    connected_points: set[tuple[int, int]],
+) -> bool:
+    return (label.position.x, label.position.y) in connected_points
+
+
+def _power_wire_endpoint_labels(
+    wires: list[Wire],
+    power_points: dict[tuple[int, int], str],
+) -> tuple[NetLabel, ...]:
+    labels: list[NetLabel] = []
+    for wire in wires:
+        first = wire.points[0]
+        last = wire.points[-1]
+        first_key = (first.x, first.y)
+        last_key = (last.x, last.y)
+        if first_key in power_points:
+            labels.append(NetLabel(name=power_points[first_key], position=last))
+        if last_key in power_points:
+            labels.append(NetLabel(name=power_points[last_key], position=first))
+    return tuple(labels)
+
+
+def _render_kicad_symbol(symbol: NativeSymbolInstance, *, project_name: str) -> str:
+    source = symbol.source
+    reference = symbol.reference
+    value = source.value or symbol.spec.value
+    reference_property = _render_symbol_property(
+        "Reference",
+        reference,
+        source.position.x,
+        source.position.y - 2_540_000,
+        hidden=symbol.spec.power,
+    )
+    value_y = source.position.y + (
+        2_540_000 if not symbol.spec.power else -2_540_000
+    )
+    value_property = _render_symbol_property("Value", value, source.position.x, value_y)
+    footprint_property = _render_symbol_property(
+        "Footprint", "", source.position.x, source.position.y, hidden=True
+    )
+    datasheet_property = _render_symbol_property(
+        "Datasheet",
+        symbol.spec.datasheet,
+        source.position.x,
+        source.position.y,
+        hidden=True,
+    )
+    description_property = _render_symbol_property(
+        "Description",
+        symbol.spec.description,
+        source.position.x,
+        source.position.y,
+        hidden=True,
+    )
+    return f"""  (symbol
+    (lib_id "{symbol.lib_id}")
+    (at {_format_mm(source.position.x)} {_format_mm(source.position.y)} {source.rotation_deg})
+    (unit 1)
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    (dnp no)
+    (uuid "{symbol.uuid}")
+    {reference_property}
+    {value_property}
+    {footprint_property}
+    {datasheet_property}
+    {description_property}
+{_render_symbol_pins(symbol)}
+    (instances
+      (project "{_escape_kicad_string(project_name)}"
+        (path "/"
+          (reference "{_escape_kicad_string(reference)}")
+          (unit 1)
+        )
+      )
+    )
+  )"""
+
+
+def _render_symbol_pins(symbol: NativeSymbolInstance) -> str:
+    return "\n".join(
+        f"""    (pin "{index}"
+      (uuid "{pin_uuid}")
+    )"""
+        for index, pin_uuid in enumerate(symbol.pin_uuids, start=1)
+    )
+
+
+def _render_symbol_property(
+    name: str,
+    value: str,
+    x_nm: int,
+    y_nm: int,
+    *,
+    hidden: bool = False,
+) -> str:
+    hide = "\n        (hide yes)" if hidden else ""
+    return f"""(property "{_escape_kicad_string(name)}" "{_escape_kicad_string(value)}"
+      (at {_format_mm(x_nm)} {_format_mm(y_nm)} 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        ){hide}
+      )
+    )"""
+
+
+def _render_kicad_label(label: NetLabel, item_uuid: UUID) -> str:
+    return f"""  (label "{_escape_kicad_string(label.name)}"
+    (at {_format_mm(label.position.x)} {_format_mm(label.position.y)} 0)
+    (effects
+      (font
+        (size 1.27 1.27)
+      )
+    )
+    (uuid "{item_uuid}")
+  )"""
+
+
+def _render_kicad_wire(wire: Wire, item_uuid: UUID) -> str:
+    points = " ".join(
+        f"(xy {_format_mm(point.x)} {_format_mm(point.y)})" for point in wire.points
+    )
+    return f"""  (wire
+    (pts
+      {points}
+    )
+    (stroke
+      (width 0)
+      (type solid)
+    )
+    (uuid "{item_uuid}")
+  )"""
+
+
 def _render_kicad_no_connect(no_connect: NoConnect, item_uuid: UUID) -> str:
     return f"""  (no_connect
     (at {_format_mm(no_connect.position.x)} {_format_mm(no_connect.position.y)})
@@ -152,9 +453,232 @@ def _render_kicad_no_connect(no_connect: NoConnect, item_uuid: UUID) -> str:
   )"""
 
 
+def render_pcbs_kicad_symbol_table() -> str:
+    return f"""(sym_lib_table
+  (version 7)
+  (lib
+    (name "{PCBSMITH_LIBRARY_NAME}")
+    (type "KiCad")
+    (uri "${{KIPRJMOD}}/{PCBSMITH_SYMBOL_LIBRARY_FILE_NAME}")
+    (options "")
+    (descr "PCBSmith generated symbols")
+  )
+)
+"""
+
+
+def render_pcbs_kicad_symbol_library() -> str:
+    symbols = "\n\n".join(
+        _render_library_symbol(spec, embedded=False)
+        for spec in NATIVE_SYMBOL_SPECS.values()
+    )
+    return f"""(kicad_symbol_lib
+  (version 20251024)
+  (generator "PCBSmith")
+  (generator_version "0.1")
+{symbols}
+)
+"""
+
+
+def render_pcbs_kicad_embedded_symbols() -> tuple[str, ...]:
+    return tuple(
+        _render_library_symbol(spec, embedded=True)
+        for spec in NATIVE_SYMBOL_SPECS.values()
+    )
+
+
+def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
+    name = (
+        f"{PCBSMITH_LIBRARY_NAME}:{spec.library_symbol_name}"
+        if embedded
+        else spec.library_symbol_name
+    )
+    if spec.library_symbol_name == "R":
+        return _render_resistor_library_symbol(name)
+    if spec.library_symbol_name == "VCC":
+        return _render_power_library_symbol(
+            name,
+            value="VCC",
+            description=spec.description,
+            pin_direction=90,
+            drawing=_vcc_symbol_drawing(),
+            value_y_nm=2_540_000,
+        )
+    if spec.library_symbol_name == "GND":
+        return _render_power_library_symbol(
+            name,
+            value="GND",
+            description=spec.description,
+            pin_direction=270,
+            drawing=_gnd_symbol_drawing(),
+            value_y_nm=-2_540_000,
+        )
+    raise ValueError(f"Unsupported native KiCad symbol: {spec.source_symbol_id}")
+
+
+def _render_resistor_library_symbol(name: str) -> str:
+    return f"""  (symbol "{name}"
+    (pin_numbers
+      (hide yes)
+    )
+    (pin_names
+      (offset 0)
+    )
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    {_render_symbol_property("Reference", "R", 0, -2_540_000)}
+    {_render_symbol_property("Value", "R", 0, 2_540_000)}
+    {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
+    {_render_symbol_property("Datasheet", "~", 0, 0, hidden=True)}
+    {_render_symbol_property("Description", "Generic resistor", 0, 0, hidden=True)}
+    (symbol "R_0_1"
+      (rectangle
+        (start -2.54 -1.27)
+        (end 2.54 1.27)
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )
+    (symbol "R_1_1"
+      (pin passive line
+        (at -5.08 0 0)
+        (length 0)
+        (name "1"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+        (number "1"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+      )
+      (pin passive line
+        (at 5.08 0 180)
+        (length 0)
+        (name "2"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+        (number "2"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+      )
+    )
+  )"""
+
+
+def _render_power_library_symbol(
+    name: str,
+    *,
+    value: str,
+    description: str,
+    pin_direction: int,
+    drawing: str,
+    value_y_nm: int,
+) -> str:
+    return f"""  (symbol "{name}"
+    (power)
+    (pin_numbers
+      (hide yes)
+    )
+    (pin_names
+      (offset 0)
+      (hide yes)
+    )
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    {_render_symbol_property("Reference", "#PWR", 0, -3_810_000, hidden=True)}
+    {_render_symbol_property("Value", value, 0, value_y_nm)}
+    {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
+    {_render_symbol_property("Datasheet", "", 0, 0, hidden=True)}
+    {_render_symbol_property("Description", description, 0, 0, hidden=True)}
+{drawing}
+    (symbol "{value}_1_1"
+      (pin power_out line
+        (at 0 0 {pin_direction})
+        (length 0)
+        (name "{value}"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+        (number "1"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+      )
+    )
+  )"""
+
+
+def _vcc_symbol_drawing() -> str:
+    return """      (symbol "VCC_0_1"
+        (polyline
+          (pts
+            (xy 0 0) (xy 0 1.27)
+          )
+          (stroke
+            (width 0)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+      )"""
+
+
+def _gnd_symbol_drawing() -> str:
+    return """      (symbol "GND_0_1"
+        (polyline
+          (pts
+            (xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27)
+            (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+          )
+          (stroke
+            (width 0)
+            (type default)
+          )
+          (fill
+            (type none)
+          )
+        )
+      )"""
+
+
 def _format_mm(value_nm: int) -> str:
     value = nm_to_mm(value_nm)
     return f"{value:.6f}".rstrip("0").rstrip(".")
+
+
+def _escape_kicad_string(value: str) -> str:
+    return value.replace("\\", "\\\\").replace('"', '\\"')
 
 
 def _first_schematic_path(project: Project) -> str:

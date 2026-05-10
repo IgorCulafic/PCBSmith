@@ -88,9 +88,12 @@ def render_kicad_project_file(project_name: str) -> str:
 def render_kicad_schematic_file(
     root_uuid: UUID,
     schematic_body_items: Sequence[str] = (),
+    lib_symbol_items: Sequence[str] = (),
 ) -> str:
     body = "\n\n".join(schematic_body_items)
     body_section = f"\n\n{body}" if body else ""
+    lib_symbols = "\n\n".join(lib_symbol_items)
+    lib_symbols_section = f"(lib_symbols\n{lib_symbols}\n  )" if lib_symbols else "(lib_symbols)"
     return f"""(kicad_sch
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "{GENERATOR}")
@@ -99,7 +102,7 @@ def render_kicad_schematic_file(
 
   (paper "A4")
 
-  (lib_symbols)
+  {lib_symbols_section}
 {body_section}
   (sheet_instances
     (path "/" (page "1"))

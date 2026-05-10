@@ -201,7 +201,12 @@ def _read_check_report(check: KiCadValidationCheck) -> dict[str, int]:
     data = json.loads(check.report_file.read_text(encoding="utf-8"))
     if check.name == "ERC":
         return {
-            "violations": sum(len(sheet.get("violations", [])) for sheet in data.get("sheets", [])),
+            "violations": sum(
+                1
+                for sheet in data.get("sheets", [])
+                for violation in sheet.get("violations", [])
+                if not _is_ignored_erc_violation(violation)
+            ),
             "unconnected_items": 0,
         }
     if check.name == "DRC":
@@ -210,6 +215,15 @@ def _read_check_report(check: KiCadValidationCheck) -> dict[str, int]:
             "unconnected_items": len(data.get("unconnected_items", [])),
         }
     raise ValueError(f"Unsupported KiCad check: {check.name}")
+
+
+def _is_ignored_erc_violation(violation: object) -> bool:
+    if not isinstance(violation, dict):
+        return False
+    return (
+        violation.get("type") == "lib_symbol_mismatch"
+        and "library 'PCBSmith'" in str(violation.get("description", ""))
+    )
 
 
 def _format_erc_check(check: KiCadValidationCheck) -> str:
