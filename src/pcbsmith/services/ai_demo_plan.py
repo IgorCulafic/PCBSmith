@@ -18,6 +18,9 @@ def build_ai_demo_plan(planner_package: dict[str, Any]) -> dict[str, Any]:
     if _requests_voltage_divider(request_text):
         return _voltage_divider_plan(schematic)
 
+    if _requests_rc_filter(request_text):
+        return _rc_filter_plan(schematic)
+
     if "capacitor" in request_text or "100nf" in request_text:
         return _single_symbol_plan(
             description="Demo plan: add a capacitor",
@@ -49,6 +52,14 @@ def _requests_led_circuit(request_text: str) -> bool:
 def _requests_voltage_divider(request_text: str) -> bool:
     return "voltage divider" in request_text or (
         "divider" in request_text and "voltage" in request_text
+    )
+
+
+def _requests_rc_filter(request_text: str) -> bool:
+    return (
+        "rc filter" in request_text
+        or "low-pass" in request_text
+        or "low pass" in request_text
     )
 
 
@@ -91,6 +102,50 @@ def _led_series_circuit_plan(schematic: str) -> dict[str, Any]:
             _wire_command((45_720_000, 0), (60_960_000, 0)),
             _label_command("VCC", 0, 0),
             _label_command("LED_A", 27_940_000, 0),
+            _label_command("GND", 60_960_000, 0),
+        ],
+    }
+
+
+def _rc_filter_plan(schematic: str) -> dict[str, Any]:
+    return {
+        "version": 1,
+        "description": "Demo plan: create an RC low-pass filter",
+        "schematic": schematic,
+        "commands": [
+            _place_symbol_command(
+                symbol_id="stdlib:VCC",
+                value="VCC",
+                x=0,
+                y=0,
+                footprint_id=None,
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:R",
+                value="10k",
+                x=15_240_000,
+                y=0,
+                footprint_id="stdlib:R_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:C",
+                value="100nF",
+                x=40_640_000,
+                y=0,
+                footprint_id="stdlib:C_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:GND",
+                value="GND",
+                x=60_960_000,
+                y=0,
+                footprint_id=None,
+            ),
+            _wire_command((0, 0), (10_160_000, 0)),
+            _wire_command((20_320_000, 0), (35_560_000, 0)),
+            _wire_command((45_720_000, 0), (60_960_000, 0)),
+            _label_command("VCC", 0, 0),
+            _label_command("OUT", 27_940_000, 0),
             _label_command("GND", 60_960_000, 0),
         ],
     }
