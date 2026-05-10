@@ -3,10 +3,11 @@ from __future__ import annotations
 import math
 
 from PySide6.QtCore import QPoint, QRectF, Qt
-from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPen, QWheelEvent
+from PySide6.QtGui import QMouseEvent, QPainter, QPen, QWheelEvent
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QWidget
 
 from pcbsmith.core.geom import mm_to_nm
+from pcbsmith.ui.items import CANVAS_BACKGROUND, GRID_COLOR
 
 GRID_NM = 2_540_000
 ZOOM_IN_FACTOR = 1.15
@@ -22,6 +23,7 @@ class SchematicView(QGraphicsView):
 
         super().__init__(scene, parent)
         self._last_pan_pos: QPoint | None = None
+        scene.setBackgroundBrush(CANVAS_BACKGROUND)
 
         self.setRenderHints(
             QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing
@@ -37,7 +39,7 @@ class SchematicView(QGraphicsView):
         top = math.floor(rect.top() / GRID_NM) * GRID_NM
 
         painter.save()
-        painter.setPen(QPen(QColor(225, 225, 225), 0))
+        painter.setPen(QPen(GRID_COLOR, 0))
 
         x = left
         while x <= rect.right():

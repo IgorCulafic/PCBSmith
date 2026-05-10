@@ -18,7 +18,13 @@ from pcbsmith.ui.selection import SelectionKey
 SYMBOL_WIDTH = 6_000_000
 SYMBOL_HEIGHT = 2_200_000
 WIRE_BOUNDS_MARGIN = 250_000
-WIRE_PEN = QPen(QColor(20, 68, 130), 0)
+CANVAS_BACKGROUND = QColor(248, 250, 252)
+GRID_COLOR = QColor(221, 226, 232)
+SYMBOL_TEXT_COLOR = QColor(17, 24, 39)
+SYMBOL_PEN = QPen(QColor(24, 32, 42), 0)
+WIRE_PEN = QPen(QColor(25, 96, 179), 0)
+CONNECTION_HANDLE_COLOR = QColor(27, 115, 209)
+CONNECTION_HANDLE_FILL = QColor(255, 255, 255)
 LABEL_TEXT_SCALE = 120_000
 NO_CONNECT_SIZE = 1_200_000
 
@@ -36,7 +42,7 @@ class SymbolItem(QGraphicsItem):
         )
 
         label = QGraphicsTextItem(f"{symbol.reference} {symbol.value}", self)
-        label.setDefaultTextColor(QColor(40, 40, 40))
+        label.setDefaultTextColor(SYMBOL_TEXT_COLOR)
         label.setScale(120_000)
         label.setPos(-SYMBOL_WIDTH / 2, -SYMBOL_HEIGHT)
         self._label = label
@@ -62,7 +68,7 @@ class SymbolItem(QGraphicsItem):
 
         painter.save()
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setPen(QPen(QColor(35, 35, 35), 0))
+        painter.setPen(SYMBOL_PEN)
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
         lead = SYMBOL_WIDTH / 4
@@ -74,6 +80,21 @@ class SymbolItem(QGraphicsItem):
             SYMBOL_HEIGHT,
         )
         painter.drawLine(int(lead), 0, int(SYMBOL_WIDTH / 2), 0)
+        handle_radius = 220_000
+        painter.setPen(QPen(CONNECTION_HANDLE_COLOR, 0))
+        painter.setBrush(CONNECTION_HANDLE_FILL)
+        painter.drawEllipse(
+            int(-SYMBOL_WIDTH / 2 - handle_radius / 2),
+            int(-handle_radius / 2),
+            handle_radius,
+            handle_radius,
+        )
+        painter.drawEllipse(
+            int(SYMBOL_WIDTH / 2 - handle_radius / 2),
+            int(-handle_radius / 2),
+            handle_radius,
+            handle_radius,
+        )
         painter.restore()
 
 
@@ -184,10 +205,16 @@ class NoConnectItem(QGraphicsItem):
 
 
 __all__ = [
+    "CANVAS_BACKGROUND",
+    "CONNECTION_HANDLE_COLOR",
+    "CONNECTION_HANDLE_FILL",
+    "GRID_COLOR",
     "LABEL_TEXT_SCALE",
     "NO_CONNECT_SIZE",
     "NetLabelItem",
     "NoConnectItem",
+    "SYMBOL_PEN",
+    "SYMBOL_TEXT_COLOR",
     "SYMBOL_HEIGHT",
     "SYMBOL_WIDTH",
     "SymbolItem",
