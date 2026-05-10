@@ -1,0 +1,49 @@
+{
+  "id": "main",
+  "symbols": [
+    {
+      "reference": "V1",
+      "symbol_id": "stdlib:VCC",
+      "value": "VCC",
+      "position": {"x": 0, "y": 0},
+      "rotation_deg": 0,
+      "footprint_id": null
+    },
+    {
+      "reference": "R1",
+      "symbol_id": "stdlib:R",
+      "value": "330",
+      "position": {"x": 15240000, "y": 0},
+      "rotation_deg": 0,
+      "footprint_id": "stdlib:R_0603"
+    },
+    {
+      "reference": "LED1",
+      "symbol_id": "stdlib:LED",
+      "value": "Red LED",
+      "position": {"x": 40640000, "y": 0},
+      "rotation_deg": 0,
+      "footprint_id": "stdlib:LED_0603"
+    },
+    {
+      "reference": "G1",
+      "symbol_id": "stdlib:GND",
+      "value": "GND",
+      "position": {"x": 60960000, "y": 0},
+      "rotation_deg": 0,
+      "footprint_id": null
+    }
+  ],
+  "wires": [
+    {"points": [{"x": 0, "y": 0}, {"x": 10160000, "y": 0}]},
+    {"points": [{"x": 20320000, "y": 0}, {"x": 35560000, "y": 0}]},
+    {"points": [{"x": 45720000, "y": 0}, {"x": 60960000, "y": 0}]}
+  ],
+  "junctions": [],
+  "labels": [
+    {"name": "VCC", "position": {"x": 0, "y": 0}},
+    {"name": "LED_A", "position": {"x": 27940000, "y": 0}},
+    {"name": "GND", "position": {"x": 60960000, "y": 0}}
+  ],
+  "no_connects": []
+}

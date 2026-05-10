@@ -254,7 +254,7 @@ def render_kicad_schematic_items(
             offset=KICAD_SCHEMATIC_ITEM_OFFSET,
         )
         for label in schematic.labels
-        if _should_render_native_label(label, connected_points)
+        if _should_render_native_label(label, connected_points, native_wires)
     )
     items.extend(
         _render_kicad_label(
@@ -356,8 +356,30 @@ def _wire_connects_native_points(
 def _should_render_native_label(
     label: NetLabel,
     connected_points: set[tuple[int, int]],
+    native_wires: list[Wire],
 ) -> bool:
-    return (label.position.x, label.position.y) in connected_points
+    return (label.position.x, label.position.y) in connected_points or any(
+        _point_on_wire(label.position, wire) for wire in native_wires
+    )
+
+
+def _point_on_wire(point: Point, wire: Wire) -> bool:
+    return any(
+        _point_on_segment(point, start, end)
+        for start, end in zip(wire.points, wire.points[1:], strict=False)
+    )
+
+
+def _point_on_segment(point: Point, start: Point, end: Point) -> bool:
+    cross = (point.x - start.x) * (end.y - start.y) - (
+        point.y - start.y
+    ) * (end.x - start.x)
+    if cross != 0:
+        return False
+    return (
+        min(start.x, end.x) <= point.x <= max(start.x, end.x)
+        and min(start.y, end.y) <= point.y <= max(start.y, end.y)
+    )
 
 
 def _power_wire_endpoint_labels(
