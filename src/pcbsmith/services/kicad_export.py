@@ -7,6 +7,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
 
+from pcbsmith.core.board import Board, BoardText, Trace
 from pcbsmith.core.geom import Point, Vec, mm_to_nm, nm_to_mm
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
@@ -16,7 +17,7 @@ from pcbsmith.services.kicad_project import (
     render_kicad_board_file,
     render_kicad_schematic_file,
 )
-from pcbsmith.services.project_io import load_project, load_schematic
+from pcbsmith.services.project_io import load_board, load_project, load_schematic
 
 HANDOFF_FILE_NAME = "pcbsmith_handoff.json"
 HANDOFF_SCHEMA = "pcbsmith-kicad-handoff-v1"
@@ -168,7 +169,9 @@ def export_pcbs_project_to_kicad(
 ) -> KiCadExportResult:
     project = load_project(source_project_dir)
     schematic_path = _first_schematic_path(project)
+    board_path = _first_board_path(project)
     schematic = load_schematic(source_project_dir, schematic_path)
+    board = load_board(source_project_dir, board_path)
     skeleton = create_kicad_project_skeleton(
         output_project_dir,
         project_name or project.name,
@@ -204,6 +207,7 @@ def export_pcbs_project_to_kicad(
             uuid_factory(),
             render_kicad_board_items(
                 schematic,
+                board=board,
                 native_symbols=native_symbols,
                 uuid_factory=uuid_factory,
             ),
@@ -348,6 +352,7 @@ def render_kicad_schematic_items(
 def render_kicad_board_items(
     schematic: Schematic,
     *,
+    board: Board | None = None,
     native_symbols: tuple[NativeSymbolInstance, ...] | None = None,
     uuid_factory: Callable[[], UUID] = uuid4,
 ) -> tuple[str, ...]:
@@ -379,11 +384,17 @@ def render_kicad_board_items(
     footprints = _native_board_footprints(native_symbols, point_nets)
     board_pads = _native_board_pads(footprints, board_nets)
 
-    if not footprints:
+    if not footprints and board is None:
         return ()
 
+    net_numbers = _board_trace_net_numbers(board.traces if board else (), board_nets)
     items: list[str] = []
     items.extend(_render_board_net(net) for net in board_nets)
+    items.extend(
+        _render_board_net_name(net_name, net_number)
+        for net_name, net_number in net_numbers.items()
+        if net_name not in {net.name for net in board_nets}
+    )
     items.extend(
         _render_board_power_footprint(net, uuid_factory=uuid_factory)
         for net in board_nets
@@ -394,14 +405,28 @@ def render_kicad_board_items(
         for footprint in footprints
     )
     items.extend(_render_board_segments(board_pads, uuid_factory=uuid_factory))
-    items.append(
-        _render_board_silkscreen_text(
-            "PCBSmith Demo",
-            x_mm=_board_x_mm(25),
-            y_mm=_board_y_mm(31),
-            uuid=uuid_factory(),
+    if board is not None:
+        for trace in board.traces:
+            items.extend(
+                _render_command_board_trace(
+                    trace,
+                    net_number=net_numbers[trace.net_name],
+                    uuid_factory=uuid_factory,
+                )
+            )
+        items.extend(
+            _render_command_board_text(text, uuid=uuid_factory())
+            for text in board.texts
         )
-    )
+    if footprints and (board is None or not board.texts):
+        items.append(
+            _render_board_silkscreen_text(
+                "PCBSmith Demo",
+                x_mm=_board_x_mm(25),
+                y_mm=_board_y_mm(31),
+                uuid=uuid_factory(),
+            )
+        )
     return tuple(items)
 
 
@@ -838,6 +863,10 @@ def _render_board_net(net: NativeBoardNet) -> str:
     return f'  (net {net.number} "{_escape_kicad_string(net.name)}")'
 
 
+def _render_board_net_name(net_name: str, net_number: int) -> str:
+    return f'  (net {net_number} "{_escape_kicad_string(net_name)}")'
+
+
 def _render_board_footprint(
     footprint: NativeBoardFootprint,
     *,
@@ -967,10 +996,15 @@ def _render_board_segment(
     net: NativeBoardNet,
     uuid: UUID,
 ) -> str:
-    return (
-        f"  (segment (start {start_x_mm} {start_y_mm}) "
-        f"(end {end_x_mm} {end_y_mm}) (width 0.25) "
-        f'(layer "{KICAD_LAYER_FRONT_COPPER}") (net {net.number}) (uuid {uuid}))'
+    return _render_board_segment_values(
+        start_x_mm=start_x_mm,
+        start_y_mm=start_y_mm,
+        end_x_mm=end_x_mm,
+        end_y_mm=end_y_mm,
+        width_mm="0.25",
+        layer=KICAD_LAYER_FRONT_COPPER,
+        net_number=net.number,
+        uuid=uuid,
     )
 
 
@@ -981,18 +1015,93 @@ def _render_board_silkscreen_text(
     y_mm: str,
     uuid: UUID,
 ) -> str:
+    return _render_board_text(
+        text,
+        x_mm=x_mm,
+        y_mm=y_mm,
+        rotation_deg=0,
+        layer=KICAD_LAYER_FRONT_SILK,
+        size_mm="1.5",
+        thickness_mm="0.15",
+        uuid=uuid,
+    )
+
+
+def _render_board_text(
+    text: str,
+    *,
+    x_mm: str,
+    y_mm: str,
+    rotation_deg: int,
+    layer: str,
+    size_mm: str,
+    thickness_mm: str,
+    uuid: UUID,
+) -> str:
     return f"""  (gr_text "{_escape_kicad_string(text)}"
-    (at {x_mm} {y_mm} 0)
-    (layer "{KICAD_LAYER_FRONT_SILK}")
+    (at {x_mm} {y_mm} {rotation_deg})
+    (layer "{layer}")
     (uuid {uuid})
     (effects
       (font
-        (size 1.5 1.5)
-        (thickness 0.15)
+        (size {size_mm} {size_mm})
+        (thickness {thickness_mm})
       )
       (justify left)
     )
   )"""
+
+
+def _render_command_board_trace(
+    trace: Trace,
+    *,
+    net_number: int,
+    uuid_factory: Callable[[], UUID],
+) -> tuple[str, ...]:
+    return tuple(
+        _render_board_segment_values(
+            start_x_mm=_board_point_x_mm(start),
+            start_y_mm=_board_point_y_mm(start),
+            end_x_mm=_board_point_x_mm(end),
+            end_y_mm=_board_point_y_mm(end),
+            width_mm=_format_mm(trace.width),
+            layer=trace.layer,
+            net_number=net_number,
+            uuid=uuid_factory(),
+        )
+        for start, end in zip(trace.points, trace.points[1:], strict=False)
+    )
+
+
+def _render_command_board_text(text: BoardText, *, uuid: UUID) -> str:
+    return _render_board_text(
+        text.text,
+        x_mm=_board_point_x_mm(text.position),
+        y_mm=_board_point_y_mm(text.position),
+        rotation_deg=text.rotation_deg,
+        layer=text.layer,
+        size_mm=_format_mm(text.size),
+        thickness_mm=_format_mm(text.thickness),
+        uuid=uuid,
+    )
+
+
+def _render_board_segment_values(
+    *,
+    start_x_mm: str,
+    start_y_mm: str,
+    end_x_mm: str,
+    end_y_mm: str,
+    width_mm: str,
+    layer: str,
+    net_number: int,
+    uuid: UUID,
+) -> str:
+    return (
+        f"  (segment (start {start_x_mm} {start_y_mm}) "
+        f"(end {end_x_mm} {end_y_mm}) (width {width_mm}) "
+        f'(layer "{layer}") (net {net_number}) (uuid {uuid}))'
+    )
 
 
 def _render_board_segments(
@@ -1033,6 +1142,27 @@ def _board_x_mm(value_mm: float) -> str:
 
 def _board_y_mm(value_mm: float) -> str:
     return _format_plain_mm(KICAD_BOARD_DISPLAY_OFFSET_Y_MM + value_mm)
+
+
+def _board_point_x_mm(point: Point) -> str:
+    return _board_x_mm(nm_to_mm(point.x))
+
+
+def _board_point_y_mm(point: Point) -> str:
+    return _board_y_mm(nm_to_mm(point.y))
+
+
+def _board_trace_net_numbers(
+    traces: tuple[Trace, ...],
+    board_nets: tuple[NativeBoardNet, ...],
+) -> dict[str, int]:
+    net_numbers = {net.name: net.number for net in board_nets}
+    next_number = max(net_numbers.values(), default=0) + 1
+    for trace in traces:
+        if trace.net_name not in net_numbers:
+            net_numbers[trace.net_name] = next_number
+            next_number += 1
+    return net_numbers
 
 
 def _format_plain_mm(value: float) -> str:
@@ -1405,6 +1535,12 @@ def _first_schematic_path(project: Project) -> str:
     if not project.schematics:
         raise ValueError("Project has no schematics")
     return project.schematics[0]
+
+
+def _first_board_path(project: Project) -> str:
+    if not project.boards:
+        raise ValueError("Project has no boards")
+    return project.boards[0]
 
 
 def _json_dump(value: object) -> str:

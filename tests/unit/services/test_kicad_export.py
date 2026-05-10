@@ -6,10 +6,11 @@ import shutil
 from pathlib import Path
 from uuid import UUID
 
+from pcbsmith.core.board import Board, BoardText, Layer, Trace
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
-from pcbsmith.services.project_io import create_project, save_schematic
+from pcbsmith.services.project_io import create_project, save_board, save_schematic
 
 FIXTURE = Path("tests/fixtures/voltage_divider")
 LED_SERIES_FIXTURE = Path("tests/fixtures/led_series_circuit")
@@ -483,3 +484,80 @@ def test_export_writes_no_connect_markers_to_kicad_schematic(tmp_path: Path) -> 
 
     assert "(no_connect" in schematic_text
     assert "(at 147.32 104.14)" in schematic_text
+
+
+def test_export_renders_command_authored_board_text_and_route(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Board Command Demo")
+    save_board(
+        source_project,
+        "boards/main.brd.json",
+        Board(
+            id="main",
+            traces=(
+                Trace(
+                    net_name="LED_A",
+                    layer=Layer.F_CU,
+                    points=(Point.from_mm(4, 31), Point.from_mm(46, 31)),
+                    width=250_000,
+                ),
+            ),
+            texts=(
+                BoardText(
+                    text="AI LED Demo",
+                    layer=Layer.F_SILK,
+                    position=Point.from_mm(25, 31),
+                    size=1_500_000,
+                    thickness=150_000,
+                ),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
+
+    assert '(net 1 "LED_A")' in board_text
+    assert (
+        '(segment (start 127.5 118.5) (end 169.5 118.5) (width 0.25) '
+        '(layer "F.Cu") (net 1)'
+    ) in board_text
+    assert '(gr_text "AI LED Demo"' in board_text
+    assert "(at 148.5 118.5 0)" in board_text
+
+
+def test_export_skips_default_silkscreen_when_board_text_exists(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    shutil.copytree(LED_SERIES_FIXTURE, source_project)
+    save_board(
+        source_project,
+        "boards/main.brd.json",
+        Board(
+            id="main",
+            texts=(
+                BoardText(
+                    text="AI LED Demo",
+                    layer=Layer.F_SILK,
+                    position=Point.from_mm(25, 31),
+                ),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
+
+    assert '(gr_text "AI LED Demo"' in board_text
+    assert '(gr_text "PCBSmith Demo"' not in board_text

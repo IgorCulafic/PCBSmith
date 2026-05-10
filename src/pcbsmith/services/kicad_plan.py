@@ -9,15 +9,20 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from pcbsmith.core.geom import Point
 from pcbsmith.services.project_io import (
+    load_board,
     load_project,
     load_schematic,
+    save_board,
     save_schematic,
 )
 from pcbsmith.services.schematic_commands import (
     AddLabelCommand,
     AddWireCommand,
     PlaceSymbolCommand,
-    SchematicCommand,
+    PlaceTextCommand,
+    PlanCommand,
+    RouteSegmentCommand,
+    apply_board_command,
     apply_schematic_command,
 )
 
@@ -32,7 +37,7 @@ class KiCadPlanPackage(BaseModel):
     version: Literal[1]
     description: str = ""
     schematic: str
-    commands: tuple[SchematicCommand, ...] = Field(min_length=1)
+    commands: tuple[PlanCommand, ...] = Field(min_length=1)
 
 
 class KiCadPlanResult(BaseModel):
@@ -53,8 +58,20 @@ def load_kicad_plan_package(path: Path) -> KiCadPlanPackage:
         return _PACKAGE_ADAPTER.validate_python(raw)
     except FileNotFoundError as exc:
         raise KiCadPlanError(f"Plan package not found: {path}") from exc
-    except (json.JSONDecodeError, ValidationError) as exc:
+    except json.JSONDecodeError as exc:
         raise KiCadPlanError(f"Invalid plan package: {path}") from exc
+    except ValidationError as exc:
+        messages = [str(error["msg"]) for error in exc.errors()]
+        first_error = next(
+            (
+                message
+                for message in messages
+                if "routing is not enabled" in message
+                or "text is not enabled" in message
+            ),
+            messages[0],
+        )
+        raise KiCadPlanError(f"Invalid plan package: {path}: {first_error}") from exc
 
 
 def run_kicad_plan(
@@ -68,20 +85,31 @@ def run_kicad_plan(
     if package.schematic not in project.schematics:
         raise KiCadPlanError(f"Target schematic is not in project: {package.schematic}")
 
+    board_path = project.boards[0] if project.boards else None
+    if board_path is None and any(_is_board_command(command) for command in package.commands):
+        raise KiCadPlanError("Project has no board file for board commands")
+
     schematic = load_schematic(project_dir, package.schematic)
+    board = load_board(project_dir, board_path) if board_path is not None else None
     summaries = tuple(_summarize_command(command) for command in package.commands)
     updated = schematic
+    updated_board = board
     messages: list[str] = []
     for command in package.commands:
-        command_result = apply_schematic_command(updated, command)
-        updated = command_result.schematic
-        messages.extend(command_result.messages)
+        if _is_schematic_command(command):
+            command_result = apply_schematic_command(updated, command)
+            updated = command_result.schematic
+            messages.extend(command_result.messages)
+        elif updated_board is not None:
+            updated_board = apply_board_command(updated_board, command)
 
     lines = [
         f"Plan: {package.description or '(no description)'}",
         f"Target schematic: {package.schematic}",
-        *(f"{index}. {summary}" for index, summary in enumerate(summaries, start=1)),
     ]
+    if any(_is_board_command(command) for command in package.commands):
+        lines.append(f"Target board: {board_path}")
+    lines.extend(f"{index}. {summary}" for index, summary in enumerate(summaries, start=1))
     if not apply:
         lines.append("Dry run only; no files changed. Pass --apply to save changes.")
         return KiCadPlanResult(
@@ -92,6 +120,8 @@ def run_kicad_plan(
         )
 
     save_schematic(project_dir, package.schematic, updated)
+    if updated_board is not None:
+        save_board(project_dir, board_path, updated_board)
     _append_action_log(
         project_dir,
         package_path=package_path,
@@ -108,7 +138,15 @@ def run_kicad_plan(
     )
 
 
-def _summarize_command(command: SchematicCommand) -> str:
+def _is_schematic_command(command: PlanCommand) -> bool:
+    return isinstance(command, PlaceSymbolCommand | AddWireCommand | AddLabelCommand)
+
+
+def _is_board_command(command: PlanCommand) -> bool:
+    return isinstance(command, RouteSegmentCommand | PlaceTextCommand)
+
+
+def _summarize_command(command: PlanCommand) -> str:
     if isinstance(command, PlaceSymbolCommand):
         return (
             f"place_symbol {command.symbol_id} value={command.value} "
@@ -120,6 +158,15 @@ def _summarize_command(command: SchematicCommand) -> str:
         return f"add_wire {_format_point(first)} -> {_format_point(last)}"
     if isinstance(command, AddLabelCommand):
         return f"add_label {command.name} at {_format_point(command.position)}"
+    if isinstance(command, RouteSegmentCommand):
+        first = command.points[0]
+        last = command.points[-1]
+        return (
+            f"route_segment {command.net_name} on {command.layer} "
+            f"{_format_point(first)} -> {_format_point(last)} width={_format_mm(command.width)} mm"
+        )
+    if isinstance(command, PlaceTextCommand):
+        return f"place_text {command.text} on {command.layer} at {_format_point(command.position)}"
 
 
 def _format_point(point: Point) -> str:

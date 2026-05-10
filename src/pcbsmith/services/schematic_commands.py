@@ -3,8 +3,9 @@ from __future__ import annotations
 import re
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from pcbsmith.core.board import Board, BoardText, Layer, Trace
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, Schematic, SymbolInstance, Wire
 
@@ -48,7 +49,43 @@ class AddLabelCommand(BaseModel):
     position: Point
 
 
+class RouteSegmentCommand(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["route_segment"] = "route_segment"
+    net_name: str
+    layer: Layer
+    points: tuple[Point, ...] = Field(min_length=2)
+    width: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def only_front_copper_for_now(self) -> RouteSegmentCommand:
+        if self.layer != Layer.F_CU:
+            raise ValueError(f"{self.layer} routing is not enabled yet")
+        return self
+
+
+class PlaceTextCommand(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    type: Literal["place_text"] = "place_text"
+    text: str
+    layer: Layer
+    position: Point
+    rotation_deg: int = 0
+    size: int = Field(default=1_500_000, gt=0)
+    thickness: int = Field(default=150_000, gt=0)
+
+    @model_validator(mode="after")
+    def only_silkscreen_text_for_now(self) -> PlaceTextCommand:
+        if self.layer not in {Layer.F_SILK, Layer.B_SILK}:
+            raise ValueError(f"{self.layer} text is not enabled yet")
+        return self
+
+
 SchematicCommand = PlaceSymbolCommand | AddWireCommand | AddLabelCommand
+BoardCommand = RouteSegmentCommand | PlaceTextCommand
+PlanCommand = SchematicCommand | BoardCommand
 
 
 class SchematicCommandResult(BaseModel):
@@ -68,6 +105,30 @@ def apply_schematic_command(
         return _add_wire(schematic, command)
     if isinstance(command, AddLabelCommand):
         return _add_label(schematic, command)
+
+
+def apply_board_command(
+    board: Board,
+    command: BoardCommand,
+) -> Board:
+    if isinstance(command, RouteSegmentCommand):
+        trace = Trace(
+            net_name=command.net_name,
+            layer=command.layer,
+            points=command.points,
+            width=command.width,
+        )
+        return board.model_copy(update={"traces": (*board.traces, trace)})
+    if isinstance(command, PlaceTextCommand):
+        text = BoardText(
+            text=command.text,
+            layer=command.layer,
+            position=command.position,
+            rotation_deg=command.rotation_deg,
+            size=command.size,
+            thickness=command.thickness,
+        )
+        return board.model_copy(update={"texts": (*board.texts, text)})
 
 
 def _place_symbol(
@@ -118,8 +179,13 @@ def _next_reference(schematic: Schematic, symbol_id: str) -> str:
 __all__ = [
     "AddLabelCommand",
     "AddWireCommand",
+    "BoardCommand",
     "PlaceSymbolCommand",
+    "PlaceTextCommand",
+    "PlanCommand",
+    "RouteSegmentCommand",
     "SchematicCommand",
     "SchematicCommandResult",
+    "apply_board_command",
     "apply_schematic_command",
 ]
