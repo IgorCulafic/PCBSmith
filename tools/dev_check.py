@@ -29,6 +29,10 @@ def run_openai_compatible_smoke(
     python: str,
     planner_package_path: Path,
     output_path: Path,
+    *,
+    project_dir: Path,
+    request_path: Path,
+    review_output_dir: Path,
 ) -> None:
     response_content = {
         "version": 1,
@@ -78,6 +82,22 @@ def run_openai_compatible_smoke(
                 "ai-openai-plan",
                 str(planner_package_path),
                 str(output_path),
+                "--base-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--model",
+                "dev-check-local",
+            ],
+        )
+        run_step(
+            "AI OpenAI-compatible review smoke",
+            [
+                python,
+                "-m",
+                "pcbsmith.cli",
+                "ai-openai-review",
+                str(project_dir),
+                str(request_path),
+                str(review_output_dir),
                 "--base-url",
                 f"http://127.0.0.1:{server.server_port}",
                 "--model",
@@ -252,6 +272,9 @@ def main() -> int:
         python,
         tmp_dir / "dev-check-ai-planner-package.json",
         tmp_dir / "dev-check-openai-compatible-plan.json",
+        project_dir=Path("tests/fixtures/led_series_circuit"),
+        request_path=request_path,
+        review_output_dir=tmp_dir / "dev-check-openai-compatible-review",
     )
     run_step(
         "AI plan check smoke",

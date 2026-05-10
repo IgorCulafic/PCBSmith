@@ -12,6 +12,7 @@ from pcbsmith.services.ai_brief import write_ai_brief
 from pcbsmith.services.ai_context import write_ai_context
 from pcbsmith.services.ai_demo_plan import write_ai_demo_plan
 from pcbsmith.services.ai_openai_compatible_plan import write_openai_compatible_plan
+from pcbsmith.services.ai_openai_compatible_review import run_openai_compatible_review
 from pcbsmith.services.ai_plan_check import check_ai_plan
 from pcbsmith.services.ai_plan_review import run_ai_plan_review
 from pcbsmith.services.ai_planner_package import write_ai_planner_package
@@ -271,6 +272,26 @@ def _cmd_ai_openai_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ai_openai_review(args: argparse.Namespace) -> int:
+    result = run_openai_compatible_review(
+        Path(args.project),
+        Path(args.request),
+        Path(args.output_dir),
+        base_url=args.base_url,
+        model=args.model,
+        api_key=args.api_key
+        or os.environ.get("PCBSMITH_OPENAI_API_KEY")
+        or os.environ.get("OPENAI_API_KEY"),
+        timeout_seconds=args.timeout,
+        use_json_mode=not args.no_json_mode,
+        kicad_project_dir=Path(args.kicad_project) if args.kicad_project else None,
+        apply=args.apply,
+    )
+    for line in result.lines:
+        print(line)
+    return result.exit_code
+
+
 def _cmd_ai_plan_check(args: argparse.Namespace) -> int:
     result = check_ai_plan(Path(args.planner_package), Path(args.candidate_plan))
     for line in result.lines:
@@ -496,6 +517,45 @@ def build_parser() -> argparse.ArgumentParser:
         help="omit response_format for local servers that do not support JSON mode",
     )
     ai_openai_plan_parser.set_defaults(func=_cmd_ai_openai_plan)
+
+    ai_openai_review_parser = subparsers.add_parser(
+        "ai-openai-review",
+        help="run request-to-model-to-approval-preview with an OpenAI-compatible endpoint",
+    )
+    ai_openai_review_parser.add_argument("project")
+    ai_openai_review_parser.add_argument("request")
+    ai_openai_review_parser.add_argument("output_dir")
+    ai_openai_review_parser.add_argument(
+        "--base-url",
+        required=True,
+        help="OpenAI-compatible API base URL, for example http://127.0.0.1:1234",
+    )
+    ai_openai_review_parser.add_argument("--model", required=True)
+    ai_openai_review_parser.add_argument(
+        "--api-key",
+        help="optional bearer token; defaults to PCBSMITH_OPENAI_API_KEY or OPENAI_API_KEY",
+    )
+    ai_openai_review_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=60,
+        help="request timeout in seconds",
+    )
+    ai_openai_review_parser.add_argument(
+        "--no-json-mode",
+        action="store_true",
+        help="omit response_format for local servers that do not support JSON mode",
+    )
+    ai_openai_review_parser.add_argument(
+        "--kicad-project",
+        help="optional KiCad review bundle with reports and visual references",
+    )
+    ai_openai_review_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="apply the validated candidate plan instead of dry-running it",
+    )
+    ai_openai_review_parser.set_defaults(func=_cmd_ai_openai_review)
 
     ai_plan_check_parser = subparsers.add_parser(
         "ai-plan-check",
