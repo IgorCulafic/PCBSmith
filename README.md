@@ -18,6 +18,7 @@ python -m pcbsmith.cli kicad-status
 python -m pcbsmith.cli kicad-doctor
 python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
+python -m pcbsmith.cli kicad-validate .\kicad-demo
 ```
 
 The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
@@ -69,6 +70,14 @@ python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 ```
 
 This creates the KiCad skeleton plus `pcbsmith_handoff.json`, a structured manifest of the source schematic symbols, wires, labels, and no-connect markers. That manifest is the contract a future KiCad plugin or IPC/API mapper can consume.
+
+To run KiCad's own checks on a KiCad project folder:
+
+```powershell
+python -m pcbsmith.cli kicad-validate .\kicad-demo
+```
+
+This discovers one `.kicad_sch` and one `.kicad_pcb` file, runs `kicad-cli sch erc` and `kicad-cli pcb drc`, writes JSON reports under `.pcbsmith/kicad-reports`, and summarizes pass/fail status. Use `--skip-execution` to verify project discovery and KiCad configuration without launching KiCad.
 
 ## Phase 1A and 1B GUI
 
