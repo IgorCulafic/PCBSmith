@@ -15,6 +15,7 @@ python -m pcbsmith.cli validate .\demo
 python -m pcbsmith.cli netlist .\demo
 python -m pcbsmith.cli erc .\demo
 python -m pcbsmith.cli kicad-status
+python -m pcbsmith.cli kicad-doctor
 python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 ```
@@ -43,6 +44,14 @@ If KiCad is installed somewhere unusual, set:
 $env:PCBSMITH_KICAD_CLI = "C:\Path\To\KiCad\bin\kicad-cli.exe"
 ```
 
+For a stronger readiness check that actually runs `kicad-cli version`:
+
+```powershell
+python -m pcbsmith.cli kicad-doctor
+```
+
+Use `--skip-version-check` only when you want to verify discovery/configuration without executing KiCad.
+
 Future KiCad integration should prefer KiCad project files, `kicad-cli`, the KiCad IPC API, and official `kicad-python` bindings. PCBSmith should avoid modifying KiCad source unless the companion/plugin approach proves insufficient.
 
 To create a first KiCad handoff skeleton:
@@ -51,7 +60,7 @@ To create a first KiCad handoff skeleton:
 python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 ```
 
-This writes the core KiCad project filenames: `.kicad_pro`, `.kicad_sch`, and `.kicad_pcb`. The generated files are intentionally minimal and marked as PCBSmith-generated; once KiCad is installed, open/save or CLI validation can canonicalize them before deeper automation is built on top.
+This writes the core KiCad project filenames: `.kicad_pro`, `.kicad_sch`, and `.kicad_pcb`. The generated board includes a starter 100 mm by 80 mm `Edge.Cuts` outline so KiCad DRC can validate the skeleton cleanly. The generated files are intentionally minimal and marked as PCBSmith-generated; once KiCad is installed, open/save or CLI validation can canonicalize them before deeper automation is built on top.
 
 To export an existing PCBSmith project into a KiCad handoff folder:
 

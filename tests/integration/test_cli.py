@@ -132,6 +132,22 @@ def test_kicad_status_reports_explicit_cli_path() -> None:
     )
 
 
+def test_kicad_doctor_reports_configured_cli_without_version_check() -> None:
+    result = _run_cli(
+        "kicad-doctor",
+        "--skip-version-check",
+        extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "KiCad CLI: C:\\Tools\\KiCad\\bin\\kicad-cli.exe (PCBSMITH_KICAD_CLI)",
+        "KiCad version: skipped",
+        "KiCad backend configured but not version-checked",
+    ]
+
+
 def test_kicad_new_creates_kicad_project_skeleton(tmp_path: Path) -> None:
     project_dir = tmp_path / "kicad-demo"
 

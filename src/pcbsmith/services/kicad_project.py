@@ -39,6 +39,7 @@ def create_kicad_project_skeleton(
     board_file = project_dir / f"{safe_name}.kicad_pcb"
 
     root_uuid = uuid_factory()
+    board_outline_uuid = uuid_factory()
     project_file.write_text(
         render_kicad_project_file(safe_name),
         encoding="utf-8",
@@ -47,7 +48,10 @@ def create_kicad_project_skeleton(
         render_kicad_schematic_file(root_uuid),
         encoding="utf-8",
     )
-    board_file.write_text(render_kicad_board_file(), encoding="utf-8")
+    board_file.write_text(
+        render_kicad_board_file(board_outline_uuid),
+        encoding="utf-8",
+    )
 
     return KiCadProjectSkeleton(
         project_name=safe_name,
@@ -99,7 +103,8 @@ def render_kicad_schematic_file(root_uuid: UUID) -> str:
 """
 
 
-def render_kicad_board_file() -> str:
+def render_kicad_board_file(board_outline_uuid: UUID | None = None) -> str:
+    board_outline_uuid = uuid4() if board_outline_uuid is None else board_outline_uuid
     return f"""(kicad_pcb
   (version {KICAD_FILE_VERSION})
   (generator "{GENERATOR}")
@@ -122,6 +127,15 @@ def render_kicad_board_file() -> str:
     (38 "B.Mask" user)
     (39 "F.Mask" user)
     (44 "Edge.Cuts" user)
+  )
+
+  (gr_rect
+    (start 0 0)
+    (end 100 80)
+    (stroke (width 0.1) (type default))
+    (fill none)
+    (layer "Edge.Cuts")
+    (uuid {board_outline_uuid})
   )
 )
 """

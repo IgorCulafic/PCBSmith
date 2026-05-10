@@ -139,6 +139,54 @@ Wire the CLI command to the export service.
 
 Document `kicad-export` and the `pcbsmith_handoff.json` contract.
 
+## Task 6: KiCad Backend Doctor
+
+**Files:**
+- Create: `src/pcbsmith/services/kicad_doctor.py`
+- Create: `tests/unit/services/test_kicad_doctor.py`
+- Modify: `src/pcbsmith/cli.py`
+- Modify: `tests/integration/test_cli.py`
+- Modify: `README.md`
+
+- [x] **Step 1: Write failing doctor tests**
+
+Cover missing KiCad, ready KiCad with version output, skipped version probing, and version probe failure.
+
+- [x] **Step 2: Implement doctor service**
+
+Create `run_kicad_doctor()` and `format_kicad_doctor_report()` around the existing KiCad CLI discovery boundary.
+
+- [x] **Step 3: Add CLI command**
+
+Add `pcbsmith kicad-doctor` and `--skip-version-check`.
+
+- [x] **Step 4: Update README**
+
+Document the readiness check and explain that skipped probing only checks discovery/configuration.
+
+## Task 7: KiCad CLI Skeleton Validation
+
+**Files:**
+- Modify: `src/pcbsmith/services/kicad_project.py`
+- Modify: `tests/unit/services/test_kicad_project.py`
+- Modify: `README.md`
+
+- [x] **Step 1: Run generated skeleton through KiCad CLI**
+
+Installed KiCad through Scoop and ran `kicad-doctor`; KiCad 10.0.1 is discoverable through `PATH`.
+
+- [x] **Step 2: Capture DRC failure**
+
+KiCad parsed the generated skeleton, ERC reported 0 violations, and PCB DRC reported `invalid_outline` because the board had no `Edge.Cuts` geometry.
+
+- [x] **Step 3: Add default board outline**
+
+Added a starter 100 mm by 80 mm `gr_rect` on `Edge.Cuts`.
+
+- [x] **Step 4: Verify with real KiCad CLI**
+
+Reran `kicad-cli sch erc` and `kicad-cli pcb drc` on a fresh exported handoff; both reported 0 violations.
+
 ## Verification
 
 Run before commit:
