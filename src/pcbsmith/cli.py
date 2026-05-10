@@ -22,6 +22,10 @@ from pcbsmith.services.kicad_preview import (
     run_kicad_preview,
 )
 from pcbsmith.services.kicad_project import create_kicad_project_skeleton
+from pcbsmith.services.kicad_review_bundle import (
+    format_kicad_review_bundle_result,
+    run_kicad_review_bundle,
+)
 from pcbsmith.services.kicad_validate import (
     format_kicad_validation_report,
     run_kicad_validation,
@@ -170,6 +174,18 @@ def _cmd_kicad_context(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_kicad_review_bundle(args: argparse.Namespace) -> int:
+    result = run_kicad_review_bundle(
+        Path(args.source_project),
+        Path(args.output_project),
+        project_name=args.name,
+        execute_kicad=not args.skip_execution,
+    )
+    for line in format_kicad_review_bundle_result(result):
+        print(line)
+    return result.exit_code
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -277,6 +293,20 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional KiCad handoff project with reports and visual references",
     )
     kicad_context_parser.set_defaults(func=_cmd_kicad_context)
+
+    kicad_review_bundle_parser = subparsers.add_parser(
+        "kicad-review-bundle",
+        help="export KiCad handoff, checks, previews, and AI context into one folder",
+    )
+    kicad_review_bundle_parser.add_argument("source_project")
+    kicad_review_bundle_parser.add_argument("output_project")
+    kicad_review_bundle_parser.add_argument("--name")
+    kicad_review_bundle_parser.add_argument(
+        "--skip-execution",
+        action="store_true",
+        help="create the bundle without running KiCad validation or preview exports",
+    )
+    kicad_review_bundle_parser.set_defaults(func=_cmd_kicad_review_bundle)
 
     return parser
 

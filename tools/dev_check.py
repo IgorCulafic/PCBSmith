@@ -74,6 +74,24 @@ def main() -> int:
         ],
         extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
     )
+    review_bundle_dir = tmp_dir / "review-bundle-dev-check"
+    if review_bundle_dir.exists():
+        if not review_bundle_dir.resolve().is_relative_to(tmp_dir.resolve()):
+            raise RuntimeError(f"Refusing to remove path outside .tmp: {review_bundle_dir}")
+        shutil.rmtree(review_bundle_dir)
+    run_step(
+        "KiCad review bundle smoke",
+        [
+            python,
+            "-m",
+            "pcbsmith.cli",
+            "kicad-review-bundle",
+            "tests/fixtures/led_series_circuit",
+            str(review_bundle_dir),
+            "--skip-execution",
+        ],
+        extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
+    )
     run_step(
         "AI context smoke",
         [

@@ -219,6 +219,32 @@ def test_kicad_preview_can_skip_execution(tmp_path: Path) -> None:
     ]
 
 
+def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "review-bundle"
+    shutil.copytree(FIXTURE, source_project)
+
+    result = _run_cli(
+        "kicad-review-bundle",
+        str(source_project),
+        str(output_project),
+        "--skip-execution",
+        extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        f"Review bundle: {output_project}",
+        f"Exported KiCad handoff: {output_project}",
+        "Validation: skipped",
+        "Preview: skipped",
+        f"AI context: {output_project / 'ai-context.json'}",
+    ]
+    assert (output_project / "Voltage_Divider.kicad_pro").exists()
+    assert (output_project / "ai-context.json").exists()
+
+
 def test_kicad_new_creates_kicad_project_skeleton(tmp_path: Path) -> None:
     project_dir = tmp_path / "kicad-demo"
 
