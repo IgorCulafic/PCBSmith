@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from PySide6.QtCore import Qt, Signal
+from PySide6.QtCore import QSize, Qt, Signal
 from PySide6.QtWidgets import (
     QCheckBox,
     QGridLayout,
@@ -8,13 +8,14 @@ from PySide6.QtWidgets import (
     QListWidget,
     QListWidgetItem,
     QPushButton,
-    QToolBox,
+    QToolButton,
     QVBoxLayout,
     QWidget,
 )
 
 from pcbsmith.core.catalog import CatalogEntry, CatalogPreferences, CatalogSearchQuery
 from pcbsmith.services import component_catalog
+from pcbsmith.ui.icons import symbol_icon
 
 ENTRY_ID_ROLE = Qt.ItemDataRole.UserRole
 BUTTON_ENTRY_ID_PROPERTY = "catalogEntryId"
@@ -29,11 +30,18 @@ class ComponentBrowser(QWidget):
         self.project_preferences = CatalogPreferences()
         self.search_box = QLineEdit()
         self.preferred_only = QCheckBox("Preferred")
-        self.family_box = QToolBox()
+        self.family_box = QWidget()
+        self.family_layout = QVBoxLayout()
         self.component_list = QListWidget()
         self._visible_entry_ids: tuple[str, ...] = ()
+        self._family_headers: dict[str, QToolButton] = {}
+        self._family_pages: dict[str, QWidget] = {}
 
         self.search_box.setPlaceholderText("Search components")
+        self.family_layout.setContentsMargins(0, 0, 0, 0)
+        self.family_layout.setSpacing(4)
+        self.family_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
+        self.family_box.setLayout(self.family_layout)
 
         layout = QVBoxLayout()
         layout.addWidget(self.search_box)
@@ -49,8 +57,7 @@ class ComponentBrowser(QWidget):
 
     def refresh(self) -> None:
         self.component_list.clear()
-        while self.family_box.count():
-            self.family_box.removeItem(0)
+        self._clear_family_box()
 
         query = CatalogSearchQuery(
             text=self.search_box.text(),
@@ -89,10 +96,33 @@ class ComponentBrowser(QWidget):
             group_entries = entries_by_group[group.id]
             if not group_entries:
                 continue
-            self.family_box.addItem(
-                self._build_family_page(group_entries),
-                group.name,
+            self._add_family(group.name, self._build_family_page(group_entries))
+
+    def _clear_family_box(self) -> None:
+        self._family_headers.clear()
+        self._family_pages.clear()
+        while self.family_layout.count():
+            item = self.family_layout.takeAt(0)
+            widget = item.widget()
+            if widget is not None:
+                widget.setParent(None)
+
+    def _add_family(self, title: str, page: QWidget) -> None:
+        header = QToolButton()
+        header.setText(title)
+        header.setCheckable(True)
+        header.setChecked(True)
+        header.setArrowType(Qt.ArrowType.DownArrow)
+        header.setToolButtonStyle(Qt.ToolButtonStyle.ToolButtonTextBesideIcon)
+        header.clicked.connect(
+            lambda checked=False, header=header, page=page: self._set_family_open(
+                header, page, checked
             )
+        )
+        self._family_headers[title] = header
+        self._family_pages[title] = page
+        self.family_layout.addWidget(header)
+        self.family_layout.addWidget(page)
 
     def _build_family_page(self, entries: list[CatalogEntry]) -> QWidget:
         page = QWidget()
@@ -103,23 +133,53 @@ class ComponentBrowser(QWidget):
         grid.setVerticalSpacing(8)
         for index, entry in enumerate(entries):
             button = QPushButton(self._family_button_text(entry))
+            button.setIcon(symbol_icon(entry.symbol_id))
+            button.setIconSize(QSize(32, 24))
             button.setMaximumHeight(36)
             button.setMinimumHeight(28)
-            button.setToolTip(entry.variant.name)
+            button.setToolTip(self._entry_tooltip(entry))
             button.setProperty(BUTTON_ENTRY_ID_PROPERTY, entry.id)
             button.clicked.connect(
-                lambda _checked=False, entry_id=entry.id: self.entry_activated.emit(
-                    entry_id
-                )
+                lambda _checked=False, entry_id=entry.id: self.entry_activated.emit(entry_id)
             )
             grid.addWidget(button, index // 3, index % 3)
         page.setLayout(grid)
         return page
 
+    def _set_family_open(
+        self,
+        header: QToolButton,
+        page: QWidget,
+        open_: bool,
+    ) -> None:
+        page.setVisible(open_)
+        header.setArrowType(Qt.ArrowType.DownArrow if open_ else Qt.ArrowType.RightArrow)
+
     def _family_button_text(self, entry: CatalogEntry) -> str:
         if entry.symbol_id in {"stdlib:VCC", "stdlib:GND"}:
             return entry.variant.name
         return entry.family.name
+
+    def _entry_tooltip(self, entry: CatalogEntry) -> str:
+        shortcuts = {
+            "pcbs:resistor_0603": "R",
+            "pcbs:capacitor_0603": "C",
+            "pcbs:diode_0603": "D",
+            "pcbs:led_0603": "L",
+        }
+        shortcut = shortcuts.get(entry.id)
+        if shortcut is None:
+            return entry.variant.name
+        return f"{entry.variant.name} ({shortcut})"
+
+    def family_titles(self) -> tuple[str, ...]:
+        return tuple(self._family_headers)
+
+    def family_header(self, title: str) -> QToolButton:
+        return self._family_headers[title]
+
+    def family_page(self, title: str) -> QWidget:
+        return self._family_pages[title]
 
     def set_project_preferences(
         self,

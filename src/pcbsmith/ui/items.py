@@ -13,6 +13,7 @@ from PySide6.QtWidgets import (
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, NoConnect, SymbolInstance, Wire
+from pcbsmith.ui.icons import _draw_symbol_preview
 from pcbsmith.ui.selection import SelectionKey
 
 SYMBOL_WIDTH = 6_000_000
@@ -22,7 +23,9 @@ CANVAS_BACKGROUND = QColor(248, 250, 252)
 GRID_COLOR = QColor(221, 226, 232)
 SYMBOL_TEXT_COLOR = QColor(17, 24, 39)
 SYMBOL_PEN = QPen(QColor(24, 32, 42), 0)
-WIRE_PEN = QPen(QColor(25, 96, 179), 0)
+WIRE_COLOR = QColor(25, 96, 179)
+WIRE_PEN = QPen(WIRE_COLOR, 4)
+WIRE_PEN.setCosmetic(True)
 CONNECTION_HANDLE_COLOR = QColor(27, 115, 209)
 CONNECTION_HANDLE_FILL = QColor(255, 255, 255)
 LABEL_TEXT_SCALE = 120_000
@@ -83,15 +86,7 @@ class SymbolItem(QGraphicsItem):
         painter.setPen(SYMBOL_PEN)
         painter.setBrush(Qt.BrushStyle.NoBrush)
 
-        lead = SYMBOL_WIDTH / 4
-        painter.drawLine(int(-SYMBOL_WIDTH / 2), 0, int(-lead), 0)
-        painter.drawRect(
-            int(-lead),
-            int(-SYMBOL_HEIGHT / 2),
-            int(lead * 2),
-            SYMBOL_HEIGHT,
-        )
-        painter.drawLine(int(lead), 0, int(SYMBOL_WIDTH / 2), 0)
+        _draw_symbol_preview(painter, self.symbol.symbol_id, self.boundingRect())
         handle_radius = 220_000
         painter.setPen(QPen(CONNECTION_HANDLE_COLOR, 0))
         painter.setBrush(CONNECTION_HANDLE_FILL)
@@ -115,11 +110,13 @@ class WireItem(QGraphicsItem):
         self,
         wire: Wire,
         index: int,
+        stroke_width: int = 4,
         parent: QGraphicsItem | None = None,
     ) -> None:
         super().__init__(parent)
         self.wire = wire
         self.index = index
+        self._stroke_width = stroke_width
         self.setFlag(QGraphicsItem.GraphicsItemFlag.ItemIsSelectable)
 
     def segments(self) -> tuple[tuple[Point, Point], ...]:
@@ -127,6 +124,9 @@ class WireItem(QGraphicsItem):
 
     def selection_key(self) -> SelectionKey:
         return SelectionKey("wire", str(self.index))
+
+    def stroke_width(self) -> int:
+        return self._stroke_width
 
     def boundingRect(self) -> QRectF:
         xs = [point.x for point in self.wire.points]
@@ -146,7 +146,9 @@ class WireItem(QGraphicsItem):
         del option, widget
 
         painter.save()
-        painter.setPen(WIRE_PEN)
+        pen = QPen(WIRE_COLOR, self._stroke_width)
+        pen.setCosmetic(True)
+        painter.setPen(pen)
         for start, end in self.segments():
             painter.drawLine(start.x, start.y, end.x, end.y)
         painter.restore()
