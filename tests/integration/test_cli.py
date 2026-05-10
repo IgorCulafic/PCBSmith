@@ -628,6 +628,89 @@ def test_ai_openai_plan_writes_candidate_plan_from_local_endpoint(tmp_path: Path
     assert data["description"] == "Local model resistor plan"
 
 
+def test_ai_openai_review_runs_request_to_approval_preview(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "project"
+    request_path = tmp_path / "request.txt"
+    output_dir = tmp_path / "ai-run"
+    create_result = _run_cli("new", str(project_dir), "--name", "OpenAI Review Demo")
+    assert create_result.returncode == 0
+    request_path.write_text("Add a resistor to the circuit\n", encoding="utf-8")
+    response_content = {
+        "version": 1,
+        "description": "Local model review resistor plan",
+        "schematic": "schematics/main.sch.json",
+        "commands": [
+            {
+                "type": "place_symbol",
+                "symbol_id": "stdlib:R",
+                "value": "1k",
+                "position": {"x": 0, "y": 0},
+                "footprint_id": "stdlib:R_0603",
+            }
+        ],
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers["Content-Length"])
+            self.rfile.read(length)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "choices": [
+                            {"message": {"content": json.dumps(response_content)}}
+                        ]
+                    }
+                ).encode("utf-8")
+            )
+
+        def log_message(self, _format: str, *_args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = _run_cli(
+            "ai-openai-review",
+            str(project_dir),
+            str(request_path),
+            str(output_dir),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--model",
+            "local-test",
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        f"AI OpenAI-compatible review bundle: {output_dir}",
+        f"Brief: {output_dir / 'ai-brief.json'}",
+        f"Planner package: {output_dir / 'ai-planner-package.json'}",
+        f"Candidate plan: {output_dir / 'candidate-plan.json'}",
+        "AI plan: valid",
+        "Target schematic: schematics/main.sch.json",
+        "Commands: 1",
+        "Approval preview:",
+        "Plan: Local model review resistor plan",
+        "Target schematic: schematics/main.sch.json",
+        "1. place_symbol stdlib:R value=1k at 0, 0 mm",
+        "Dry run only; no files changed. Pass --apply to save changes.",
+    ]
+    assert (output_dir / "ai-brief.json").exists()
+    assert (output_dir / "ai-planner-package.json").exists()
+    assert (output_dir / "candidate-plan.json").exists()
+
+
 def test_ai_plan_review_validates_and_dry_runs_candidate_plan(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     planner_path = tmp_path / "planner-package.json"
