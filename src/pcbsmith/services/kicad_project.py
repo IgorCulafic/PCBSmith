@@ -114,9 +114,16 @@ def render_kicad_schematic_file(
 def render_kicad_board_file(
     board_outline_uuid: UUID | None = None,
     board_body_items: Sequence[str] = (),
+    *,
+    outline_start_mm: str = "0 0",
+    outline_end_mm: str | None = None,
 ) -> str:
     board_outline_uuid = uuid4() if board_outline_uuid is None else board_outline_uuid
-    outline_end = "50 35" if board_body_items else "100 80"
+    outline_end_mm = (
+        ("50 35" if board_body_items else "100 80")
+        if outline_end_mm is None
+        else outline_end_mm
+    )
     body = "\n\n".join(board_body_items)
     body_section = f"\n\n{body}" if body else ""
     return f"""(kicad_pcb
@@ -144,8 +151,8 @@ def render_kicad_board_file(
   )
 {body_section}
   (gr_rect
-    (start 0 0)
-    (end {outline_end})
+    (start {outline_start_mm})
+    (end {outline_end_mm})
     (stroke (width 0.1) (type default))
     (fill none)
     (layer "Edge.Cuts")

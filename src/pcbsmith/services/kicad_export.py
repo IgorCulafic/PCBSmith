@@ -26,6 +26,10 @@ PCBSMITH_LIBRARY_NAME = "PCBSmith"
 KICAD_ZERO_OFFSET = Vec(0, 0)
 KICAD_SCHEMATIC_ITEM_OFFSET = Vec(25_400_000, 25_400_000)
 KICAD_SCHEMATIC_SHEET_CENTER = Point(mm_to_nm(147.32), mm_to_nm(104.14))
+KICAD_BOARD_DISPLAY_OFFSET_X_MM = 123.5
+KICAD_BOARD_DISPLAY_OFFSET_Y_MM = 87.5
+KICAD_BOARD_OUTLINE_START_MM = "123.5 87.5"
+KICAD_BOARD_OUTLINE_END_MM = "173.5 122.5"
 
 
 @dataclass(frozen=True)
@@ -198,6 +202,8 @@ def export_pcbs_project_to_kicad(
                 native_symbols=native_symbols,
                 uuid_factory=uuid_factory,
             ),
+            outline_start_mm=KICAD_BOARD_OUTLINE_START_MM,
+            outline_end_mm=KICAD_BOARD_OUTLINE_END_MM,
         ),
         encoding="utf-8",
     )
@@ -618,13 +624,13 @@ def _native_board_footprints(
         footprint_name = BOARD_FOOTPRINT_NAMES.get(symbol.spec.source_symbol_id)
         if footprint_name is None or len(symbol.pin_points) != 2:
             continue
-        center_x_mm = str(10 + board_index * 17)
+        center_x_mm = _board_x_mm(10 + board_index * 17)
         footprints.append(
             NativeBoardFootprint(
                 symbol=symbol,
                 footprint_name=footprint_name,
                 center_x_mm=center_x_mm,
-                center_y_mm="20",
+                center_y_mm=_board_y_mm(20),
                 pad_nets=(
                     point_nets.get(
                         (symbol.pin_points[0].x, symbol.pin_points[0].y)
@@ -645,9 +651,13 @@ def _native_board_pads(
     pads: list[NativeBoardPad] = []
     for net in board_nets:
         if net.name == "VCC":
-            pads.append(NativeBoardPad(x_mm="4", y_mm="20", net=net))
+            pads.append(
+                NativeBoardPad(x_mm=_board_x_mm(4), y_mm=_board_y_mm(20), net=net)
+            )
         elif net.name == "GND":
-            pads.append(NativeBoardPad(x_mm="45", y_mm="20", net=net))
+            pads.append(
+                NativeBoardPad(x_mm=_board_x_mm(45), y_mm=_board_y_mm(20), net=net)
+            )
 
     for footprint in footprints:
         for x_offset, net in zip(("-4", "4"), footprint.pad_nets, strict=True):
@@ -893,11 +903,12 @@ def _render_board_power_footprint(
     *,
     uuid_factory: Callable[[], UUID],
 ) -> str:
-    x_mm = "4" if net.name == "VCC" else "45"
+    x_mm = _board_x_mm(4 if net.name == "VCC" else 45)
+    y_mm = _board_y_mm(20)
     return f"""  (footprint "PCBSmith_POWER_PAD"
     (layer "F.Cu")
     (uuid {uuid_factory()})
-    (at {x_mm} 20)
+    (at {x_mm} {y_mm})
     (property "Reference" "{_escape_kicad_string(net.name)}"
       (at 0 -2 0)
       (layer "F.SilkS")
@@ -980,6 +991,14 @@ def _render_board_segments(
 
 def _offset_mm(base_mm: str, offset_mm: str) -> str:
     return _format_plain_mm(float(base_mm) + float(offset_mm))
+
+
+def _board_x_mm(value_mm: float) -> str:
+    return _format_plain_mm(KICAD_BOARD_DISPLAY_OFFSET_X_MM + value_mm)
+
+
+def _board_y_mm(value_mm: float) -> str:
+    return _format_plain_mm(KICAD_BOARD_DISPLAY_OFFSET_Y_MM + value_mm)
 
 
 def _format_plain_mm(value: float) -> str:
