@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -10,6 +11,7 @@ from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.ai_brief import write_ai_brief
 from pcbsmith.services.ai_context import write_ai_context
 from pcbsmith.services.ai_demo_plan import write_ai_demo_plan
+from pcbsmith.services.ai_openai_compatible_plan import write_openai_compatible_plan
 from pcbsmith.services.ai_plan_check import check_ai_plan
 from pcbsmith.services.ai_plan_review import run_ai_plan_review
 from pcbsmith.services.ai_planner_package import write_ai_planner_package
@@ -253,6 +255,22 @@ def _cmd_ai_demo_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ai_openai_plan(args: argparse.Namespace) -> int:
+    write_openai_compatible_plan(
+        Path(args.planner_package),
+        Path(args.output),
+        base_url=args.base_url,
+        model=args.model,
+        api_key=args.api_key
+        or os.environ.get("PCBSMITH_OPENAI_API_KEY")
+        or os.environ.get("OPENAI_API_KEY"),
+        timeout_seconds=args.timeout,
+        use_json_mode=not args.no_json_mode,
+    )
+    print(f"Wrote OpenAI-compatible AI candidate plan to {Path(args.output)}")
+    return 0
+
+
 def _cmd_ai_plan_check(args: argparse.Namespace) -> int:
     result = check_ai_plan(Path(args.planner_package), Path(args.candidate_plan))
     for line in result.lines:
@@ -449,6 +467,35 @@ def build_parser() -> argparse.ArgumentParser:
     ai_demo_plan_parser.add_argument("planner_package")
     ai_demo_plan_parser.add_argument("output")
     ai_demo_plan_parser.set_defaults(func=_cmd_ai_demo_plan)
+
+    ai_openai_plan_parser = subparsers.add_parser(
+        "ai-openai-plan",
+        help="call an OpenAI-compatible chat endpoint to write a candidate plan",
+    )
+    ai_openai_plan_parser.add_argument("planner_package")
+    ai_openai_plan_parser.add_argument("output")
+    ai_openai_plan_parser.add_argument(
+        "--base-url",
+        required=True,
+        help="OpenAI-compatible API base URL, for example http://127.0.0.1:1234",
+    )
+    ai_openai_plan_parser.add_argument("--model", required=True)
+    ai_openai_plan_parser.add_argument(
+        "--api-key",
+        help="optional bearer token; defaults to PCBSMITH_OPENAI_API_KEY or OPENAI_API_KEY",
+    )
+    ai_openai_plan_parser.add_argument(
+        "--timeout",
+        type=float,
+        default=60,
+        help="request timeout in seconds",
+    )
+    ai_openai_plan_parser.add_argument(
+        "--no-json-mode",
+        action="store_true",
+        help="omit response_format for local servers that do not support JSON mode",
+    )
+    ai_openai_plan_parser.set_defaults(func=_cmd_ai_openai_plan)
 
     ai_plan_check_parser = subparsers.add_parser(
         "ai-plan-check",
