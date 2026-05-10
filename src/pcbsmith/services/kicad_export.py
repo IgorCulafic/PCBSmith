@@ -1000,6 +1000,7 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
             value="R",
             description="Generic resistor",
             drawing=_resistor_symbol_drawing(),
+            pin_length_mm="2.54",
         )
     if spec.library_symbol_name == "C":
         return _render_two_pin_box_library_symbol(
@@ -1008,6 +1009,7 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
             value="C",
             description="Generic capacitor",
             drawing=_capacitor_symbol_drawing(),
+            pin_length_mm="4.318",
         )
     if spec.library_symbol_name == "D":
         return _render_two_pin_box_library_symbol(
@@ -1016,6 +1018,7 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
             value="D",
             description="Generic diode",
             drawing=_diode_symbol_drawing("D_0_1"),
+            pin_length_mm="3.81",
         )
     if spec.library_symbol_name == "LED":
         return _render_two_pin_box_library_symbol(
@@ -1024,6 +1027,7 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
             value="LED",
             description="Generic LED",
             drawing=_led_symbol_drawing(),
+            pin_length_mm="3.81",
         )
     if spec.library_symbol_name == "VCC":
         return _render_power_library_symbol(
@@ -1053,6 +1057,7 @@ def _render_two_pin_box_library_symbol(
     value: str,
     description: str,
     drawing: str,
+    pin_length_mm: str,
 ) -> str:
     return f"""  (symbol "{name}"
     (pin_numbers
@@ -1073,7 +1078,7 @@ def _render_two_pin_box_library_symbol(
     (symbol "{value}_1_1"
       (pin passive line
         (at -5.08 0 0)
-        (length 0)
+        (length {pin_length_mm})
         (name "1"
           (effects
             (font
@@ -1091,7 +1096,7 @@ def _render_two_pin_box_library_symbol(
       )
       (pin passive line
         (at 5.08 0 180)
-        (length 0)
+        (length {pin_length_mm})
         (name "2"
           (effects
             (font

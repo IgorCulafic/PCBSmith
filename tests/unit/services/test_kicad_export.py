@@ -293,6 +293,9 @@ def test_export_writes_common_passive_and_diode_family_symbols(tmp_path: Path) -
     assert '(symbol "C"' in library_text
     assert '(symbol "D"' in library_text
     assert '(symbol "LED"' in library_text
+    assert "(length 2.54)" in library_text
+    assert "(length 3.81)" in library_text
+    assert "(length 4.318)" in library_text
     assert schematic_text.count("(no_connect") == 6
 
 
