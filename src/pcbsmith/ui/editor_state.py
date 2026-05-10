@@ -1,24 +1,15 @@
 from __future__ import annotations
 
-import re
 from dataclasses import dataclass, replace
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import Junction, NetLabel, NoConnect, Schematic, SymbolInstance, Wire
+from pcbsmith.services.schematic_commands import (
+    AddWireCommand,
+    PlaceSymbolCommand,
+    apply_schematic_command,
+)
 from pcbsmith.ui.selection import SelectionKey, parse_index_key
-
-_REFERENCE_PATTERN = re.compile(r"^([A-Z]+)([0-9]+)$")
-_PREFIX_BY_SYMBOL = {
-    "stdlib:R": "R",
-    "stdlib:C": "C",
-    "stdlib:D": "D",
-    "stdlib:LED": "LED",
-    "stdlib:SW_PUSH": "SW",
-    "stdlib:SW_SPST": "SW",
-    "stdlib:VCC": "PWR",
-    "stdlib:GND": "PWR",
-    "stdlib:CONN_01X02": "J",
-}
 
 
 @dataclass(frozen=True)
@@ -53,18 +44,24 @@ class EditorState:
         rotation_deg: int = 0,
         footprint_id: str | None = None,
     ) -> EditorState:
-        symbol = SymbolInstance(
-            reference=self._next_reference(symbol_id),
-            symbol_id=symbol_id,
-            value=value,
-            position=position,
-            rotation_deg=rotation_deg,
-            footprint_id=footprint_id,
+        result = apply_schematic_command(
+            self.to_schematic(),
+            PlaceSymbolCommand(
+                symbol_id=symbol_id,
+                value=value,
+                position=position,
+                rotation_deg=rotation_deg,
+                footprint_id=footprint_id,
+            ),
         )
-        return replace(self, symbols=(*self.symbols, symbol))
+        return self.from_schematic(result.schematic)
 
     def add_wire(self, points: tuple[Point, ...]) -> EditorState:
-        return replace(self, wires=(*self.wires, Wire(points=points)))
+        result = apply_schematic_command(
+            self.to_schematic(),
+            AddWireCommand(points=points),
+        )
+        return self.from_schematic(result.schematic)
 
     def move_item(self, selection: SelectionKey, position: Point) -> EditorState:
         if selection.kind == "symbol":
@@ -241,15 +238,6 @@ class EditorState:
             labels=self.labels,
             no_connects=self.no_connects,
         )
-
-    def _next_reference(self, symbol_id: str) -> str:
-        prefix = _PREFIX_BY_SYMBOL.get(symbol_id, "U")
-        used = [
-            int(match.group(2))
-            for symbol in self.symbols
-            if (match := _REFERENCE_PATTERN.match(symbol.reference)) and match.group(1) == prefix
-        ]
-        return f"{prefix}{max(used, default=0) + 1}"
 
     def _validated_index(self, selection: SelectionKey, length: int) -> int:
         index = parse_index_key(selection)
