@@ -91,6 +91,13 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
 
     assert context["kicad"] == {
         "project_dir": str(kicad_dir),
+        "board_layers": [
+            {"id": "F.Cu", "role": "front_copper", "routing": True},
+            {"id": "B.Cu", "role": "back_copper", "routing": False},
+            {"id": "F.SilkS", "role": "front_silkscreen", "routing": False},
+            {"id": "B.SilkS", "role": "back_silkscreen", "routing": False},
+            {"id": "Edge.Cuts", "role": "board_outline", "routing": False},
+        ],
         "reports": [
             {
                 "name": "erc",

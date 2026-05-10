@@ -78,9 +78,20 @@ def _point_mm(point: Point) -> dict[str, float]:
 def _kicad_context(kicad_project_dir: Path) -> dict[str, Any]:
     return {
         "project_dir": str(kicad_project_dir),
+        "board_layers": _board_layers(),
         "reports": _kicad_reports(kicad_project_dir),
         "visuals": _kicad_visuals(kicad_project_dir),
     }
+
+
+def _board_layers() -> list[dict[str, object]]:
+    return [
+        {"id": "F.Cu", "role": "front_copper", "routing": True},
+        {"id": "B.Cu", "role": "back_copper", "routing": False},
+        {"id": "F.SilkS", "role": "front_silkscreen", "routing": False},
+        {"id": "B.SilkS", "role": "back_silkscreen", "routing": False},
+        {"id": "Edge.Cuts", "role": "board_outline", "routing": False},
+    ]
 
 
 def _kicad_reports(kicad_project_dir: Path) -> list[dict[str, Any]]:
