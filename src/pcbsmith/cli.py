@@ -30,6 +30,10 @@ from pcbsmith.services.kicad_library_index import (
     kicad_library_roots_from_cli,
     write_kicad_library_index,
 )
+from pcbsmith.services.kicad_part_resolver import (
+    format_kicad_part_resolution,
+    resolve_kicad_part_from_index_file,
+)
 from pcbsmith.services.kicad_plan import KiCadPlanError, run_kicad_plan
 from pcbsmith.services.kicad_preview import (
     format_kicad_preview_report,
@@ -193,11 +197,22 @@ def _cmd_kicad_library_index(args: argparse.Namespace) -> int:
         footprints_dir=footprints_dir,
         symbol_libraries=tuple(args.symbol_library or ["Device", "power"]),
         footprint_libraries=tuple(
-            args.footprint_library or ["Resistor_SMD", "Capacitor_SMD", "LED_SMD"]
+            args.footprint_library
+            or ["Resistor_SMD", "Capacitor_SMD", "LED_SMD", "Diode_SMD"]
         ),
     )
     print(f"Wrote KiCad library index to {Path(args.output)}")
     return 0
+
+
+def _cmd_kicad_part_resolve(args: argparse.Namespace) -> int:
+    result = resolve_kicad_part_from_index_file(
+        args.entry_id,
+        Path(args.library_index),
+    )
+    for line in format_kicad_part_resolution(result):
+        print(line)
+    return 0 if result.available else 1
 
 
 def _cmd_kicad_plan(args: argparse.Namespace) -> int:
@@ -434,6 +449,14 @@ def build_parser() -> argparse.ArgumentParser:
         help="KiCad footprint library name to include, repeatable",
     )
     kicad_library_index_parser.set_defaults(func=_cmd_kicad_library_index)
+
+    kicad_part_resolve_parser = subparsers.add_parser(
+        "kicad-part-resolve",
+        help="resolve a PCBSmith catalog entry against a KiCad library index",
+    )
+    kicad_part_resolve_parser.add_argument("entry_id")
+    kicad_part_resolve_parser.add_argument("library_index")
+    kicad_part_resolve_parser.set_defaults(func=_cmd_kicad_part_resolve)
 
     kicad_plan_parser = subparsers.add_parser(
         "kicad-plan",

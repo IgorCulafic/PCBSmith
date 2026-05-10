@@ -79,6 +79,15 @@ class ComponentVariant(BaseModel):
     default_value: str | None = None
 
 
+class KiCadPartBinding(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    symbol_id: str
+    footprint_id: str | None = None
+    model_3d_path: str | None = None
+    source: str = "kicad"
+
+
 class CatalogEntry(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -87,6 +96,7 @@ class CatalogEntry(BaseModel):
     variant: ComponentVariant
     symbol_id: str
     footprint_id: str | None = None
+    kicad: KiCadPartBinding | None = None
     tags: tuple[str, ...] = ()
     aliases: tuple[str, ...] = ()
     group_ids: tuple[str, ...] = ()

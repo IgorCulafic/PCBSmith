@@ -39,6 +39,22 @@ def test_builtin_catalog_contains_basic_component_entries() -> None:
     } <= {entry.id for entry in catalog.entries}
 
 
+def test_builtin_catalog_entries_include_kicad_bindings() -> None:
+    catalog = builtin_catalog()
+    resistor = entry_by_id(catalog, "pcbs:resistor_0603")
+    led = entry_by_id(catalog, "pcbs:led_0603")
+    vcc = entry_by_id(catalog, "pcbs:vcc_power")
+
+    assert resistor.kicad is not None
+    assert resistor.kicad.symbol_id == "Device:R"
+    assert resistor.kicad.footprint_id == "Resistor_SMD:R_0603_1608Metric"
+    assert led.kicad is not None
+    assert led.kicad.symbol_id == "Device:LED"
+    assert vcc.kicad is not None
+    assert vcc.kicad.symbol_id == "power:VCC"
+    assert vcc.kicad.footprint_id is None
+
+
 def test_builtin_catalog_validates() -> None:
     validate_catalog(builtin_catalog())
 

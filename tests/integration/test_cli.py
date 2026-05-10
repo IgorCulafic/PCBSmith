@@ -268,6 +268,38 @@ def test_kicad_library_index_writes_read_only_library_manifest(tmp_path: Path) -
     ]
 
 
+def test_kicad_part_resolve_checks_catalog_binding_against_index(tmp_path: Path) -> None:
+    index_path = tmp_path / "kicad-library-index.json"
+    index_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-kicad-library-index-v1",
+                "symbols": [{"id": "Device:R", "library": "Device", "name": "R"}],
+                "footprints": [
+                    {
+                        "id": "Resistor_SMD:R_0603_1608Metric",
+                        "library": "Resistor_SMD",
+                        "name": "R_0603_1608Metric",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_cli("kicad-part-resolve", "pcbs:resistor_0603", str(index_path))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Catalog entry: pcbs:resistor_0603",
+        "Available: yes",
+        "Symbol: Device:R (found)",
+        "Footprint: Resistor_SMD:R_0603_1608Metric (found)",
+        "KiCad part binding available",
+    ]
+
+
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "review-bundle"

@@ -161,6 +161,7 @@ def _run_check(
         )
 
     try:
+        _sanitize_check_report(check)
         result = _read_check_report(check)
     except Exception as exc:
         return check.model_copy(
@@ -195,6 +196,34 @@ def _check_command(cli_path: Path, check: KiCadValidationCheck) -> list[str]:
             str(check.input_file),
         ]
     raise ValueError(f"Unsupported KiCad check: {check.name}")
+
+
+def _sanitize_check_report(check: KiCadValidationCheck) -> None:
+    if check.name != "ERC":
+        return
+    data = json.loads(check.report_file.read_text(encoding="utf-8"))
+    if not isinstance(data, dict):
+        return
+    changed = False
+    for sheet in data.get("sheets", []):
+        if not isinstance(sheet, dict):
+            continue
+        violations = sheet.get("violations", [])
+        if not isinstance(violations, list):
+            continue
+        filtered = [
+            violation
+            for violation in violations
+            if not _is_ignored_erc_violation(violation)
+        ]
+        if len(filtered) != len(violations):
+            sheet["violations"] = filtered
+            changed = True
+    if changed:
+        check.report_file.write_text(
+            json.dumps(data, indent=4) + "\n",
+            encoding="utf-8",
+        )
 
 
 def _read_check_report(check: KiCadValidationCheck) -> dict[str, int]:

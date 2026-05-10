@@ -174,6 +174,17 @@ def main() -> int:
         ],
     )
     run_step(
+        "KiCad part resolver smoke",
+        [
+            python,
+            "-m",
+            "pcbsmith.cli",
+            "kicad-part-resolve",
+            "pcbs:resistor_0603",
+            str(tmp_dir / "dev-check-kicad-library-index.json"),
+        ],
+    )
+    run_step(
         "KiCad skeleton smoke",
         [
             python,
