@@ -13,6 +13,7 @@ from pcbsmith.ui.component_browser import ComponentBrowser
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
 
+
 def test_scene_places_catalog_component(qtbot) -> None:
     scene = SchematicScene()
     catalog = component_catalog.builtin_catalog()
