@@ -146,12 +146,12 @@ def test_export_writes_native_symbols_wires_and_connected_net_labels(
     assert '(property "Reference" "R1"' in schematic_text
     assert '(property "Value" "10k"' in schematic_text
     assert "(wire" in schematic_text
-    assert "(xy 35.56 25.4) (xy 40.64 25.4)" in schematic_text
-    assert "(xy 50.8 25.4) (xy 55.88 25.4)" in schematic_text
+    assert "(xy 142.24 104.14) (xy 147.32 104.14)" in schematic_text
+    assert "(xy 157.48 104.14) (xy 162.56 104.14)" in schematic_text
     assert '(label "VCC"' not in schematic_text
     assert '(label "OUT"' in schematic_text
-    _assert_hidden_label(schematic_text, "GND", "50.8", "25.4")
-    assert "(at 40.64 25.4 0)" in schematic_text
+    _assert_hidden_label(schematic_text, "GND", "157.48", "104.14")
+    assert "(at 152.4 104.14 0)" in schematic_text
     assert '(net 1 "OUT")' in board_text
     assert '(net 2 "GND")' in board_text
     assert '(footprint "PCBSmith_R_0603"' in board_text
@@ -230,9 +230,9 @@ def test_export_translates_source_origin_into_visible_sheet_area(
 
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
 
-    assert "(at 25.4 25.4 0)" in schematic_text
-    assert "(at 20.32 25.4)" in schematic_text
-    assert "(at 30.48 25.4)" in schematic_text
+    assert "(at 147.32 104.14 0)" in schematic_text
+    assert "(at 142.24 104.14)" in schematic_text
+    assert "(at 152.4 104.14)" in schematic_text
 
 
 def test_export_writes_common_passive_and_diode_family_symbols(tmp_path: Path) -> None:
@@ -322,13 +322,13 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     assert '(property "Reference" "LED1"' in schematic_text
     assert '(property "Value" "330"' in schematic_text
     assert '(property "Value" "Red LED"' in schematic_text
-    assert "(at 66.04 25.4 0)" in schematic_text
-    assert "(xy 25.4 25.4) (xy 35.56 25.4)" in schematic_text
-    assert "(xy 45.72 25.4) (xy 60.96 25.4)" in schematic_text
-    assert "(xy 71.12 25.4) (xy 86.36 25.4)" in schematic_text
-    _assert_hidden_label(schematic_text, "VCC", "35.56", "25.4")
-    _assert_hidden_label(schematic_text, "LED_A", "53.34", "25.4")
-    _assert_hidden_label(schematic_text, "GND", "71.12", "25.4")
+    assert "(at 157.48 104.14 0)" in schematic_text
+    assert "(xy 116.84 104.14) (xy 127 104.14)" in schematic_text
+    assert "(xy 137.16 104.14) (xy 152.4 104.14)" in schematic_text
+    assert "(xy 162.56 104.14) (xy 177.8 104.14)" in schematic_text
+    _assert_hidden_label(schematic_text, "VCC", "127", "104.14")
+    _assert_hidden_label(schematic_text, "LED_A", "144.78", "104.14")
+    _assert_hidden_label(schematic_text, "GND", "162.56", "104.14")
     assert '(net 1 "VCC")' in board_text
     assert '(net 2 "LED_A")' in board_text
     assert '(net 3 "GND")' in board_text
@@ -417,7 +417,7 @@ def test_export_hides_signal_net_labels_on_wire_interiors(
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
     board_text = result.skeleton.board_file.read_text(encoding="utf-8")
 
-    _assert_hidden_label(schematic_text, "OUT", "53.34", "25.4")
+    _assert_hidden_label(schematic_text, "OUT", "144.78", "104.14")
     assert '(footprint "PCBSmith_C_0603"' in board_text
     assert '(net 2 "OUT")' in board_text
 
@@ -474,4 +474,4 @@ def test_export_writes_no_connect_markers_to_kicad_schematic(tmp_path: Path) -> 
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
 
     assert "(no_connect" in schematic_text
-    assert "(at 33.02 35.56)" in schematic_text
+    assert "(at 147.32 104.14)" in schematic_text

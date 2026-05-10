@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
 
-from pcbsmith.core.geom import Point, Vec, nm_to_mm
+from pcbsmith.core.geom import Point, Vec, mm_to_nm, nm_to_mm
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
 from pcbsmith.services.kicad_project import (
@@ -25,6 +25,7 @@ PCBSMITH_SYMBOL_TABLE_FILE_NAME = "sym-lib-table"
 PCBSMITH_LIBRARY_NAME = "PCBSmith"
 KICAD_ZERO_OFFSET = Vec(0, 0)
 KICAD_SCHEMATIC_ITEM_OFFSET = Vec(25_400_000, 25_400_000)
+KICAD_SCHEMATIC_SHEET_CENTER = Point(mm_to_nm(147.32), mm_to_nm(104.14))
 
 
 @dataclass(frozen=True)
@@ -275,18 +276,22 @@ def render_kicad_schematic_items(
     connected_points = {
         (point.x, point.y) for wire in native_wires for point in wire.points
     } | pin_points
+    display_offset = _schematic_display_offset(
+        schematic,
+        native_symbols=native_symbols,
+    )
 
     items: list[str] = []
     items.extend(
         _render_kicad_symbol(
             symbol,
             project_name=project_name,
-            offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+            offset=display_offset,
         )
         for symbol in native_symbols
     )
     items.extend(
-        _render_kicad_wire(wire, uuid_factory(), offset=KICAD_SCHEMATIC_ITEM_OFFSET)
+        _render_kicad_wire(wire, uuid_factory(), offset=display_offset)
         for wire in native_wires
     )
     for label in schematic.labels:
@@ -301,7 +306,7 @@ def render_kicad_schematic_items(
             _render_kicad_label(
                 label,
                 uuid_factory(),
-                offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+                offset=display_offset,
                 hidden=_is_wire_interior_label(
                     label,
                     connected_points,
@@ -313,7 +318,7 @@ def render_kicad_schematic_items(
         _render_kicad_label(
             label,
             uuid_factory(),
-            offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+            offset=display_offset,
             hidden=True,
         )
         for label in _power_wire_endpoint_labels(native_wires, power_points)
@@ -322,7 +327,7 @@ def render_kicad_schematic_items(
         _render_kicad_no_connect(
             no_connect,
             uuid_factory(),
-            offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+            offset=display_offset,
         )
         for no_connect in schematic.no_connects
     )
@@ -457,6 +462,42 @@ def _wire_connects_native_points(
         (wire.points[0].x, wire.points[0].y) in pin_points
         and (wire.points[-1].x, wire.points[-1].y) in pin_points
     )
+
+
+def _schematic_display_offset(
+    schematic: Schematic,
+    *,
+    native_symbols: tuple[NativeSymbolInstance, ...],
+) -> Vec:
+    points = _schematic_display_points(schematic, native_symbols=native_symbols)
+    if not points:
+        return KICAD_SCHEMATIC_ITEM_OFFSET
+    left = min(point.x for point in points)
+    right = max(point.x for point in points)
+    top = min(point.y for point in points)
+    bottom = max(point.y for point in points)
+    center_x = (left + right) // 2
+    center_y = (top + bottom) // 2
+    return Vec(
+        KICAD_SCHEMATIC_SHEET_CENTER.x - center_x,
+        KICAD_SCHEMATIC_SHEET_CENTER.y - center_y,
+    )
+
+
+def _schematic_display_points(
+    schematic: Schematic,
+    *,
+    native_symbols: tuple[NativeSymbolInstance, ...],
+) -> tuple[Point, ...]:
+    points: list[Point] = []
+    for symbol in native_symbols:
+        points.append(symbol.source.position)
+        points.extend(symbol.pin_points)
+    for wire in schematic.wires:
+        points.extend(wire.points)
+    points.extend(label.position for label in schematic.labels)
+    points.extend(no_connect.position for no_connect in schematic.no_connects)
+    return tuple(points)
 
 
 def _should_render_native_label(
