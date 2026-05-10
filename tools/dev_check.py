@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
@@ -20,6 +23,70 @@ def run_step(
     result = subprocess.run(args, cwd=REPO_ROOT, env=env, check=False)
     if result.returncode != 0:
         raise SystemExit(result.returncode)
+
+
+def run_openai_compatible_smoke(
+    python: str,
+    planner_package_path: Path,
+    output_path: Path,
+) -> None:
+    response_content = {
+        "version": 1,
+        "description": "Dev-check OpenAI-compatible resistor plan",
+        "schematic": "schematics/main.sch.json",
+        "commands": [
+            {
+                "type": "place_symbol",
+                "symbol_id": "stdlib:R",
+                "value": "1k",
+                "position": {"x": 0, "y": 0},
+                "footprint_id": "stdlib:R_0603",
+            }
+        ],
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers["Content-Length"])
+            self.rfile.read(length)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "choices": [
+                            {"message": {"content": json.dumps(response_content)}}
+                        ]
+                    }
+                ).encode("utf-8")
+            )
+
+        def log_message(self, _format: str, *_args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        run_step(
+            "AI OpenAI-compatible planner smoke",
+            [
+                python,
+                "-m",
+                "pcbsmith.cli",
+                "ai-openai-plan",
+                str(planner_package_path),
+                str(output_path),
+                "--base-url",
+                f"http://127.0.0.1:{server.server_port}",
+                "--model",
+                "dev-check-local",
+            ],
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 def main() -> int:
@@ -180,6 +247,11 @@ def main() -> int:
             str(tmp_dir / "dev-check-ai-planner-package.json"),
             str(candidate_plan_path),
         ],
+    )
+    run_openai_compatible_smoke(
+        python,
+        tmp_dir / "dev-check-ai-planner-package.json",
+        tmp_dir / "dev-check-openai-compatible-plan.json",
     )
     run_step(
         "AI plan check smoke",

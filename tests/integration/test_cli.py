@@ -5,6 +5,8 @@ import os
 import shutil
 import subprocess
 import sys
+import threading
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 FIXTURE = Path("tests/fixtures/voltage_divider")
@@ -542,6 +544,88 @@ def test_ai_demo_plan_writes_candidate_plan(tmp_path: Path) -> None:
     data = json.loads(candidate_path.read_text(encoding="utf-8"))
     assert data["description"] == "Demo plan: add a resistor"
     assert data["commands"][0]["symbol_id"] == "stdlib:R"
+
+
+def test_ai_openai_plan_writes_candidate_plan_from_local_endpoint(tmp_path: Path) -> None:
+    planner_path = tmp_path / "planner-package.json"
+    candidate_path = tmp_path / "candidate-plan.json"
+    planner_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-ai-planner-package-v1",
+                "planner_mode": "structured_command_proposal",
+                "brief": {"request": {"text": "Add a resistor"}},
+                "allowed_command_types": ["place_symbol", "add_wire"],
+                "target_plan_schema": {
+                    "version": 1,
+                    "schematic": "schematics/main.sch.json",
+                    "commands": [],
+                },
+            }
+        ),
+        encoding="utf-8",
+    )
+    response_content = {
+        "version": 1,
+        "description": "Local model resistor plan",
+        "schematic": "schematics/main.sch.json",
+        "commands": [
+            {
+                "type": "place_symbol",
+                "symbol_id": "stdlib:R",
+                "value": "1k",
+                "position": {"x": 0, "y": 0},
+                "footprint_id": "stdlib:R_0603",
+            }
+        ],
+    }
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers["Content-Length"])
+            request_body = json.loads(self.rfile.read(length).decode("utf-8"))
+            self.server.seen_request_body = request_body
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(
+                json.dumps(
+                    {
+                        "choices": [
+                            {"message": {"content": json.dumps(response_content)}}
+                        ]
+                    }
+                ).encode("utf-8")
+            )
+
+        def log_message(self, _format: str, *_args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = _run_cli(
+            "ai-openai-plan",
+            str(planner_path),
+            str(candidate_path),
+            "--base-url",
+            f"http://127.0.0.1:{server.server_port}",
+            "--model",
+            "local-test",
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.strip() == (
+        f"Wrote OpenAI-compatible AI candidate plan to {candidate_path}"
+    )
+    assert server.seen_request_body["model"] == "local-test"
+    data = json.loads(candidate_path.read_text(encoding="utf-8"))
+    assert data["description"] == "Local model resistor plan"
 
 
 def test_ai_plan_review_validates_and_dry_runs_candidate_plan(tmp_path: Path) -> None:
