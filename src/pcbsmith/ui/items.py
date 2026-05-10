@@ -33,10 +33,14 @@ class SymbolItem(QGraphicsItem):
     def __init__(self, symbol: SymbolInstance, parent: QGraphicsItem | None = None) -> None:
         super().__init__(parent)
         self.symbol = symbol
-        self._mirrored_horizontally = False
+        self._mirrored_horizontally = symbol.mirrored_x
 
         self.setPos(symbol.position.x, symbol.position.y)
         self.setRotation(symbol.rotation_deg)
+        self.setTransform(
+            QTransform.fromScale(-1 if symbol.mirrored_x else 1, 1),
+            combine=False,
+        )
         self.setFlags(
             QGraphicsItem.GraphicsItemFlag.ItemIsSelectable
             | QGraphicsItem.GraphicsItemFlag.ItemIsMovable

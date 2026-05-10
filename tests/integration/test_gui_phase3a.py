@@ -123,5 +123,19 @@ def test_mirror_horizontal_updates_selected_symbol_transform(qtbot) -> None:  # 
     item.setSelected(True)
     window.mirror_horizontal_selected()
 
+    assert window.scene.editor_state.symbols[0].mirrored_x is True
     mirrored = window.scene.symbol_items()[0]
     assert mirrored.transform().m11() == -1
+
+
+def test_mirror_horizontal_survives_scene_rerender(qtbot) -> None:  # type: ignore[no-untyped-def]
+    window = MainWindow()
+    qtbot.addWidget(window)
+
+    item = window.scene.place_resistor(Point(x=0, y=0))
+    item.setSelected(True)
+    window.mirror_horizontal_selected()
+    window.scene.load_editor_state(window.scene.editor_state)
+
+    assert window.scene.editor_state.symbols[0].mirrored_x is True
+    assert window.scene.symbol_items()[0].transform().m11() == -1

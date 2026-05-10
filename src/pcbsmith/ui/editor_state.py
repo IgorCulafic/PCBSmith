@@ -153,6 +153,21 @@ class EditorState:
             raise ValueError(f"Unknown symbol reference: {reference}")
         return replace(self, symbols=tuple(symbols))
 
+    def mirror_symbol_horizontally(self, reference: str) -> EditorState:
+        symbols = []
+        found = False
+        for symbol in self.symbols:
+            if symbol.reference == reference:
+                found = True
+                symbols.append(
+                    symbol.model_copy(update={"mirrored_x": not symbol.mirrored_x})
+                )
+            else:
+                symbols.append(symbol)
+        if not found:
+            raise ValueError(f"Unknown symbol reference: {reference}")
+        return replace(self, symbols=tuple(symbols))
+
     def update_symbol(
         self,
         reference: str,
