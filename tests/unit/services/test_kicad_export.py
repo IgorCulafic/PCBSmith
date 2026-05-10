@@ -356,7 +356,7 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     } in manifest["commands"]
 
 
-def test_export_keeps_signal_net_labels_visible_on_wire_interiors(
+def test_export_hides_signal_net_labels_on_wire_interiors(
     tmp_path: Path,
 ) -> None:
     source_project = tmp_path / "source"
@@ -417,13 +417,7 @@ def test_export_keeps_signal_net_labels_visible_on_wire_interiors(
     schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
     board_text = result.skeleton.board_file.read_text(encoding="utf-8")
 
-    assert '(label "OUT"' in schematic_text
-    assert "(at 53.34 25.4 0)" in schematic_text
-    assert "(hide yes)" not in re.search(
-        r'\(label "OUT".*?\(uuid "[^"]+"\)\s+\)',
-        schematic_text,
-        re.DOTALL,
-    ).group(0)
+    _assert_hidden_label(schematic_text, "OUT", "53.34", "25.4")
     assert '(footprint "PCBSmith_C_0603"' in board_text
     assert '(net 2 "OUT")' in board_text
 
