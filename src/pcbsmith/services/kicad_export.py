@@ -72,6 +72,13 @@ class NativeBoardFootprint:
     pad_nets: tuple[NativeBoardNet | None, NativeBoardNet | None]
 
 
+@dataclass(frozen=True)
+class NativeBoardPad:
+    x_mm: str
+    y_mm: str
+    net: NativeBoardNet
+
+
 class KiCadExportResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -354,6 +361,7 @@ def render_kicad_board_items(
     )
     point_nets = _point_board_nets(board_nets)
     footprints = _native_board_footprints(native_symbols, point_nets)
+    board_pads = _native_board_pads(footprints, board_nets)
 
     if not footprints:
         return ()
@@ -369,23 +377,7 @@ def render_kicad_board_items(
         _render_board_footprint(footprint, uuid_factory=uuid_factory)
         for footprint in footprints
     )
-    items.extend(
-        _render_board_segment(
-            start_x_mm="14",
-            start_y_mm="20",
-            end_x_mm="23",
-            end_y_mm="20",
-            net=net,
-            uuid=uuid_factory(),
-        )
-        for net in board_nets
-        if net.name == "LED_A"
-    )
-    items.extend(
-        _render_board_power_segment(net, uuid_factory())
-        for net in board_nets
-        if net.name in {"VCC", "GND"}
-    )
+    items.extend(_render_board_segments(board_pads, uuid_factory=uuid_factory))
     return tuple(items)
 
 
@@ -603,6 +595,31 @@ def _native_board_footprints(
             )
         )
     return tuple(footprints)
+
+
+def _native_board_pads(
+    footprints: tuple[NativeBoardFootprint, ...],
+    board_nets: tuple[NativeBoardNet, ...],
+) -> tuple[NativeBoardPad, ...]:
+    pads: list[NativeBoardPad] = []
+    for net in board_nets:
+        if net.name == "VCC":
+            pads.append(NativeBoardPad(x_mm="4", y_mm="20", net=net))
+        elif net.name == "GND":
+            pads.append(NativeBoardPad(x_mm="45", y_mm="20", net=net))
+
+    for footprint in footprints:
+        for x_offset, net in zip(("-4", "4"), footprint.pad_nets, strict=True):
+            if net is None:
+                continue
+            pads.append(
+                NativeBoardPad(
+                    x_mm=_offset_mm(footprint.center_x_mm, x_offset),
+                    y_mm=footprint.center_y_mm,
+                    net=net,
+                )
+            )
+    return tuple(pads)
 
 
 def _render_kicad_symbol(
@@ -892,24 +909,40 @@ def _render_board_segment(
     )
 
 
-def _render_board_power_segment(net: NativeBoardNet, uuid: UUID) -> str:
-    if net.name == "VCC":
-        return _render_board_segment(
-            start_x_mm="4",
-            start_y_mm="20",
-            end_x_mm="6",
-            end_y_mm="20",
-            net=net,
-            uuid=uuid,
+def _render_board_segments(
+    pads: tuple[NativeBoardPad, ...],
+    *,
+    uuid_factory: Callable[[], UUID],
+) -> tuple[str, ...]:
+    segments: list[str] = []
+    net_numbers = sorted({pad.net.number for pad in pads})
+    for net_number in net_numbers:
+        net_pads = sorted(
+            (pad for pad in pads if pad.net.number == net_number),
+            key=lambda pad: (float(pad.y_mm), float(pad.x_mm)),
         )
-    return _render_board_segment(
-        start_x_mm="31",
-        start_y_mm="20",
-        end_x_mm="45",
-        end_y_mm="20",
-        net=net,
-        uuid=uuid,
-    )
+        for start, end in zip(net_pads, net_pads[1:], strict=False):
+            if start.x_mm == end.x_mm and start.y_mm == end.y_mm:
+                continue
+            segments.append(
+                _render_board_segment(
+                    start_x_mm=start.x_mm,
+                    start_y_mm=start.y_mm,
+                    end_x_mm=end.x_mm,
+                    end_y_mm=end.y_mm,
+                    net=start.net,
+                    uuid=uuid_factory(),
+                )
+            )
+    return tuple(segments)
+
+
+def _offset_mm(base_mm: str, offset_mm: str) -> str:
+    return _format_plain_mm(float(base_mm) + float(offset_mm))
+
+
+def _format_plain_mm(value: float) -> str:
+    return f"{value:.6f}".rstrip("0").rstrip(".")
 
 
 def render_pcbs_kicad_symbol_table() -> str:
