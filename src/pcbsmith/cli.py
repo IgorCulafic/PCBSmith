@@ -10,6 +10,7 @@ from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
+from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.kicad_project import create_kicad_project_skeleton
 from pcbsmith.services.project_io import (
     ProjectIOError,
@@ -97,6 +98,16 @@ def _cmd_kicad_new(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_kicad_export(args: argparse.Namespace) -> int:
+    result = export_pcbs_project_to_kicad(
+        Path(args.source_project),
+        Path(args.output_project),
+        project_name=args.name,
+    )
+    print(f"Exported PCBSmith project to KiCad handoff at {result.skeleton.project_dir}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -135,6 +146,15 @@ def build_parser() -> argparse.ArgumentParser:
     kicad_new_parser.add_argument("project")
     kicad_new_parser.add_argument("--name", required=True)
     kicad_new_parser.set_defaults(func=_cmd_kicad_new)
+
+    kicad_export_parser = subparsers.add_parser(
+        "kicad-export",
+        help="export a PCBSmith project to a KiCad skeleton and handoff manifest",
+    )
+    kicad_export_parser.add_argument("source_project")
+    kicad_export_parser.add_argument("output_project")
+    kicad_export_parser.add_argument("--name")
+    kicad_export_parser.set_defaults(func=_cmd_kicad_export)
 
     return parser
 

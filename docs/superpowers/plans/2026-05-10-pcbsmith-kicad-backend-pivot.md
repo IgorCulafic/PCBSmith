@@ -110,6 +110,35 @@ Wire the CLI command to `create_kicad_project_skeleton()`.
 
 Document the first KiCad handoff skeleton command and clarify that KiCad should canonicalize generated files later.
 
+## Task 5: PCBSmith To KiCad Handoff Export
+
+**Files:**
+- Create: `src/pcbsmith/services/kicad_export.py`
+- Create: `tests/unit/services/test_kicad_export.py`
+- Modify: `src/pcbsmith/cli.py`
+- Modify: `tests/integration/test_cli.py`
+- Modify: `README.md`
+
+- [x] **Step 1: Write failing export service tests**
+
+Cover creating a KiCad skeleton from an existing PCBSmith project, writing `pcbsmith_handoff.json`, preserving source project identity, and emitting ordered schematic commands.
+
+- [x] **Step 2: Implement export service**
+
+Create `export_pcbs_project_to_kicad()` and a versioned handoff manifest with source project metadata, KiCad skeleton filenames, and schematic intent commands.
+
+- [x] **Step 3: Add CLI export test**
+
+Cover `pcbsmith kicad-export <source-project> <output-project> --name <name>`.
+
+- [x] **Step 4: Implement `kicad-export`**
+
+Wire the CLI command to the export service.
+
+- [x] **Step 5: Update README**
+
+Document `kicad-export` and the `pcbsmith_handoff.json` contract.
+
 ## Verification
 
 Run before commit:

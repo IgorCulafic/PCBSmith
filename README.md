@@ -16,6 +16,7 @@ python -m pcbsmith.cli netlist .\demo
 python -m pcbsmith.cli erc .\demo
 python -m pcbsmith.cli kicad-status
 python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
+python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 ```
 
 The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
@@ -51,6 +52,14 @@ python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 ```
 
 This writes the core KiCad project filenames: `.kicad_pro`, `.kicad_sch`, and `.kicad_pcb`. The generated files are intentionally minimal and marked as PCBSmith-generated; once KiCad is installed, open/save or CLI validation can canonicalize them before deeper automation is built on top.
+
+To export an existing PCBSmith project into a KiCad handoff folder:
+
+```powershell
+python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
+```
+
+This creates the KiCad skeleton plus `pcbsmith_handoff.json`, a structured manifest of the source schematic symbols, wires, labels, and no-connect markers. That manifest is the contract a future KiCad plugin or IPC/API mapper can consume.
 
 ## Phase 1A and 1B GUI
 
