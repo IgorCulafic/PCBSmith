@@ -254,13 +254,19 @@ def render_kicad_schematic_items(
             offset=KICAD_SCHEMATIC_ITEM_OFFSET,
         )
         for label in schematic.labels
-        if _should_render_native_label(label, connected_points, native_wires)
+        if _should_render_native_label(
+            label,
+            connected_points,
+            native_wires,
+            power_points,
+        )
     )
     items.extend(
         _render_kicad_label(
             label,
             uuid_factory(),
             offset=KICAD_SCHEMATIC_ITEM_OFFSET,
+            hidden=True,
         )
         for label in _power_wire_endpoint_labels(native_wires, power_points)
     )
@@ -357,10 +363,20 @@ def _should_render_native_label(
     label: NetLabel,
     connected_points: set[tuple[int, int]],
     native_wires: list[Wire],
+    power_points: dict[tuple[int, int], str],
 ) -> bool:
+    if _duplicates_power_symbol_label(label, power_points):
+        return False
     return (label.position.x, label.position.y) in connected_points or any(
         _point_on_wire(label.position, wire) for wire in native_wires
     )
+
+
+def _duplicates_power_symbol_label(
+    label: NetLabel,
+    power_points: dict[tuple[int, int], str],
+) -> bool:
+    return power_points.get((label.position.x, label.position.y)) == label.name
 
 
 def _point_on_wire(point: Point, wire: Wire) -> bool:
@@ -496,14 +512,17 @@ def _render_kicad_label(
     item_uuid: UUID,
     *,
     offset: Vec = KICAD_ZERO_OFFSET,
+    hidden: bool = False,
 ) -> str:
     position = label.position + offset
+    font_size = "0.01 0.01" if hidden else "1.27 1.27"
+    hide_line = "\n      (hide yes)" if hidden else ""
     return f"""  (label "{_escape_kicad_string(label.name)}"
     (at {_format_mm(position.x)} {_format_mm(position.y)} 0)
     (effects
       (font
-        (size 1.27 1.27)
-      )
+        (size {font_size})
+      ){hide_line}
     )
     (uuid "{item_uuid}")
   )"""
