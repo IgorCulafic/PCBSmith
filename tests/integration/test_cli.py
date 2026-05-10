@@ -194,6 +194,31 @@ def test_kicad_validate_can_skip_execution(tmp_path: Path) -> None:
     ]
 
 
+def test_kicad_preview_can_skip_execution(tmp_path: Path) -> None:
+    project_dir = tmp_path / "kicad-demo"
+
+    create_result = _run_cli("kicad-new", str(project_dir), "--name", "LED Blinker")
+    assert create_result.returncode == 0
+
+    result = _run_cli(
+        "kicad-preview",
+        str(project_dir),
+        "--skip-execution",
+        extra_env={"PCBSMITH_KICAD_CLI": "C:/Tools/KiCad/bin/kicad-cli.exe"},
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    schematic_preview = project_dir / ".pcbsmith" / "visual" / "LED_Blinker-schematic.svg"
+    board_preview = project_dir / ".pcbsmith" / "visual" / "LED_Blinker-board.svg"
+    assert result.stdout.splitlines() == [
+        f"KiCad project: {project_dir}",
+        "KiCad CLI: C:\\Tools\\KiCad\\bin\\kicad-cli.exe (PCBSMITH_KICAD_CLI)",
+        f"Schematic SVG: skipped ({schematic_preview})",
+        f"Board SVG: skipped ({board_preview})",
+    ]
+
+
 def test_kicad_new_creates_kicad_project_skeleton(tmp_path: Path) -> None:
     project_dir = tmp_path / "kicad-demo"
 

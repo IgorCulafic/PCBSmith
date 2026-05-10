@@ -19,6 +19,7 @@ python -m pcbsmith.cli kicad-doctor
 python -m pcbsmith.cli kicad-new .\kicad-demo --name "LED Blinker"
 python -m pcbsmith.cli kicad-export .\demo .\kicad-demo --name "Demo Board"
 python -m pcbsmith.cli kicad-validate .\kicad-demo
+python -m pcbsmith.cli kicad-preview .\kicad-demo
 python -m pcbsmith.cli kicad-plan .\demo .\plan.json
 python -m pcbsmith.cli kicad-context .\demo .\ai-context.json
 ```
@@ -83,6 +84,14 @@ python -m pcbsmith.cli kicad-validate .\kicad-demo
 
 This discovers one `.kicad_sch` and one `.kicad_pcb` file, runs `kicad-cli sch erc` and `kicad-cli pcb drc`, writes JSON reports under `.pcbsmith/kicad-reports`, and summarizes pass/fail status. Use `--skip-execution` to verify project discovery and KiCad configuration without launching KiCad.
 
+To export schematic and board SVG previews for user or AI review:
+
+```powershell
+python -m pcbsmith.cli kicad-preview .\kicad-demo
+```
+
+This discovers one `.kicad_sch` and one `.kicad_pcb` file and writes stable preview paths under `.pcbsmith/visual`, such as `Demo-schematic.svg` and `Demo-board.svg`. The schematic preview is normalized from KiCad's generated SVG output; the board preview uses KiCad's single-file SVG export for front copper, front silkscreen, and edge cuts. Use `--skip-execution` to verify project discovery and KiCad configuration without launching KiCad.
+
 To review a structured command package before changing a PCBSmith project:
 
 ```powershell
@@ -138,7 +147,7 @@ Run the standard local check before committing:
 python tools/dev_check.py
 ```
 
-The dev check runs linting, the test suite with a repository-local pytest temp directory, a fixture validation smoke test, and an AI context smoke test.
+The dev check runs linting, the test suite with a repository-local pytest temp directory, a fixture validation smoke test, a KiCad preview discovery smoke test, and an AI context smoke test.
 
 Generated cache folders and old one-off pytest workspaces can be reviewed with:
 

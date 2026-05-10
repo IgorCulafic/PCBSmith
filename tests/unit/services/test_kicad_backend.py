@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from pcbsmith.services.kicad_backend import find_kicad_cli
+from pcbsmith.services.kicad_backend import default_kicad_cli_candidates, find_kicad_cli
 
 
 def test_find_kicad_cli_prefers_explicit_environment_path() -> None:
@@ -42,6 +42,12 @@ def test_find_kicad_cli_uses_existing_candidate_path() -> None:
     assert install is not None
     assert install.cli_path == candidate
     assert install.source == "known install path"
+
+
+def test_default_kicad_cli_candidates_include_kicad_10() -> None:
+    assert Path("C:/Program Files/KiCad/10.0/bin/kicad-cli.exe") in (
+        default_kicad_cli_candidates()
+    )
 
 
 def test_find_kicad_cli_returns_none_when_unavailable() -> None:
