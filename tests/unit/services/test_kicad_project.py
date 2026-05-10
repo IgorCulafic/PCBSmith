@@ -76,6 +76,21 @@ def test_kicad_board_uses_required_header_general_page_and_layers(tmp_path: Path
     assert '(44 "Edge.Cuts" user)' in board_text
 
 
+def test_kicad_board_includes_default_edge_cuts_outline(tmp_path: Path) -> None:
+    result = create_kicad_project_skeleton(
+        tmp_path / "demo",
+        "Demo Board",
+        uuid_factory=_fixed_uuid,
+    )
+
+    board_text = result.board_file.read_text(encoding="utf-8")
+
+    assert "(gr_rect" in board_text
+    assert "(start 0 0)" in board_text
+    assert "(end 100 80)" in board_text
+    assert '(layer "Edge.Cuts")' in board_text
+
+
 def test_create_kicad_project_skeleton_refuses_existing_directory(tmp_path: Path) -> None:
     project_dir = tmp_path / "demo"
     project_dir.mkdir()

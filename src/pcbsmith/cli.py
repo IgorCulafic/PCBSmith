@@ -10,6 +10,10 @@ from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
+from pcbsmith.services.kicad_doctor import (
+    format_kicad_doctor_report,
+    run_kicad_doctor,
+)
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.kicad_project import create_kicad_project_skeleton
 from pcbsmith.services.project_io import (
@@ -92,6 +96,13 @@ def _cmd_kicad_status(_args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_kicad_doctor(args: argparse.Namespace) -> int:
+    report = run_kicad_doctor(skip_version_check=args.skip_version_check)
+    for line in format_kicad_doctor_report(report):
+        print(line)
+    return report.exit_code
+
+
 def _cmd_kicad_new(args: argparse.Namespace) -> int:
     result = create_kicad_project_skeleton(Path(args.project), args.name)
     print(f"Created KiCad project skeleton at {result.project_dir}")
@@ -138,6 +149,17 @@ def build_parser() -> argparse.ArgumentParser:
         help="check whether a KiCad CLI backend is available",
     )
     kicad_status_parser.set_defaults(func=_cmd_kicad_status)
+
+    kicad_doctor_parser = subparsers.add_parser(
+        "kicad-doctor",
+        help="check KiCad backend readiness with a version probe",
+    )
+    kicad_doctor_parser.add_argument(
+        "--skip-version-check",
+        action="store_true",
+        help="only report configured kicad-cli discovery, without running it",
+    )
+    kicad_doctor_parser.set_defaults(func=_cmd_kicad_doctor)
 
     kicad_new_parser = subparsers.add_parser(
         "kicad-new",
