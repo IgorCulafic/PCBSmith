@@ -6,12 +6,15 @@ from pcbsmith.services.circuit_examples import (
     CurrentLimitedLedCircuit,
     RcLowPassFilterCircuit,
     Timer555AstableCircuit,
+    Timer555PwmDimmerCircuit,
     create_current_limited_led_project,
     create_rc_low_pass_filter_project,
     create_timer_555_astable_project,
+    create_timer_555_pwm_dimmer_project,
     export_current_limited_led_kicad_project,
     export_rc_low_pass_filter_kicad_project,
     export_timer_555_astable_kicad_project,
+    export_timer_555_pwm_dimmer_kicad_project,
 )
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.project_io import load_board, load_project, load_schematic
@@ -268,3 +271,80 @@ def test_timer_555_astable_direct_kicad_export_uses_ic_and_support_parts(
     assert "(end 119.75 42.5)" in board_text
     assert "(start 136.75 89)" in board_text
     assert "(end 138.25 87.5)" in board_text
+
+
+def test_create_timer_555_pwm_dimmer_project_writes_shared_schematic_and_board(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "source"
+
+    result = create_timer_555_pwm_dimmer_project(
+        project_dir,
+        Timer555PwmDimmerCircuit(name="555 PWM Dimmer"),
+    )
+
+    project = load_project(project_dir)
+    schematic = load_schematic(project_dir, "schematics/main.sch.json")
+    board = load_board(project_dir, "boards/main.brd.json")
+
+    assert result.project_dir == project_dir
+    assert project.name == "555 PWM Dimmer"
+    assert [symbol.reference for symbol in schematic.symbols] == [
+        "V1",
+        "U1",
+        "RV1",
+        "D1",
+        "D2",
+        "C1",
+        "C2",
+        "C3",
+        "R1",
+        "R2",
+        "Q1",
+        "J1",
+        "J2",
+        "G1",
+    ]
+    assert list(dict.fromkeys(label.name for label in schematic.labels)) == [
+        "VCC",
+        "DISCH",
+        "PWM_NODE",
+        "CTRL",
+        "OUT",
+        "GATE",
+        "LOAD_NEG",
+        "GND",
+    ]
+    assert board.texts[0].text == "555 PWM Dimmer"
+
+
+def test_timer_555_pwm_dimmer_direct_kicad_export_uses_power_and_load_parts(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    output_dir = tmp_path / "kicad"
+
+    result = export_timer_555_pwm_dimmer_kicad_project(
+        source_dir,
+        output_dir,
+        Timer555PwmDimmerCircuit(name="555 PWM Dimmer"),
+    )
+
+    schematic_text = result.schematic_file.read_text(encoding="utf-8")
+    board_text = result.board_file.read_text(encoding="utf-8")
+    assert result.source_project_dir == source_dir
+    assert '(lib_id "PCBSmith:NE555")' in schematic_text
+    assert '(lib_id "PCBSmith:D")' in schematic_text
+    assert '(footprint "PCBSmith_SOIC8_NE555_REAL"' in board_text
+    assert '(footprint "PCBSmith_POT_3PIN_REAL"' in board_text
+    assert '(footprint "PCBSmith_NMOS_POWER_REAL"' in board_text
+    assert '(footprint "PCBSmith_POWER_INPUT_PAD"' in board_text
+    assert '(net 1 "VCC")' in board_text
+    assert '(net 2 "GND")' in board_text
+    assert '(net 7 "GATE")' in board_text
+    assert '(net 8 "LOAD_NEG")' in board_text
+    assert '(gr_text "VIN 5-12V"' in board_text
+    assert '(gr_text "LED OUT"' in board_text
+    assert "(width 0.8)" in board_text
+    assert "(start 60 35)" in board_text
+    assert "(end 160 98)" in board_text
