@@ -4,6 +4,10 @@ import re
 from pathlib import Path
 
 from pcbsmith.services.board_intelligence import segment_angle_degrees
+from pcbsmith.services.board_manufacturability import (
+    ManufacturabilitySeverity,
+    inspect_board_manufacturability,
+)
 from pcbsmith.services.circuit_examples import (
     CurrentLimitedLedCircuit,
     RcLowPassFilterCircuit,
@@ -387,6 +391,26 @@ def test_timer_555_pwm_dimmer_board_uses_cardinal_or_45_degree_routing(
     ]
 
     assert off_style_segments == []
+
+
+def test_timer_555_pwm_dimmer_board_has_no_manufacturability_errors(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "source"
+    create_timer_555_pwm_dimmer_project(
+        project_dir,
+        Timer555PwmDimmerCircuit(name="555 PWM Dimmer"),
+    )
+    project = load_project(project_dir)
+    board = load_board(project_dir, project.boards[0])
+
+    report = inspect_board_manufacturability(board, design_rules=project.design_rules)
+
+    assert [
+        finding
+        for finding in report.findings
+        if finding.severity is ManufacturabilitySeverity.ERROR
+    ] == []
 
 
 def _board_segments(board_text: str) -> list[tuple[tuple[float, float], tuple[float, float]]]:

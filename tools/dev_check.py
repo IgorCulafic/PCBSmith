@@ -137,6 +137,10 @@ def main() -> int:
         "fixture validate",
         [python, "-m", "pcbsmith.cli", "validate", "tests/fixtures/voltage_divider"],
     )
+    run_step(
+        "fixture board check",
+        [python, "-m", "pcbsmith.cli", "board-check", "tests/fixtures/voltage_divider"],
+    )
     library_smoke_dir = tmp_dir / "kicad-library-index-smoke"
     if library_smoke_dir.exists():
         if not library_smoke_dir.resolve().is_relative_to(tmp_dir.resolve()):
