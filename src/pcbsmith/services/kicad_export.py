@@ -175,6 +175,41 @@ NATIVE_SYMBOL_SPECS: dict[str, NativeSymbolSpec] = {
             Vec(mm_to_nm(7.62), mm_to_nm(-5.08)),
         ),
     ),
+    "stdlib:POT": NativeSymbolSpec(
+        source_symbol_id="stdlib:POT",
+        library_symbol_name="POT",
+        reference_prefix="RV",
+        value="POT",
+        description="Generic three-terminal potentiometer",
+        pin_offsets=(
+            Vec(mm_to_nm(-5.08), 0),
+            Vec(0, mm_to_nm(-5.08)),
+            Vec(mm_to_nm(5.08), 0),
+        ),
+    ),
+    "stdlib:NMOS": NativeSymbolSpec(
+        source_symbol_id="stdlib:NMOS",
+        library_symbol_name="NMOS",
+        reference_prefix="Q",
+        value="NMOS",
+        description="Generic N-channel MOSFET",
+        pin_offsets=(
+            Vec(mm_to_nm(-5.08), 0),
+            Vec(mm_to_nm(5.08), 0),
+            Vec(0, mm_to_nm(5.08)),
+        ),
+    ),
+    "stdlib:CONN_01X02": NativeSymbolSpec(
+        source_symbol_id="stdlib:CONN_01X02",
+        library_symbol_name="CONN_01X02",
+        reference_prefix="J",
+        value="Conn_01x02",
+        description="Generic 1x2 connector",
+        pin_offsets=(
+            Vec(0, 0),
+            Vec(0, mm_to_nm(2.54)),
+        ),
+    ),
 }
 
 BOARD_FOOTPRINT_NAMES = {
@@ -183,6 +218,9 @@ BOARD_FOOTPRINT_NAMES = {
     "stdlib:D": "PCBSmith_D_0603",
     "stdlib:LED": "PCBSmith_LED_0603",
     "stdlib:NE555": "PCBSmith_SOIC8_NE555",
+    "stdlib:POT": "PCBSmith_POT_3PIN",
+    "stdlib:NMOS": "PCBSmith_NMOS_POWER",
+    "stdlib:CONN_01X02": "PCBSmith_CONN_01X02",
 }
 
 
@@ -1485,6 +1523,12 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
     )
     if spec.library_symbol_name == "NE555":
         return _render_ne555_library_symbol(name, spec.description)
+    if spec.library_symbol_name == "POT":
+        return _render_pot_library_symbol(name, spec.description)
+    if spec.library_symbol_name == "NMOS":
+        return _render_nmos_library_symbol(name, spec.description)
+    if spec.library_symbol_name == "CONN_01X02":
+        return _render_connector_01x02_library_symbol(name, spec.description)
     if spec.library_symbol_name == "R":
         return _render_two_pin_box_library_symbol(
             name,
@@ -1698,6 +1742,193 @@ def _render_ne555_library_symbol(name: str, description: str) -> str:
 {_ne555_pin("8", "VCC", 7.62, 5.08, 180)}
     )
   )"""
+
+
+def _render_pot_library_symbol(name: str, description: str) -> str:
+    return f"""  (symbol "{name}"
+    (pin_numbers
+      (hide no)
+    )
+    (pin_names
+      (offset 0.762)
+    )
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    {_render_symbol_property("Reference", "RV", 0, -6_350_000)}
+    {_render_symbol_property("Value", "POT", 0, 5_080_000)}
+    {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
+    {_render_symbol_property("Datasheet", "~", 0, 0, hidden=True)}
+    {_render_symbol_property("Description", description, 0, 0, hidden=True)}
+    (symbol "POT_0_1"
+      (polyline
+        (pts
+          (xy -2.54 0)
+          (xy -1.27 1.27)
+          (xy 0 -1.27)
+          (xy 1.27 1.27)
+          (xy 2.54 0)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 0 5.08)
+          (xy 0 2.54)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )
+    (symbol "POT_1_1"
+{_generic_pin("1", "A", -5.08, 0, 0)}
+{_generic_pin("2", "W", 0, 5.08, 90)}
+{_generic_pin("3", "B", 5.08, 0, 180)}
+    )
+  )"""
+
+
+def _render_nmos_library_symbol(name: str, description: str) -> str:
+    return f"""  (symbol "{name}"
+    (pin_numbers
+      (hide no)
+    )
+    (pin_names
+      (offset 0.762)
+    )
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    {_render_symbol_property("Reference", "Q", 0, -6_350_000)}
+    {_render_symbol_property("Value", "NMOS", 0, 6_350_000)}
+    {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
+    {_render_symbol_property("Datasheet", "~", 0, 0, hidden=True)}
+    {_render_symbol_property("Description", description, 0, 0, hidden=True)}
+    (symbol "NMOS_0_1"
+      (polyline
+        (pts
+          (xy -2.54 0)
+          (xy -1.27 0)
+          (xy -1.27 -2.54)
+          (xy -1.27 2.54)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 1.27 2.54)
+          (xy 1.27 -2.54)
+          (xy 5.08 -2.54)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 1.27 0)
+          (xy 0 0)
+          (xy 0 -5.08)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )
+    (symbol "NMOS_1_1"
+{_generic_pin("1", "G", -5.08, 0, 0)}
+{_generic_pin("2", "D", 5.08, 0, 180)}
+{_generic_pin("3", "S", 0, -5.08, 270)}
+    )
+  )"""
+
+
+def _render_connector_01x02_library_symbol(name: str, description: str) -> str:
+    return f"""  (symbol "{name}"
+    (pin_numbers
+      (hide no)
+    )
+    (pin_names
+      (offset 0.762)
+    )
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    {_render_symbol_property("Reference", "J", 3_810_000, -2_540_000)}
+    {_render_symbol_property("Value", "Conn_01x02", 3_810_000, 5_080_000)}
+    {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
+    {_render_symbol_property("Datasheet", "~", 0, 0, hidden=True)}
+    {_render_symbol_property("Description", description, 0, 0, hidden=True)}
+    (symbol "CONN_01X02_0_1"
+      (rectangle
+        (start 1.27 -1.27)
+        (end 5.08 3.81)
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )
+    (symbol "CONN_01X02_1_1"
+{_generic_pin("1", "Pin_1", 0, 0, 0)}
+{_generic_pin("2", "Pin_2", 0, -2.54, 0)}
+    )
+  )"""
+
+
+def _generic_pin(
+    number: str,
+    name: str,
+    x_mm: float,
+    y_mm: float,
+    direction: int,
+) -> str:
+    return f"""      (pin passive line
+        (at {x_mm:.2f} {y_mm:.2f} {direction})
+        (length 2.54)
+        (name "{name}"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+        (number "{number}"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+      )"""
 
 
 def _ne555_pin(

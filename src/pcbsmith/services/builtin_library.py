@@ -161,6 +161,56 @@ SYMBOLS: dict[str, Symbol] = {
             ),
         ],
     ),
+    "stdlib:POT": Symbol(
+        id="stdlib:POT",
+        name="Potentiometer",
+        default_footprint_id="stdlib:POT_3PIN",
+        pins=[
+            Pin(
+                number="1",
+                name="A",
+                position=Point.from_mm(-5.08, 0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="W",
+                position=Point.from_mm(0, -5.08),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="3",
+                name="B",
+                position=Point.from_mm(5.08, 0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
+    "stdlib:NMOS": Symbol(
+        id="stdlib:NMOS",
+        name="N-channel MOSFET",
+        default_footprint_id="stdlib:NMOS_POWER",
+        pins=[
+            Pin(
+                number="1",
+                name="G",
+                position=Point.from_mm(-5.08, 0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="D",
+                position=Point.from_mm(5.08, 0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="3",
+                name="S",
+                position=Point.from_mm(0, 5.08),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
     "stdlib:NE555": Symbol(
         id="stdlib:NE555",
         name="NE555 Timer",
@@ -386,6 +436,60 @@ FOOTPRINTS: dict[str, Footprint] = {
                 (7, 3.0, -0.475),
                 (8, 3.0, -1.425),
             )
+        ),
+    ),
+    "stdlib:POT_3PIN": Footprint(
+        id="stdlib:POT_3PIN",
+        name="POT_3PIN",
+        pads=(
+            Pad(
+                number="1",
+                position=Point.from_mm(-2.54, 1.7),
+                size_x=1_400_000,
+                size_y=1_400_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(0, 1.7),
+                size_x=1_400_000,
+                size_y=1_400_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="3",
+                position=Point.from_mm(2.54, 1.7),
+                size_x=1_400_000,
+                size_y=1_400_000,
+                shape=PadShape.RECT,
+            ),
+        ),
+    ),
+    "stdlib:NMOS_POWER": Footprint(
+        id="stdlib:NMOS_POWER",
+        name="NMOS_POWER",
+        pads=(
+            Pad(
+                number="1",
+                position=Point.from_mm(-2, 1.3),
+                size_x=1_200_000,
+                size_y=1_400_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(0, -1.5),
+                size_x=3_000_000,
+                size_y=1_700_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="3",
+                position=Point.from_mm(2, 1.3),
+                size_x=1_400_000,
+                size_y=1_400_000,
+                shape=PadShape.RECT,
+            ),
         ),
     ),
 }
