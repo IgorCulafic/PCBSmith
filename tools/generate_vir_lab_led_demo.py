@@ -84,6 +84,11 @@ def main() -> None:
         help="Output KiCad project directory.",
     )
     parser.add_argument("--name", default="VIR LAB 5V LED Demo")
+    parser.add_argument(
+        "--no-polarity-marks",
+        action="store_true",
+        help="omit educational LED anode + marks from the board silkscreen",
+    )
     args = parser.parse_args()
 
     project_dir = args.output
@@ -101,7 +106,10 @@ def main() -> None:
         render_kicad_schematic_file(uuid4()),
         encoding="utf-8",
     )
-    board_file.write_text(_render_board(pixels), encoding="utf-8")
+    board_file.write_text(
+        _render_board(pixels, show_polarity_marks=not args.no_polarity_marks),
+        encoding="utf-8",
+    )
     _copy_logo_sources(project_dir)
     _write_layout_first_readme(project_dir, project_name)
 
@@ -262,7 +270,7 @@ def _letter_pixels() -> list[Pixel]:
     return pixels
 
 
-def _render_board(pixels: list[Pixel]) -> str:
+def _render_board(pixels: list[Pixel], *, show_polarity_marks: bool) -> str:
     builder = KiCadBoardBuilder()
     net_refs = {name: builder.net(name) for name in ["VCC", "GND"]}
     for pixel in pixels:
@@ -273,7 +281,7 @@ def _render_board(pixels: list[Pixel]) -> str:
     _add_power_rails(builder, net_refs, pixels)
     for pixel in pixels:
         _add_resistor(builder, pixel, net_refs)
-        _add_led(builder, pixel, net_refs)
+        _add_led(builder, pixel, net_refs, show_polarity_marks=show_polarity_marks)
         _add_pixel_tracks(builder, pixel, net_refs)
     return builder.render(outline_end_mm=(BOARD_WIDTH_MM, BOARD_HEIGHT_MM))
 
@@ -385,6 +393,8 @@ def _add_led(
     builder: KiCadBoardBuilder,
     pixel: Pixel,
     net_refs: dict[str, NetRef],
+    *,
+    show_polarity_marks: bool,
 ) -> None:
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
@@ -398,6 +408,7 @@ def _add_led(
             reference_layer="F.Fab",
             reference_offset_mm=(2.4, -2.0),
             silk_marker="cathode",
+            show_anode_plus=show_polarity_marks,
         )
     )
 

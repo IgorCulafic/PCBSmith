@@ -41,6 +41,8 @@ class TwoPadSmdFootprintSpec:
     pad_width_mm: float = 0.75
     pad_height_mm: float = 0.95
     silk_marker: str | None = None
+    show_anode_plus: bool = False
+    anode_pad: str = "1"
 
 
 @dataclass
@@ -150,6 +152,7 @@ class KiCadBoardBuilder:
     def add_two_pad_smd_footprint(self, spec: TwoPadSmdFootprintSpec) -> None:
         ref_x, ref_y = spec.reference_offset_mm
         marker = _footprint_marker(spec.silk_marker) if spec.silk_marker else ""
+        anode_plus = _anode_plus_marker(spec) if spec.show_anode_plus else ""
         self._items.append(
             f"""  (footprint {_quote(spec.footprint)}
     (layer "F.Cu")
@@ -162,6 +165,7 @@ class KiCadBoardBuilder:
 {_footprint_line(-0.35, -0.8, 0.35, -0.8, "F.SilkS")}
 {_footprint_line(-0.35, 0.8, 0.35, 0.8, "F.SilkS")}
 {marker}
+{anode_plus}
 {_pad(PadSpec("1", -spec.pad_offset_mm, 0, spec.pad_width_mm, spec.pad_height_mm, spec.left_net))}
 {_pad(PadSpec("2", spec.pad_offset_mm, 0, spec.pad_width_mm, spec.pad_height_mm, spec.right_net))}
   )"""
@@ -231,6 +235,21 @@ def _footprint_marker(marker: str) -> str:
     if marker == "cathode":
         return _footprint_line(0, -0.65, 0, 0.65, "F.SilkS")
     raise ValueError(f"Unsupported footprint marker: {marker}")
+
+
+def _anode_plus_marker(spec: TwoPadSmdFootprintSpec) -> str:
+    if spec.anode_pad == "1":
+        x_mm = -spec.pad_offset_mm - 1.0
+    elif spec.anode_pad == "2":
+        x_mm = spec.pad_offset_mm + 1.0
+    else:
+        raise ValueError(f"Unsupported anode pad: {spec.anode_pad}")
+    return f"""    (fp_text user "+"
+      (at {_mm(x_mm)} -1.25 0)
+      (layer "F.SilkS")
+      (uuid {uuid4()})
+      (effects (font (size 0.8 0.8) (thickness 0.12)))
+    )"""
 
 
 def _footprint_line(

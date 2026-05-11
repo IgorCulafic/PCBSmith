@@ -54,6 +54,53 @@ def test_board_builder_renders_two_pad_smd_footprint_with_fab_body() -> None:
     assert '(pad "2" smd roundrect' in text
 
 
+def test_board_builder_can_add_toggleable_anode_plus_marker() -> None:
+    builder = KiCadBoardBuilder()
+    led_a = builder.net("LED_A")
+    gnd = builder.net("GND")
+
+    builder.add_two_pad_smd_footprint(
+        TwoPadSmdFootprintSpec(
+            footprint="PCBSmith_LED_0603_REAL",
+            reference="LED1",
+            value="Red LED",
+            x_mm=10,
+            y_mm=12,
+            left_net=led_a,
+            right_net=gnd,
+            silk_marker="cathode",
+            show_anode_plus=True,
+        )
+    )
+    text = builder.render(outline_end_mm=(30, 20))
+
+    assert '(fp_text user "+"' in text
+    assert "(at -1.75 -1.25 0)" in text
+    assert '(layer "F.SilkS")' in text
+
+
+def test_board_builder_omits_anode_plus_marker_by_default() -> None:
+    builder = KiCadBoardBuilder()
+    led_a = builder.net("LED_A")
+    gnd = builder.net("GND")
+
+    builder.add_two_pad_smd_footprint(
+        TwoPadSmdFootprintSpec(
+            footprint="PCBSmith_LED_0603_REAL",
+            reference="LED1",
+            value="Red LED",
+            x_mm=10,
+            y_mm=12,
+            left_net=led_a,
+            right_net=gnd,
+            silk_marker="cathode",
+        )
+    )
+    text = builder.render(outline_end_mm=(30, 20))
+
+    assert '(fp_text user "+"' not in text
+
+
 def test_board_builder_quotes_user_text_for_kicad_strings() -> None:
     builder = KiCadBoardBuilder()
     builder.add_text('VIR "LAB"', 5, 6)

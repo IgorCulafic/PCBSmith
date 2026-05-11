@@ -38,6 +38,7 @@ class CurrentLimitedLedCircuit(BaseModel):
     supply_voltage: str = "5V"
     resistor_value: str = "680"
     led_value: str = "Red LED"
+    show_polarity_marks: bool = True
 
 
 class CircuitExampleProjectResult(BaseModel):
@@ -220,6 +221,7 @@ def _render_current_limited_led_board(circuit: CurrentLimitedLedCircuit) -> str:
             right_net=gnd,
             reference_offset_mm=(0.0, -2.0),
             silk_marker="cathode",
+            show_anode_plus=circuit.show_polarity_marks,
         )
     )
     builder.add_segment(9.0, 10.0, 17.25, 10.0, width_mm=0.45, net=vcc)
