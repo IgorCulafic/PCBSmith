@@ -43,6 +43,9 @@ class TwoPadSmdFootprintSpec:
     silk_marker: str | None = None
     show_anode_plus: bool = False
     anode_pad: str = "1"
+    show_silkscreen_outline: bool = True
+    silkscreen_x_margin_mm: float = 0.85
+    silkscreen_y_margin_mm: float = 0.5
 
 
 @dataclass
@@ -153,6 +156,16 @@ class KiCadBoardBuilder:
         ref_x, ref_y = spec.reference_offset_mm
         marker = _footprint_marker(spec.silk_marker) if spec.silk_marker else ""
         anode_plus = _anode_plus_marker(spec) if spec.show_anode_plus else ""
+        silkscreen_outline = (
+            _footprint_rect(
+                spec.body_width_mm + (spec.silkscreen_x_margin_mm * 2),
+                spec.body_height_mm + (spec.silkscreen_y_margin_mm * 2),
+                "F.SilkS",
+                stroke_width_mm=0.1,
+            )
+            if spec.show_silkscreen_outline
+            else ""
+        )
         self._items.append(
             f"""  (footprint {_quote(spec.footprint)}
     (layer "F.Cu")
@@ -162,12 +175,89 @@ class KiCadBoardBuilder:
     {_property("Value", spec.value, 0, 1.0, "F.Fab", 0.5)}
     (attr smd)
 {_footprint_rect(spec.body_width_mm, spec.body_height_mm, spec.body_layer)}
+{silkscreen_outline}
 {_footprint_line(-0.35, -0.8, 0.35, -0.8, "F.SilkS")}
 {_footprint_line(-0.35, 0.8, 0.35, 0.8, "F.SilkS")}
 {marker}
 {anode_plus}
 {_pad(PadSpec("1", -spec.pad_offset_mm, 0, spec.pad_width_mm, spec.pad_height_mm, spec.left_net))}
 {_pad(PadSpec("2", spec.pad_offset_mm, 0, spec.pad_width_mm, spec.pad_height_mm, spec.right_net))}
+  )"""
+        )
+
+    def add_rectangular_ic_footprint(
+        self,
+        *,
+        footprint: str,
+        reference: str,
+        value: str,
+        x_mm: float,
+        y_mm: float,
+        left_pads: tuple[tuple[str, NetRef], ...],
+        right_pads: tuple[tuple[str, NetRef], ...],
+        body_width_mm: float = 4.8,
+        body_height_mm: float = 3.6,
+        pad_width_mm: float = 0.7,
+        pad_height_mm: float = 1.2,
+        pad_x_offset_mm: float = 3.0,
+        pin_pitch_mm: float = 0.95,
+        pin_one_dot: bool = True,
+    ) -> None:
+        if len(left_pads) != len(right_pads):
+            raise ValueError("Rectangular IC footprints require balanced left and right pads")
+
+        pads: list[str] = []
+        pad_count_per_side = len(left_pads)
+        first_pad_y = -((pad_count_per_side - 1) * pin_pitch_mm) / 2
+        for index, (pad_name, net) in enumerate(left_pads):
+            pads.append(
+                _pad(
+                    PadSpec(
+                        pad_name,
+                        -pad_x_offset_mm,
+                        first_pad_y + (index * pin_pitch_mm),
+                        pad_width_mm,
+                        pad_height_mm,
+                        net,
+                    )
+                )
+            )
+        for index, (pad_name, net) in enumerate(right_pads):
+            pads.append(
+                _pad(
+                    PadSpec(
+                        pad_name,
+                        pad_x_offset_mm,
+                        first_pad_y + (index * pin_pitch_mm),
+                        pad_width_mm,
+                        pad_height_mm,
+                        net,
+                    )
+                )
+            )
+
+        pin_one_marker = (
+            _footprint_circle(
+                -body_width_mm / 2,
+                -body_height_mm / 2,
+                radius_mm=0.28,
+                layer="F.SilkS",
+            )
+            if pin_one_dot
+            else ""
+        )
+        self._items.append(
+            f"""  (footprint {_quote(footprint)}
+    (layer "F.Cu")
+    (uuid {uuid4()})
+    (at {_mm(x_mm)} {_mm(y_mm)})
+    {_property("Reference", reference, 0, 0, "F.SilkS", 0.8)}
+    {_property("Value", value, 0, 2.7, "F.Fab", 0.7)}
+    (attr smd)
+{_footprint_rect(body_width_mm, body_height_mm, "F.Fab")}
+{_footprint_rect(body_width_mm, body_height_mm, "F.SilkS", stroke_width_mm=0.12)}
+{pin_one_marker}
+{chr(10).join(pads)}
   )"""
         )
 
@@ -218,13 +308,20 @@ def _pad(spec: PadSpec) -> str:
     )"""
 
 
-def _footprint_rect(width_mm: float, height_mm: float, layer: str) -> str:
+def _footprint_rect(
+    width_mm: float,
+    height_mm: float,
+    layer: str,
+    *,
+    stroke_width_mm: float | None = None,
+) -> str:
     half_width = width_mm / 2
     half_height = height_mm / 2
+    stroke_width = 0.08 if stroke_width_mm is None else stroke_width_mm
     return f"""    (fp_rect
       (start {_mm(-half_width)} {_mm(-half_height)})
       (end {_mm(half_width)} {_mm(half_height)})
-      (stroke (width 0.08) (type solid))
+      (stroke (width {_mm(stroke_width)}) (type solid))
       (fill none)
       (layer {_quote(layer)})
       (uuid {uuid4()})
@@ -245,7 +342,7 @@ def _anode_plus_marker(spec: TwoPadSmdFootprintSpec) -> str:
     else:
         raise ValueError(f"Unsupported anode pad: {spec.anode_pad}")
     return f"""    (fp_text user "+"
-      (at {_mm(x_mm)} -1.25 0)
+      (at {_mm(x_mm)} 1.75 0)
       (layer "F.SilkS")
       (uuid {uuid4()})
       (effects (font (size 0.8 0.8) (thickness 0.12)))
@@ -263,6 +360,23 @@ def _footprint_line(
       (start {_mm(start_x_mm)} {_mm(start_y_mm)})
       (end {_mm(end_x_mm)} {_mm(end_y_mm)})
       (stroke (width 0.1) (type solid))
+      (layer {_quote(layer)})
+      (uuid {uuid4()})
+    )"""
+
+
+def _footprint_circle(
+    center_x_mm: float,
+    center_y_mm: float,
+    *,
+    radius_mm: float,
+    layer: str,
+) -> str:
+    return f"""    (fp_circle
+      (center {_mm(center_x_mm)} {_mm(center_y_mm)})
+      (end {_mm(center_x_mm + radius_mm)} {_mm(center_y_mm)})
+      (stroke (width 0.12) (type solid))
+      (fill none)
       (layer {_quote(layer)})
       (uuid {uuid4()})
     )"""
