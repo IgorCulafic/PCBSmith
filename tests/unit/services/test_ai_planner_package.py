@@ -56,6 +56,12 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     assert "Do not invent unknown symbols, footprints, pins, or KiCad capabilities." in (
         package["planner_rules"]
     )
+    assert "Prefer 45-degree/mitered PCB routing for CAD polish when practical." in (
+        package["planner_rules"]
+    )
+    assert "Do not treat 45-degree routing as an electrical hard rule; DRC wins." in (
+        package["planner_rules"]
+    )
 
 
 def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:

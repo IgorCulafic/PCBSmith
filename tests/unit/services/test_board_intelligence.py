@@ -3,11 +3,15 @@ from __future__ import annotations
 from pcbsmith.services.board_intelligence import (
     BoardPlacementFrame,
     NetRole,
+    RouteStylePolicy,
+    RoutingStyle,
     classify_net_role,
     mitered_route_points,
     recommended_trace_width_mm,
     route_segments,
     segment_angle_degrees,
+    styled_route_points,
+    tap_route_points,
 )
 
 
@@ -90,3 +94,48 @@ def test_mitered_route_points_preserves_declared_junction_points() -> None:
         (10.0, 0.0),
         (10.0, 10.0),
     )
+
+
+def test_styled_route_points_can_keep_orthogonal_routing() -> None:
+    points = styled_route_points(
+        (
+            (0.0, 0.0),
+            (10.0, 0.0),
+            (10.0, 10.0),
+        ),
+        policy=RouteStylePolicy(style=RoutingStyle.ORTHOGONAL),
+    )
+
+    assert points == ((0.0, 0.0), (10.0, 0.0), (10.0, 10.0))
+
+
+def test_tap_route_points_uses_45_degree_preference_when_enabled() -> None:
+    points = tap_route_points(
+        (10.0, 0.0),
+        (10.0, 8.0),
+        side=-1,
+        policy=RouteStylePolicy(style=RoutingStyle.PREFER_45, chamfer_mm=1.5),
+    )
+
+    assert points == (
+        (10.0, 0.0),
+        (8.5, 1.5),
+        (8.5, 6.5),
+        (10.0, 8.0),
+    )
+    assert [segment_angle_degrees(*segment) for segment in route_segments(points)] == [
+        135,
+        90,
+        45,
+    ]
+
+
+def test_tap_route_points_can_keep_direct_orthogonal_taps() -> None:
+    points = tap_route_points(
+        (10.0, 0.0),
+        (10.0, 8.0),
+        side=-1,
+        policy=RouteStylePolicy(style=RoutingStyle.ORTHOGONAL),
+    )
+
+    assert points == ((10.0, 0.0), (10.0, 8.0))

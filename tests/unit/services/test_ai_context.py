@@ -91,6 +91,11 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
 
     assert context["kicad"] == {
         "project_dir": str(kicad_dir),
+        "board_rules": {
+            "routing_style": "prefer_45",
+            "routing_style_authority": "cad_polish_preference",
+            "drc_authority": "hard_rule",
+        },
         "board_layers": [
             {"id": "F.Cu", "role": "front_copper", "routing": True},
             {"id": "B.Cu", "role": "back_copper", "routing": False},

@@ -15,6 +15,20 @@ class NetRole(StrEnum):
     CONTROL = "control"
 
 
+class RoutingStyle(StrEnum):
+    ORTHOGONAL = "orthogonal"
+    PREFER_45 = "prefer_45"
+
+
+@dataclass(frozen=True)
+class RouteStylePolicy:
+    style: RoutingStyle = RoutingStyle.PREFER_45
+    chamfer_mm: float = 1.5
+
+
+DEFAULT_ROUTE_STYLE_POLICY = RouteStylePolicy()
+
+
 @dataclass(frozen=True)
 class BoardPlacementFrame:
     origin_mm: tuple[float, float]
@@ -63,6 +77,63 @@ def recommended_trace_width_mm(role: NetRole) -> float:
         NetRole.CONTROL: 0.3,
         NetRole.SIGNAL: 0.3,
     }[role]
+
+
+def styled_route_points(
+    points: tuple[tuple[float, float], ...],
+    *,
+    policy: RouteStylePolicy = DEFAULT_ROUTE_STYLE_POLICY,
+    preserved_points: tuple[tuple[float, float], ...] = (),
+) -> tuple[tuple[float, float], ...]:
+    if policy.style is RoutingStyle.ORTHOGONAL:
+        return _dedupe_points(points)
+    return mitered_route_points(
+        points,
+        chamfer_mm=policy.chamfer_mm,
+        preserved_points=preserved_points,
+    )
+
+
+def tap_route_points(
+    start: tuple[float, float],
+    end: tuple[float, float],
+    *,
+    side: int = 1,
+    policy: RouteStylePolicy = DEFAULT_ROUTE_STYLE_POLICY,
+) -> tuple[tuple[float, float], ...]:
+    if policy.style is RoutingStyle.ORTHOGONAL:
+        return _dedupe_points((start, end))
+
+    side_multiplier = -1 if side < 0 else 1
+    if isclose(start[0], end[0]):
+        vertical_distance = abs(end[1] - start[1])
+        offset = min(policy.chamfer_mm, vertical_distance / 2.0)
+        direction = 1 if end[1] > start[1] else -1
+        side_x = _clean_float(start[0] + side_multiplier * offset)
+        return _dedupe_points(
+            (
+                start,
+                (side_x, _clean_float(start[1] + direction * offset)),
+                (side_x, _clean_float(end[1] - direction * offset)),
+                end,
+            )
+        )
+
+    if isclose(start[1], end[1]):
+        horizontal_distance = abs(end[0] - start[0])
+        offset = min(policy.chamfer_mm, horizontal_distance / 2.0)
+        direction = 1 if end[0] > start[0] else -1
+        side_y = _clean_float(start[1] + side_multiplier * offset)
+        return _dedupe_points(
+            (
+                start,
+                (_clean_float(start[0] + direction * offset), side_y),
+                (_clean_float(end[0] - direction * offset), side_y),
+                end,
+            )
+        )
+
+    return styled_route_points((start, end), policy=policy)
 
 
 def mitered_route_points(

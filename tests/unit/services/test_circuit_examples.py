@@ -264,3 +264,7 @@ def test_timer_555_astable_direct_kicad_export_uses_ic_and_support_parts(
     assert "(end 154 96)" in board_text
     assert "(start 68 42.5)" in board_text
     assert "(end 69.5 41)" in board_text
+    assert "(start 121.25 41)" in board_text
+    assert "(end 119.75 42.5)" in board_text
+    assert "(start 136.75 89)" in board_text
+    assert "(end 138.25 87.5)" in board_text
