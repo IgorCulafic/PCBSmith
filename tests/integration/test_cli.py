@@ -136,6 +136,59 @@ def test_validate_loads_referenced_design_files(tmp_path: Path) -> None:
     assert result.stdout.strip() == "Project is valid"
 
 
+def test_board_check_reports_clean_first_board(tmp_path: Path) -> None:
+    project_dir = tmp_path / "voltage_divider"
+    shutil.copytree(FIXTURE, project_dir)
+
+    result = _run_cli("board-check", str(project_dir))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Board manufacturability: passed (0 findings)",
+    ]
+
+
+def test_board_check_reports_trace_clearance_errors(tmp_path: Path) -> None:
+    project_dir = tmp_path / "voltage_divider"
+    shutil.copytree(FIXTURE, project_dir)
+    board_file = project_dir / "boards" / "main.brd.json"
+    board_file.write_text(
+        json.dumps(
+            {
+                "id": "main",
+                "traces": [
+                    {
+                        "net_name": "A",
+                        "layer": "F.Cu",
+                        "points": [{"x": 0, "y": 0}, {"x": 10_000_000, "y": 0}],
+                        "width": 400_000,
+                    },
+                    {
+                        "net_name": "B",
+                        "layer": "F.Cu",
+                        "points": [{"x": 0, "y": 500_000}, {"x": 10_000_000, "y": 500_000}],
+                        "width": 400_000,
+                    },
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_cli("board-check", str(project_dir))
+
+    assert result.returncode == 1
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Board manufacturability: 1 finding(s)",
+        (
+            "error: trace_clearance_risk: A and B clearance is 0.100 mm; "
+            "required 0.150 mm (trace 1 to trace 2 on F.Cu)"
+        ),
+    ]
+
+
 def test_missing_project_returns_cli_error(tmp_path: Path) -> None:
     result = _run_cli("info", str(tmp_path / "missing"))
 

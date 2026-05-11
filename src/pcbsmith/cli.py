@@ -17,6 +17,10 @@ from pcbsmith.services.ai_plan_check import check_ai_plan
 from pcbsmith.services.ai_plan_review import run_ai_plan_review
 from pcbsmith.services.ai_planner_package import write_ai_planner_package
 from pcbsmith.services.ai_proposal_bundle import run_ai_proposal_bundle
+from pcbsmith.services.board_manufacturability import (
+    format_board_manufacturability_report,
+    inspect_board_manufacturability,
+)
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
@@ -84,6 +88,18 @@ def _cmd_validate(args: argparse.Namespace) -> int:
         load_board(project_dir, board_path)
     print("Project is valid")
     return 0
+
+
+def _cmd_board_check(args: argparse.Namespace) -> int:
+    project_dir = Path(args.project)
+    project = load_project(project_dir)
+    if not project.boards:
+        raise ValueError("Project has no boards")
+    board = load_board(project_dir, project.boards[0])
+    report = inspect_board_manufacturability(board, design_rules=project.design_rules)
+    for line in format_board_manufacturability_report(report):
+        print(line)
+    return report.exit_code
 
 
 def _load_first_schematic(project_dir: Path) -> Schematic:
@@ -356,6 +372,13 @@ def build_parser() -> argparse.ArgumentParser:
     validate_parser = subparsers.add_parser("validate", help="load and validate project files")
     validate_parser.add_argument("project")
     validate_parser.set_defaults(func=_cmd_validate)
+
+    board_check_parser = subparsers.add_parser(
+        "board-check",
+        help="run lightweight PCBSmith manufacturability checks on the first board",
+    )
+    board_check_parser.add_argument("project")
+    board_check_parser.set_defaults(func=_cmd_board_check)
 
     netlist_parser = subparsers.add_parser("netlist", help="derive the first schematic netlist")
     netlist_parser.add_argument("project")
