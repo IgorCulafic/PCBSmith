@@ -1,0 +1,113 @@
+# PCBSmith Presentation Brief
+
+## One-Sentence Summary
+
+PCBSmith is an open-source AI companion for KiCad that turns user intent into reviewable, validated PCB design artifacts instead of trying to replace professional EDA tools.
+
+## The Problem
+
+PCB design is powerful but difficult for beginners. A user may know what they want to build, such as an LED sign, timer, dimmer, sensor board, or controller, but not know the right schematic structure, component choices, footprints, routing rules, design checks, or manufacturing files.
+
+General-purpose LLMs can describe circuits, but they can also hallucinate parts, pins, footprints, and unsafe layouts. A serious PCB tool needs guardrails, real CAD files, validation, and reviewable outputs.
+
+## The PCBSmith Approach
+
+PCBSmith does not ask an AI to draw arbitrary pixels or directly edit board files blindly. Instead, it gives the AI structured tools and project context, then validates the result through KiCad.
+
+Core principle:
+
+> The goal is not to make the model know PCB design perfectly. The goal is to make the model operate PCBSmith tools that know PCB constraints.
+
+## Why KiCad-First
+
+The project originally explored building a custom PCB editor UI. That quickly showed the risk of recreating weaker versions of mature EDA features: schematic editing, PCB layout, routing, DRC, library management, 3D preview, Gerbers, drill files, and manufacturing exports.
+
+The corrected architecture is KiCad-first:
+
+- KiCad remains the authoritative CAD backend.
+- PCBSmith generates KiCad-compatible projects and review bundles.
+- KiCad CLI performs ERC/DRC validation.
+- PCBSmith focuses on AI planning, structured commands, approval workflows, project context, and automation.
+
+## What Works Now
+
+- Project creation and validation.
+- KiCad project skeleton generation.
+- KiCad ERC/DRC checks through KiCad CLI.
+- AI context packages that summarize project files, KiCad reports, visual artifacts, and routing rules.
+- Deterministic circuit demos including:
+  - current-limited LED circuit;
+  - voltage divider;
+  - RC low-pass filter;
+  - VIR-LAB 5V LED art board;
+  - NE555 astable LED blinker;
+  - NE555 PWM LED dimmer.
+- KiCad review bundles with:
+  - schematic SVG;
+  - board SVG;
+  - laser-oriented front-copper SVG;
+  - Gerbers;
+  - drill files;
+  - AI context JSON.
+
+## Recent Technical Milestone
+
+The NE555 demos now generate KiCad-native, validation-clean boards with:
+
+- real schematic-backed nets;
+- front and back copper;
+- vias;
+- wider power/ground routing;
+- 45-degree/mitered routing as a CAD polish preference;
+- silkscreen labels;
+- component outlines;
+- polarity markers;
+- IC pin-1 marker;
+- Gerber and drill outputs.
+
+The newer PWM dimmer demo adds potentiometer control, steering diodes, MOSFET/load switching, input/output terminals, wider load traces, and laser-oriented front-copper SVG output.
+
+An important correction was made during this milestone: 45-degree routing is useful for CAD polish and professional style, but it is not a universal electrical hard rule. KiCad DRC, trace width, clearance, current capacity, and connectivity are the real hard gates.
+
+## AI Safety And Review Model
+
+PCBSmith treats AI-generated work as a proposal until validated and approved.
+
+- The AI proposes structured operations.
+- PCBSmith checks symbols, footprints, nets, routing assumptions, and design rules.
+- KiCad verifies ERC/DRC.
+- The user reviews generated visual and manufacturing artifacts.
+- Only approved changes should be applied.
+
+## Why This Matters
+
+This workflow can help non-expert users create useful electronics while still producing files that can be inspected, edited, manufactured, or rejected using professional tooling.
+
+It also creates a path toward future multimodal workflows, such as giving the AI an image or logo and asking it to place LEDs along that shape, while still generating real KiCad outputs and manufacturing files.
+
+## Next Milestones
+
+Near-term:
+
+- 555 PWM LED dimmer board with potentiometer, MOSFET/load switching, input/output terminals, wider load traces, and DRC-clean KiCad outputs.
+- More component catalog coverage: potentiometers, MOSFETs, terminal blocks, regulators, headers, and simple ICs.
+- Better AI constraints for current, voltage, trace width, polarity, and component choice.
+
+Later:
+
+- Microcontroller boards with programming headers.
+- Image-to-LED PCB workflows.
+- Local model support.
+- Optional multi-agent AI planning/review.
+- Broader KiCad library integration.
+- Simulation hooks for checking circuit behavior where practical.
+
+## Demo Narrative
+
+1. Start with a plain-language user request.
+2. Show that PCBSmith converts the request into structured circuit intent.
+3. Generate KiCad-native schematic and PCB files.
+4. Run KiCad ERC/DRC.
+5. Show board SVG and schematic SVG.
+6. Show Gerber, drill, and laser front-copper SVG outputs.
+7. Explain that the AI is not trusted blindly; it operates constrained tools and KiCad validates the result.

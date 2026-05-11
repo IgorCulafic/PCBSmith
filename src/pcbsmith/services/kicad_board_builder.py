@@ -48,6 +48,20 @@ class TwoPadSmdFootprintSpec:
     silkscreen_y_margin_mm: float = 0.5
 
 
+@dataclass(frozen=True)
+class ThreePadSmdFootprintSpec:
+    footprint: str
+    reference: str
+    value: str
+    x_mm: float
+    y_mm: float
+    pads: tuple[tuple[str, float, float, float, float, NetRef], ...]
+    reference_offset_mm: tuple[float, float] = (0.0, -2.0)
+    body_width_mm: float = 4.0
+    body_height_mm: float = 3.0
+    body_layer: str = "F.Fab"
+
+
 @dataclass
 class KiCadBoardBuilder:
     board_outline_uuid: UUID = field(default_factory=uuid4)
@@ -279,6 +293,41 @@ class KiCadBoardBuilder:
   )"""
         )
 
+    def add_three_pad_smd_footprint(self, spec: ThreePadSmdFootprintSpec) -> None:
+        ref_x, ref_y = spec.reference_offset_mm
+        pads = "\n".join(
+            _pad(
+                PadSpec(
+                    name,
+                    pad_x_mm,
+                    pad_y_mm,
+                    pad_width_mm,
+                    pad_height_mm,
+                    net,
+                )
+            )
+            for name, pad_x_mm, pad_y_mm, pad_width_mm, pad_height_mm, net in spec.pads
+        )
+        silkscreen_outline = _footprint_rect(
+            spec.body_width_mm + 1.2,
+            spec.body_height_mm + 0.9,
+            "F.SilkS",
+            stroke_width_mm=0.1,
+        )
+        self._items.append(
+            f"""  (footprint {_quote(spec.footprint)}
+    (layer "F.Cu")
+    (uuid {uuid4()})
+    (at {_mm(spec.x_mm)} {_mm(spec.y_mm)})
+    {_property("Reference", spec.reference, ref_x, ref_y, "F.SilkS", 0.8)}
+    {_property("Value", spec.value, 0, 2.2, "F.Fab", 0.6)}
+    (attr smd)
+{_footprint_rect(spec.body_width_mm, spec.body_height_mm, spec.body_layer)}
+{silkscreen_outline}
+{pads}
+  )"""
+        )
+
     def render(
         self,
         *,
@@ -412,5 +461,6 @@ __all__ = [
     "KiCadBoardBuilder",
     "NetRef",
     "PadSpec",
+    "ThreePadSmdFootprintSpec",
     "TwoPadSmdFootprintSpec",
 ]
