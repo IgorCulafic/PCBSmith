@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
+from pcbsmith.services.board_intelligence import segment_angle_degrees
 from pcbsmith.services.circuit_examples import (
     CurrentLimitedLedCircuit,
     RcLowPassFilterCircuit,
@@ -348,3 +350,37 @@ def test_timer_555_pwm_dimmer_direct_kicad_export_uses_power_and_load_parts(
     assert "(width 0.8)" in board_text
     assert "(start 60 35)" in board_text
     assert "(end 160 98)" in board_text
+
+
+def test_timer_555_pwm_dimmer_board_uses_cardinal_or_45_degree_routing(
+    tmp_path: Path,
+) -> None:
+    result = export_timer_555_pwm_dimmer_kicad_project(
+        tmp_path / "source",
+        tmp_path / "kicad",
+        Timer555PwmDimmerCircuit(name="555 PWM Dimmer"),
+    )
+
+    off_style_segments = [
+        (start, end, segment_angle_degrees(start, end))
+        for start, end in _board_segments(result.board_file.read_text(encoding="utf-8"))
+        if segment_angle_degrees(start, end) not in {0, 45, 90, 135, 180}
+    ]
+
+    assert off_style_segments == []
+
+
+def _board_segments(board_text: str) -> list[tuple[tuple[float, float], tuple[float, float]]]:
+    segment_pattern = re.compile(
+        r"\(segment\s+"
+        r"\(start (?P<start_x>-?\d+(?:\.\d+)?) (?P<start_y>-?\d+(?:\.\d+)?)\)\s+"
+        r"\(end (?P<end_x>-?\d+(?:\.\d+)?) (?P<end_y>-?\d+(?:\.\d+)?)\)",
+        re.MULTILINE,
+    )
+    return [
+        (
+            (float(match.group("start_x")), float(match.group("start_y"))),
+            (float(match.group("end_x")), float(match.group("end_y"))),
+        )
+        for match in segment_pattern.finditer(board_text)
+    ]
