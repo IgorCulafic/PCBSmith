@@ -118,8 +118,10 @@ def _planned_artifacts(
     schematic_file: Path,
     board_file: Path,
     output_dir: Path,
-) -> tuple[KiCadPreviewArtifact, KiCadPreviewArtifact, KiCadPreviewArtifact]:
+) -> tuple[KiCadPreviewArtifact, ...]:
     fabrication_dir = output_dir.parent / "fabrication"
+    gerber_dir = fabrication_dir / "gerbers"
+    drill_dir = fabrication_dir / "drill"
     return (
         KiCadPreviewArtifact(
             kind="schematic",
@@ -142,6 +144,20 @@ def _planned_artifacts(
             status="pending",
             message=None,
         ),
+        KiCadPreviewArtifact(
+            kind="gerbers",
+            input_file=board_file,
+            output_file=gerber_dir,
+            status="pending",
+            message=None,
+        ),
+        KiCadPreviewArtifact(
+            kind="drill",
+            input_file=board_file,
+            output_file=drill_dir,
+            status="pending",
+            message=None,
+        ),
     )
 
 
@@ -157,6 +173,20 @@ def _run_artifact_export(
         return _run_board_export(cli_path, artifact, runner, laser=False)
     if artifact.kind == "laser-f-cu":
         return _run_board_export(cli_path, artifact, runner, laser=True)
+    if artifact.kind == "gerbers":
+        return _run_fabrication_dir_export(
+            _gerber_command(cli_path, artifact.input_file, artifact.output_file),
+            artifact,
+            runner,
+            missing_message="no Gerber files produced",
+        )
+    if artifact.kind == "drill":
+        return _run_fabrication_dir_export(
+            _drill_command(cli_path, artifact.input_file, artifact.output_file),
+            artifact,
+            runner,
+            missing_message="no drill files produced",
+        )
     raise ValueError(f"Unsupported KiCad preview artifact: {artifact.kind}")
 
 
@@ -207,6 +237,28 @@ def _run_board_export(
     if not artifact.output_file.exists():
         return artifact.model_copy(
             update={"status": "error", "message": "no board SVG produced"}
+        )
+    return artifact.model_copy(update={"status": "exported"})
+
+
+def _run_fabrication_dir_export(
+    command: Sequence[str],
+    artifact: KiCadPreviewArtifact,
+    runner: Callable[[Sequence[str]], KiCadPreviewProcessResult],
+    *,
+    missing_message: str,
+) -> KiCadPreviewArtifact:
+    if artifact.output_file.exists():
+        shutil.rmtree(artifact.output_file)
+    artifact.output_file.mkdir(parents=True, exist_ok=True)
+    process_result = runner(command)
+    if process_result.returncode != 0:
+        return artifact.model_copy(
+            update={"status": "error", "message": _process_message(process_result)}
+        )
+    if not any(artifact.output_file.iterdir()):
+        return artifact.model_copy(
+            update={"status": "error", "message": missing_message}
         )
     return artifact.model_copy(update={"status": "exported"})
 
@@ -266,11 +318,52 @@ def _laser_f_cu_command(cli_path: Path, input_file: Path, output_file: Path) -> 
     ]
 
 
+def _gerber_command(cli_path: Path, input_file: Path, output_dir: Path) -> list[str]:
+    return [
+        str(cli_path),
+        "pcb",
+        "export",
+        "gerbers",
+        "--output",
+        str(output_dir),
+        "--layers",
+        "F.Cu,F.Mask,F.SilkS,Edge.Cuts",
+        "--subtract-soldermask",
+        "--precision",
+        "6",
+        str(input_file),
+    ]
+
+
+def _drill_command(cli_path: Path, input_file: Path, output_dir: Path) -> list[str]:
+    return [
+        str(cli_path),
+        "pcb",
+        "export",
+        "drill",
+        "--output",
+        str(output_dir),
+        "--format",
+        "excellon",
+        "--excellon-units",
+        "mm",
+        "--generate-map",
+        "--map-format",
+        "svg",
+        "--generate-report",
+        "--report-path",
+        str(output_dir / "drill-report.txt"),
+        str(input_file),
+    ]
+
+
 def _format_artifact(artifact: KiCadPreviewArtifact) -> str:
     labels = {
         "schematic": "Schematic SVG",
         "board": "Board SVG",
         "laser-f-cu": "Laser F.Cu SVG",
+        "gerbers": "Gerber package",
+        "drill": "Drill package",
     }
     label = labels.get(artifact.kind, artifact.kind)
     if artifact.status == "error":
