@@ -4,8 +4,11 @@ from pathlib import Path
 
 from pcbsmith.services.circuit_examples import (
     CurrentLimitedLedCircuit,
+    RcLowPassFilterCircuit,
     create_current_limited_led_project,
+    create_rc_low_pass_filter_project,
     export_current_limited_led_kicad_project,
+    export_rc_low_pass_filter_kicad_project,
 )
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
 from pcbsmith.services.project_io import load_board, load_project, load_schematic
@@ -117,3 +120,63 @@ def test_current_limited_led_direct_kicad_export_can_disable_polarity_marks(
 
     board_text = result.board_file.read_text(encoding="utf-8")
     assert '(fp_text user "+"' not in board_text
+
+
+def test_create_rc_low_pass_filter_project_writes_shared_schematic_and_board(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "source"
+
+    result = create_rc_low_pass_filter_project(
+        project_dir,
+        RcLowPassFilterCircuit(
+            name="RC Low Pass",
+            resistor_value="10k",
+            capacitor_value="100nF",
+        ),
+    )
+
+    project = load_project(project_dir)
+    schematic = load_schematic(project_dir, "schematics/main.sch.json")
+    board = load_board(project_dir, "boards/main.brd.json")
+
+    assert result.project_dir == project_dir
+    assert result.schematic_path == "schematics/main.sch.json"
+    assert result.board_path == "boards/main.brd.json"
+    assert project.name == "RC Low Pass"
+    assert [symbol.reference for symbol in schematic.symbols] == ["V1", "R1", "C1", "G1"]
+    assert [symbol.value for symbol in schematic.symbols] == ["VCC", "10k", "100nF", "GND"]
+    assert [label.name for label in schematic.labels] == ["VCC", "OUT", "GND"]
+    assert len(schematic.wires) == 3
+    assert board.texts[0].text == "RC Low Pass"
+
+
+def test_rc_low_pass_filter_direct_kicad_export_uses_clean_board_builder(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    output_dir = tmp_path / "kicad"
+
+    result = export_rc_low_pass_filter_kicad_project(
+        source_dir,
+        output_dir,
+        RcLowPassFilterCircuit(
+            name="RC Low Pass",
+            resistor_value="10k",
+            capacitor_value="100nF",
+        ),
+    )
+
+    schematic_text = result.schematic_file.read_text(encoding="utf-8")
+    board_text = result.board_file.read_text(encoding="utf-8")
+    assert result.source_project_dir == source_dir
+    assert '(lib_id "PCBSmith:R")' in schematic_text
+    assert '(lib_id "PCBSmith:C")' in schematic_text
+    assert '(footprint "PCBSmith_R_0603_REAL"' in board_text
+    assert '(footprint "PCBSmith_C_0603_REAL"' in board_text
+    assert '(net 1 "VCC")' in board_text
+    assert '(net 2 "OUT")' in board_text
+    assert '(net 3 "GND")' in board_text
+    assert '(property "Reference" "R1"' in board_text
+    assert '(property "Reference" "C1"' in board_text
+    assert '(gr_text "RC Low Pass"' in board_text
