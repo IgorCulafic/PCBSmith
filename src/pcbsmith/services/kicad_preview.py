@@ -118,7 +118,8 @@ def _planned_artifacts(
     schematic_file: Path,
     board_file: Path,
     output_dir: Path,
-) -> tuple[KiCadPreviewArtifact, KiCadPreviewArtifact]:
+) -> tuple[KiCadPreviewArtifact, KiCadPreviewArtifact, KiCadPreviewArtifact]:
+    fabrication_dir = output_dir.parent / "fabrication"
     return (
         KiCadPreviewArtifact(
             kind="schematic",
@@ -134,6 +135,13 @@ def _planned_artifacts(
             status="pending",
             message=None,
         ),
+        KiCadPreviewArtifact(
+            kind="laser-f-cu",
+            input_file=board_file,
+            output_file=fabrication_dir / f"{board_file.stem}-fcu-laser.svg",
+            status="pending",
+            message=None,
+        ),
     )
 
 
@@ -146,7 +154,9 @@ def _run_artifact_export(
     if artifact.kind == "schematic":
         return _run_schematic_export(cli_path, artifact, output_dir, runner)
     if artifact.kind == "board":
-        return _run_board_export(cli_path, artifact, runner)
+        return _run_board_export(cli_path, artifact, runner, laser=False)
+    if artifact.kind == "laser-f-cu":
+        return _run_board_export(cli_path, artifact, runner, laser=True)
     raise ValueError(f"Unsupported KiCad preview artifact: {artifact.kind}")
 
 
@@ -181,9 +191,15 @@ def _run_board_export(
     cli_path: Path,
     artifact: KiCadPreviewArtifact,
     runner: Callable[[Sequence[str]], KiCadPreviewProcessResult],
+    *,
+    laser: bool,
 ) -> KiCadPreviewArtifact:
     artifact.output_file.parent.mkdir(parents=True, exist_ok=True)
-    process_result = runner(_board_command(cli_path, artifact.input_file, artifact.output_file))
+    process_result = runner(
+        _laser_f_cu_command(cli_path, artifact.input_file, artifact.output_file)
+        if laser
+        else _board_command(cli_path, artifact.input_file, artifact.output_file)
+    )
     if process_result.returncode != 0:
         return artifact.model_copy(
             update={"status": "error", "message": _process_message(process_result)}
@@ -228,8 +244,35 @@ def _board_command(cli_path: Path, input_file: Path, output_file: Path) -> list[
     ]
 
 
+def _laser_f_cu_command(cli_path: Path, input_file: Path, output_file: Path) -> list[str]:
+    return [
+        str(cli_path),
+        "pcb",
+        "export",
+        "svg",
+        "--output",
+        str(output_file),
+        "--layers",
+        "F.Cu",
+        "--page-size-mode",
+        "2",
+        "--fit-page-to-board",
+        "--exclude-drawing-sheet",
+        "--black-and-white",
+        "--drill-shape-opt",
+        "0",
+        "--mode-single",
+        str(input_file),
+    ]
+
+
 def _format_artifact(artifact: KiCadPreviewArtifact) -> str:
-    label = "Schematic SVG" if artifact.kind == "schematic" else "Board SVG"
+    labels = {
+        "schematic": "Schematic SVG",
+        "board": "Board SVG",
+        "laser-f-cu": "Laser F.Cu SVG",
+    }
+    label = labels.get(artifact.kind, artifact.kind)
     if artifact.status == "error":
         return f"{label}: error ({artifact.message})"
     return f"{label}: {artifact.status} ({artifact.output_file})"
