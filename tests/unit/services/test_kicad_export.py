@@ -431,6 +431,68 @@ def test_export_hides_signal_net_labels_on_wire_interiors(
     assert '(net 2 "OUT")' in board_text
 
 
+def test_export_routes_non_aligned_board_nets_with_bent_tracks(
+    tmp_path: Path,
+) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Bent Route Demo")
+    save_schematic(
+        source_project,
+        "schematics/main.sch.json",
+        Schematic(
+            id="main",
+            symbols=(
+                SymbolInstance(
+                    reference="R1",
+                    symbol_id="stdlib:R",
+                    value="330",
+                    position=Point.from_mm(15.24, 0),
+                    footprint_id="stdlib:R_0603",
+                ),
+                SymbolInstance(
+                    reference="LED1",
+                    symbol_id="stdlib:LED",
+                    value="Red LED",
+                    position=Point.from_mm(40.64, -10.16),
+                    footprint_id="stdlib:LED_0603",
+                ),
+            ),
+            wires=(
+                Wire(points=(Point.from_mm(20.32, 0), Point.from_mm(25.4, 0))),
+                Wire(points=(Point.from_mm(25.4, 0), Point.from_mm(25.4, -10.16))),
+                Wire(points=(Point.from_mm(25.4, -10.16), Point.from_mm(35.56, -10.16))),
+            ),
+            labels=(NetLabel(name="DRIVE", position=Point.from_mm(22.86, 0)),),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
+
+    assert (
+        '(segment (start 137.5 107.5) (end 146.5 97.34) (width 0.25) '
+        '(layer "F.Cu") (net 1)'
+    ) not in board_text
+    assert (
+        '(segment (start 146.5 97.34) (end 143.5 97.34) (width 0.25) '
+        '(layer "F.Cu") (net 1)'
+    ) in board_text
+    assert (
+        '(segment (start 143.5 97.34) (end 142 98.84) (width 0.25) '
+        '(layer "F.Cu") (net 1)'
+    ) in board_text
+    assert (
+        '(segment (start 140.5 107.5) (end 137.5 107.5) (width 0.25) '
+        '(layer "F.Cu") (net 1)'
+    ) in board_text
+
+
 def test_export_keeps_floating_labels_in_handoff_only(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "kicad"

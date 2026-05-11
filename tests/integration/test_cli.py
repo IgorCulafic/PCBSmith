@@ -213,13 +213,16 @@ def test_kicad_preview_can_skip_execution(tmp_path: Path) -> None:
     assert result.stderr == ""
     schematic_preview = project_dir / ".pcbsmith" / "visual" / "LED_Blinker-schematic.svg"
     board_preview = project_dir / ".pcbsmith" / "visual" / "LED_Blinker-board.svg"
-    laser_preview = project_dir / ".pcbsmith" / "fabrication" / "LED_Blinker-fcu-laser.svg"
+    fabrication_dir = project_dir / ".pcbsmith" / "fabrication"
+    laser_preview = fabrication_dir / "LED_Blinker-fcu-laser.svg"
     assert result.stdout.splitlines() == [
         f"KiCad project: {project_dir}",
         "KiCad CLI: C:\\Tools\\KiCad\\bin\\kicad-cli.exe (PCBSMITH_KICAD_CLI)",
         f"Schematic SVG: skipped ({schematic_preview})",
         f"Board SVG: skipped ({board_preview})",
         f"Laser F.Cu SVG: skipped ({laser_preview})",
+        f"Gerber package: skipped ({fabrication_dir / 'gerbers'})",
+        f"Drill package: skipped ({fabrication_dir / 'drill'})",
     ]
 
 

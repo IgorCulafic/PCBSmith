@@ -1175,19 +1175,79 @@ def _render_board_segments(
             key=lambda pad: (float(pad.y_mm), float(pad.x_mm)),
         )
         for start, end in zip(net_pads, net_pads[1:], strict=False):
-            if start.x_mm == end.x_mm and start.y_mm == end.y_mm:
-                continue
-            segments.append(
-                _render_board_segment(
-                    start_x_mm=start.x_mm,
-                    start_y_mm=start.y_mm,
-                    end_x_mm=end.x_mm,
-                    end_y_mm=end.y_mm,
-                    net=start.net,
-                    uuid=uuid_factory(),
+            for route_start, route_end in _routed_board_pad_segments(start, end):
+                segments.append(
+                    _render_board_segment(
+                        start_x_mm=route_start[0],
+                        start_y_mm=route_start[1],
+                        end_x_mm=route_end[0],
+                        end_y_mm=route_end[1],
+                        net=start.net,
+                        uuid=uuid_factory(),
+                    )
                 )
-            )
     return tuple(segments)
+
+
+def _routed_board_pad_segments(
+    start: NativeBoardPad,
+    end: NativeBoardPad,
+) -> tuple[tuple[tuple[str, str], tuple[str, str]], ...]:
+    route_points = _routed_board_pad_points(
+        float(start.x_mm),
+        float(start.y_mm),
+        float(end.x_mm),
+        float(end.y_mm),
+    )
+    return tuple(
+        (
+            (_format_plain_mm(start_x), _format_plain_mm(start_y)),
+            (_format_plain_mm(end_x), _format_plain_mm(end_y)),
+        )
+        for (start_x, start_y), (end_x, end_y) in zip(
+            route_points, route_points[1:], strict=False
+        )
+        if start_x != end_x or start_y != end_y
+    )
+
+
+def _routed_board_pad_points(
+    start_x: float,
+    start_y: float,
+    end_x: float,
+    end_y: float,
+) -> tuple[tuple[float, float], ...]:
+    if start_x == end_x or start_y == end_y:
+        return ((start_x, start_y), (end_x, end_y))
+
+    dx = end_x - start_x
+    dy = end_y - start_y
+    x_direction = 1 if dx > 0 else -1
+    y_direction = 1 if dy > 0 else -1
+    chamfer = min(abs(dx) / 4, abs(dy) / 4, 1.5)
+    mid_x = start_x + dx / 2
+
+    return _dedupe_route_points(
+        (
+            (start_x, start_y),
+            (mid_x - x_direction * chamfer, start_y),
+            (mid_x, start_y + y_direction * chamfer),
+            (mid_x, end_y - y_direction * chamfer),
+            (mid_x + x_direction * chamfer, end_y),
+            (end_x, end_y),
+        )
+    )
+
+
+def _dedupe_route_points(
+    points: tuple[tuple[float, float], ...],
+) -> tuple[tuple[float, float], ...]:
+    deduped: list[tuple[float, float]] = []
+    for point in points:
+        rounded = (round(point[0], 6), round(point[1], 6))
+        if not deduped or deduped[-1] != rounded:
+            deduped.append(rounded)
+    return tuple(deduped)
 
 
 def _offset_mm(base_mm: str, offset_mm: str) -> str:
