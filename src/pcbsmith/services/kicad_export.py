@@ -30,12 +30,13 @@ KICAD_SCHEMATIC_SHEET_CENTER = Point(mm_to_nm(147.32), mm_to_nm(104.14))
 KICAD_BOARD_DISPLAY_OFFSET_X_MM = 123.5
 KICAD_BOARD_DISPLAY_OFFSET_Y_MM = 87.5
 KICAD_BOARD_OUTLINE_START_MM = "123.5 87.5"
-KICAD_BOARD_OUTLINE_END_MM = "173.5 122.5"
+KICAD_BOARD_OUTLINE_END_MM = "183.5 127.5"
 KICAD_LAYER_FRONT_COPPER = "F.Cu"
 KICAD_LAYER_BACK_COPPER = "B.Cu"
 KICAD_LAYER_FRONT_SILK = "F.SilkS"
 KICAD_LAYER_BACK_SILK = "B.SilkS"
 KICAD_LAYER_EDGE_CUTS = "Edge.Cuts"
+BOARD_PAD_ESCAPE_MM = 3.0
 
 
 @dataclass(frozen=True)
@@ -88,6 +89,13 @@ class NativeBoardPad:
     x_mm: str
     y_mm: str
     net: NativeBoardNet
+    escape_direction: int = 0
+
+
+@dataclass(frozen=True)
+class NativePowerPadPosition:
+    x_mm: str
+    y_mm: str
 
 
 class KiCadExportResult(BaseModel):
@@ -746,17 +754,21 @@ def _native_board_pads(
 ) -> tuple[NativeBoardPad, ...]:
     pads: list[NativeBoardPad] = []
     for net in board_nets:
-        if net.name == "VCC":
+        power_position = _board_power_pad_position(net.name)
+        if power_position is not None:
             pads.append(
-                NativeBoardPad(x_mm=_board_x_mm(4), y_mm=_board_y_mm(20), net=net)
-            )
-        elif net.name == "GND":
-            pads.append(
-                NativeBoardPad(x_mm=_board_x_mm(45), y_mm=_board_y_mm(20), net=net)
+                NativeBoardPad(
+                    x_mm=power_position.x_mm,
+                    y_mm=power_position.y_mm,
+                    net=net,
+                    escape_direction=1,
+                )
             )
 
     for footprint in footprints:
-        for x_offset, net in zip(("-4", "4"), footprint.pad_nets, strict=True):
+        for x_offset, net, escape_direction in zip(
+            ("-4", "4"), footprint.pad_nets, (-1, 1), strict=True
+        ):
             if net is None:
                 continue
             pads.append(
@@ -764,6 +776,7 @@ def _native_board_pads(
                     x_mm=_offset_mm(footprint.center_x_mm, x_offset),
                     y_mm=footprint.center_y_mm,
                     net=net,
+                    escape_direction=escape_direction,
                 )
             )
     return tuple(pads)
@@ -1003,8 +1016,9 @@ def _render_board_power_footprint(
     *,
     uuid_factory: Callable[[], UUID],
 ) -> str:
-    x_mm = _board_x_mm(4 if net.name == "VCC" else 45)
-    y_mm = _board_y_mm(20)
+    position = _board_power_pad_position(net.name)
+    x_mm = _board_x_mm(4) if position is None else position.x_mm
+    y_mm = _board_y_mm(20) if position is None else position.y_mm
     return f"""  (footprint "PCBSmith_POWER_PAD"
     (layer "F.Cu")
     (uuid {uuid_factory()})
@@ -1168,24 +1182,102 @@ def _render_board_segments(
     uuid_factory: Callable[[], UUID],
 ) -> tuple[str, ...]:
     segments: list[str] = []
+    rendered_keys: set[tuple[int, str, str, str, str]] = set()
     net_numbers = sorted({pad.net.number for pad in pads})
     for net_number in net_numbers:
         net_pads = sorted(
             (pad for pad in pads if pad.net.number == net_number),
             key=lambda pad: (float(pad.y_mm), float(pad.x_mm)),
         )
-        for start, end in zip(net_pads, net_pads[1:], strict=False):
-            for route_start, route_end in _routed_board_pad_segments(start, end):
-                segments.append(
-                    _render_board_segment(
-                        start_x_mm=route_start[0],
-                        start_y_mm=route_start[1],
-                        end_x_mm=route_end[0],
-                        end_y_mm=route_end[1],
-                        net=start.net,
-                        uuid=uuid_factory(),
-                    )
+        route_segments = (
+            _ground_return_lane_segments(net_pads)
+            if net_pads and net_pads[0].net.name == "GND" and len(net_pads) >= 3
+            else tuple(
+                segment
+                for start, end in zip(net_pads, net_pads[1:], strict=False)
+                for segment in _routed_board_pad_segments(start, end)
+            )
+        )
+        for route_start, route_end in route_segments:
+            segment_key = _board_segment_key(net_number, route_start, route_end)
+            if segment_key in rendered_keys:
+                continue
+            rendered_keys.add(segment_key)
+            segments.append(
+                _render_board_segment(
+                    start_x_mm=route_start[0],
+                    start_y_mm=route_start[1],
+                    end_x_mm=route_end[0],
+                    end_y_mm=route_end[1],
+                    net=net_pads[0].net,
+                    uuid=uuid_factory(),
                 )
+            )
+    return tuple(segments)
+
+
+def _board_segment_key(
+    net_number: int,
+    route_start: tuple[str, str],
+    route_end: tuple[str, str],
+) -> tuple[int, str, str, str, str]:
+    left, right = sorted((route_start, route_end))
+    return (net_number, left[0], left[1], right[0], right[1])
+
+
+def _ground_return_lane_segments(
+    pads: list[NativeBoardPad],
+) -> tuple[tuple[tuple[str, str], tuple[str, str]], ...]:
+    connector_position = _board_power_pad_position("GND")
+    if connector_position is None:
+        return ()
+    connector = next(
+        (
+            pad
+            for pad in pads
+            if pad.x_mm == connector_position.x_mm and pad.y_mm == connector_position.y_mm
+        ),
+        None,
+    )
+    if connector is None:
+        return ()
+
+    routed_pads = [pad for pad in pads if pad is not connector]
+    if not routed_pads:
+        return ()
+
+    lane_x = max(
+        _board_pad_escape_point(pad)[0]
+        if pad.escape_direction > 0
+        else float(pad.x_mm)
+        for pad in routed_pads
+    )
+    lane_y = float(_board_y_mm(36))
+    lowest_escape_y = min(_board_pad_escape_point(pad)[1] for pad in routed_pads)
+    connector_escape = _board_pad_escape_point(connector)
+    segments: list[tuple[tuple[str, str], tuple[str, str]]] = []
+    segments.extend(
+        _route_segments_from_points(
+            (
+                (float(connector.x_mm), float(connector.y_mm)),
+                connector_escape,
+                (connector_escape[0], lane_y),
+                (lane_x, lane_y),
+                (lane_x, lowest_escape_y),
+            )
+        )
+    )
+    for pad in routed_pads:
+        escape = _board_pad_escape_point(pad)
+        segments.extend(
+            _route_segments_from_points(
+                (
+                    (lane_x, escape[1]),
+                    escape,
+                    (float(pad.x_mm), float(pad.y_mm)),
+                )
+            )
+        )
     return tuple(segments)
 
 
@@ -1193,12 +1285,41 @@ def _routed_board_pad_segments(
     start: NativeBoardPad,
     end: NativeBoardPad,
 ) -> tuple[tuple[tuple[str, str], tuple[str, str]], ...]:
+    start_x = float(start.x_mm)
+    start_y = float(start.y_mm)
+    end_x = float(end.x_mm)
+    end_y = float(end.y_mm)
+    start_escape = _board_pad_escape_point(start)
+    end_escape = _board_pad_escape_point(end)
+    if (
+        start_y == end_y
+        and start.escape_direction != 0
+        and end.escape_direction != 0
+        and abs(end_x - start_x) <= 2 * BOARD_PAD_ESCAPE_MM
+    ):
+        start_escape = (start_x, start_y)
+        end_escape = (end_x, end_y)
     route_points = _routed_board_pad_points(
-        float(start.x_mm),
-        float(start.y_mm),
-        float(end.x_mm),
-        float(end.y_mm),
+        start_escape[0],
+        start_escape[1],
+        end_escape[0],
+        end_escape[1],
     )
+    route_points = _dedupe_route_points(
+        (
+            (start_x, start_y),
+            start_escape,
+            *route_points,
+            end_escape,
+            (end_x, end_y),
+        )
+    )
+    return _route_segments_from_points(route_points)
+
+
+def _route_segments_from_points(
+    route_points: tuple[tuple[float, float], ...],
+) -> tuple[tuple[tuple[str, str], tuple[str, str]], ...]:
     return tuple(
         (
             (_format_plain_mm(start_x), _format_plain_mm(start_y)),
@@ -1209,6 +1330,14 @@ def _routed_board_pad_segments(
         )
         if start_x != end_x or start_y != end_y
     )
+
+
+def _board_pad_escape_point(pad: NativeBoardPad) -> tuple[float, float]:
+    x_mm = float(pad.x_mm)
+    y_mm = float(pad.y_mm)
+    if pad.escape_direction == 0:
+        return (x_mm, y_mm)
+    return (x_mm + pad.escape_direction * BOARD_PAD_ESCAPE_MM, y_mm)
 
 
 def _routed_board_pad_points(
@@ -1248,6 +1377,14 @@ def _dedupe_route_points(
         if not deduped or deduped[-1] != rounded:
             deduped.append(rounded)
     return tuple(deduped)
+
+
+def _board_power_pad_position(net_name: str) -> NativePowerPadPosition | None:
+    if net_name == "VCC":
+        return NativePowerPadPosition(x_mm=_board_x_mm(4), y_mm=_board_y_mm(20))
+    if net_name == "GND":
+        return NativePowerPadPosition(x_mm=_board_x_mm(4), y_mm=_board_y_mm(24))
+    return None
 
 
 def _offset_mm(base_mm: str, offset_mm: str) -> str:
