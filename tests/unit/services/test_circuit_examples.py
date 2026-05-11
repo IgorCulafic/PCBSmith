@@ -260,3 +260,5 @@ def test_timer_555_astable_direct_kicad_export_uses_ic_and_support_parts(
     assert "(via" in board_text
     assert '(layers "F.Cu" "B.Cu")' in board_text
     assert '(layer "B.Cu")' in board_text
+    assert "(start 60 35)" in board_text
+    assert "(end 154 96)" in board_text
