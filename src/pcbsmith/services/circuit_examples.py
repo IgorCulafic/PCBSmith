@@ -11,10 +11,12 @@ from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, Schematic, SymbolInstance, Wire
 from pcbsmith.services.board_intelligence import (
     BoardPlacementFrame,
+    RouteStylePolicy,
     classify_net_role,
-    mitered_route_points,
     recommended_trace_width_mm,
     route_segments,
+    styled_route_points,
+    tap_route_points,
 )
 from pcbsmith.services.kicad_board_builder import (
     KiCadBoardBuilder,
@@ -685,6 +687,7 @@ def _render_rc_low_pass_filter_board(circuit: RcLowPassFilterCircuit) -> str:
 
 def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     frame = BoardPlacementFrame(origin_mm=(60.0, 35.0), size_mm=(94.0, 61.0))
+    route_policy = RouteStylePolicy(chamfer_mm=1.5)
 
     def point(local_x_mm: float, local_y_mm: float) -> tuple[float, float]:
         return frame.point(local_x_mm, local_y_mm)
@@ -702,8 +705,9 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         )
         width_mm = recommended_trace_width_mm(classify_net_role(net.name))
         for start, end in route_segments(
-            mitered_route_points(
+            styled_route_points(
                 page_points,
+                policy=route_policy,
                 preserved_points=page_preserved_points,
             )
         ):
@@ -716,6 +720,20 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
                 width_mm=width_mm,
                 net=net,
             )
+
+    def tap(
+        start: tuple[float, float],
+        end: tuple[float, float],
+        *,
+        net: NetRef,
+        side: int = 1,
+        layer: str = "F.Cu",
+    ) -> None:
+        route(
+            tap_route_points(start, end, side=side, policy=route_policy),
+            net=net,
+            layer=layer,
+        )
 
     def via(via_x_mm: float, via_y_mm: float, *, net: NetRef) -> None:
         x_mm, y_mm = point(via_x_mm, via_y_mm)
@@ -864,7 +882,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         (43.0, 19.0),
         (61.25, 14.0),
     ):
-        route(((x_mm, 6.0), (x_mm, y_mm)), net=vcc)
+        tap((x_mm, 6.0), (x_mm, y_mm), net=vcc, side=-1)
     route(((23.0, 27.0), (27.0, 27.0)), net=vcc)
     for x_mm, y_mm in (
         (16.75, 14.0),
@@ -873,7 +891,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         (76.75, 34.0),
         (76.75, 44.0),
     ):
-        route(((x_mm, y_mm), (x_mm, 54.0)), net=gnd)
+        side = 1 if x_mm > 70.0 else -1
+        tap((x_mm, 54.0), (x_mm, y_mm), net=gnd, side=side)
 
     for x_mm, y_mm, net in (
         (27.0, 19.0, gnd),

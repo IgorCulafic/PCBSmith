@@ -78,9 +78,18 @@ def _point_mm(point: Point) -> dict[str, float]:
 def _kicad_context(kicad_project_dir: Path) -> dict[str, Any]:
     return {
         "project_dir": str(kicad_project_dir),
+        "board_rules": _board_rules(),
         "board_layers": _board_layers(),
         "reports": _kicad_reports(kicad_project_dir),
         "visuals": _kicad_visuals(kicad_project_dir),
+    }
+
+
+def _board_rules() -> dict[str, str]:
+    return {
+        "routing_style": "prefer_45",
+        "routing_style_authority": "cad_polish_preference",
+        "drc_authority": "hard_rule",
     }
 
 

@@ -131,6 +131,8 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         "Use board-local integer nanometre coordinates for route_segment and place_text commands.",
         "Only use F.Cu for route_segment until back-copper routing is enabled.",
         "Only use F.SilkS or B.SilkS for place_text.",
+        "Prefer 45-degree/mitered PCB routing for CAD polish when practical.",
+        "Do not treat 45-degree routing as an electrical hard rule; DRC wins.",
     ]
     if review_only:
         return [
