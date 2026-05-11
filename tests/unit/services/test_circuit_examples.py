@@ -97,3 +97,23 @@ def test_current_limited_led_direct_kicad_export_uses_clean_board_builder(
     assert '(net 2 "LED_A")' in board_text
     assert '(net 3 "GND")' in board_text
     assert '(gr_text "Schematic Backed LED"' in board_text
+    assert '(fp_text user "+"' in board_text
+
+
+def test_current_limited_led_direct_kicad_export_can_disable_polarity_marks(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    output_dir = tmp_path / "kicad"
+
+    result = export_current_limited_led_kicad_project(
+        source_dir,
+        output_dir,
+        CurrentLimitedLedCircuit(
+            name="Professional LED",
+            show_polarity_marks=False,
+        ),
+    )
+
+    board_text = result.board_file.read_text(encoding="utf-8")
+    assert '(fp_text user "+"' not in board_text

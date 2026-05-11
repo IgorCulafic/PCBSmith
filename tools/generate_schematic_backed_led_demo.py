@@ -33,6 +33,11 @@ def main() -> None:
     parser.add_argument("--supply-voltage", default="5V")
     parser.add_argument("--resistor", default="680")
     parser.add_argument("--led", default="Red LED")
+    parser.add_argument(
+        "--no-polarity-marks",
+        action="store_true",
+        help="omit educational anode + marks from the board silkscreen",
+    )
     args = parser.parse_args()
 
     output_dir = args.output
@@ -48,6 +53,7 @@ def main() -> None:
             supply_voltage=args.supply_voltage,
             resistor_value=args.resistor,
             led_value=args.led,
+            show_polarity_marks=not args.no_polarity_marks,
         ),
     )
     validation_report = run_kicad_validation(review_dir)
