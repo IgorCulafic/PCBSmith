@@ -291,6 +291,22 @@ def test_create_timer_555_pwm_dimmer_project_writes_shared_schematic_and_board(
 
     assert result.project_dir == project_dir
     assert project.name == "555 PWM Dimmer"
+    assert {symbol.reference: symbol.symbol_id for symbol in schematic.symbols} == {
+        "V1": "stdlib:VCC",
+        "U1": "stdlib:NE555",
+        "RV1": "stdlib:POT",
+        "D1": "stdlib:D",
+        "D2": "stdlib:D",
+        "C1": "stdlib:C",
+        "C2": "stdlib:C",
+        "C3": "stdlib:C",
+        "R1": "stdlib:R",
+        "R2": "stdlib:R",
+        "Q1": "stdlib:NMOS",
+        "J1": "stdlib:CONN_01X02",
+        "J2": "stdlib:CONN_01X02",
+        "G1": "stdlib:GND",
+    }
     assert [symbol.reference for symbol in schematic.symbols] == [
         "V1",
         "U1",
@@ -336,6 +352,9 @@ def test_timer_555_pwm_dimmer_direct_kicad_export_uses_power_and_load_parts(
     board_text = result.board_file.read_text(encoding="utf-8")
     assert result.source_project_dir == source_dir
     assert '(lib_id "PCBSmith:NE555")' in schematic_text
+    assert '(lib_id "PCBSmith:POT")' in schematic_text
+    assert '(lib_id "PCBSmith:NMOS")' in schematic_text
+    assert '(lib_id "PCBSmith:CONN_01X02")' in schematic_text
     assert '(lib_id "PCBSmith:D")' in schematic_text
     assert '(footprint "PCBSmith_SOIC8_NE555_REAL"' in board_text
     assert '(footprint "PCBSmith_POT_3PIN_REAL"' in board_text

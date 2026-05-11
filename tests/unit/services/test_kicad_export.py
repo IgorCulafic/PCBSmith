@@ -58,6 +58,66 @@ def test_export_pcbs_project_to_kicad_creates_skeleton_and_handoff_manifest(
     assert (output_project / "sym-lib-table").exists()
 
 
+def test_export_native_multiterminal_symbols_invert_vertical_pin_y(
+    tmp_path: Path,
+) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Native Parts")
+    save_schematic(
+        source_project,
+        Path("schematics/main.sch.json"),
+        Schematic(
+            id="main",
+            symbols=(
+                SymbolInstance(
+                    reference="RV1",
+                    symbol_id="stdlib:POT",
+                    value="100k",
+                    position=Point.from_mm(0, 0),
+                ),
+                SymbolInstance(
+                    reference="Q1",
+                    symbol_id="stdlib:NMOS",
+                    value="NMOS",
+                    position=Point.from_mm(20, 0),
+                ),
+                SymbolInstance(
+                    reference="J1",
+                    symbol_id="stdlib:CONN_01X02",
+                    value="Conn_01x02",
+                    position=Point.from_mm(40, 0),
+                ),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    symbol_library = (result.skeleton.project_dir / "PCBSmith.kicad_sym").read_text(
+        encoding="utf-8"
+    )
+    assert re.search(
+        r'\(symbol "POT_1_1".*?\(pin passive line\s+\(at 0\.00 5\.08 90\)',
+        symbol_library,
+        re.DOTALL,
+    )
+    assert re.search(
+        r'\(symbol "NMOS_1_1".*?\(pin passive line\s+\(at 0\.00 -5\.08 270\)',
+        symbol_library,
+        re.DOTALL,
+    )
+    assert re.search(
+        r'\(symbol "CONN_01X02_1_1".*?\(pin passive line\s+\(at 0\.00 -2\.54 0\)',
+        symbol_library,
+        re.DOTALL,
+    )
+
+
 def test_export_handoff_manifest_preserves_source_project_identity(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "kicad"

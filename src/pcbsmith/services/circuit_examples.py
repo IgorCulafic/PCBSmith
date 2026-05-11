@@ -585,7 +585,7 @@ def _timer_555_pwm_dimmer_schematic(circuit: Timer555PwmDimmerCircuit) -> Schema
         wires,
         labels,
         "VCC",
-        j1_symbol + Vec(mm_to_nm(-5.08), 0),
+        j1_symbol,
         Point.from_mm(-2.54, 12.7),
     )
     _add_label_stub(wires, labels, "DISCH", _ne555_pin_point(u1, "7"), Point.from_mm(45.72, 22.86))
@@ -604,7 +604,10 @@ def _timer_555_pwm_dimmer_schematic(circuit: Timer555PwmDimmerCircuit) -> Schema
         wires, labels, "DISCH", rv1 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(53.34, 12.7)
     )
     _add_label_stub(
-        wires, labels, "PWM_NODE", rv1 + Vec(mm_to_nm(5.08), 0), Point.from_mm(68.58, 12.7)
+        wires, labels, "PWM_NODE", rv1 + Vec(0, mm_to_nm(-5.08)), Point.from_mm(60.96, 5.08)
+    )
+    _add_label_stub(
+        wires, labels, "VCC", rv1 + Vec(mm_to_nm(5.08), 0), Point.from_mm(68.58, 12.7)
     )
     _add_label_stub(
         wires, labels, "DISCH", d1 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(53.34, 20.32)
@@ -640,17 +643,18 @@ def _timer_555_pwm_dimmer_schematic(circuit: Timer555PwmDimmerCircuit) -> Schema
         wires,
         labels,
         "VCC",
-        j2 + Vec(mm_to_nm(-5.08), 0),
-        Point.from_mm(88.9, 17.78),
+        j2,
+        Point.from_mm(99.06, 17.78),
     )
     _add_label_stub(
         wires,
         labels,
         "LOAD_NEG",
-        j2 + Vec(mm_to_nm(5.08), 0),
-        Point.from_mm(104.14, 17.78),
+        j2 + Vec(0, mm_to_nm(2.54)),
+        Point.from_mm(99.06, 20.32),
     )
-    no_connects.append(NoConnect(position=j1_symbol + Vec(mm_to_nm(5.08), 0)))
+    gnd_stubs.append((j1_symbol + Vec(0, mm_to_nm(2.54)), Point.from_mm(7.62, 15.24)))
+    gnd_stubs.append((q1 + Vec(0, mm_to_nm(5.08)), Point.from_mm(91.44, 50.8)))
     gnd_stubs.append((gnd, Point.from_mm(7.62, 53.34)))
     for start, end in gnd_stubs:
         _add_label_stub(wires, labels, "GND", start, end)
@@ -667,10 +671,10 @@ def _timer_555_pwm_dimmer_schematic(circuit: Timer555PwmDimmerCircuit) -> Schema
             ),
             SymbolInstance(
                 reference="RV1",
-                symbol_id="stdlib:R",
+                symbol_id="stdlib:POT",
                 value=circuit.potentiometer_value,
                 position=rv1,
-                footprint_id="stdlib:R_0603",
+                footprint_id="stdlib:POT_3PIN",
             ),
             SymbolInstance(
                 reference="D1",
@@ -723,19 +727,22 @@ def _timer_555_pwm_dimmer_schematic(circuit: Timer555PwmDimmerCircuit) -> Schema
             ),
             SymbolInstance(
                 reference="Q1",
-                symbol_id="stdlib:R",
+                symbol_id="stdlib:NMOS",
                 value=circuit.mosfet_value,
                 position=q1,
-                footprint_id="stdlib:R_0603",
+                footprint_id="stdlib:NMOS_POWER",
             ),
             SymbolInstance(
                 reference="J1",
-                symbol_id="stdlib:R",
+                symbol_id="stdlib:CONN_01X02",
                 value=f"VIN {circuit.supply_voltage}",
                 position=j1_symbol,
             ),
             SymbolInstance(
-                reference="J2", symbol_id="stdlib:R", value=circuit.load_label, position=j2
+                reference="J2",
+                symbol_id="stdlib:CONN_01X02",
+                value=circuit.load_label,
+                position=j2,
             ),
             SymbolInstance(reference="G1", symbol_id="stdlib:GND", value="GND", position=gnd),
         ),
