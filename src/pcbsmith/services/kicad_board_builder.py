@@ -176,8 +176,6 @@ class KiCadBoardBuilder:
     (attr smd)
 {_footprint_rect(spec.body_width_mm, spec.body_height_mm, spec.body_layer)}
 {silkscreen_outline}
-{_footprint_line(-0.35, -0.8, 0.35, -0.8, "F.SilkS")}
-{_footprint_line(-0.35, 0.8, 0.35, 0.8, "F.SilkS")}
 {marker}
 {anode_plus}
 {_pad(PadSpec("1", -spec.pad_offset_mm, 0, spec.pad_width_mm, spec.pad_height_mm, spec.left_net))}

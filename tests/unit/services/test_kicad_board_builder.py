@@ -103,6 +103,30 @@ def test_board_builder_adds_silkscreen_outline_and_reference_by_default() -> Non
     assert "(end 1.65 0.9)" in text
 
 
+def test_board_builder_omits_legacy_two_pad_silkscreen_ticks() -> None:
+    builder = KiCadBoardBuilder()
+    vcc = builder.net("VCC")
+    led_a = builder.net("LED_A")
+
+    builder.add_two_pad_smd_footprint(
+        TwoPadSmdFootprintSpec(
+            footprint="PCBSmith_R_0603_REAL",
+            reference="R2",
+            value="680",
+            x_mm=10,
+            y_mm=12,
+            left_net=vcc,
+            right_net=led_a,
+        )
+    )
+    text = builder.render(outline_end_mm=(30, 20))
+
+    assert "(start -0.35 -0.8)" not in text
+    assert "(end 0.35 -0.8)" not in text
+    assert "(start -0.35 0.8)" not in text
+    assert "(end 0.35 0.8)" not in text
+
+
 def test_board_builder_can_add_rectangular_ic_with_pin_one_dot() -> None:
     builder = KiCadBoardBuilder()
     vcc = builder.net("VCC")
