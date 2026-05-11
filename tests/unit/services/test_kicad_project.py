@@ -54,6 +54,7 @@ def test_kicad_schematic_uses_pcbsmith_generator_and_root_uuid(tmp_path: Path) -
     schematic_text = result.schematic_file.read_text(encoding="utf-8")
 
     assert '(generator "PCBSmith")' in schematic_text
+    assert "(version 20250114)" in schematic_text
     assert "(uuid 11111111-2222-3333-4444-555555555555)" in schematic_text
     assert '(path "/" (page "1"))' in schematic_text
 
@@ -68,6 +69,7 @@ def test_kicad_board_uses_required_header_general_page_and_layers(tmp_path: Path
     board_text = result.board_file.read_text(encoding="utf-8")
 
     assert board_text.startswith("(kicad_pcb")
+    assert "(version 20241229)" in board_text
     assert '(generator "PCBSmith")' in board_text
     assert "(general" in board_text
     assert '(paper "A4")' in board_text

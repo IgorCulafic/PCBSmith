@@ -11,6 +11,7 @@ from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, Schematic, SymbolInstance, Wire
 from pcbsmith.services.kicad_board_builder import (
     KiCadBoardBuilder,
+    NetRef,
     TwoPadSmdFootprintSpec,
 )
 from pcbsmith.services.kicad_export import (
@@ -676,6 +677,38 @@ def _render_rc_low_pass_filter_board(circuit: RcLowPassFilterCircuit) -> str:
 
 
 def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
+    origin_x_mm = 60.0
+    origin_y_mm = 35.0
+
+    def x(local_x_mm: float) -> float:
+        return origin_x_mm + local_x_mm
+
+    def y(local_y_mm: float) -> float:
+        return origin_y_mm + local_y_mm
+
+    def segment(
+        start_x_mm: float,
+        start_y_mm: float,
+        end_x_mm: float,
+        end_y_mm: float,
+        *,
+        width_mm: float,
+        net: NetRef,
+        layer: str = "F.Cu",
+    ) -> None:
+        builder.add_segment(
+            x(start_x_mm),
+            y(start_y_mm),
+            x(end_x_mm),
+            y(end_y_mm),
+            layer=layer,
+            width_mm=width_mm,
+            net=net,
+        )
+
+    def via(via_x_mm: float, via_y_mm: float, *, net: NetRef) -> None:
+        builder.add_via(x(via_x_mm), y(via_y_mm), net=net)
+
     builder = KiCadBoardBuilder()
     vcc = builder.net("VCC")
     gnd = builder.net("GND")
@@ -687,16 +720,16 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
 
     builder.add_power_pad(
         "VCC",
-        8.0,
-        10.0,
+        x(8.0),
+        y(10.0),
         net=vcc,
         value=f"{circuit.supply_voltage} Input",
         reference_offset_mm=(-4.0, 0.0),
     )
     builder.add_power_pad(
         "GND",
-        8.0,
-        15.0,
+        x(8.0),
+        y(15.0),
         net=gnd,
         value="Return",
         reference_offset_mm=(-4.0, 0.0),
@@ -705,8 +738,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         footprint="PCBSmith_SOIC8_NE555_REAL",
         reference="U1",
         value="NE555",
-        x_mm=35.0,
-        y_mm=25.0,
+        x_mm=x(35.0),
+        y_mm=y(25.0),
         left_pads=(
             ("1", gnd),
             ("2", timing),
@@ -731,8 +764,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_R_0603_REAL",
             reference="R1",
             value=circuit.timing_resistor_a,
-            x_mm=62.0,
-            y_mm=14.0,
+            x_mm=x(62.0),
+            y_mm=y(14.0),
             left_net=vcc,
             right_net=disch,
             reference_offset_mm=(0.0, -2.0),
@@ -743,8 +776,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_R_0603_REAL",
             reference="R2",
             value=circuit.timing_resistor_b,
-            x_mm=62.0,
-            y_mm=24.0,
+            x_mm=x(62.0),
+            y_mm=y(24.0),
             left_net=disch,
             right_net=timing,
             reference_offset_mm=(0.0, -2.0),
@@ -755,8 +788,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_C_0603_REAL",
             reference="C1",
             value=circuit.timing_capacitor,
-            x_mm=76.0,
-            y_mm=34.0,
+            x_mm=x(76.0),
+            y_mm=y(34.0),
             left_net=timing,
             right_net=gnd,
             reference_offset_mm=(0.0, 2.2),
@@ -767,8 +800,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_C_0603_REAL",
             reference="C2",
             value=circuit.decoupling_capacitor,
-            x_mm=16.0,
-            y_mm=14.0,
+            x_mm=x(16.0),
+            y_mm=y(14.0),
             left_net=vcc,
             right_net=gnd,
             reference_offset_mm=(0.0, -2.0),
@@ -779,8 +812,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_C_0603_REAL",
             reference="C3",
             value=circuit.control_capacitor,
-            x_mm=24.0,
-            y_mm=38.0,
+            x_mm=x(24.0),
+            y_mm=y(38.0),
             left_net=ctrl,
             right_net=gnd,
             reference_offset_mm=(0.0, 2.2),
@@ -791,8 +824,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_R_0603_REAL",
             reference="R3",
             value=circuit.led_resistor,
-            x_mm=62.0,
-            y_mm=44.0,
+            x_mm=x(62.0),
+            y_mm=y(44.0),
             left_net=out,
             right_net=led_a,
             reference_offset_mm=(0.0, 2.2),
@@ -803,8 +836,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_LED_0603_REAL",
             reference="LED1",
             value=circuit.led_value,
-            x_mm=76.0,
-            y_mm=44.0,
+            x_mm=x(76.0),
+            y_mm=y(44.0),
             left_net=led_a,
             right_net=gnd,
             reference_offset_mm=(0.0, 2.2),
@@ -813,29 +846,30 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         )
     )
 
-    builder.add_segment(8.0, 10.0, 8.0, 6.0, width_mm=0.45, net=vcc)
-    builder.add_segment(8.0, 6.0, 61.25, 6.0, width_mm=0.45, net=vcc)
-    builder.add_segment(8.0, 15.0, 8.0, 54.0, width_mm=0.45, net=gnd)
-    builder.add_segment(8.0, 54.0, 76.75, 54.0, width_mm=0.45, net=gnd)
+    segment(8.0, 10.0, 8.0, 6.0, width_mm=0.45, net=vcc)
+    segment(8.0, 6.0, 61.25, 6.0, width_mm=0.45, net=vcc)
+    segment(8.0, 15.0, 8.0, 54.0, width_mm=0.45, net=gnd)
+    segment(8.0, 54.0, 76.75, 54.0, width_mm=0.45, net=gnd)
     for x_mm, y_mm in (
         (15.25, 14.0),
         (23.0, 27.0),
         (43.0, 19.0),
         (61.25, 14.0),
     ):
-        builder.add_segment(x_mm, 6.0, x_mm, y_mm, width_mm=0.45, net=vcc)
-    builder.add_segment(23.0, 27.0, 27.0, 27.0, width_mm=0.45, net=vcc)
+        segment(x_mm, 6.0, x_mm, y_mm, width_mm=0.45, net=vcc)
+    segment(23.0, 27.0, 27.0, 27.0, width_mm=0.45, net=vcc)
     for x_mm, y_mm in (
         (16.75, 14.0),
         (24.75, 38.0),
-        (31.0, 19.0),
+        (20.0, 19.0),
         (76.75, 34.0),
         (76.75, 44.0),
     ):
-        builder.add_segment(x_mm, y_mm, x_mm, 54.0, width_mm=0.45, net=gnd)
-    builder.add_segment(27.0, 19.0, 31.0, 19.0, width_mm=0.45, net=gnd)
+        segment(x_mm, y_mm, x_mm, 54.0, width_mm=0.45, net=gnd)
 
     for x_mm, y_mm, net in (
+        (27.0, 19.0, gnd),
+        (20.0, 19.0, gnd),
         (43.0, 23.0, disch),
         (62.75, 14.0, disch),
         (61.25, 24.0, disch),
@@ -844,37 +878,41 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         (62.75, 24.0, timing),
         (75.25, 34.0, timing),
     ):
-        builder.add_via(x_mm, y_mm, net=net)
+        via(x_mm, y_mm, net=net)
 
-    builder.add_segment(43.0, 23.0, 52.0, 23.0, layer="B.Cu", width_mm=0.35, net=disch)
-    builder.add_segment(52.0, 23.0, 52.0, 14.0, layer="B.Cu", width_mm=0.35, net=disch)
-    builder.add_segment(52.0, 14.0, 62.75, 14.0, layer="B.Cu", width_mm=0.35, net=disch)
-    builder.add_segment(52.0, 23.0, 52.0, 24.0, layer="B.Cu", width_mm=0.35, net=disch)
-    builder.add_segment(52.0, 24.0, 61.25, 24.0, layer="B.Cu", width_mm=0.35, net=disch)
+    segment(27.0, 19.0, 20.0, 19.0, layer="B.Cu", width_mm=0.35, net=gnd)
+    segment(43.0, 23.0, 52.0, 23.0, layer="B.Cu", width_mm=0.35, net=disch)
+    segment(52.0, 23.0, 52.0, 14.0, layer="B.Cu", width_mm=0.35, net=disch)
+    segment(52.0, 14.0, 62.75, 14.0, layer="B.Cu", width_mm=0.35, net=disch)
+    segment(52.0, 23.0, 52.0, 24.0, layer="B.Cu", width_mm=0.35, net=disch)
+    segment(52.0, 24.0, 61.25, 24.0, layer="B.Cu", width_mm=0.35, net=disch)
 
-    builder.add_segment(27.0, 23.0, 27.0, 35.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(27.0, 35.0, 52.0, 35.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(52.0, 35.0, 52.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(52.0, 27.0, 43.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(43.0, 27.0, 66.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(66.0, 27.0, 66.0, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(66.0, 24.0, 62.75, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(66.0, 24.0, 70.0, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(70.0, 24.0, 70.0, 34.0, layer="B.Cu", width_mm=0.35, net=timing)
-    builder.add_segment(70.0, 34.0, 75.25, 34.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(27.0, 23.0, 27.0, 35.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(27.0, 35.0, 52.0, 35.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(52.0, 35.0, 52.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(52.0, 27.0, 43.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(43.0, 27.0, 66.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(66.0, 27.0, 66.0, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(66.0, 24.0, 62.75, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(66.0, 24.0, 70.0, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(70.0, 24.0, 70.0, 34.0, layer="B.Cu", width_mm=0.35, net=timing)
+    segment(70.0, 34.0, 75.25, 34.0, layer="B.Cu", width_mm=0.35, net=timing)
 
-    builder.add_segment(27.0, 31.0, 23.25, 31.0, width_mm=0.35, net=ctrl)
-    builder.add_segment(23.25, 31.0, 23.25, 38.0, width_mm=0.35, net=ctrl)
+    segment(27.0, 31.0, 23.25, 31.0, width_mm=0.35, net=ctrl)
+    segment(23.25, 31.0, 23.25, 38.0, width_mm=0.35, net=ctrl)
 
-    builder.add_segment(43.0, 31.0, 58.0, 31.0, width_mm=0.35, net=out)
-    builder.add_segment(58.0, 31.0, 58.0, 44.0, width_mm=0.35, net=out)
-    builder.add_segment(58.0, 44.0, 61.25, 44.0, width_mm=0.35, net=out)
-    builder.add_segment(62.75, 44.0, 75.25, 44.0, width_mm=0.35, net=led_a)
+    segment(43.0, 31.0, 58.0, 31.0, width_mm=0.35, net=out)
+    segment(58.0, 31.0, 58.0, 44.0, width_mm=0.35, net=out)
+    segment(58.0, 44.0, 61.25, 44.0, width_mm=0.35, net=out)
+    segment(62.75, 44.0, 75.25, 44.0, width_mm=0.35, net=led_a)
 
-    builder.add_text(circuit.name, 47.0, 56.0, size_mm=1.5)
-    builder.add_text("NE555 astable LED blinker", 47.0, 58.5, size_mm=0.9)
-    builder.add_rect(0.0, 0.0, 94.0, 61.0, layer="F.Fab", width_mm=0.1)
-    return builder.render(outline_end_mm=(94.0, 61.0))
+    builder.add_text(circuit.name, x(47.0), y(56.0), size_mm=1.5)
+    builder.add_text("NE555 astable LED blinker", x(47.0), y(58.5), size_mm=0.9)
+    builder.add_rect(x(0.0), y(0.0), x(94.0), y(61.0), layer="F.Fab", width_mm=0.1)
+    return builder.render(
+        outline_start_mm=(x(0.0), y(0.0)),
+        outline_end_mm=(x(94.0), y(61.0)),
+    )
 
 
 __all__ = [
