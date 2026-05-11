@@ -9,6 +9,13 @@ from pcbsmith.core.board import Board, BoardText, Layer
 from pcbsmith.core.geom import Point, Vec, mm_to_nm
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, Schematic, SymbolInstance, Wire
+from pcbsmith.services.board_intelligence import (
+    BoardPlacementFrame,
+    classify_net_role,
+    mitered_route_points,
+    recommended_trace_width_mm,
+    route_segments,
+)
 from pcbsmith.services.kicad_board_builder import (
     KiCadBoardBuilder,
     NetRef,
@@ -677,37 +684,42 @@ def _render_rc_low_pass_filter_board(circuit: RcLowPassFilterCircuit) -> str:
 
 
 def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
-    origin_x_mm = 60.0
-    origin_y_mm = 35.0
+    frame = BoardPlacementFrame(origin_mm=(60.0, 35.0), size_mm=(94.0, 61.0))
 
-    def x(local_x_mm: float) -> float:
-        return origin_x_mm + local_x_mm
+    def point(local_x_mm: float, local_y_mm: float) -> tuple[float, float]:
+        return frame.point(local_x_mm, local_y_mm)
 
-    def y(local_y_mm: float) -> float:
-        return origin_y_mm + local_y_mm
-
-    def segment(
-        start_x_mm: float,
-        start_y_mm: float,
-        end_x_mm: float,
-        end_y_mm: float,
+    def route(
+        points: tuple[tuple[float, float], ...],
         *,
-        width_mm: float,
         net: NetRef,
         layer: str = "F.Cu",
+        preserved_points: tuple[tuple[float, float], ...] = (),
     ) -> None:
-        builder.add_segment(
-            x(start_x_mm),
-            y(start_y_mm),
-            x(end_x_mm),
-            y(end_y_mm),
-            layer=layer,
-            width_mm=width_mm,
-            net=net,
+        page_points = tuple(point(x_mm, y_mm) for x_mm, y_mm in points)
+        page_preserved_points = tuple(
+            point(x_mm, y_mm) for x_mm, y_mm in preserved_points
         )
+        width_mm = recommended_trace_width_mm(classify_net_role(net.name))
+        for start, end in route_segments(
+            mitered_route_points(
+                page_points,
+                preserved_points=page_preserved_points,
+            )
+        ):
+            builder.add_segment(
+                start[0],
+                start[1],
+                end[0],
+                end[1],
+                layer=layer,
+                width_mm=width_mm,
+                net=net,
+            )
 
     def via(via_x_mm: float, via_y_mm: float, *, net: NetRef) -> None:
-        builder.add_via(x(via_x_mm), y(via_y_mm), net=net)
+        x_mm, y_mm = point(via_x_mm, via_y_mm)
+        builder.add_via(x_mm, y_mm, net=net)
 
     builder = KiCadBoardBuilder()
     vcc = builder.net("VCC")
@@ -720,16 +732,14 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
 
     builder.add_power_pad(
         "VCC",
-        x(8.0),
-        y(10.0),
+        *point(8.0, 10.0),
         net=vcc,
         value=f"{circuit.supply_voltage} Input",
         reference_offset_mm=(-4.0, 0.0),
     )
     builder.add_power_pad(
         "GND",
-        x(8.0),
-        y(15.0),
+        *point(8.0, 15.0),
         net=gnd,
         value="Return",
         reference_offset_mm=(-4.0, 0.0),
@@ -738,8 +748,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         footprint="PCBSmith_SOIC8_NE555_REAL",
         reference="U1",
         value="NE555",
-        x_mm=x(35.0),
-        y_mm=y(25.0),
+        x_mm=point(35.0, 25.0)[0],
+        y_mm=point(35.0, 25.0)[1],
         left_pads=(
             ("1", gnd),
             ("2", timing),
@@ -764,8 +774,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_R_0603_REAL",
             reference="R1",
             value=circuit.timing_resistor_a,
-            x_mm=x(62.0),
-            y_mm=y(14.0),
+            x_mm=point(62.0, 14.0)[0],
+            y_mm=point(62.0, 14.0)[1],
             left_net=vcc,
             right_net=disch,
             reference_offset_mm=(0.0, -2.0),
@@ -776,8 +786,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_R_0603_REAL",
             reference="R2",
             value=circuit.timing_resistor_b,
-            x_mm=x(62.0),
-            y_mm=y(24.0),
+            x_mm=point(62.0, 24.0)[0],
+            y_mm=point(62.0, 24.0)[1],
             left_net=disch,
             right_net=timing,
             reference_offset_mm=(0.0, -2.0),
@@ -788,8 +798,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_C_0603_REAL",
             reference="C1",
             value=circuit.timing_capacitor,
-            x_mm=x(76.0),
-            y_mm=y(34.0),
+            x_mm=point(76.0, 34.0)[0],
+            y_mm=point(76.0, 34.0)[1],
             left_net=timing,
             right_net=gnd,
             reference_offset_mm=(0.0, 2.2),
@@ -800,8 +810,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_C_0603_REAL",
             reference="C2",
             value=circuit.decoupling_capacitor,
-            x_mm=x(16.0),
-            y_mm=y(14.0),
+            x_mm=point(16.0, 14.0)[0],
+            y_mm=point(16.0, 14.0)[1],
             left_net=vcc,
             right_net=gnd,
             reference_offset_mm=(0.0, -2.0),
@@ -812,8 +822,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_C_0603_REAL",
             reference="C3",
             value=circuit.control_capacitor,
-            x_mm=x(24.0),
-            y_mm=y(38.0),
+            x_mm=point(24.0, 38.0)[0],
+            y_mm=point(24.0, 38.0)[1],
             left_net=ctrl,
             right_net=gnd,
             reference_offset_mm=(0.0, 2.2),
@@ -824,8 +834,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_R_0603_REAL",
             reference="R3",
             value=circuit.led_resistor,
-            x_mm=x(62.0),
-            y_mm=y(44.0),
+            x_mm=point(62.0, 44.0)[0],
+            y_mm=point(62.0, 44.0)[1],
             left_net=out,
             right_net=led_a,
             reference_offset_mm=(0.0, 2.2),
@@ -836,8 +846,8 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
             footprint="PCBSmith_LED_0603_REAL",
             reference="LED1",
             value=circuit.led_value,
-            x_mm=x(76.0),
-            y_mm=y(44.0),
+            x_mm=point(76.0, 44.0)[0],
+            y_mm=point(76.0, 44.0)[1],
             left_net=led_a,
             right_net=gnd,
             reference_offset_mm=(0.0, 2.2),
@@ -846,18 +856,16 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         )
     )
 
-    segment(8.0, 10.0, 8.0, 6.0, width_mm=0.45, net=vcc)
-    segment(8.0, 6.0, 61.25, 6.0, width_mm=0.45, net=vcc)
-    segment(8.0, 15.0, 8.0, 54.0, width_mm=0.45, net=gnd)
-    segment(8.0, 54.0, 76.75, 54.0, width_mm=0.45, net=gnd)
+    route(((8.0, 10.0), (8.0, 6.0), (61.25, 6.0)), net=vcc)
+    route(((8.0, 15.0), (8.0, 54.0), (76.75, 54.0)), net=gnd)
     for x_mm, y_mm in (
         (15.25, 14.0),
         (23.0, 27.0),
         (43.0, 19.0),
         (61.25, 14.0),
     ):
-        segment(x_mm, 6.0, x_mm, y_mm, width_mm=0.45, net=vcc)
-    segment(23.0, 27.0, 27.0, 27.0, width_mm=0.45, net=vcc)
+        route(((x_mm, 6.0), (x_mm, y_mm)), net=vcc)
+    route(((23.0, 27.0), (27.0, 27.0)), net=vcc)
     for x_mm, y_mm in (
         (16.75, 14.0),
         (24.75, 38.0),
@@ -865,7 +873,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         (76.75, 34.0),
         (76.75, 44.0),
     ):
-        segment(x_mm, y_mm, x_mm, 54.0, width_mm=0.45, net=gnd)
+        route(((x_mm, y_mm), (x_mm, 54.0)), net=gnd)
 
     for x_mm, y_mm, net in (
         (27.0, 19.0, gnd),
@@ -880,38 +888,45 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     ):
         via(x_mm, y_mm, net=net)
 
-    segment(27.0, 19.0, 20.0, 19.0, layer="B.Cu", width_mm=0.35, net=gnd)
-    segment(43.0, 23.0, 52.0, 23.0, layer="B.Cu", width_mm=0.35, net=disch)
-    segment(52.0, 23.0, 52.0, 14.0, layer="B.Cu", width_mm=0.35, net=disch)
-    segment(52.0, 14.0, 62.75, 14.0, layer="B.Cu", width_mm=0.35, net=disch)
-    segment(52.0, 23.0, 52.0, 24.0, layer="B.Cu", width_mm=0.35, net=disch)
-    segment(52.0, 24.0, 61.25, 24.0, layer="B.Cu", width_mm=0.35, net=disch)
+    route(((27.0, 19.0), (20.0, 19.0)), layer="B.Cu", net=gnd)
+    route(
+        ((43.0, 23.0), (52.0, 23.0), (52.0, 14.0), (62.75, 14.0)),
+        layer="B.Cu",
+        net=disch,
+        preserved_points=((52.0, 23.0),),
+    )
+    route(((52.0, 23.0), (52.0, 24.0), (61.25, 24.0)), layer="B.Cu", net=disch)
 
-    segment(27.0, 23.0, 27.0, 35.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(27.0, 35.0, 52.0, 35.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(52.0, 35.0, 52.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(52.0, 27.0, 43.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(43.0, 27.0, 66.0, 27.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(66.0, 27.0, 66.0, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(66.0, 24.0, 62.75, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(66.0, 24.0, 70.0, 24.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(70.0, 24.0, 70.0, 34.0, layer="B.Cu", width_mm=0.35, net=timing)
-    segment(70.0, 34.0, 75.25, 34.0, layer="B.Cu", width_mm=0.35, net=timing)
+    route(
+        ((27.0, 23.0), (27.0, 35.0), (52.0, 35.0), (52.0, 27.0), (43.0, 27.0)),
+        layer="B.Cu",
+        net=timing,
+    )
+    route(
+        ((43.0, 27.0), (66.0, 27.0), (66.0, 24.0), (62.75, 24.0)),
+        layer="B.Cu",
+        net=timing,
+        preserved_points=((66.0, 24.0),),
+    )
+    route(
+        ((66.0, 24.0), (70.0, 24.0), (70.0, 34.0), (75.25, 34.0)),
+        layer="B.Cu",
+        net=timing,
+    )
 
-    segment(27.0, 31.0, 23.25, 31.0, width_mm=0.35, net=ctrl)
-    segment(23.25, 31.0, 23.25, 38.0, width_mm=0.35, net=ctrl)
+    route(((27.0, 31.0), (23.25, 31.0), (23.25, 38.0)), net=ctrl)
 
-    segment(43.0, 31.0, 58.0, 31.0, width_mm=0.35, net=out)
-    segment(58.0, 31.0, 58.0, 44.0, width_mm=0.35, net=out)
-    segment(58.0, 44.0, 61.25, 44.0, width_mm=0.35, net=out)
-    segment(62.75, 44.0, 75.25, 44.0, width_mm=0.35, net=led_a)
+    route(((43.0, 31.0), (58.0, 31.0), (58.0, 44.0), (61.25, 44.0)), net=out)
+    route(((62.75, 44.0), (75.25, 44.0)), net=led_a)
 
-    builder.add_text(circuit.name, x(47.0), y(56.0), size_mm=1.5)
-    builder.add_text("NE555 astable LED blinker", x(47.0), y(58.5), size_mm=0.9)
-    builder.add_rect(x(0.0), y(0.0), x(94.0), y(61.0), layer="F.Fab", width_mm=0.1)
+    builder.add_text(circuit.name, *point(47.0, 56.0), size_mm=1.5)
+    builder.add_text("NE555 astable LED blinker", *point(47.0, 58.5), size_mm=0.9)
+    start_x_mm, start_y_mm = frame.outline_start_mm
+    end_x_mm, end_y_mm = frame.outline_end_mm
+    builder.add_rect(start_x_mm, start_y_mm, end_x_mm, end_y_mm, layer="F.Fab", width_mm=0.1)
     return builder.render(
-        outline_start_mm=(x(0.0), y(0.0)),
-        outline_end_mm=(x(94.0), y(61.0)),
+        outline_start_mm=frame.outline_start_mm,
+        outline_end_mm=frame.outline_end_mm,
     )
 
 
