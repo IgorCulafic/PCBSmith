@@ -561,3 +561,91 @@ def test_export_skips_default_silkscreen_when_board_text_exists(tmp_path: Path) 
 
     assert '(gr_text "AI LED Demo"' in board_text
     assert '(gr_text "PCBSmith Demo"' not in board_text
+
+
+def test_export_writes_branched_schematic_and_board_nets(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Branched Demo")
+    save_schematic(
+        source_project,
+        "schematics/main.sch.json",
+        Schematic(
+            id="main",
+            symbols=(
+                SymbolInstance(
+                    reference="V1",
+                    symbol_id="stdlib:VCC",
+                    value="VCC",
+                    position=Point.from_mm(0, 0),
+                ),
+                SymbolInstance(
+                    reference="R1",
+                    symbol_id="stdlib:R",
+                    value="330",
+                    position=Point.from_mm(15.24, 0),
+                    footprint_id="stdlib:R_0603",
+                ),
+                SymbolInstance(
+                    reference="LED1",
+                    symbol_id="stdlib:LED",
+                    value="Red LED",
+                    position=Point.from_mm(40.64, -10.16),
+                    footprint_id="stdlib:LED_0603",
+                ),
+                SymbolInstance(
+                    reference="C1",
+                    symbol_id="stdlib:C",
+                    value="100nF",
+                    position=Point.from_mm(40.64, 10.16),
+                    footprint_id="stdlib:C_0603",
+                ),
+                SymbolInstance(
+                    reference="G1",
+                    symbol_id="stdlib:GND",
+                    value="GND",
+                    position=Point.from_mm(60.96, 0),
+                ),
+            ),
+            wires=(
+                Wire(points=(Point.from_mm(0, 0), Point.from_mm(10.16, 0))),
+                Wire(points=(Point.from_mm(20.32, 0), Point.from_mm(25.4, 0))),
+                Wire(points=(Point.from_mm(25.4, 0), Point.from_mm(25.4, -10.16))),
+                Wire(points=(Point.from_mm(25.4, -10.16), Point.from_mm(35.56, -10.16))),
+                Wire(points=(Point.from_mm(25.4, 0), Point.from_mm(25.4, 10.16))),
+                Wire(points=(Point.from_mm(25.4, 10.16), Point.from_mm(35.56, 10.16))),
+                Wire(points=(Point.from_mm(45.72, -10.16), Point.from_mm(50.8, -10.16))),
+                Wire(points=(Point.from_mm(50.8, -10.16), Point.from_mm(50.8, 0))),
+                Wire(points=(Point.from_mm(45.72, 10.16), Point.from_mm(50.8, 10.16))),
+                Wire(points=(Point.from_mm(50.8, 10.16), Point.from_mm(50.8, 0))),
+                Wire(points=(Point.from_mm(50.8, 0), Point.from_mm(60.96, 0))),
+            ),
+            labels=(
+                NetLabel(name="VCC", position=Point.from_mm(0, 0)),
+                NetLabel(name="DRIVE", position=Point.from_mm(22.86, 0)),
+                NetLabel(name="GND", position=Point.from_mm(60.96, 0)),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
+
+    assert "(xy 142.24 104.14) (xy 142.24 93.98)" in schematic_text
+    assert "(xy 142.24 104.14) (xy 142.24 114.3)" in schematic_text
+    _assert_hidden_label(schematic_text, "DRIVE", "139.7", "104.14")
+    assert '(net 2 "DRIVE")' in board_text
+    assert '(net 3 "GND")' in board_text
+    assert "(at 150.5 97.34)" in board_text
+    assert "(at 167.5 117.66)" in board_text
+    assert '(gr_text "PCBSmith Demo"' in board_text
+    assert "(at 148.5 92.5 0)" in board_text
+    assert '(pad "1" smd roundrect' in board_text
+    assert '(net 0 "")' not in board_text
+    assert board_text.count('(footprint "PCBSmith_POWER_PAD"') == 2

@@ -12,6 +12,9 @@ def build_ai_demo_plan(planner_package: dict[str, Any]) -> dict[str, Any]:
     request_text = _request_text(planner_package).lower()
     schematic = _target_schematic(planner_package)
 
+    if _requests_branched_circuit(request_text):
+        return _branched_led_capacitor_plan(schematic)
+
     if _requests_led_circuit(request_text):
         return _led_series_circuit_plan(schematic)
 
@@ -47,6 +50,15 @@ def _requests_led_circuit(request_text: str) -> bool:
         or "make" in request_text
         or "build" in request_text
     )
+
+
+def _requests_branched_circuit(request_text: str) -> bool:
+    return (
+        "branch" in request_text
+        or "branched" in request_text
+        or "non-linear" in request_text
+        or "nonlinear" in request_text
+    ) and ("led" in request_text or "capacitor" in request_text)
 
 
 def _requests_voltage_divider(request_text: str) -> bool:
@@ -146,6 +158,65 @@ def _rc_filter_plan(schematic: str) -> dict[str, Any]:
             _wire_command((45_720_000, 0), (60_960_000, 0)),
             _label_command("VCC", 0, 0),
             _label_command("OUT", 27_940_000, 0),
+            _label_command("GND", 60_960_000, 0),
+        ],
+    }
+
+
+def _branched_led_capacitor_plan(schematic: str) -> dict[str, Any]:
+    return {
+        "version": 1,
+        "description": "Demo plan: create a branched LED capacitor circuit",
+        "schematic": schematic,
+        "commands": [
+            _place_symbol_command(
+                symbol_id="stdlib:VCC",
+                value="VCC",
+                x=0,
+                y=0,
+                footprint_id=None,
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:R",
+                value="330",
+                x=15_240_000,
+                y=0,
+                footprint_id="stdlib:R_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:LED",
+                value="Red LED",
+                x=40_640_000,
+                y=-10_160_000,
+                footprint_id="stdlib:LED_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:C",
+                value="100nF",
+                x=40_640_000,
+                y=10_160_000,
+                footprint_id="stdlib:C_0603",
+            ),
+            _place_symbol_command(
+                symbol_id="stdlib:GND",
+                value="GND",
+                x=60_960_000,
+                y=0,
+                footprint_id=None,
+            ),
+            _wire_command((0, 0), (10_160_000, 0)),
+            _wire_command((20_320_000, 0), (25_400_000, 0)),
+            _wire_command((25_400_000, 0), (25_400_000, -10_160_000)),
+            _wire_command((25_400_000, -10_160_000), (35_560_000, -10_160_000)),
+            _wire_command((25_400_000, 0), (25_400_000, 10_160_000)),
+            _wire_command((25_400_000, 10_160_000), (35_560_000, 10_160_000)),
+            _wire_command((45_720_000, -10_160_000), (50_800_000, -10_160_000)),
+            _wire_command((50_800_000, -10_160_000), (50_800_000, 0)),
+            _wire_command((45_720_000, 10_160_000), (50_800_000, 10_160_000)),
+            _wire_command((50_800_000, 10_160_000), (50_800_000, 0)),
+            _wire_command((50_800_000, 0), (60_960_000, 0)),
+            _label_command("VCC", 0, 0),
+            _label_command("DRIVE", 22_860_000, 0),
             _label_command("GND", 60_960_000, 0),
         ],
     }

@@ -238,6 +238,79 @@ def test_build_ai_demo_plan_can_create_rc_low_pass_filter() -> None:
     ]
 
 
+def test_build_ai_demo_plan_can_create_branched_led_capacitor_circuit() -> None:
+    plan = build_ai_demo_plan(
+        _planner_package(request="Create a non-linear branched LED capacitor circuit")
+    )
+
+    assert plan["description"] == "Demo plan: create a branched LED capacitor circuit"
+    assert plan["schematic"] == "schematics/main.sch.json"
+    commands = plan["commands"]
+    assert [command["type"] for command in commands] == [
+        "place_symbol",
+        "place_symbol",
+        "place_symbol",
+        "place_symbol",
+        "place_symbol",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_wire",
+        "add_label",
+        "add_label",
+        "add_label",
+    ]
+    assert [
+        command["symbol_id"]
+        for command in commands
+        if command["type"] == "place_symbol"
+    ] == [
+        "stdlib:VCC",
+        "stdlib:R",
+        "stdlib:LED",
+        "stdlib:C",
+        "stdlib:GND",
+    ]
+    assert {
+        "type": "add_wire",
+        "points": [
+            {"x": 25_400_000, "y": 0},
+            {"x": 25_400_000, "y": -10_160_000},
+        ],
+    } in commands
+    assert {
+        "type": "add_wire",
+        "points": [
+            {"x": 25_400_000, "y": 0},
+            {"x": 25_400_000, "y": 10_160_000},
+        ],
+    } in commands
+    assert {
+        "type": "add_label",
+        "name": "DRIVE",
+        "position": {"x": 22_860_000, "y": 0},
+    } in commands
+    assert {
+        "type": "add_wire",
+        "points": [
+            {"x": 50_800_000, "y": 0},
+            {"x": 60_960_000, "y": 0},
+        ],
+    } in commands
+    assert sum(
+        1
+        for command in commands
+        if command["type"] == "add_label" and command["name"] == "GND"
+    ) == 1
+
+
 def test_build_ai_demo_plan_rejects_review_only_package() -> None:
     package = _planner_package()
     package["planner_mode"] = "review_response"
