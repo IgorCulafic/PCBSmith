@@ -157,11 +157,16 @@ def test_export_writes_native_symbols_wires_and_connected_net_labels(
     assert '(net 2 "GND")' in board_text
     assert '(footprint "PCBSmith_R_0603"' in board_text
     assert (
-        '(segment (start 137.5 107.5) (end 146.5 107.5) (width 0.25) '
+        '(segment (start 137.5 107.5) (end 140.5 107.5) (width 0.25) '
         '(layer "F.Cu") (net 1)'
     ) in board_text
     assert (
-        '(segment (start 154.5 107.5) (end 168.5 107.5) (width 0.25) '
+        '(segment (start 143.5 107.5) (end 146.5 107.5) (width 0.25) '
+        '(layer "F.Cu") (net 1)'
+    ) in board_text
+    assert "(at 127.5 111.5)" in board_text
+    assert (
+        '(segment (start 130.5 111.5) (end 127.5 111.5) (width 0.25) '
         '(layer "F.Cu") (net 2)'
     ) in board_text
     assert {
@@ -237,7 +242,7 @@ def test_export_translates_source_origin_into_visible_sheet_area(
     assert "(at 152.4 104.14)" in schematic_text
     assert "(at 133.5 107.5)" in board_text
     assert "(start 123.5 87.5)" in board_text
-    assert "(end 173.5 122.5)" in board_text
+    assert "(end 183.5 127.5)" in board_text
 
 
 def test_export_writes_common_passive_and_diode_family_symbols(tmp_path: Path) -> None:
@@ -343,13 +348,19 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     assert '(property "Reference" "R1"' in board_text
     assert '(property "Reference" "LED1"' in board_text
     assert '(pad "1" smd roundrect' in board_text
+    assert "(at 127.5 107.5)" in board_text
+    assert "(at 127.5 111.5)" in board_text
     assert (
-        '(segment (start 137.5 107.5) (end 146.5 107.5) (width 0.25) '
+        '(segment (start 137.5 107.5) (end 140.5 107.5) (width 0.25) '
+        '(layer "F.Cu") (net 2)'
+    ) in board_text
+    assert (
+        '(segment (start 143.5 107.5) (end 146.5 107.5) (width 0.25) '
         '(layer "F.Cu") (net 2)'
     ) in board_text
     assert "(gr_rect" in board_text
     assert "(start 123.5 87.5)" in board_text
-    assert "(end 173.5 122.5)" in board_text
+    assert "(end 183.5 127.5)" in board_text
     assert '(gr_text "PCBSmith Demo"' in board_text
     assert '(layer "F.SilkS")' in board_text
     assert '(layer "B.Cu") (net' not in board_text
@@ -484,7 +495,7 @@ def test_export_routes_non_aligned_board_nets_with_bent_tracks(
         '(layer "F.Cu") (net 1)'
     ) in board_text
     assert (
-        '(segment (start 143.5 97.34) (end 142 98.84) (width 0.25) '
+        '(segment (start 142.75 97.34) (end 142 98.09) (width 0.25) '
         '(layer "F.Cu") (net 1)'
     ) in board_text
     assert (
