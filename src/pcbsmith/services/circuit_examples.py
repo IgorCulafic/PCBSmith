@@ -41,6 +41,16 @@ class CurrentLimitedLedCircuit(BaseModel):
     show_polarity_marks: bool = True
 
 
+class RcLowPassFilterCircuit(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(min_length=1)
+    input_label: str = "VCC"
+    output_label: str = "OUT"
+    resistor_value: str = "10k"
+    capacitor_value: str = "100nF"
+
+
 class CircuitExampleProjectResult(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -118,6 +128,65 @@ def export_current_limited_led_kicad_project(
     )
 
 
+def create_rc_low_pass_filter_project(
+    project_dir: Path,
+    circuit: RcLowPassFilterCircuit,
+) -> CircuitExampleProjectResult:
+    project = Project(
+        name=circuit.name,
+        schematics=(SCHEMATIC_PATH,),
+        boards=(BOARD_PATH,),
+    )
+    save_project(project_dir, project)
+    save_schematic(project_dir, SCHEMATIC_PATH, _rc_low_pass_filter_schematic(circuit))
+    save_board(project_dir, BOARD_PATH, _rc_low_pass_filter_board(circuit))
+    return CircuitExampleProjectResult(
+        project_dir=project_dir,
+        schematic_path=SCHEMATIC_PATH,
+        board_path=BOARD_PATH,
+    )
+
+
+def export_rc_low_pass_filter_kicad_project(
+    source_project_dir: Path,
+    output_project_dir: Path,
+    circuit: RcLowPassFilterCircuit,
+) -> CircuitExampleKiCadResult:
+    create_rc_low_pass_filter_project(source_project_dir, circuit)
+    schematic = _rc_low_pass_filter_schematic(circuit)
+    skeleton = create_kicad_project_skeleton(output_project_dir, circuit.name)
+    (skeleton.project_dir / PCBSMITH_SYMBOL_LIBRARY_FILE_NAME).write_text(
+        render_pcbs_kicad_symbol_library(),
+        encoding="utf-8",
+    )
+    (skeleton.project_dir / PCBSMITH_SYMBOL_TABLE_FILE_NAME).write_text(
+        render_pcbs_kicad_symbol_table(),
+        encoding="utf-8",
+    )
+    skeleton.schematic_file.write_text(
+        render_kicad_schematic_file(
+            uuid4(),
+            render_kicad_schematic_items(
+                schematic,
+                project_name=skeleton.project_name,
+            ),
+            lib_symbol_items=render_pcbs_kicad_embedded_symbols(),
+        ),
+        encoding="utf-8",
+    )
+    skeleton.board_file.write_text(
+        _render_rc_low_pass_filter_board(circuit),
+        encoding="utf-8",
+    )
+    return CircuitExampleKiCadResult(
+        source_project_dir=source_project_dir,
+        project_dir=skeleton.project_dir,
+        project_file=skeleton.project_file,
+        schematic_file=skeleton.schematic_file,
+        board_file=skeleton.board_file,
+    )
+
+
 def _current_limited_led_schematic(circuit: CurrentLimitedLedCircuit) -> Schematic:
     return Schematic(
         id="main",
@@ -162,7 +231,66 @@ def _current_limited_led_schematic(circuit: CurrentLimitedLedCircuit) -> Schemat
     )
 
 
+def _rc_low_pass_filter_schematic(circuit: RcLowPassFilterCircuit) -> Schematic:
+    return Schematic(
+        id="main",
+        symbols=(
+            SymbolInstance(
+                reference="V1",
+                symbol_id="stdlib:VCC",
+                value=circuit.input_label,
+                position=Point.from_mm(0, 0),
+            ),
+            SymbolInstance(
+                reference="R1",
+                symbol_id="stdlib:R",
+                value=circuit.resistor_value,
+                position=Point.from_mm(15.24, 0),
+                footprint_id="stdlib:R_0603",
+            ),
+            SymbolInstance(
+                reference="C1",
+                symbol_id="stdlib:C",
+                value=circuit.capacitor_value,
+                position=Point.from_mm(40.64, 0),
+                footprint_id="stdlib:C_0603",
+            ),
+            SymbolInstance(
+                reference="G1",
+                symbol_id="stdlib:GND",
+                value="GND",
+                position=Point.from_mm(60.96, 0),
+            ),
+        ),
+        wires=(
+            Wire(points=(Point.from_mm(0, 0), Point.from_mm(10.16, 0))),
+            Wire(points=(Point.from_mm(20.32, 0), Point.from_mm(35.56, 0))),
+            Wire(points=(Point.from_mm(45.72, 0), Point.from_mm(60.96, 0))),
+        ),
+        labels=(
+            NetLabel(name=circuit.input_label, position=Point.from_mm(0, 0)),
+            NetLabel(name=circuit.output_label, position=Point.from_mm(27.94, 0)),
+            NetLabel(name="GND", position=Point.from_mm(60.96, 0)),
+        ),
+    )
+
+
 def _current_limited_led_board(circuit: CurrentLimitedLedCircuit) -> Board:
+    return Board(
+        id="main",
+        texts=(
+            BoardText(
+                text=circuit.name,
+                layer=Layer.F_SILK,
+                position=Point.from_mm(25, 31),
+                size=1_500_000,
+                thickness=150_000,
+            ),
+        ),
+    )
+
+
+def _rc_low_pass_filter_board(circuit: RcLowPassFilterCircuit) -> Board:
     return Board(
         id="main",
         texts=(
@@ -235,10 +363,85 @@ def _render_current_limited_led_board(circuit: CurrentLimitedLedCircuit) -> str:
     return builder.render(outline_end_mm=(50.0, 30.0))
 
 
+def _render_rc_low_pass_filter_board(circuit: RcLowPassFilterCircuit) -> str:
+    builder = KiCadBoardBuilder()
+    vcc = builder.net(circuit.input_label)
+    out = builder.net(circuit.output_label)
+    gnd = builder.net("GND")
+    builder.add_power_pad(
+        circuit.input_label,
+        8.0,
+        10.0,
+        net=vcc,
+        value="Filter Input",
+        reference_offset_mm=(-4.0, 0.0),
+    )
+    builder.add_power_pad(
+        "GND",
+        8.0,
+        15.0,
+        net=gnd,
+        value="Return",
+        reference_offset_mm=(-4.0, 0.0),
+    )
+    builder.add_power_pad(
+        circuit.output_label,
+        42.0,
+        10.0,
+        net=out,
+        value="Filter Output",
+        reference_offset_mm=(0.0, -2.2),
+    )
+    builder.add_two_pad_smd_footprint(
+        TwoPadSmdFootprintSpec(
+            footprint="PCBSmith_R_0603_REAL",
+            reference="R1",
+            value=circuit.resistor_value,
+            x_mm=20.0,
+            y_mm=10.0,
+            left_net=vcc,
+            right_net=out,
+            reference_offset_mm=(0.0, -2.0),
+        )
+    )
+    builder.add_two_pad_smd_footprint(
+        TwoPadSmdFootprintSpec(
+            footprint="PCBSmith_C_0603_REAL",
+            reference="C1",
+            value=circuit.capacitor_value,
+            x_mm=32.0,
+            y_mm=16.0,
+            left_net=out,
+            right_net=gnd,
+            reference_offset_mm=(0.0, 2.2),
+        )
+    )
+    builder.add_segment(8.0, 10.0, 19.25, 10.0, width_mm=0.45, net=vcc)
+    builder.add_segment(20.75, 10.0, 42.0, 10.0, width_mm=0.45, net=out)
+    builder.add_segment(28.0, 10.0, 31.25, 13.25, width_mm=0.45, net=out)
+    builder.add_segment(31.25, 13.25, 31.25, 16.0, width_mm=0.45, net=out)
+    builder.add_segment(32.75, 16.0, 38.0, 16.0, width_mm=0.45, net=gnd)
+    builder.add_segment(38.0, 16.0, 38.0, 22.0, width_mm=0.45, net=gnd)
+    builder.add_segment(38.0, 22.0, 8.0, 22.0, width_mm=0.45, net=gnd)
+    builder.add_segment(8.0, 22.0, 8.0, 15.0, width_mm=0.45, net=gnd)
+    builder.add_text(circuit.name, 25.0, 26.0, size_mm=1.5)
+    builder.add_text(
+        f"{circuit.resistor_value} / {circuit.capacitor_value}",
+        25.0,
+        28.5,
+        size_mm=0.9,
+    )
+    builder.add_rect(0.0, 0.0, 50.0, 30.0, layer="F.Fab", width_mm=0.1)
+    return builder.render(outline_end_mm=(50.0, 30.0))
+
+
 __all__ = [
     "CircuitExampleKiCadResult",
     "CircuitExampleProjectResult",
     "CurrentLimitedLedCircuit",
+    "RcLowPassFilterCircuit",
     "create_current_limited_led_project",
+    "create_rc_low_pass_filter_project",
     "export_current_limited_led_kicad_project",
+    "export_rc_low_pass_filter_kicad_project",
 ]
