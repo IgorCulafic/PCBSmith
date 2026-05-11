@@ -1486,16 +1486,19 @@ def _render_timer_555_pwm_dimmer_board(circuit: Timer555PwmDimmerCircuit) -> str
     route(((92.0, 22.0), (92.0, 41.5), (86.0, 41.5)), net=load_neg, width_mm=0.8)
     route(((46.0, 36.0), (55.0, 36.0), (55.0, 48.0), (60.25, 48.0)), net=out)
     route(((61.75, 48.0), (74.0, 48.0)), net=gate)
-    route(((74.0, 48.0), (72.0, 48.0), (72.0, 44.0), (84.0, 44.3)), net=gate)
-    route(((30.0, 36.0), (24.25, 45.0)), net=ctrl)
+    route(
+        ((74.0, 48.0), (72.0, 48.0), (72.0, 44.0), (83.7, 44.0), (84.0, 44.3)),
+        net=gate,
+    )
+    route(((30.0, 36.0), (30.0, 39.25), (24.25, 45.0)), net=ctrl)
 
     route(
-        ((46.0, 28.0), (55.0, 28.0), (55.0, 34.0), (64.0, 34.0), (62.2, 29.0)),
+        ((46.0, 28.0), (55.0, 28.0), (55.0, 34.0), (64.0, 34.0), (64.0, 30.8), (62.2, 29.0)),
         net=disch,
         preserved_points=((55.0, 28.0),),
     )
     route(((55.0, 28.0), (55.0, 22.0), (59.8, 22.0)), net=disch)
-    route(((67.46, 17.7), (62.0, 17.7), (59.8, 22.0)), net=disch)
+    route(((67.46, 17.7), (62.0, 17.7), (59.8, 19.9), (59.8, 22.0)), net=disch)
 
     for x_mm, y_mm in (
         (30.0, 28.0),
@@ -1507,12 +1510,16 @@ def _render_timer_555_pwm_dimmer_board(circuit: Timer555PwmDimmerCircuit) -> str
     ):
         via(x_mm, y_mm, net=pwm_node)
     route(
-        ((30.0, 28.0), (46.0, 32.0), (59.8, 29.0)),
+        ((30.0, 28.0), (34.0, 28.0), (38.0, 32.0), (54.0, 32.0), (57.0, 29.0), (59.8, 29.0)),
         layer="B.Cu",
         net=pwm_node,
     )
-    route(((59.8, 29.0), (62.2, 22.0), (70.0, 17.7)), layer="B.Cu", net=pwm_node)
-    route(((59.8, 29.0), (73.25, 35.0)), layer="B.Cu", net=pwm_node)
+    route(
+        ((59.8, 29.0), (59.8, 24.4), (62.2, 22.0), (65.0, 22.0), (69.3, 17.7), (70.0, 17.7)),
+        layer="B.Cu",
+        net=pwm_node,
+    )
+    route(((59.8, 29.0), (64.0, 29.0), (70.0, 35.0), (73.25, 35.0)), layer="B.Cu", net=pwm_node)
 
     builder.add_text(f"VIN {circuit.supply_voltage}", *point(9.0, 5.0), size_mm=1.0)
     builder.add_text(circuit.load_label, *point(90.0, 8.0), size_mm=1.0)
