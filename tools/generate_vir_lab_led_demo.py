@@ -1,0 +1,413 @@
+from __future__ import annotations
+
+import argparse
+import shutil
+from dataclasses import dataclass
+from pathlib import Path
+from uuid import uuid4
+
+from pcbsmith.services.kicad_preview import (
+    format_kicad_preview_report,
+    run_kicad_preview,
+)
+from pcbsmith.services.kicad_project import (
+    render_kicad_board_file,
+    render_kicad_project_file,
+    render_kicad_schematic_file,
+    sanitize_kicad_project_name,
+)
+from pcbsmith.services.kicad_validate import (
+    format_kicad_validation_report,
+    run_kicad_validation,
+)
+
+BOARD_WIDTH_MM = 420.0
+BOARD_HEIGHT_MM = 115.0
+VCC_RAIL_Y_MM = 8.0
+GND_RAIL_Y_MM = 100.0
+TRACE_WIDTH_MM = 0.45
+SOURCE_LOGO_SVG = Path("D:/VIR LAB/VEKTOR-04.svg")
+SOURCE_LOGO_PNG = Path("D:/VIR LAB/1-04.png")
+
+
+LETTER_PATTERNS = {
+    "V": ("101", "101", "101", "101", "010"),
+    "I": ("111", "010", "010", "010", "111"),
+    "R": ("110", "101", "110", "101", "101"),
+    "-": ("000", "000", "111", "000", "000"),
+    "L": ("100", "100", "100", "100", "111"),
+    "A": ("010", "101", "111", "101", "101"),
+    "B": ("110", "101", "110", "101", "110"),
+}
+
+
+@dataclass(frozen=True)
+class Pixel:
+    index: int
+    x: float
+    y: float
+    resistor_ref: str
+    led_ref: str
+    drive_net: str
+
+    @property
+    def resistor_x(self) -> float:
+        return self.x - 1.8
+
+    @property
+    def led_x(self) -> float:
+        return self.x + 1.8
+
+    @property
+    def vcc_tap_x(self) -> float:
+        return self.x - 2.55
+
+    @property
+    def gnd_tap_x(self) -> float:
+        return self.x + 2.55
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(
+        description="Generate a KiCad VIR-LAB 5V 0603 LED demo board."
+    )
+    parser.add_argument(
+        "--output",
+        type=Path,
+        default=Path(".tmp/vir-lab-led-demo-20260511-01/kicad-review"),
+        help="Output KiCad project directory.",
+    )
+    parser.add_argument("--name", default="VIR LAB 5V LED Demo")
+    args = parser.parse_args()
+
+    project_dir = args.output
+    _reset_output_dir(project_dir)
+    project_name = sanitize_kicad_project_name(args.name)
+    project_dir.mkdir(parents=True)
+
+    pixels = _letter_pixels()
+    project_file = project_dir / f"{project_name}.kicad_pro"
+    schematic_file = project_dir / f"{project_name}.kicad_sch"
+    board_file = project_dir / f"{project_name}.kicad_pcb"
+
+    project_file.write_text(render_kicad_project_file(project_name), encoding="utf-8")
+    schematic_file.write_text(
+        render_kicad_schematic_file(uuid4()),
+        encoding="utf-8",
+    )
+    board_file.write_text(
+        render_kicad_board_file(
+            uuid4(),
+            _board_items(pixels),
+            outline_end_mm=f"{_mm(BOARD_WIDTH_MM)} {_mm(BOARD_HEIGHT_MM)}",
+        ),
+        encoding="utf-8",
+    )
+    _copy_logo_sources(project_dir)
+
+    validation = run_kicad_validation(project_dir)
+    preview = run_kicad_preview(project_dir)
+    print("\n".join(format_kicad_validation_report(validation)))
+    print("\n".join(format_kicad_preview_report(preview)))
+    if validation.exit_code or preview.exit_code:
+        raise SystemExit(1)
+
+
+def _reset_output_dir(project_dir: Path) -> None:
+    resolved = project_dir.resolve()
+    workspace = Path.cwd().resolve()
+    if not resolved.is_relative_to(workspace):
+        raise ValueError(f"Output must be inside the workspace: {project_dir}")
+    if resolved.exists():
+        shutil.rmtree(resolved)
+
+
+def _copy_logo_sources(project_dir: Path) -> None:
+    assets_dir = project_dir / ".pcbsmith" / "assets"
+    assets_dir.mkdir(parents=True, exist_ok=True)
+    for source in (SOURCE_LOGO_SVG, SOURCE_LOGO_PNG):
+        if source.exists():
+            shutil.copyfile(source, assets_dir / source.name)
+
+
+def _letter_pixels() -> list[Pixel]:
+    pixels: list[Pixel] = []
+    x_origin = 24.0
+    y_origin = 26.0
+    x_step = 12.0
+    y_step = 14.0
+    letter_advance = 48.0
+    index = 1
+
+    for letter_index, letter in enumerate("VIR-LAB"):
+        pattern = LETTER_PATTERNS[letter]
+        letter_x = x_origin + letter_index * letter_advance
+        for row_index, row in enumerate(pattern):
+            for col_index, is_lit in enumerate(row):
+                if is_lit != "1":
+                    continue
+                pixels.append(
+                    Pixel(
+                        index=index,
+                        x=letter_x + col_index * x_step,
+                        y=y_origin + row_index * y_step,
+                        resistor_ref=f"R{index}",
+                        led_ref=f"LED{index}",
+                        drive_net=f"LED_{index}",
+                    )
+                )
+                index += 1
+    return pixels
+
+
+def _board_items(pixels: list[Pixel]) -> list[str]:
+    net_names = ["VCC", "GND", *(pixel.drive_net for pixel in pixels)]
+    items = [_net_item(number, name) for number, name in enumerate(net_names, start=1)]
+    net_numbers = {name: number for number, name in enumerate(net_names, start=1)}
+
+    items.extend(_silkscreen_items())
+    items.extend(_power_pads(net_numbers))
+    items.extend(_power_rails(net_numbers, pixels))
+    for pixel in pixels:
+        items.append(_resistor(pixel, net_numbers))
+        items.append(_led(pixel, net_numbers))
+        items.extend(_pixel_tracks(pixel, net_numbers))
+    return items
+
+
+def _net_item(number: int, name: str) -> str:
+    return f'  (net {number} "{name}")'
+
+
+def _power_pads(net_numbers: dict[str, int]) -> list[str]:
+    return [
+        _power_pad("VCC", 7.0, VCC_RAIL_Y_MM, net_numbers["VCC"], "VCC"),
+        _power_pad("GND", 7.0, 12.0, net_numbers["GND"], "GND"),
+    ]
+
+
+def _power_rails(net_numbers: dict[str, int], pixels: list[Pixel]) -> list[str]:
+    last_vcc_tap_x = max(pixel.vcc_tap_x for pixel in pixels)
+    last_gnd_tap_x = max(pixel.gnd_tap_x for pixel in pixels)
+    return [
+        _segment(7.0, VCC_RAIL_Y_MM, last_vcc_tap_x, VCC_RAIL_Y_MM, net_numbers["VCC"]),
+        _segment(7.0, GND_RAIL_Y_MM, last_gnd_tap_x, GND_RAIL_Y_MM, net_numbers["GND"]),
+        _segment(7.0, 12.0, 7.0, GND_RAIL_Y_MM, net_numbers["GND"]),
+    ]
+
+
+def _pixel_tracks(pixel: Pixel, net_numbers: dict[str, int]) -> list[str]:
+    drive_net = net_numbers[pixel.drive_net]
+    return [
+        _segment(
+            pixel.vcc_tap_x,
+            VCC_RAIL_Y_MM,
+            pixel.vcc_tap_x,
+            pixel.y,
+            net_numbers["VCC"],
+        ),
+        _segment(pixel.x - 1.05, pixel.y, pixel.x + 1.05, pixel.y, drive_net),
+        _segment(
+            pixel.gnd_tap_x,
+            pixel.y,
+            pixel.gnd_tap_x,
+            GND_RAIL_Y_MM,
+            net_numbers["GND"],
+        ),
+    ]
+
+
+def _resistor(pixel: Pixel, net_numbers: dict[str, int]) -> str:
+    return _two_pad_0603(
+        footprint="PCBSmith_R_0603_REAL",
+        reference=pixel.resistor_ref,
+        value="680",
+        x=pixel.resistor_x,
+        y=pixel.y,
+        left_net=(net_numbers["VCC"], "VCC"),
+        right_net=(net_numbers[pixel.drive_net], pixel.drive_net),
+        body="resistor",
+        reference_offset=(-2.4, -2.0),
+    )
+
+
+def _led(pixel: Pixel, net_numbers: dict[str, int]) -> str:
+    return _two_pad_0603(
+        footprint="PCBSmith_LED_0603_REAL",
+        reference=pixel.led_ref,
+        value="Red 0603",
+        x=pixel.led_x,
+        y=pixel.y,
+        left_net=(net_numbers[pixel.drive_net], pixel.drive_net),
+        right_net=(net_numbers["GND"], "GND"),
+        body="led",
+        reference_offset=(2.4, -2.0),
+    )
+
+
+def _two_pad_0603(
+    *,
+    footprint: str,
+    reference: str,
+    value: str,
+    x: float,
+    y: float,
+    left_net: tuple[int, str],
+    right_net: tuple[int, str],
+    body: str,
+    reference_offset: tuple[float, float],
+) -> str:
+    ref_x, ref_y = reference_offset
+    return f"""  (footprint "{footprint}"
+    (layer "F.Cu")
+    (uuid {uuid4()})
+    (at {_mm(x)} {_mm(y)})
+    (property "Reference" "{reference}"
+      (at {_mm(ref_x)} {_mm(ref_y)} 0)
+      (layer "F.SilkS")
+      (uuid {uuid4()})
+      (effects (font (size 0.8 0.8) (thickness 0.12)))
+    )
+    (property "Value" "{value}"
+      (at 0 1.0 0)
+      (layer "F.Fab")
+      (uuid {uuid4()})
+      (effects (font (size 0.5 0.5) (thickness 0.08)))
+    )
+    (attr smd)
+{_pad("1", -0.75, 0, left_net)}
+{_pad("2", 0.75, 0, right_net)}
+  )"""
+
+
+def _power_pad(reference: str, x: float, y: float, net_number: int, net_name: str) -> str:
+    return f"""  (footprint "PCBSmith_POWER_INPUT_PAD"
+    (layer "F.Cu")
+    (uuid {uuid4()})
+    (at {_mm(x)} {_mm(y)})
+    (property "Reference" "{reference}"
+      (at -4 0 0)
+      (layer "F.SilkS")
+      (uuid {uuid4()})
+      (effects (font (size 1.0 1.0) (thickness 0.15)))
+    )
+    (property "Value" "5V Input"
+      (at 0 2.2 0)
+      (layer "F.Fab")
+      (uuid {uuid4()})
+      (effects (font (size 1.0 1.0) (thickness 0.15)))
+    )
+    (attr smd)
+    (pad "1" smd roundrect
+      (at 0 0)
+      (size 2.4 2.4)
+      (layers "F.Cu" "F.Paste" "F.Mask")
+      (roundrect_rratio 0.2)
+      (net {net_number} "{net_name}")
+      (pinfunction "1")
+      (pintype "passive")
+      (uuid {uuid4()})
+    )
+  )"""
+
+
+def _pad(name: str, x: float, y: float, net: tuple[int, str]) -> str:
+    net_number, net_name = net
+    return f"""    (pad "{name}" smd roundrect
+      (at {_mm(x)} {_mm(y)})
+      (size 0.75 0.95)
+      (layers "F.Cu" "F.Paste" "F.Mask")
+      (roundrect_rratio 0.25)
+      (net {net_number} "{net_name}")
+      (pinfunction "{name}")
+      (pintype "passive")
+      (uuid {uuid4()})
+    )"""
+
+
+def _segment(
+    start_x: float,
+    start_y: float,
+    end_x: float,
+    end_y: float,
+    net_number: int,
+) -> str:
+    return f"""  (segment
+    (start {_mm(start_x)} {_mm(start_y)})
+    (end {_mm(end_x)} {_mm(end_y)})
+    (width {_mm(TRACE_WIDTH_MM)})
+    (layer "F.Cu")
+    (net {net_number})
+    (uuid {uuid4()})
+  )"""
+
+
+def _silkscreen_items() -> list[str]:
+    return [
+        _text("VIR-LAB 5V LED TEST", 180, 5, 2.0, "F.SilkS"),
+        _text("0603 LEDs, 680R per LED", 180, 106, 1.2, "F.SilkS"),
+        _text("VIR", 382, 84, 4.0, "F.SilkS"),
+        _text("LAB", 382, 93, 4.0, "F.SilkS"),
+        _gr_rect(366, 74, 412, 104, "F.SilkS"),
+    ]
+
+
+def _text(text: str, x: float, y: float, size: float, layer: str) -> str:
+    return f"""  (gr_text "{text}"
+    (at {_mm(x)} {_mm(y)} 0)
+    (layer "{layer}")
+    (uuid {uuid4()})
+    (effects (font (size {_mm(size)} {_mm(size)}) (thickness {_mm(size * 0.12)})))
+  )"""
+
+
+def _gr_rect(x1: float, y1: float, x2: float, y2: float, layer: str) -> str:
+    return f"""  (gr_rect
+    (start {_mm(x1)} {_mm(y1)})
+    (end {_mm(x2)} {_mm(y2)})
+    (stroke (width 0.18) (type solid))
+    (fill none)
+    (layer "{layer}")
+    (uuid {uuid4()})
+  )"""
+
+
+def _gr_line(x1: float, y1: float, x2: float, y2: float, layer: str) -> str:
+    return f"""  (gr_line
+    (start {_mm(x1)} {_mm(y1)})
+    (end {_mm(x2)} {_mm(y2)})
+    (stroke (width 0.18) (type solid))
+    (layer "{layer}")
+    (uuid {uuid4()})
+  )"""
+
+
+def _fp_line(x1: float, y1: float, x2: float, y2: float, layer: str) -> str:
+    return _fp_like_line(x1, y1, x2, y2, layer, 0.1, indent="    ")
+
+
+def _fp_like_line(
+    x1: float,
+    y1: float,
+    x2: float,
+    y2: float,
+    layer: str,
+    width: float,
+    *,
+    indent: str = "  ",
+) -> str:
+    return f"""{indent}(fp_line
+{indent}  (start {_mm(x1)} {_mm(y1)})
+{indent}  (end {_mm(x2)} {_mm(y2)})
+{indent}  (stroke (width {_mm(width)}) (type solid))
+{indent}  (layer "{layer}")
+{indent}  (uuid {uuid4()})
+{indent})"""
+
+
+def _mm(value: float) -> str:
+    return f"{value:.3f}".rstrip("0").rstrip(".")
+
+
+if __name__ == "__main__":
+    main()
