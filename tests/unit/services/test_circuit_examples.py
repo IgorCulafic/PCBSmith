@@ -1,0 +1,99 @@
+from __future__ import annotations
+
+from pathlib import Path
+
+from pcbsmith.services.circuit_examples import (
+    CurrentLimitedLedCircuit,
+    create_current_limited_led_project,
+    export_current_limited_led_kicad_project,
+)
+from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
+from pcbsmith.services.project_io import load_board, load_project, load_schematic
+
+
+def test_create_current_limited_led_project_writes_shared_schematic_and_board(
+    tmp_path: Path,
+) -> None:
+    project_dir = tmp_path / "source"
+
+    result = create_current_limited_led_project(
+        project_dir,
+        CurrentLimitedLedCircuit(
+            name="Schematic Backed LED",
+            supply_voltage="5V",
+            resistor_value="680",
+            led_value="Red LED",
+        ),
+    )
+
+    project = load_project(project_dir)
+    schematic = load_schematic(project_dir, "schematics/main.sch.json")
+    board = load_board(project_dir, "boards/main.brd.json")
+
+    assert result.project_dir == project_dir
+    assert result.schematic_path == "schematics/main.sch.json"
+    assert result.board_path == "boards/main.brd.json"
+    assert project.name == "Schematic Backed LED"
+    assert [symbol.reference for symbol in schematic.symbols] == ["V1", "R1", "LED1", "G1"]
+    assert [symbol.value for symbol in schematic.symbols] == ["5V", "680", "Red LED", "GND"]
+    assert [label.name for label in schematic.labels] == ["VCC", "LED_A", "GND"]
+    assert len(schematic.wires) == 3
+    assert board.texts[0].text == "Schematic Backed LED"
+
+
+def test_current_limited_led_project_exports_non_blank_kicad_schematic_and_board(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    output_dir = tmp_path / "kicad"
+    create_current_limited_led_project(
+        source_dir,
+        CurrentLimitedLedCircuit(
+            name="Schematic Backed LED",
+            supply_voltage="5V",
+            resistor_value="680",
+            led_value="Red LED",
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(source_dir, output_dir)
+
+    schematic_text = result.skeleton.schematic_file.read_text(encoding="utf-8")
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
+    assert '(lib_id "PCBSmith:VCC")' in schematic_text
+    assert '(lib_id "PCBSmith:R")' in schematic_text
+    assert '(lib_id "PCBSmith:LED")' in schematic_text
+    assert '(property "Value" "680"' in schematic_text
+    assert '(footprint "PCBSmith_R_0603"' in board_text
+    assert '(footprint "PCBSmith_LED_0603"' in board_text
+    assert '(gr_text "Schematic Backed LED"' in board_text
+
+
+def test_current_limited_led_direct_kicad_export_uses_clean_board_builder(
+    tmp_path: Path,
+) -> None:
+    source_dir = tmp_path / "source"
+    output_dir = tmp_path / "kicad"
+
+    result = export_current_limited_led_kicad_project(
+        source_dir,
+        output_dir,
+        CurrentLimitedLedCircuit(
+            name="Schematic Backed LED",
+            supply_voltage="5V",
+            resistor_value="680",
+            led_value="Red LED",
+        ),
+    )
+
+    schematic_text = result.schematic_file.read_text(encoding="utf-8")
+    board_text = result.board_file.read_text(encoding="utf-8")
+    assert result.source_project_dir == source_dir
+    assert '(lib_id "PCBSmith:R")' in schematic_text
+    assert '(lib_id "PCBSmith:LED")' in schematic_text
+    assert '(footprint "PCBSmith_R_0603_REAL"' in board_text
+    assert '(footprint "PCBSmith_LED_0603_REAL"' in board_text
+    assert '(net 1 "VCC")' in board_text
+    assert '(net 2 "LED_A")' in board_text
+    assert '(net 3 "GND")' in board_text
+    assert '(gr_text "Schematic Backed LED"' in board_text
