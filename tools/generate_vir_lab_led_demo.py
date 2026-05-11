@@ -383,8 +383,7 @@ def _add_resistor(
             y_mm=pixel.y,
             left_net=net_refs["VCC"],
             right_net=net_refs[pixel.drive_net],
-            reference_layer="F.Fab",
-            reference_offset_mm=(-2.4, -2.0),
+            reference_offset_mm=(0.0, -2.0),
         )
     )
 
@@ -405,8 +404,7 @@ def _add_led(
             y_mm=pixel.y,
             left_net=net_refs[pixel.drive_net],
             right_net=net_refs["GND"],
-            reference_layer="F.Fab",
-            reference_offset_mm=(2.4, -2.0),
+            reference_offset_mm=(0.0, -2.0),
             silk_marker="cathode",
             show_anode_plus=show_polarity_marks,
         )
