@@ -283,11 +283,7 @@ def render_kicad_schematic_items(
         if symbol.spec.power
         for point in symbol.pin_points
     }
-    native_wires = [
-        wire
-        for wire in schematic.wires
-        if _wire_connects_native_points(wire, pin_points)
-    ]
+    native_wires = _native_wires(schematic.wires)
     connected_points = {
         (point.x, point.y) for wire in native_wires for point in wire.points
     } | pin_points
@@ -359,37 +355,29 @@ def render_kicad_board_items(
     native_symbols = _native_symbol_instances(
         schematic, uuid_factory=uuid_factory
     ) if native_symbols is None else native_symbols
-    pin_points = {
-        (point.x, point.y)
-        for symbol in native_symbols
-        for point in symbol.pin_points
-    }
     power_points = {
         (point.x, point.y): symbol.spec.library_symbol_name
         for symbol in native_symbols
         if symbol.spec.power
         for point in symbol.pin_points
     }
-    native_wires = [
-        wire
-        for wire in schematic.wires
-        if _wire_connects_native_points(wire, pin_points)
-    ]
+    native_wires = _native_wires(schematic.wires)
     board_nets = _native_board_nets(
         schematic.labels,
         native_wires,
         power_points,
     )
+    unique_board_nets = _unique_board_nets(board_nets)
     point_nets = _point_board_nets(board_nets)
     footprints = _native_board_footprints(native_symbols, point_nets)
-    board_pads = _native_board_pads(footprints, board_nets)
+    board_pads = _native_board_pads(footprints, unique_board_nets)
 
     if not footprints and board is None:
         return ()
 
     net_numbers = _board_trace_net_numbers(board.traces if board else (), board_nets)
     items: list[str] = []
-    items.extend(_render_board_net(net) for net in board_nets)
+    items.extend(_render_board_net(net) for net in unique_board_nets)
     items.extend(
         _render_board_net_name(net_name, net_number)
         for net_name, net_number in net_numbers.items()
@@ -397,7 +385,7 @@ def render_kicad_board_items(
     )
     items.extend(
         _render_board_power_footprint(net, uuid_factory=uuid_factory)
-        for net in board_nets
+        for net in unique_board_nets
         if net.name in {"VCC", "GND"}
     )
     items.extend(
@@ -423,7 +411,7 @@ def render_kicad_board_items(
             _render_board_silkscreen_text(
                 "PCBSmith Demo",
                 x_mm=_board_x_mm(25),
-                y_mm=_board_y_mm(31),
+                y_mm=_board_y_mm(5),
                 uuid=uuid_factory(),
             )
         )
@@ -506,6 +494,14 @@ def _wire_connects_native_points(
         (wire.points[0].x, wire.points[0].y) in pin_points
         and (wire.points[-1].x, wire.points[-1].y) in pin_points
     )
+
+
+def _native_wires(wires: tuple[Wire, ...]) -> list[Wire]:
+    return [
+        wire
+        for wire in wires
+        if len({(point.x, point.y) for point in wire.points}) > 1
+    ]
 
 
 def _schematic_display_offset(
@@ -615,30 +611,92 @@ def _native_board_nets(
     wires: list[Wire],
     power_points: dict[tuple[int, int], str],
 ) -> tuple[NativeBoardNet, ...]:
+    component_names = _wire_component_net_names(labels, wires, power_points)
     names: list[str] = []
     nets: list[NativeBoardNet] = []
-    for wire in wires:
-        name = _native_wire_net_name(labels, wire, power_points, len(names) + 1)
+    for index, wire in enumerate(wires):
+        name = component_names[index]
         if name not in names:
             names.append(name)
         nets.append(NativeBoardNet(name=name, number=names.index(name) + 1, wire=wire))
     return tuple(nets)
 
 
-def _native_wire_net_name(
+def _wire_component_net_names(
     labels: tuple[NetLabel, ...],
-    wire: Wire,
+    wires: list[Wire],
     power_points: dict[tuple[int, int], str],
-    fallback_index: int,
-) -> str:
-    for point in (wire.points[0], wire.points[-1]):
-        power_name = power_points.get((point.x, point.y))
-        if power_name is not None:
-            return power_name
-    for label in labels:
-        if _point_on_wire(label.position, wire):
-            return label.name
-    return f"N${fallback_index}"
+) -> dict[int, str]:
+    parent = list(range(len(wires)))
+
+    def find(index: int) -> int:
+        root = parent[index]
+        if root != index:
+            parent[index] = find(root)
+        return parent[index]
+
+    def union(left: int, right: int) -> None:
+        left_root = find(left)
+        right_root = find(right)
+        if left_root != right_root:
+            parent[right_root] = left_root
+
+    for left_index, left_wire in enumerate(wires):
+        for right_index, right_wire in enumerate(wires[left_index + 1 :], start=left_index + 1):
+            if _wires_touch(left_wire, right_wire):
+                union(left_index, right_index)
+
+    component_names: dict[int, str] = {}
+    next_fallback = 1
+    for component in sorted({find(index) for index in range(len(wires))}):
+        component_wires = [
+            wire for index, wire in enumerate(wires) if find(index) == component
+        ]
+        name = _wire_group_net_name(labels, component_wires, power_points)
+        if name is None:
+            name = f"N${next_fallback}"
+            next_fallback += 1
+        component_names[component] = name
+
+    return {index: component_names[find(index)] for index in range(len(wires))}
+
+
+def _wire_group_net_name(
+    labels: tuple[NetLabel, ...],
+    wires: list[Wire],
+    power_points: dict[tuple[int, int], str],
+) -> str | None:
+    power_names: list[str] = []
+    label_names: list[str] = []
+    for wire in wires:
+        for point in wire.points:
+            power_name = power_points.get((point.x, point.y))
+            if power_name is not None and power_name not in power_names:
+                power_names.append(power_name)
+        for label in labels:
+            if _point_on_wire(label.position, wire) and label.name not in label_names:
+                label_names.append(label.name)
+
+    if power_names:
+        return sorted(power_names)[0]
+    if label_names:
+        return sorted(label_names)[0]
+    return None
+
+
+def _wires_touch(left: Wire, right: Wire) -> bool:
+    return any(_point_on_wire(point, right) for point in left.points) or any(
+        _point_on_wire(point, left) for point in right.points
+    )
+
+
+def _unique_board_nets(
+    board_nets: tuple[NativeBoardNet, ...],
+) -> tuple[NativeBoardNet, ...]:
+    unique: dict[tuple[int, str], NativeBoardNet] = {}
+    for net in board_nets:
+        unique.setdefault((net.number, net.name), net)
+    return tuple(sorted(unique.values(), key=lambda net: net.number))
 
 
 def _point_board_nets(
@@ -668,7 +726,7 @@ def _native_board_footprints(
                 symbol=symbol,
                 footprint_name=footprint_name,
                 center_x_mm=center_x_mm,
-                center_y_mm=_board_y_mm(20),
+                center_y_mm=_board_y_mm(20 + nm_to_mm(symbol.source.position.y)),
                 pad_nets=(
                     point_nets.get(
                         (symbol.pin_points[0].x, symbol.pin_points[0].y)
