@@ -161,6 +161,61 @@ SYMBOLS: dict[str, Symbol] = {
             ),
         ],
     ),
+    "stdlib:NE555": Symbol(
+        id="stdlib:NE555",
+        name="NE555 Timer",
+        default_footprint_id="stdlib:SOIC8",
+        pins=[
+            Pin(
+                number="1",
+                name="GND",
+                position=Point.from_mm(-7.62, 5.08),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="TRIG",
+                position=Point.from_mm(-7.62, 2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="3",
+                name="OUT",
+                position=Point.from_mm(7.62, -5.08),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="4",
+                name="RESET",
+                position=Point.from_mm(-7.62, 0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="5",
+                name="CTRL",
+                position=Point.from_mm(-7.62, -2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="6",
+                name="THRESH",
+                position=Point.from_mm(7.62, 0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="7",
+                name="DISCH",
+                position=Point.from_mm(7.62, 2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="8",
+                name="VCC",
+                position=Point.from_mm(7.62, 5.08),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
 }
 
 FOOTPRINTS: dict[str, Footprint] = {
@@ -309,6 +364,29 @@ FOOTPRINTS: dict[str, Footprint] = {
                 drill=1_000_000,
             ),
         ],
+    ),
+    "stdlib:SOIC8": Footprint(
+        id="stdlib:SOIC8",
+        name="SOIC8",
+        pads=tuple(
+            Pad(
+                number=str(number),
+                position=Point.from_mm(x_mm, y_mm),
+                size_x=700_000,
+                size_y=1_200_000,
+                shape=PadShape.RECT,
+            )
+            for number, x_mm, y_mm in (
+                (1, -3.0, -1.425),
+                (2, -3.0, -0.475),
+                (3, -3.0, 0.475),
+                (4, -3.0, 1.425),
+                (5, 3.0, 1.425),
+                (6, 3.0, 0.475),
+                (7, 3.0, -0.475),
+                (8, 3.0, -1.425),
+            )
+        ),
     ),
 }
 

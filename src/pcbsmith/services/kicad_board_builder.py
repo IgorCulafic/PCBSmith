@@ -128,6 +128,26 @@ class KiCadBoardBuilder:
   )"""
         )
 
+    def add_via(
+        self,
+        x_mm: float,
+        y_mm: float,
+        *,
+        net: NetRef,
+        size_mm: float = 0.8,
+        drill_mm: float = 0.4,
+    ) -> None:
+        self._items.append(
+            f"""  (via
+    (at {_mm(x_mm)} {_mm(y_mm)})
+    (size {_mm(size_mm)})
+    (drill {_mm(drill_mm)})
+    (layers "F.Cu" "B.Cu")
+    (net {net.number})
+    (uuid {uuid4()})
+  )"""
+        )
+
     def add_power_pad(
         self,
         reference: str,

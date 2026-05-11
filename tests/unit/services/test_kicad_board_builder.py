@@ -24,6 +24,21 @@ def test_board_builder_assigns_stable_net_numbers_and_renders_outline() -> None:
     assert "(end 50 35)" in text
 
 
+def test_board_builder_can_add_front_to_back_via() -> None:
+    builder = KiCadBoardBuilder()
+    out = builder.net("OUT")
+
+    builder.add_via(12.5, 9.75, net=out)
+    text = builder.render(outline_end_mm=(30, 20))
+
+    assert "(via" in text
+    assert "(at 12.5 9.75)" in text
+    assert "(size 0.8)" in text
+    assert "(drill 0.4)" in text
+    assert '(layers "F.Cu" "B.Cu")' in text
+    assert "(net 1)" in text
+
+
 def test_board_builder_renders_two_pad_smd_footprint_with_fab_body() -> None:
     builder = KiCadBoardBuilder()
     vcc = builder.net("VCC")

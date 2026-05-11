@@ -158,6 +158,23 @@ NATIVE_SYMBOL_SPECS: dict[str, NativeSymbolSpec] = {
         power=True,
         datasheet="",
     ),
+    "stdlib:NE555": NativeSymbolSpec(
+        source_symbol_id="stdlib:NE555",
+        library_symbol_name="NE555",
+        reference_prefix="U",
+        value="NE555",
+        description="Generic 555 timer IC",
+        pin_offsets=(
+            Vec(mm_to_nm(-7.62), mm_to_nm(-5.08)),
+            Vec(mm_to_nm(-7.62), mm_to_nm(-2.54)),
+            Vec(mm_to_nm(7.62), mm_to_nm(5.08)),
+            Vec(mm_to_nm(-7.62), 0),
+            Vec(mm_to_nm(-7.62), mm_to_nm(2.54)),
+            Vec(mm_to_nm(7.62), 0),
+            Vec(mm_to_nm(7.62), mm_to_nm(-2.54)),
+            Vec(mm_to_nm(7.62), mm_to_nm(-5.08)),
+        ),
+    ),
 }
 
 BOARD_FOOTPRINT_NAMES = {
@@ -165,6 +182,7 @@ BOARD_FOOTPRINT_NAMES = {
     "stdlib:C": "PCBSmith_C_0603",
     "stdlib:D": "PCBSmith_D_0603",
     "stdlib:LED": "PCBSmith_LED_0603",
+    "stdlib:NE555": "PCBSmith_SOIC8_NE555",
 }
 
 
@@ -1465,6 +1483,8 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
         if embedded
         else spec.library_symbol_name
     )
+    if spec.library_symbol_name == "NE555":
+        return _render_ne555_library_symbol(name, spec.description)
     if spec.library_symbol_name == "R":
         return _render_two_pin_box_library_symbol(
             name,
@@ -1636,6 +1656,75 @@ def _render_power_library_symbol(
       )
     )
   )"""
+
+
+def _render_ne555_library_symbol(name: str, description: str) -> str:
+    return f"""  (symbol "{name}"
+    (pin_numbers
+      (hide no)
+    )
+    (pin_names
+      (offset 0.762)
+    )
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    {_render_symbol_property("Reference", "U", 0, -10_160_000)}
+    {_render_symbol_property("Value", "NE555", 0, 10_160_000)}
+    {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
+    {_render_symbol_property("Datasheet", "~", 0, 0, hidden=True)}
+    {_render_symbol_property("Description", description, 0, 0, hidden=True)}
+    (symbol "NE555_0_1"
+      (rectangle
+        (start -5.08 7.62)
+        (end 5.08 -7.62)
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )
+    (symbol "NE555_1_1"
+{_ne555_pin("1", "GND", -7.62, 5.08, 0)}
+{_ne555_pin("2", "TRIG", -7.62, 2.54, 0)}
+{_ne555_pin("3", "OUT", 7.62, -5.08, 180)}
+{_ne555_pin("4", "RESET", -7.62, 0, 0)}
+{_ne555_pin("5", "CTRL", -7.62, -2.54, 0)}
+{_ne555_pin("6", "THRESH", 7.62, 0, 180)}
+{_ne555_pin("7", "DISCH", 7.62, 2.54, 180)}
+{_ne555_pin("8", "VCC", 7.62, 5.08, 180)}
+    )
+  )"""
+
+
+def _ne555_pin(
+    number: str,
+    name: str,
+    x_mm: float,
+    y_mm: float,
+    direction: int,
+) -> str:
+    return f"""      (pin passive line
+        (at {x_mm:.2f} {y_mm:.2f} {direction})
+        (length 2.54)
+        (name "{name}"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+        (number "{number}"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+      )"""
 
 
 def _resistor_symbol_drawing() -> str:
