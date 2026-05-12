@@ -30,7 +30,9 @@ from pcbsmith.services.led_art import (
     LedArtPlan,
     LedArtSpec,
     build_led_art_plan,
+    compare_led_art_topologies,
     write_led_art_reports,
+    write_led_art_topology_comparison_reports,
 )
 
 BOARD_WIDTH_MM = 420.0
@@ -81,7 +83,12 @@ def main() -> None:
     )
     _copy_logo_sources(project_dir)
     _write_layout_first_readme(project_dir, project_name, plan)
-    write_led_art_reports(plan, project_dir / ".pcbsmith" / "reports")
+    reports_dir = project_dir / ".pcbsmith" / "reports"
+    write_led_art_reports(plan, reports_dir)
+    write_led_art_topology_comparison_reports(
+        compare_led_art_topologies(plan, priority="density"),
+        reports_dir,
+    )
 
     validation = run_kicad_validation(project_dir)
     preview = run_kicad_preview(project_dir)
