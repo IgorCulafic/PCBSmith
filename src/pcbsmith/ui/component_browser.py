@@ -83,7 +83,7 @@ class ComponentBrowser(QWidget):
             item.setData(ENTRY_ID_ROLE, entry.id)
             self.component_list.addItem(item)
 
-    def _populate_family_box(self, entries: list[CatalogEntry]) -> None:
+    def _populate_family_box(self, entries: tuple[CatalogEntry, ...]) -> None:
         entries_by_group: dict[str, list[CatalogEntry]] = {
             group.id: [] for group in self.catalog.groups
         }
@@ -103,6 +103,8 @@ class ComponentBrowser(QWidget):
         self._family_pages.clear()
         while self.family_layout.count():
             item = self.family_layout.takeAt(0)
+            if item is None:
+                continue
             widget = item.widget()
             if widget is not None:
                 widget.setParent(None)

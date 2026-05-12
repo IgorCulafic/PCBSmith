@@ -822,11 +822,12 @@ def _native_board_pads(
             )
 
     for footprint in footprints:
-        for x_offset, net, escape_direction in zip(
+        for x_offset, maybe_net, escape_direction in zip(
             ("-4", "4"), footprint.pad_nets, (-1, 1), strict=True
         ):
-            if net is None:
+            if maybe_net is None:
                 continue
+            net = maybe_net
             pads.append(
                 NativeBoardPad(
                     x_mm=_offset_mm(footprint.center_x_mm, x_offset),

@@ -489,7 +489,7 @@ def _longest_path_from(
     max_series_leds: int,
     pixel_by_index: dict[int, LedArtPixel],
 ) -> tuple[int, ...]:
-    best_path = (start_index,)
+    best_path: tuple[int, ...] = (start_index,)
 
     def walk(path: tuple[int, ...]) -> None:
         nonlocal best_path

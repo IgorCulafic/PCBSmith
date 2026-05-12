@@ -16,15 +16,15 @@
 - Create: `src/pcbsmith/services/design_operations.py`
 - Test: `tests/unit/services/test_design_operations.py`
 
-- [ ] **Step 1: Write failing tests**
+- [x] **Step 1: Write failing tests**
 
 Test that a request writes a KiCad project, board file, reports, README, and machine-readable operation summary without invoking KiCad execution.
 
-- [ ] **Step 2: Implement request/result models**
+- [x] **Step 2: Implement request/result models**
 
 Define `LedArtDesignRequest`, `DesignOperationResult`, and helpers for request validation and output file layout.
 
-- [ ] **Step 3: Implement generation**
+- [x] **Step 3: Implement generation**
 
 Use `build_led_art_plan_for_topology`, `render_led_art_board`, `render_kicad_project_file`, `render_kicad_schematic_file`, and LED-art report writers.
 
@@ -34,11 +34,11 @@ Use `build_led_art_plan_for_topology`, `render_led_art_board`, `render_kicad_pro
 - Modify: `src/pcbsmith/cli.py`
 - Test: `tests/integration/test_cli.py`
 
-- [ ] **Step 1: Write failing CLI test**
+- [x] **Step 1: Write failing CLI test**
 
 Test `pcbsmith design-led-art <output> --text VIR-LAB --voltage 12 --control low_side_mosfet --skip-execution`.
 
-- [ ] **Step 2: Add command wrapper**
+- [x] **Step 2: Add command wrapper**
 
 Wire CLI args into `LedArtDesignRequest` and print stable output paths plus validation/preview status.
 
@@ -48,10 +48,10 @@ Wire CLI args into `LedArtDesignRequest` and print stable output paths plus vali
 - Modify: `docs/roadmap.md`
 - Modify: `docs/project-handoff.md`
 
-- [ ] **Step 1: Update docs**
+- [x] **Step 1: Update docs**
 
 Record that Phase 1 has a structured LED-art operation path and no longer depends on one-off scripts.
 
-- [ ] **Step 2: Run checks**
+- [x] **Step 2: Run checks**
 
 Run targeted tests, full pytest, and ruff on changed files.

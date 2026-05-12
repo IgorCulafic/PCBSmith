@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.kicad_preview import (
     KiCadPreviewReport,
     run_kicad_preview,
@@ -226,6 +227,7 @@ def _operation_summary(
             "board_file": _relative_output(project_dir, board_file),
             "reports_dir": ".pcbsmith/reports",
         },
+        "routing_rules": board_routing_rules_summary(),
         "checks": {
             "validation": validation_status,
             "preview": preview_status,

@@ -123,6 +123,10 @@ Generate a structured LED-art review bundle:
 .\.venv\Scripts\python.exe -m pcbsmith.cli design-led-art .tmp\r0-led-art-ai-operation\kicad-review --name "AI VIR LAB" --text "VIR-LAB" --topology 12v_dense --control low_side_mosfet
 ```
 
+The generated `.pcbsmith/operation.json` is the AI-facing contract for this
+operation. It records the request, output files, check status, and centralized
+board-routing rules from `pcbsmith.services.board_intelligence`.
+
 ## User Priorities
 
 - Build visible showcase features first.

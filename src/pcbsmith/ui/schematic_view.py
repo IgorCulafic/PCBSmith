@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Literal
 
-from PySide6.QtCore import QPoint, QRectF, Qt
+from PySide6.QtCore import QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPen, QShowEvent, QWheelEvent
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QWidget
 
@@ -38,28 +38,29 @@ class SchematicView(QGraphicsView):
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setDragMode(QGraphicsView.DragMode.NoDrag)
 
-    def drawBackground(self, painter: QPainter, rect: QRectF) -> None:
+    def drawBackground(self, painter: QPainter, rect: QRectF | QRect) -> None:
         super().drawBackground(painter, rect)
+        rect_f = QRectF(rect)
 
-        left = math.floor(rect.left() / GRID_NM) * GRID_NM
-        top = math.floor(rect.top() / GRID_NM) * GRID_NM
+        left = math.floor(rect_f.left() / GRID_NM) * GRID_NM
+        top = math.floor(rect_f.top() / GRID_NM) * GRID_NM
 
         painter.save()
         painter.setPen(QPen(GRID_COLOR, 0))
 
         x = left
-        while x <= rect.right():
-            painter.drawLine(int(x), int(rect.top()), int(x), int(rect.bottom()))
+        while x <= rect_f.right():
+            painter.drawLine(int(x), int(rect_f.top()), int(x), int(rect_f.bottom()))
             x += GRID_NM
 
         y = top
-        while y <= rect.bottom():
-            painter.drawLine(int(rect.left()), int(y), int(rect.right()), int(y))
+        while y <= rect_f.bottom():
+            painter.drawLine(int(rect_f.left()), int(y), int(rect_f.right()), int(y))
             y += GRID_NM
 
         painter.restore()
 
-    def drawForeground(self, painter: QPainter, rect: QRectF) -> None:
+    def drawForeground(self, painter: QPainter, rect: QRectF | QRect) -> None:
         super().drawForeground(painter, rect)
 
         painter.save()

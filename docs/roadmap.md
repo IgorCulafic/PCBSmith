@@ -182,7 +182,10 @@ R0.1 and R0.2 now have a reusable foundation: text-driven VIR-LAB LED art,
 adjacent LED string grouping, resistor labeling, KiCad review bundles, and
 optional low-side MOSFET control. Phase 1 has started with a structured
 `design-led-art` operation that turns AI/user request fields into a KiCad review
-bundle without creating a new generator script. The next work should keep
-expanding this AI-callable operation layer, then continue the R1 and R1.5
-library foundation so the AI can choose real parts without being overloaded by
-the full library at once.
+bundle without creating a new generator script. The operation summary now embeds
+the centralized board-routing contract from `pcbsmith.services.board_intelligence`,
+so AI-facing tools inherit the same 45-degree routing preference, DRC authority,
+trace-width, and manufacturability guidance instead of carrying one-off rules.
+The next work should keep expanding this AI-callable operation layer, then
+continue the R1 and R1.5 library foundation so the AI can choose real parts
+without being overloaded by the full library at once.
