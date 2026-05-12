@@ -438,6 +438,46 @@ def test_component_knowledge_search_finds_filtered_parts(tmp_path: Path) -> None
     ]
 
 
+def test_component_selection_returns_intent_ranked_candidates(tmp_path: Path) -> None:
+    output_path = tmp_path / "component-knowledge-index.json"
+
+    _run_cli("component-knowledge-index", str(output_path))
+
+    result = _run_cli(
+        "component-selection",
+        str(output_path),
+        "low-side-switch",
+        "--limit",
+        "1",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Component selection: low-side-switch",
+        "Preferred mounting: smd",
+        "Matches: 1",
+        (
+            "1. pcbs:nmos_sot23 | N-MOSFET SOT-23 | smd | "
+            "metadata_only | needs_review"
+        ),
+        (
+            "   reasons: Matches intent low-side-switch; Matches required tags: "
+            "mosfet, nmos, switching; Uses preferred mounting: smd"
+        ),
+        (
+            "   warnings: KiCad availability is not confirmed; resolve symbol and "
+            "footprint before automated placement.; Verify Vgs(th), Rds(on), current "
+            "rating, package heat, and gate drive before fabrication."
+        ),
+        (
+            "Next checks: Confirm load current and supply voltage.; Confirm "
+            "gate-drive voltage fully enhances the selected MOSFET.; Add flyback "
+            "protection for inductive loads."
+        ),
+    ]
+
+
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "review-bundle"
