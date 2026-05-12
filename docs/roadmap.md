@@ -178,8 +178,10 @@ The most valuable user help is collecting trusted examples and requirements:
 
 ## Current Priority
 
-The next major product-facing work should be R0.1 and R0.2: a stronger LED art
-generator with real electrical grouping, better review reports, and fabrication
-profiles. In parallel, PCBSmith should keep building the R1 and R1.5 library
-foundation so the AI can choose real parts without being overloaded by the full
-library at once.
+R0.1 and R0.2 now have a reusable foundation: text-driven VIR-LAB LED art,
+adjacent LED string grouping, resistor labeling, KiCad review bundles, and
+optional low-side MOSFET control. The next product-facing work should start
+Phase 1 by turning this foundation into AI-callable design operations instead of
+one-off scripts. In parallel, PCBSmith should keep building the R1 and R1.5
+library foundation so the AI can choose real parts without being overloaded by
+the full library at once.

@@ -37,6 +37,8 @@ the model operate PCBSmith tools that know PCB constraints.
 - Laser-oriented front-copper SVG output.
 - AI context packages and proposal/review bundles.
 - Basic manufacturability report for PCBSmith board models.
+- Reusable LED-art board rendering service with static strings, adjacent LED
+  grouping, resistor labeling, and optional low-side MOSFET control.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
