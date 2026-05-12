@@ -8,6 +8,7 @@ from typing import Any, Literal
 from pcbsmith.services.component_knowledge_index import search_component_knowledge_index
 
 COMPONENT_SELECTION_SCHEMA = "pcbsmith-component-selection-v1"
+COMPONENT_SELECTION_TOOL_SCHEMA = "pcbsmith-component-selection-tool-v1"
 
 MountingStyle = Literal["smd", "through-hole", "virtual", "unspecified"]
 SelectionStatus = Literal["preferred", "candidate", "needs_review"]
@@ -207,6 +208,29 @@ def select_components_for_intent_file(
     )
 
 
+def component_selection_tool_contract() -> dict[str, Any]:
+    return {
+        "schema": COMPONENT_SELECTION_TOOL_SCHEMA,
+        "cli_command": "component-selection <component-knowledge-index> <intent>",
+        "preferred_mounting_default": "smd",
+        "supported_intents": list(SUPPORTED_COMPONENT_INTENTS),
+        "selection_statuses": ["preferred", "candidate", "needs_review"],
+        "instructions": [
+            "Use an intent when choosing a part role instead of inventing symbols or footprints.",
+            "Treat needs_review candidates as requiring user approval or deeper datasheet review.",
+        ],
+    }
+
+
+def component_selection_planner_rule_notes() -> list[str]:
+    return [
+        "Use component_selection supported_intents before choosing catalog parts.",
+        "Do not invent component roles outside supported_intents without saying what is missing.",
+        "Treat component_selection needs_review candidates as blocked until the user "
+        "or a deeper review approves them.",
+    ]
+
+
 def format_component_selection_result(result: dict[str, Any]) -> list[str]:
     lines = [
         f"Component selection: {result['intent']}",
@@ -314,7 +338,10 @@ def _candidate_warnings(
 
 __all__ = [
     "COMPONENT_SELECTION_SCHEMA",
+    "COMPONENT_SELECTION_TOOL_SCHEMA",
     "SUPPORTED_COMPONENT_INTENTS",
+    "component_selection_planner_rule_notes",
+    "component_selection_tool_contract",
     "format_component_selection_result",
     "select_components_for_intent",
     "select_components_for_intent_file",

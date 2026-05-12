@@ -49,6 +49,9 @@ the model operate PCBSmith tools that know PCB constraints.
   from engineering intents such as LED current limiting, MOSFET low-side
   switching, 555 timers, power entry, zener protection, relay switching, and
   isolated power.
+- AI context and planner packages now expose the same `component_selection`
+  tool contract so hosted or local models can discover supported component
+  intents before proposing symbols, footprints, or board edits.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 

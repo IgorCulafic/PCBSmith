@@ -32,6 +32,9 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
   for roles such as `led-current-limit` or `low-side-switch`, then PCBSmith
   should rank real catalog candidates and flag incomplete metadata or
   safety-sensitive parts before automated use.
+- AI context and planner packages should expose tool contracts for constrained
+  capabilities such as component selection. The model should discover the tool
+  surface from PCBSmith instead of relying on remembered project details.
 
 ## Parametric Board Features
 

@@ -6,6 +6,10 @@ from typing import Any
 
 from pcbsmith.services.ai_brief import AI_BRIEF_SCHEMA
 from pcbsmith.services.board_intelligence import ai_planner_routing_rule_notes
+from pcbsmith.services.component_selection import (
+    component_selection_planner_rule_notes,
+    component_selection_tool_contract,
+)
 
 AI_PLANNER_PACKAGE_SCHEMA = "pcbsmith-ai-planner-package-v1"
 
@@ -20,6 +24,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "brief": brief,
             "allowed_command_types": [],
             "target_plan_schema": None,
+            "component_selection": component_selection_tool_contract(),
             "planner_rules": _planner_rules(review_only=True),
         }
 
@@ -35,6 +40,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "place_text",
         ],
         "target_plan_schema": _target_plan_schema(brief),
+        "component_selection": component_selection_tool_contract(),
         "planner_rules": _planner_rules(review_only=False),
     }
 
@@ -132,6 +138,7 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         "Use board-local integer nanometre coordinates for route_segment and place_text commands.",
         "Only use F.Cu for route_segment until back-copper routing is enabled.",
         "Only use F.SilkS or B.SilkS for place_text.",
+        *component_selection_planner_rule_notes(),
         *ai_planner_routing_rule_notes(),
     ]
     if review_only:
