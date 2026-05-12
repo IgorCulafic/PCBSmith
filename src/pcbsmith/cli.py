@@ -22,6 +22,10 @@ from pcbsmith.services.board_manufacturability import (
     inspect_board_manufacturability,
 )
 from pcbsmith.services.builtin_library import SYMBOLS
+from pcbsmith.services.component_knowledge_index import (
+    format_component_knowledge_index_summary,
+    write_component_knowledge_index,
+)
 from pcbsmith.services.design_operations import (
     LedArtDesignRequest,
     format_design_operation_result,
@@ -234,6 +238,19 @@ def _cmd_kicad_part_resolve(args: argparse.Namespace) -> int:
     for line in format_kicad_part_resolution(result):
         print(line)
     return 0 if result.available else 1
+
+
+def _cmd_component_knowledge_index(args: argparse.Namespace) -> int:
+    output_path = Path(args.output)
+    index = write_component_knowledge_index(
+        output_path,
+        kicad_library_index_path=(
+            Path(args.kicad_library_index) if args.kicad_library_index else None
+        ),
+    )
+    for line in format_component_knowledge_index_summary(index, output_path=output_path):
+        print(line)
+    return 0
 
 
 def _cmd_kicad_plan(args: argparse.Namespace) -> int:
@@ -505,6 +522,17 @@ def build_parser() -> argparse.ArgumentParser:
     kicad_part_resolve_parser.add_argument("entry_id")
     kicad_part_resolve_parser.add_argument("library_index")
     kicad_part_resolve_parser.set_defaults(func=_cmd_kicad_part_resolve)
+
+    component_knowledge_index_parser = subparsers.add_parser(
+        "component-knowledge-index",
+        help="write a compact AI-facing index of supported component knowledge",
+    )
+    component_knowledge_index_parser.add_argument("output")
+    component_knowledge_index_parser.add_argument(
+        "--kicad-library-index",
+        help="optional KiCad library index used to mark supported bindings",
+    )
+    component_knowledge_index_parser.set_defaults(func=_cmd_component_knowledge_index)
 
     kicad_plan_parser = subparsers.add_parser(
         "kicad-plan",
