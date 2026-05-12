@@ -36,7 +36,29 @@ def test_builtin_catalog_contains_basic_component_entries() -> None:
         "pcbs:push_button_th",
         "pcbs:switch_spst_th",
         "pcbs:pin_header_1x02_p2.54mm",
+        "pcbs:fuse_0603",
+        "pcbs:inductor_0603",
+        "pcbs:zener_0603",
+        "pcbs:photoresistor_th",
+        "pcbs:potentiometer_3pin_smd",
+        "pcbs:potentiometer_3pin_th",
+        "pcbs:nmos_sot23",
+        "pcbs:ne555_soic8",
+        "pcbs:relay_spdt_th",
+        "pcbs:transformer_th",
     } <= {entry.id for entry in catalog.entries}
+
+
+def test_builtin_catalog_marks_smd_and_through_hole_variants_explicitly() -> None:
+    catalog = builtin_catalog()
+
+    assert entry_by_id(catalog, "pcbs:potentiometer_3pin_smd").variant.mounting == "smd"
+    assert (
+        entry_by_id(catalog, "pcbs:potentiometer_3pin_th").variant.mounting
+        == "through-hole"
+    )
+    assert "smd" in entry_by_id(catalog, "pcbs:nmos_sot23").tags
+    assert "through-hole" in entry_by_id(catalog, "pcbs:relay_spdt_th").tags
 
 
 def test_builtin_catalog_entries_include_kicad_bindings() -> None:
@@ -84,6 +106,13 @@ def test_search_catalog_matches_text_package_tags_and_aliases() -> None:
     ]
     assert search_catalog(catalog, CatalogSearchQuery(tags=("smd",)))
     assert search_catalog(catalog, CatalogSearchQuery(text="through hole"))
+    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="zener"))) == [
+        "pcbs:zener_0603"
+    ]
+    assert {
+        "pcbs:potentiometer_3pin_smd",
+        "pcbs:potentiometer_3pin_th",
+    } <= set(_entry_ids(search_catalog(catalog, CatalogSearchQuery(text="pot"))))
 
 
 def test_search_catalog_matches_short_aliases_exactly() -> None:

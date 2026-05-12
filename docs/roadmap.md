@@ -189,3 +189,11 @@ trace-width, and manufacturability guidance instead of carrying one-off rules.
 The next work should keep expanding this AI-callable operation layer, then
 continue the R1 and R1.5 library foundation so the AI can choose real parts
 without being overloaded by the full library at once.
+
+The component catalog now distinguishes SMD, through-hole, and virtual parts in
+the AI-facing knowledge index. The default direction is SMD-first, while common
+through-hole alternatives remain visible for parts where physical assembly or
+real-world connectors matter. Current common entries include fuses, inductors,
+zener diodes, photoresistors, potentiometers, MOSFETs, NE555, relays, and
+transformers, with safety-sensitive electromechanical/magnetic parts marked for
+deeper review before automated use.

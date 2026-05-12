@@ -41,6 +41,8 @@ the model operate PCBSmith tools that know PCB constraints.
   grouping, resistor labeling, and optional low-side MOSFET control.
 - Structured LED-art design operation and `design-led-art` CLI command for
   generating KiCad review bundles from AI/user request fields.
+- Component knowledge index with explicit mounting summaries for SMD,
+  through-hole, and virtual parts.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 

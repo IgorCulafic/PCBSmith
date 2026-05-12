@@ -161,6 +161,82 @@ SYMBOLS: dict[str, Symbol] = {
             ),
         ],
     ),
+    "stdlib:D_ZENER": Symbol(
+        id="stdlib:D_ZENER",
+        name="Zener Diode",
+        default_footprint_id="stdlib:D_ZENER_0603",
+        pins=[
+            Pin(
+                number="1",
+                name="K",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="A",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
+    "stdlib:L": Symbol(
+        id="stdlib:L",
+        name="Inductor",
+        default_footprint_id="stdlib:L_0603",
+        pins=[
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="B",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
+    "stdlib:FUSE": Symbol(
+        id="stdlib:FUSE",
+        name="Fuse",
+        default_footprint_id="stdlib:FUSE_0603",
+        pins=[
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="B",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
+    "stdlib:LDR": Symbol(
+        id="stdlib:LDR",
+        name="Photoresistor",
+        default_footprint_id="stdlib:LDR_TH",
+        pins=[
+            Pin(
+                number="1",
+                name="A",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="B",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
     "stdlib:POT": Symbol(
         id="stdlib:POT",
         name="Potentiometer",
@@ -266,6 +342,74 @@ SYMBOLS: dict[str, Symbol] = {
             ),
         ],
     ),
+    "stdlib:RELAY_SPDT": Symbol(
+        id="stdlib:RELAY_SPDT",
+        name="Relay SPDT",
+        default_footprint_id="stdlib:RELAY_SPDT_TH",
+        pins=[
+            Pin(
+                number="1",
+                name="COIL_A",
+                position=Point.from_mm(-7.62, -2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="COIL_B",
+                position=Point.from_mm(-7.62, 2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="3",
+                name="COM",
+                position=Point.from_mm(7.62, 0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="4",
+                name="NC",
+                position=Point.from_mm(7.62, -2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="5",
+                name="NO",
+                position=Point.from_mm(7.62, 2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
+    "stdlib:TRANSFORMER": Symbol(
+        id="stdlib:TRANSFORMER",
+        name="Transformer",
+        default_footprint_id="stdlib:TRANSFORMER_TH",
+        pins=[
+            Pin(
+                number="1",
+                name="PRI_A",
+                position=Point.from_mm(-7.62, -2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="PRI_B",
+                position=Point.from_mm(-7.62, 2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="3",
+                name="SEC_A",
+                position=Point.from_mm(7.62, -2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="4",
+                name="SEC_B",
+                position=Point.from_mm(7.62, 2.54),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
 }
 
 FOOTPRINTS: dict[str, Footprint] = {
@@ -346,6 +490,88 @@ FOOTPRINTS: dict[str, Footprint] = {
                 size_x=800_000,
                 size_y=900_000,
                 shape=PadShape.RECT,
+            ),
+        ],
+    ),
+    "stdlib:D_ZENER_0603": Footprint(
+        id="stdlib:D_ZENER_0603",
+        name="D_ZENER_0603",
+        pads=[
+            Pad(
+                number="1",
+                position=Point(x=-800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+        ],
+    ),
+    "stdlib:L_0603": Footprint(
+        id="stdlib:L_0603",
+        name="L_0603",
+        pads=[
+            Pad(
+                number="1",
+                position=Point(x=-800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+        ],
+    ),
+    "stdlib:FUSE_0603": Footprint(
+        id="stdlib:FUSE_0603",
+        name="FUSE_0603",
+        pads=[
+            Pad(
+                number="1",
+                position=Point(x=-800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point(x=800_000, y=0),
+                size_x=800_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+        ],
+    ),
+    "stdlib:LDR_TH": Footprint(
+        id="stdlib:LDR_TH",
+        name="LDR_TH",
+        pads=[
+            Pad(
+                number="1",
+                position=Point.from_mm(-2.54, 0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=900_000,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(2.54, 0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=900_000,
             ),
         ],
     ),
@@ -465,6 +691,63 @@ FOOTPRINTS: dict[str, Footprint] = {
             ),
         ),
     ),
+    "stdlib:POT_3PIN_TH": Footprint(
+        id="stdlib:POT_3PIN_TH",
+        name="POT_3PIN_TH",
+        pads=(
+            Pad(
+                number="1",
+                position=Point.from_mm(-2.54, 0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(0, 0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            ),
+            Pad(
+                number="3",
+                position=Point.from_mm(2.54, 0),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            ),
+        ),
+    ),
+    "stdlib:NMOS_SOT23": Footprint(
+        id="stdlib:NMOS_SOT23",
+        name="NMOS_SOT23",
+        pads=(
+            Pad(
+                number="1",
+                position=Point.from_mm(-0.95, 1.1),
+                size_x=700_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(0.95, 1.1),
+                size_x=700_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="3",
+                position=Point.from_mm(0, -1.1),
+                size_x=900_000,
+                size_y=900_000,
+                shape=PadShape.RECT,
+            ),
+        ),
+    ),
     "stdlib:NMOS_POWER": Footprint(
         id="stdlib:NMOS_POWER",
         name="NMOS_POWER",
@@ -490,6 +773,47 @@ FOOTPRINTS: dict[str, Footprint] = {
                 size_y=1_400_000,
                 shape=PadShape.RECT,
             ),
+        ),
+    ),
+    "stdlib:RELAY_SPDT_TH": Footprint(
+        id="stdlib:RELAY_SPDT_TH",
+        name="RELAY_SPDT_TH",
+        pads=tuple(
+            Pad(
+                number=str(number),
+                position=Point.from_mm(x_mm, y_mm),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            )
+            for number, x_mm, y_mm in (
+                (1, -5.08, -2.54),
+                (2, -5.08, 2.54),
+                (3, 5.08, 0),
+                (4, 5.08, -2.54),
+                (5, 5.08, 2.54),
+            )
+        ),
+    ),
+    "stdlib:TRANSFORMER_TH": Footprint(
+        id="stdlib:TRANSFORMER_TH",
+        name="TRANSFORMER_TH",
+        pads=tuple(
+            Pad(
+                number=str(number),
+                position=Point.from_mm(x_mm, y_mm),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            )
+            for number, x_mm, y_mm in (
+                (1, -5.08, -2.54),
+                (2, -5.08, 2.54),
+                (3, 5.08, -2.54),
+                (4, 5.08, 2.54),
+            )
         ),
     ),
 }

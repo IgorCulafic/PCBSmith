@@ -36,6 +36,12 @@ def builtin_catalog() -> ComponentCatalog:
         description="Common passive, power, connector, diode, and switch parts.",
         default_enabled=True,
     )
+    common_group = CatalogGroup(
+        id="common-building-blocks",
+        name="Common Building Blocks",
+        description="Common adjustable, magnetic, protection, sensor, switching, and IC parts.",
+        default_enabled=True,
+    )
     entries = (
         CatalogEntry(
             id="pcbs:resistor_0603",
@@ -104,6 +110,63 @@ def builtin_catalog() -> ComponentCatalog:
             group_ids=("basic-components",),
         ),
         CatalogEntry(
+            id="pcbs:zener_0603",
+            family=_family("zener-diode", "Zener Diode"),
+            variant=ComponentVariant(
+                name="Zener Diode 0603",
+                package="0603",
+                mounting="smd",
+                default_value="3.3V",
+            ),
+            symbol_id="stdlib:D_ZENER",
+            footprint_id="stdlib:D_ZENER_0603",
+            kicad=KiCadPartBinding(
+                symbol_id="Device:D_Zener",
+                footprint_id="Diode_SMD:D_0603_1608Metric",
+            ),
+            tags=("basic", "diode", "zener", "protection", "smd", "0603"),
+            aliases=("voltage clamp", "reference diode"),
+            group_ids=("basic-components",),
+        ),
+        CatalogEntry(
+            id="pcbs:fuse_0603",
+            family=_family("fuse", "Fuse"),
+            variant=ComponentVariant(
+                name="Fuse 0603",
+                package="0603",
+                mounting="smd",
+                default_value="500mA",
+            ),
+            symbol_id="stdlib:FUSE",
+            footprint_id="stdlib:FUSE_0603",
+            kicad=KiCadPartBinding(
+                symbol_id="Device:Fuse",
+                footprint_id="Fuse:Fuse_0603_1608Metric",
+            ),
+            tags=("basic", "protection", "fuse", "smd", "0603"),
+            aliases=("polyfuse", "resettable fuse"),
+            group_ids=("basic-components",),
+        ),
+        CatalogEntry(
+            id="pcbs:inductor_0603",
+            family=_family("inductor", "Inductor"),
+            variant=ComponentVariant(
+                name="Inductor 0603",
+                package="0603",
+                mounting="smd",
+                default_value="10uH",
+            ),
+            symbol_id="stdlib:L",
+            footprint_id="stdlib:L_0603",
+            kicad=KiCadPartBinding(
+                symbol_id="Device:L",
+                footprint_id="Inductor_SMD:L_0603_1608Metric",
+            ),
+            tags=("basic", "passive", "inductor", "magnetic", "smd", "0603"),
+            aliases=("coil", "choke"),
+            group_ids=("basic-components",),
+        ),
+        CatalogEntry(
             id="pcbs:push_button_th",
             family=_family("push-button", "Push Button"),
             variant=ComponentVariant(
@@ -116,6 +179,123 @@ def builtin_catalog() -> ComponentCatalog:
             tags=("basic", "switch", "button", "through-hole"),
             aliases=("momentary switch", "pushbutton"),
             group_ids=("basic-components",),
+        ),
+        CatalogEntry(
+            id="pcbs:photoresistor_th",
+            family=_family("photoresistor", "Photoresistor"),
+            variant=ComponentVariant(
+                name="Photoresistor Through Hole",
+                package="TH",
+                mounting="through-hole",
+                default_value="LDR",
+            ),
+            symbol_id="stdlib:LDR",
+            footprint_id="stdlib:LDR_TH",
+            tags=("sensor", "light", "photoresistor", "ldr", "resistor", "through-hole"),
+            aliases=("light dependent resistor", "photo resistor"),
+            group_ids=("common-building-blocks",),
+        ),
+        CatalogEntry(
+            id="pcbs:potentiometer_3pin_smd",
+            family=_family("potentiometer", "Potentiometer"),
+            variant=ComponentVariant(
+                name="Potentiometer 3-pin SMD",
+                package="3-pin SMD",
+                mounting="smd",
+                default_value="100k",
+            ),
+            symbol_id="stdlib:POT",
+            footprint_id="stdlib:POT_3PIN",
+            tags=("adjustable", "potentiometer", "resistor", "smd", "3-pin"),
+            aliases=("pot", "trimmer", "variable resistor"),
+            group_ids=("common-building-blocks",),
+        ),
+        CatalogEntry(
+            id="pcbs:potentiometer_3pin_th",
+            family=_family("potentiometer", "Potentiometer"),
+            variant=ComponentVariant(
+                name="Potentiometer 3-pin Through Hole",
+                package="3-pin TH",
+                mounting="through-hole",
+                default_value="100k",
+            ),
+            symbol_id="stdlib:POT",
+            footprint_id="stdlib:POT_3PIN_TH",
+            tags=("adjustable", "potentiometer", "resistor", "through-hole", "3-pin"),
+            aliases=("pot", "trimmer", "variable resistor"),
+            group_ids=("common-building-blocks",),
+        ),
+        CatalogEntry(
+            id="pcbs:nmos_sot23",
+            family=_family("mosfet", "MOSFET"),
+            variant=ComponentVariant(
+                name="N-MOSFET SOT-23",
+                package="SOT-23",
+                mounting="smd",
+                default_value="2N7002",
+            ),
+            symbol_id="stdlib:NMOS",
+            footprint_id="stdlib:NMOS_SOT23",
+            tags=("transistor", "mosfet", "nmos", "switching", "smd", "sot-23"),
+            aliases=("n-channel mosfet", "low-side switch"),
+            group_ids=("common-building-blocks",),
+        ),
+        CatalogEntry(
+            id="pcbs:ne555_soic8",
+            family=_family("timer", "Timer IC"),
+            variant=ComponentVariant(
+                name="NE555 SOIC-8",
+                package="SOIC-8",
+                mounting="smd",
+                default_value="NE555",
+            ),
+            symbol_id="stdlib:NE555",
+            footprint_id="stdlib:SOIC8",
+            tags=("timer", "ic", "oscillator", "pwm", "smd", "soic-8"),
+            aliases=("555", "ne555", "timer ic"),
+            group_ids=("common-building-blocks",),
+        ),
+        CatalogEntry(
+            id="pcbs:relay_spdt_th",
+            family=_family("relay", "Relay"),
+            variant=ComponentVariant(
+                name="Relay SPDT Through Hole",
+                package="SPDT TH",
+                mounting="through-hole",
+                default_value="5V coil",
+            ),
+            symbol_id="stdlib:RELAY_SPDT",
+            footprint_id="stdlib:RELAY_SPDT_TH",
+            tags=(
+                "electromechanical",
+                "relay",
+                "switching",
+                "coil",
+                "through-hole",
+                "needs-safety-review",
+            ),
+            aliases=("spdt relay", "mechanical relay"),
+            group_ids=("common-building-blocks",),
+        ),
+        CatalogEntry(
+            id="pcbs:transformer_th",
+            family=_family("transformer", "Transformer"),
+            variant=ComponentVariant(
+                name="Transformer Through Hole",
+                package="TH",
+                mounting="through-hole",
+            ),
+            symbol_id="stdlib:TRANSFORMER",
+            footprint_id="stdlib:TRANSFORMER_TH",
+            tags=(
+                "magnetic",
+                "transformer",
+                "isolation",
+                "through-hole",
+                "needs-safety-review",
+            ),
+            aliases=("coupled inductor",),
+            group_ids=("common-building-blocks",),
         ),
         CatalogEntry(
             id="pcbs:switch_spst_th",
@@ -174,7 +354,7 @@ def builtin_catalog() -> ComponentCatalog:
             group_ids=("basic-components",),
         ),
     )
-    catalog = ComponentCatalog(groups=(basic_group,), entries=entries)
+    catalog = ComponentCatalog(groups=(basic_group, common_group), entries=entries)
     validate_catalog(catalog)
     return catalog
 

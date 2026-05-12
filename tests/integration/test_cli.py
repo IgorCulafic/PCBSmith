@@ -370,6 +370,9 @@ def test_component_knowledge_index_writes_ai_facing_catalog(tmp_path: Path) -> N
                     {"id": "Device:C"},
                     {"id": "Device:LED"},
                     {"id": "Device:D"},
+                    {"id": "Device:D_Zener"},
+                    {"id": "Device:Fuse"},
+                    {"id": "Device:L"},
                     {"id": "power:VCC"},
                     {"id": "power:GND"},
                 ],
@@ -378,6 +381,8 @@ def test_component_knowledge_index_writes_ai_facing_catalog(tmp_path: Path) -> N
                     {"id": "Capacitor_SMD:C_0603_1608Metric"},
                     {"id": "LED_SMD:LED_0603_1608Metric"},
                     {"id": "Diode_SMD:D_0603_1608Metric"},
+                    {"id": "Inductor_SMD:L_0603_1608Metric"},
+                    {"id": "Fuse:Fuse_0603_1608Metric"},
                 ],
             }
         ),
@@ -395,13 +400,14 @@ def test_component_knowledge_index_writes_ai_facing_catalog(tmp_path: Path) -> N
     assert result.stderr == ""
     assert result.stdout.splitlines() == [
         f"Wrote component knowledge index to {output_path}",
-        "Tier 1 entries: 9",
-        "Families: 8",
-        "Coverage: well_supported=6, metadata_only=3, needs_datasheet_review=0",
+        "Tier 1 entries: 19",
+        "Families: 17",
+        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=0",
+        "Mounting: smd=10, through-hole=7, virtual=2, unspecified=0",
     ]
     output = json.loads(output_path.read_text(encoding="utf-8"))
     assert output["schema"] == "pcbsmith-component-knowledge-index-v1"
-    assert output["coverage_summary"]["well_supported"] == 6
+    assert output["coverage_summary"]["well_supported"] == 9
 
 
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
