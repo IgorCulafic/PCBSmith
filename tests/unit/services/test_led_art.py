@@ -8,8 +8,10 @@ import pytest
 from pcbsmith.services.led_art import (
     LedArtSpec,
     build_led_art_plan,
+    compare_led_art_topologies,
     select_led_resistor_ohms,
     write_led_art_reports,
+    write_led_art_topology_comparison_reports,
 )
 
 
@@ -69,3 +71,37 @@ def test_write_led_art_reports_writes_json_and_markdown(tmp_path: Path) -> None:
     assert "VIR-LAB" in markdown
     assert "680 ohm" in markdown
     assert "one_led_per_resistor" in markdown
+
+
+def test_compare_led_art_topologies_includes_5v_and_12v_dense_options() -> None:
+    plan = build_led_art_plan(LedArtSpec(text="VIR-LAB"))
+
+    comparison = compare_led_art_topologies(plan, priority="density")
+
+    by_id = {option.id: option for option in comparison.options}
+    assert by_id["5v_one_per_led"].series_leds_per_string == 1
+    assert by_id["5v_one_per_led"].resistor_value_ohms == 680
+    assert by_id["5v_two_led_dense"].series_leds_per_string == 2
+    assert by_id["5v_two_led_dense"].resistor_value_ohms == 220
+    assert by_id["12v_dense"].series_leds_per_string == 5
+    assert by_id["12v_dense"].resistor_value_ohms == 470
+    assert by_id["12v_dense"].string_count == 20
+    assert by_id["12v_dense"].total_current_ma == pytest.approx(85.106, abs=0.001)
+    assert comparison.recommended_option_id == "12v_dense"
+
+
+def test_write_led_art_topology_comparison_reports(tmp_path: Path) -> None:
+    plan = build_led_art_plan(LedArtSpec(text="VIR-LAB"))
+    comparison = compare_led_art_topologies(plan, priority="density")
+
+    report_paths = write_led_art_topology_comparison_reports(comparison, tmp_path)
+
+    report = json.loads(report_paths.json_path.read_text(encoding="utf-8"))
+    markdown = report_paths.markdown_path.read_text(encoding="utf-8")
+    assert report["schema"] == "pcbsmith-led-art-topology-comparison-v1"
+    assert report["recommended_option_id"] == "12v_dense"
+    assert "5v_two_led_dense" in markdown
+    assert "12v_dense" in markdown
+    assert "20" in markdown
+    assert "470 ohm" in markdown
+    assert "planning alternatives" in markdown

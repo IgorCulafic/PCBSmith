@@ -7,6 +7,7 @@ from pathlib import Path
 from pydantic import BaseModel, ConfigDict, Field
 
 LED_ART_ELECTRICAL_SCHEMA = "pcbsmith-led-art-electrical-v1"
+LED_ART_TOPOLOGY_COMPARISON_SCHEMA = "pcbsmith-led-art-topology-comparison-v1"
 
 LETTER_PATTERNS = {
     "V": ("10001", "10001", "10001", "10001", "01010", "01010", "00100"),
@@ -110,6 +111,35 @@ class LedArtReportPaths(BaseModel):
     markdown_path: Path
 
 
+class LedArtTopologyOption(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: str
+    label: str
+    supply_voltage_v: float
+    series_leds_per_string: int = Field(gt=0)
+    resistor_value_ohms: int = Field(gt=0)
+    string_count: int = Field(gt=0)
+    total_led_count: int = Field(gt=0)
+    string_current_ma: float
+    total_current_ma: float
+    estimated_power_mw: float
+    notes: tuple[str, ...] = ()
+
+
+class LedArtTopologyComparison(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    schema_id: str = Field(
+        default=LED_ART_TOPOLOGY_COMPARISON_SCHEMA,
+        serialization_alias="schema",
+    )
+    text: str
+    priority: str
+    recommended_option_id: str
+    options: tuple[LedArtTopologyOption, ...]
+
+
 def select_led_resistor_ohms(
     *,
     supply_voltage_v: float,
@@ -180,6 +210,70 @@ def write_led_art_reports(plan: LedArtPlan, output_dir: Path) -> LedArtReportPat
     return LedArtReportPaths(json_path=json_path, markdown_path=markdown_path)
 
 
+def compare_led_art_topologies(
+    plan: LedArtPlan,
+    *,
+    priority: str = "density",
+) -> LedArtTopologyComparison:
+    options = (
+        _topology_option(
+            "5v_one_per_led",
+            "USB 5V simple, one resistor per LED",
+            plan=plan,
+            supply_voltage_v=5.0,
+            series_leds_per_string=1,
+            notes=(
+                "Safest and easiest to debug.",
+                "Uses the most resistors and board area.",
+            ),
+        ),
+        _topology_option(
+            "5v_two_led_dense",
+            "USB 5V dense, two red LEDs per resistor branch",
+            plan=plan,
+            supply_voltage_v=5.0,
+            series_leds_per_string=2,
+            notes=(
+                "Good density improvement for 5V red LED art.",
+                "Odd LED counts need one shorter branch.",
+            ),
+        ),
+        _topology_option(
+            "12v_dense",
+            "12V dense, automatic series branches",
+            plan=plan,
+            supply_voltage_v=12.0,
+            series_leds_per_string=_series_leds_for_density(12.0, plan.spec.led_forward_voltage_v),
+            notes=(
+                "Fewer resistors and lower total current for dense LED art.",
+                "Requires a clearly labeled 12V input and polarity protection review.",
+            ),
+        ),
+    )
+    recommended = _recommended_option(options, priority)
+    return LedArtTopologyComparison(
+        text=plan.electrical.text,
+        priority=priority,
+        recommended_option_id=recommended.id,
+        options=options,
+    )
+
+
+def write_led_art_topology_comparison_reports(
+    comparison: LedArtTopologyComparison,
+    output_dir: Path,
+) -> LedArtReportPaths:
+    output_dir.mkdir(parents=True, exist_ok=True)
+    json_path = output_dir / "led-art-topology-comparison.json"
+    markdown_path = output_dir / "led-art-topology-comparison.md"
+    json_path.write_text(
+        json.dumps(comparison.model_dump(mode="json", by_alias=True), indent=2) + "\n",
+        encoding="utf-8",
+    )
+    markdown_path.write_text(_render_topology_markdown(comparison), encoding="utf-8")
+    return LedArtReportPaths(json_path=json_path, markdown_path=markdown_path)
+
+
 def _letter_pixels(spec: LedArtSpec) -> tuple[LedArtPixel, ...]:
     pixels: list[LedArtPixel] = []
     index = 1
@@ -219,6 +313,61 @@ def _next_e12_value(raw_ohms: float) -> int:
             if candidate >= raw_ohms:
                 return candidate
     return int(82 * decade)
+
+
+def _series_leds_for_density(supply_voltage_v: float, led_forward_voltage_v: float) -> int:
+    return max(1, math.floor((supply_voltage_v - 1.0) / led_forward_voltage_v))
+
+
+def _topology_option(
+    option_id: str,
+    label: str,
+    *,
+    plan: LedArtPlan,
+    supply_voltage_v: float,
+    series_leds_per_string: int,
+    notes: tuple[str, ...],
+) -> LedArtTopologyOption:
+    resistor_value = select_led_resistor_ohms(
+        supply_voltage_v=supply_voltage_v,
+        led_forward_voltage_v=plan.spec.led_forward_voltage_v * series_leds_per_string,
+        target_current_ma=plan.spec.target_current_ma,
+    )
+    string_current_ma = (
+        (
+            supply_voltage_v
+            - (plan.spec.led_forward_voltage_v * series_leds_per_string)
+        )
+        / resistor_value
+    ) * 1000.0
+    string_count = math.ceil(len(plan.pixels) / series_leds_per_string)
+    total_current_ma = string_current_ma * string_count
+    return LedArtTopologyOption(
+        id=option_id,
+        label=label,
+        supply_voltage_v=supply_voltage_v,
+        series_leds_per_string=series_leds_per_string,
+        resistor_value_ohms=resistor_value,
+        string_count=string_count,
+        total_led_count=len(plan.pixels),
+        string_current_ma=string_current_ma,
+        total_current_ma=total_current_ma,
+        estimated_power_mw=supply_voltage_v * total_current_ma,
+        notes=notes,
+    )
+
+
+def _recommended_option(
+    options: tuple[LedArtTopologyOption, ...],
+    priority: str,
+) -> LedArtTopologyOption:
+    if priority == "density":
+        return max(options, key=lambda option: option.series_leds_per_string)
+    if priority == "usb":
+        return next(option for option in options if option.id == "5v_two_led_dense")
+    if priority == "simple":
+        return next(option for option in options if option.id == "5v_one_per_led")
+    raise ValueError(f"Unsupported LED-art topology priority: {priority}")
 
 
 def _electrical_warnings(spec: LedArtSpec, total_current_ma: float) -> tuple[str, ...]:
@@ -269,15 +418,48 @@ def _render_markdown_report(plan: LedArtPlan) -> str:
     )
 
 
+def _render_topology_markdown(comparison: LedArtTopologyComparison) -> str:
+    lines = [
+        f"# {comparison.text} LED Art Topology Comparison",
+        "",
+        f"Recommended for `{comparison.priority}`: `{comparison.recommended_option_id}`.",
+        "",
+        "These are planning alternatives for the next physical layout slice. "
+        "The current board may still use a simpler resistor-per-LED topology.",
+        "",
+        "| Option | Supply | LEDs/string | Strings | Resistor | Total current | Notes |",
+        "| --- | ---: | ---: | ---: | ---: | ---: | --- |",
+    ]
+    for option in comparison.options:
+        notes = " ".join(option.notes)
+        lines.append(
+            "| "
+            f"`{option.id}` | "
+            f"{option.supply_voltage_v:g} V | "
+            f"{option.series_leds_per_string} | "
+            f"{option.string_count} | "
+            f"{option.resistor_value_ohms} ohm | "
+            f"{option.total_current_ma:.1f} mA | "
+            f"{notes} |"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
 __all__ = [
     "LED_ART_ELECTRICAL_SCHEMA",
+    "LED_ART_TOPOLOGY_COMPARISON_SCHEMA",
     "LedArtElectricalReport",
     "LedArtPixel",
     "LedArtPlan",
     "LedArtReportPaths",
     "LedArtSpec",
     "LedArtString",
+    "LedArtTopologyComparison",
+    "LedArtTopologyOption",
     "build_led_art_plan",
+    "compare_led_art_topologies",
     "select_led_resistor_ohms",
     "write_led_art_reports",
+    "write_led_art_topology_comparison_reports",
 ]
