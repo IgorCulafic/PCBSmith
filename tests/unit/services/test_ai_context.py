@@ -41,6 +41,23 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
             "Treat needs_review candidates as requiring user approval or deeper datasheet review.",
         ],
     }
+    assert context["ai_tools"]["circuit_rules"] == {
+        "schema": "pcbsmith-circuit-rules-tool-v1",
+        "cli_command": "circuit-rules <intent> --param key=value",
+        "supported_intents": [
+            "555-astable",
+            "555-pwm",
+            "led-current-limit",
+            "low-side-switch",
+            "power-entry",
+            "rc-filter",
+            "voltage-divider",
+        ],
+        "instructions": [
+            "Use circuit rules to check electrical assumptions before proposing board edits.",
+            "Treat warning and error findings as revision inputs, not as fabrication approval.",
+        ],
+    }
     assert context["schematics"] == [
         {
             "path": "schematics/main.sch.json",

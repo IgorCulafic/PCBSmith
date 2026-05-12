@@ -35,6 +35,9 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - AI context and planner packages should expose tool contracts for constrained
   capabilities such as component selection. The model should discover the tool
   surface from PCBSmith instead of relying on remembered project details.
+- Circuit knowledge should be explicit, parameterized, and model-callable.
+  Early rules should produce calculations plus warnings/errors for supported
+  circuit intents, while KiCad ERC/DRC remains the fabrication gate.
 
 ## Parametric Board Features
 

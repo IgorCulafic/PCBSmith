@@ -127,6 +127,13 @@ would overwhelm both users and models.
 - Rules should explain assumptions such as supply voltage, LED forward voltage,
   current, package choice, and trace width.
 
+The first R4 slice is implemented as `circuit-rules`, with an AI-tool contract
+embedded into AI context and planner packages. It checks parameterized
+assumptions for LED current limiting, voltage dividers, RC filters, 555
+astable/PWM circuits, MOSFET low-side switches, and power entry. This is not a
+replacement for ERC/DRC; it is the model-facing electrical assumption layer that
+turns vague ideas into structured warnings, errors, and calculated values.
+
 ## R5: Review And Revision Loop
 
 - Convert ERC, DRC, manufacturability checks, missing library bindings, and

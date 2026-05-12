@@ -7,6 +7,7 @@ from typing import Any
 from pcbsmith.core.geom import Point, nm_to_mm
 from pcbsmith.core.schematic import Schematic, SymbolInstance
 from pcbsmith.services.board_intelligence import board_routing_rules_summary
+from pcbsmith.services.circuit_rules import circuit_rules_tool_contract
 from pcbsmith.services.component_selection import component_selection_tool_contract
 from pcbsmith.services.project_io import load_project, load_schematic
 
@@ -32,6 +33,7 @@ def build_ai_context(
         },
         "ai_tools": {
             "component_selection": component_selection_tool_contract(),
+            "circuit_rules": circuit_rules_tool_contract(),
         },
         "schematics": [
             _schematic_summary(path, schematic) for path, schematic in schematics

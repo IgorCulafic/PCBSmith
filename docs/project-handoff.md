@@ -52,6 +52,10 @@ the model operate PCBSmith tools that know PCB constraints.
 - AI context and planner packages now expose the same `component_selection`
   tool contract so hosted or local models can discover supported component
   intents before proposing symbols, footprints, or board edits.
+- Circuit knowledge rules now exist as a compact `circuit-rules` CLI and
+  AI-tool contract. The first supported intents are LED current limiting,
+  voltage dividers, RC filters, NE555 astable/PWM assumptions, MOSFET low-side
+  switching, and power entry.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
@@ -144,6 +148,7 @@ Generate and query component knowledge:
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-index .tmp\component-knowledge.json
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-search .tmp\component-knowledge.json --query "zener protection" --mounting smd
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-selection .tmp\component-knowledge.json low-side-switch
+.\.venv\Scripts\python.exe -m pcbsmith.cli circuit-rules led-current-limit --param supply_voltage_v=5 --param led_forward_voltage_v=2 --param resistor_ohms=330
 ```
 
 ## User Priorities
