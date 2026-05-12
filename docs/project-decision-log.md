@@ -25,6 +25,16 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - ICs, connectors, MOSFETs, voltage regulators, displays, and specialized parts need explicit part identity, pin mapping, footprint mapping, and assumptions.
 - KiCad libraries should remain on the table for open-source usage. If PCBSmith ever needs different licensing constraints, library ingestion can be revisited later.
 - The component catalog should support tags and user-preferred component groups so models and users can choose from a known safe subset first.
+- KiCad libraries provide CAD metadata and optional datasheet links, but PCBSmith must build or ingest component behavior knowledge separately.
+- Component knowledge should be hierarchical: core parts always visible, family summaries searchable, deep profiles loaded on demand, and datasheets queried only for specific facts.
+- Each component should eventually expose a support status such as `well_supported`, `metadata_only`, or `needs_datasheet_review`.
+
+## Parametric Board Features
+
+- LED art is the first showcase track and is now roadmap `R0`.
+- Custom PCB features such as LED paths, capacitive touch pads, PCB coils, antennas, copper logos, shunts, heaters, and RF structures are generated board geometry, not ordinary library components.
+- Generated board features need parameters, checks, and review warnings. Harder features such as coils, antennas, wireless charging, RF, high-current, and mains-related geometry should require calculators, external references, simulation hooks, or expert-review warnings.
+- PCBSmith should support multiple fabrication profiles over time: professional fab, laser engraving, CNC/isolation, and toner/etch.
 
 ## Board Generation And Routing
 
@@ -64,7 +74,8 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 
 ## Near-Term Direction
 
-- Build more useful deterministic circuit examples before attempting broad free-form board synthesis.
+- Build LED art as the first showcase custom PCB feature before attempting broad free-form board synthesis.
 - Continue improving schematic symbol coverage for connectors, potentiometers, MOSFETs, and other non-passive parts so the source schematic does not need simplified placeholder symbols.
 - Consider microcontroller-based boards such as an ATtiny/Arduino-style LED controller with programming header and IO labels.
 - Grow the component catalog and board intelligence in parallel with each useful demo.
+- Use `docs/roadmap.md` as the current roadmap and `docs/project-handoff.md` when starting a future chat.
