@@ -378,10 +378,14 @@ def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) 
         f"Exported KiCad handoff: {output_project}",
         "Validation: skipped",
         "Preview: skipped",
+        "Board manufacturability: passed",
         f"AI context: {output_project / 'ai-context.json'}",
     ]
     assert (output_project / "Voltage_Divider.kicad_pro").exists()
     assert (output_project / "ai-context.json").exists()
+    assert (
+        output_project / ".pcbsmith" / "board-reports" / "manufacturability.json"
+    ).exists()
 
 
 def test_kicad_new_creates_kicad_project_skeleton(tmp_path: Path) -> None:
@@ -901,6 +905,7 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
         f"Exported KiCad handoff: {output_dir / 'kicad-review'}",
         "Validation: skipped",
         "Preview: skipped",
+        "Board manufacturability: passed",
         f"AI context: {output_dir / 'kicad-review' / 'ai-context.json'}",
     ]
     original_text = (project_dir / "schematics" / "main.sch.json").read_text(

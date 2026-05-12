@@ -7,6 +7,7 @@ from pcbsmith.services.board_manufacturability import (
     ManufacturabilitySeverity,
     format_board_manufacturability_report,
     inspect_board_manufacturability,
+    write_board_manufacturability_report,
 )
 
 
@@ -114,3 +115,42 @@ def test_board_manufacturability_allows_clean_preferred_routes() -> None:
     assert format_board_manufacturability_report(report) == [
         "Board manufacturability: passed (0 findings)"
     ]
+
+
+def test_write_board_manufacturability_report_writes_structured_json(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    board = Board(
+        id="main",
+        traces=(
+            Trace(
+                net_name="SIG",
+                layer=Layer.F_CU,
+                points=(Point.from_mm(0, 0), Point.from_mm(10, 3)),
+                width=300_000,
+            ),
+        ),
+    )
+
+    report = inspect_board_manufacturability(board)
+    output = tmp_path / "manufacturability.json"
+
+    write_board_manufacturability_report(report, output)
+
+    assert output.read_text(encoding="utf-8") == (
+        "{\n"
+        '  "schema": "pcbsmith-board-manufacturability-v1",\n'
+        '  "summary": {\n'
+        '    "finding_count": 1,\n'
+        '    "error_count": 0,\n'
+        '    "warning_count": 1\n'
+        "  },\n"
+        '  "findings": [\n'
+        "    {\n"
+        '      "severity": "warning",\n'
+        '      "code": "non_preferred_trace_angle",\n'
+        '      "message": "Trace SIG uses 17 degree routing; prefer cardinal or '
+        '45-degree segments when practical",\n'
+        '      "location": "trace 1 segment 1"\n'
+        "    }\n"
+        "  ]\n"
+        "}\n"
+    )

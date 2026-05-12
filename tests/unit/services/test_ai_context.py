@@ -73,8 +73,10 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
     kicad_dir = tmp_path / "kicad"
     shutil.copytree(FIXTURE, project_dir)
     report_dir = kicad_dir / ".pcbsmith" / "kicad-reports"
+    board_report_dir = kicad_dir / ".pcbsmith" / "board-reports"
     visual_dir = kicad_dir / ".pcbsmith" / "visual"
     report_dir.mkdir(parents=True)
+    board_report_dir.mkdir(parents=True)
     visual_dir.mkdir(parents=True)
     (report_dir / "erc.json").write_text(
         json.dumps({"sheets": [{"violations": [{"type": "pin_not_connected"}]}]}),
@@ -82,6 +84,16 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
     )
     (report_dir / "drc.json").write_text(
         json.dumps({"violations": [], "unconnected_items": [{"type": "ratsnest"}]}),
+        encoding="utf-8",
+    )
+    (board_report_dir / "manufacturability.json").write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-board-manufacturability-v1",
+                "summary": {"finding_count": 1, "error_count": 0, "warning_count": 1},
+                "findings": [{"code": "non_preferred_trace_angle"}],
+            }
+        ),
         encoding="utf-8",
     )
     (visual_dir / "schematic.svg").write_text("<svg />", encoding="utf-8")
@@ -115,6 +127,15 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
                 "path": str(report_dir / "drc.json"),
                 "violations": 0,
                 "unconnected_items": 1,
+            },
+            {
+                "name": "manufacturability",
+                "path": str(board_report_dir / "manufacturability.json"),
+                "violations": 0,
+                "unconnected_items": 0,
+                "findings": 1,
+                "errors": 0,
+                "warnings": 1,
             },
         ],
         "visuals": [

@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from pathlib import Path
 
+from pcbsmith.services.board_manufacturability import BoardManufacturabilityReport
 from pcbsmith.services.kicad_preview import KiCadPreviewReport
 from pcbsmith.services.kicad_project import KiCadProjectSkeleton
 from pcbsmith.services.kicad_review_bundle import (
@@ -48,6 +49,14 @@ def _preview_report(project_dir: Path, exit_code: int = 0) -> KiCadPreviewReport
     )
 
 
+def _board_report(_project_dir: Path, output_path: Path) -> BoardManufacturabilityReport:
+    output_path.write_text(
+        '{"schema": "pcbsmith-board-manufacturability-v1"}\n',
+        encoding="utf-8",
+    )
+    return BoardManufacturabilityReport(findings=())
+
+
 def test_review_bundle_runs_export_validation_preview_and_context(
     tmp_path: Path,
 ) -> None:
@@ -76,6 +85,14 @@ def test_review_bundle_runs_export_validation_preview_and_context(
         calls.append(("context", (project_dir, output_path, kicad_project_dir)))
         output_path.write_text("{}\n", encoding="utf-8")
 
+    def board_reporter(project_dir: Path, output_path: Path) -> BoardManufacturabilityReport:
+        calls.append(("board_report", (project_dir, output_path)))
+        output_path.write_text(
+            '{"schema": "pcbsmith-board-manufacturability-v1"}\n',
+            encoding="utf-8",
+        )
+        return BoardManufacturabilityReport(findings=())
+
     result = run_kicad_review_bundle(
         source_project,
         output_project,
@@ -84,14 +101,25 @@ def test_review_bundle_runs_export_validation_preview_and_context(
         validator=validator,
         previewer=previewer,
         context_writer=context_writer,
+        board_reporter=board_reporter,
     )
 
     assert result.exit_code == 0
     assert result.context_file == output_project / "ai-context.json"
+    assert result.manufacturability_report_file == (
+        output_project / ".pcbsmith" / "board-reports" / "manufacturability.json"
+    )
     assert calls == [
         ("export", (source_project, output_project, "Review Demo")),
         ("validate", (output_project, True)),
         ("preview", (output_project, True)),
+        (
+            "board_report",
+            (
+                source_project,
+                output_project / ".pcbsmith" / "board-reports" / "manufacturability.json",
+            ),
+        ),
         ("context", (source_project, output_project / "ai-context.json", output_project)),
     ]
     assert format_kicad_review_bundle_result(result) == [
@@ -99,6 +127,7 @@ def test_review_bundle_runs_export_validation_preview_and_context(
         f"Exported KiCad handoff: {output_project}",
         "Validation: passed",
         "Preview: exported",
+        "Board manufacturability: passed",
         f"AI context: {output_project / 'ai-context.json'}",
     ]
 
@@ -134,6 +163,7 @@ def test_review_bundle_can_skip_kicad_execution(tmp_path: Path) -> None:
         context_writer=lambda _project, output, *, kicad_project_dir=None: output.write_text(
             "{}\n", encoding="utf-8"
         ),
+        board_reporter=_board_report,
         execute_kicad=False,
     )
 
@@ -162,6 +192,7 @@ def test_review_bundle_returns_nonzero_when_validation_or_preview_fails(
         context_writer=lambda _project, output, *, kicad_project_dir=None: output.write_text(
             "{}\n", encoding="utf-8"
         ),
+        board_reporter=_board_report,
     )
 
     assert result.exit_code == 2

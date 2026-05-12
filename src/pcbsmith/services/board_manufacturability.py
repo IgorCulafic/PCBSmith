@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import json
 from dataclasses import dataclass
 from enum import StrEnum
 from math import acos, degrees, hypot, isclose
+from pathlib import Path
 
 from pcbsmith.core.board import Board, Layer, Trace
 from pcbsmith.core.geom import Point
@@ -11,6 +13,7 @@ from pcbsmith.services.board_intelligence import route_segments, segment_angle_d
 
 PREFERRED_TRACE_ANGLES = frozenset({0, 45, 90, 135, 180})
 DEFAULT_MIN_TURN_DEGREES = 30
+BOARD_MANUFACTURABILITY_SCHEMA = "pcbsmith-board-manufacturability-v1"
 
 
 class ManufacturabilitySeverity(StrEnum):
@@ -72,6 +75,47 @@ def format_board_manufacturability_report(
         for finding in report.findings
     )
     return lines
+
+
+def write_board_manufacturability_report(
+    report: BoardManufacturabilityReport,
+    output_path: Path,
+) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(
+        json.dumps(_report_data(report), indent=2) + "\n",
+        encoding="utf-8",
+    )
+
+
+def _report_data(report: BoardManufacturabilityReport) -> dict[str, object]:
+    errors = tuple(
+        finding
+        for finding in report.findings
+        if finding.severity is ManufacturabilitySeverity.ERROR
+    )
+    warnings = tuple(
+        finding
+        for finding in report.findings
+        if finding.severity is ManufacturabilitySeverity.WARNING
+    )
+    return {
+        "schema": BOARD_MANUFACTURABILITY_SCHEMA,
+        "summary": {
+            "finding_count": len(report.findings),
+            "error_count": len(errors),
+            "warning_count": len(warnings),
+        },
+        "findings": [
+            {
+                "severity": finding.severity.value,
+                "code": finding.code,
+                "message": finding.message,
+                "location": finding.location,
+            }
+            for finding in report.findings
+        ],
+    }
 
 
 def _trace_style_findings(
