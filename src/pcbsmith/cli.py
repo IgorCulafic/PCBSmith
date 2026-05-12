@@ -22,6 +22,14 @@ from pcbsmith.services.board_manufacturability import (
     inspect_board_manufacturability,
 )
 from pcbsmith.services.builtin_library import SYMBOLS
+from pcbsmith.services.circuit_rules import (
+    SUPPORTED_CIRCUIT_RULE_INTENTS,
+    check_circuit_rules,
+    check_circuit_rules_file,
+    format_circuit_rule_report,
+    parse_rule_parameters,
+    write_circuit_rule_report,
+)
 from pcbsmith.services.component_knowledge_index import (
     format_component_knowledge_index_summary,
     format_component_knowledge_search_result,
@@ -284,6 +292,21 @@ def _cmd_component_selection(args: argparse.Namespace) -> int:
     for line in format_component_selection_result(result):
         print(line)
     return 0
+
+
+def _cmd_circuit_rules(args: argparse.Namespace) -> int:
+    if args.parameters_json:
+        report = check_circuit_rules_file(args.intent, Path(args.parameters_json))
+    else:
+        report = check_circuit_rules(
+            args.intent,
+            parse_rule_parameters(tuple(args.param or ())),
+        )
+    if args.output:
+        write_circuit_rule_report(report, Path(args.output))
+    for line in format_circuit_rule_report(report):
+        print(line)
+    return report.exit_code
 
 
 def _cmd_kicad_plan(args: argparse.Namespace) -> int:
@@ -609,6 +632,27 @@ def build_parser() -> argparse.ArgumentParser:
     )
     component_selection_parser.add_argument("--limit", type=int, default=5)
     component_selection_parser.set_defaults(func=_cmd_component_selection)
+
+    circuit_rules_parser = subparsers.add_parser(
+        "circuit-rules",
+        help="check electrical assumptions for a supported circuit intent",
+    )
+    circuit_rules_parser.add_argument("intent", choices=SUPPORTED_CIRCUIT_RULE_INTENTS)
+    circuit_rules_parser.add_argument(
+        "--param",
+        action="append",
+        default=None,
+        help="circuit parameter as key=value; repeatable",
+    )
+    circuit_rules_parser.add_argument(
+        "--parameters-json",
+        help="optional JSON object containing circuit rule parameters",
+    )
+    circuit_rules_parser.add_argument(
+        "--output",
+        help="optional path for the machine-readable JSON rule report",
+    )
+    circuit_rules_parser.set_defaults(func=_cmd_circuit_rules)
 
     kicad_plan_parser = subparsers.add_parser(
         "kicad-plan",

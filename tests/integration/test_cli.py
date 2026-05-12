@@ -478,6 +478,33 @@ def test_component_selection_returns_intent_ranked_candidates(tmp_path: Path) ->
     ]
 
 
+def test_circuit_rules_checks_intent_parameters() -> None:
+    result = _run_cli(
+        "circuit-rules",
+        "led-current-limit",
+        "--param",
+        "supply_voltage_v=5",
+        "--param",
+        "led_forward_voltage_v=2",
+        "--param",
+        "resistor_ohms=100",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Circuit rules: led-current-limit",
+        "Status: warning (1 finding)",
+        "calculated_current_ma: 30",
+        "resistor_power_w: 0.09",
+        (
+            "warning: led_current_high: Calculated LED current is 30.000 mA; "
+            "keep simple indicator LEDs at or below 20 mA unless the datasheet "
+            "says otherwise (LED string)"
+        ),
+    ]
+
+
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "review-bundle"

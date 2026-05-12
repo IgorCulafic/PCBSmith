@@ -84,6 +84,27 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     assert "Use component_selection supported_intents before choosing catalog parts." in (
         package["planner_rules"]
     )
+    assert package["circuit_rules"] == {
+        "schema": "pcbsmith-circuit-rules-tool-v1",
+        "cli_command": "circuit-rules <intent> --param key=value",
+        "supported_intents": [
+            "555-astable",
+            "555-pwm",
+            "led-current-limit",
+            "low-side-switch",
+            "power-entry",
+            "rc-filter",
+            "voltage-divider",
+        ],
+        "instructions": [
+            "Use circuit rules to check electrical assumptions before proposing board edits.",
+            "Treat warning and error findings as revision inputs, not as fabrication approval.",
+        ],
+    }
+    assert (
+        "Use circuit_rules supported_intents to check electrical assumptions before board edits."
+        in package["planner_rules"]
+    )
 
 
 def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
@@ -100,6 +121,7 @@ def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
     assert package["allowed_command_types"] == []
     assert package["target_plan_schema"] is None
     assert "component_selection" in package
+    assert "circuit_rules" in package
     assert "Do not propose project mutations for review_only briefs." in (
         package["planner_rules"]
     )
