@@ -24,6 +24,8 @@ from pcbsmith.services.board_manufacturability import (
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.component_knowledge_index import (
     format_component_knowledge_index_summary,
+    format_component_knowledge_search_result,
+    search_component_knowledge_index_file,
     write_component_knowledge_index,
 )
 from pcbsmith.services.design_operations import (
@@ -249,6 +251,20 @@ def _cmd_component_knowledge_index(args: argparse.Namespace) -> int:
         ),
     )
     for line in format_component_knowledge_index_summary(index, output_path=output_path):
+        print(line)
+    return 0
+
+
+def _cmd_component_knowledge_search(args: argparse.Namespace) -> int:
+    result = search_component_knowledge_index_file(
+        Path(args.index),
+        query=args.query,
+        mounting=args.mounting,
+        support_status=args.support_status,
+        tags=tuple(args.tag or ()),
+        limit=args.limit,
+    )
+    for line in format_component_knowledge_search_result(result):
         print(line)
     return 0
 
@@ -533,6 +549,31 @@ def build_parser() -> argparse.ArgumentParser:
         help="optional KiCad library index used to mark supported bindings",
     )
     component_knowledge_index_parser.set_defaults(func=_cmd_component_knowledge_index)
+
+    component_knowledge_search_parser = subparsers.add_parser(
+        "component-knowledge-search",
+        help="search a component knowledge index with compact AI-facing output",
+    )
+    component_knowledge_search_parser.add_argument("index")
+    component_knowledge_search_parser.add_argument("--query", default="")
+    component_knowledge_search_parser.add_argument(
+        "--mounting",
+        choices=("smd", "through-hole", "virtual", "unspecified"),
+        default=None,
+    )
+    component_knowledge_search_parser.add_argument(
+        "--support-status",
+        choices=("well_supported", "metadata_only", "needs_datasheet_review"),
+        default=None,
+    )
+    component_knowledge_search_parser.add_argument(
+        "--tag",
+        action="append",
+        default=None,
+        help="required tag; repeatable",
+    )
+    component_knowledge_search_parser.add_argument("--limit", type=int, default=10)
+    component_knowledge_search_parser.set_defaults(func=_cmd_component_knowledge_search)
 
     kicad_plan_parser = subparsers.add_parser(
         "kicad-plan",
