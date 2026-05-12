@@ -110,6 +110,9 @@ def _kicad_reports(kicad_project_dir: Path) -> list[dict[str, Any]]:
         path = report_dir / f"{name}.json"
         if path.exists():
             reports.append(_report_summary(name, path))
+    board_report = kicad_project_dir / ".pcbsmith" / "board-reports" / "manufacturability.json"
+    if board_report.exists():
+        reports.append(_manufacturability_report_summary(board_report))
     return reports
 
 
@@ -128,6 +131,20 @@ def _report_summary(name: str, path: Path) -> dict[str, Any]:
         "path": str(path),
         "violations": violations,
         "unconnected_items": unconnected_items,
+    }
+
+
+def _manufacturability_report_summary(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    summary = data.get("summary", {})
+    return {
+        "name": "manufacturability",
+        "path": str(path),
+        "violations": 0,
+        "unconnected_items": 0,
+        "findings": summary.get("finding_count", 0),
+        "errors": summary.get("error_count", 0),
+        "warnings": summary.get("warning_count", 0),
     }
 
 
