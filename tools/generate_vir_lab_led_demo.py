@@ -303,7 +303,8 @@ def _add_power_rails(
         vcc_taps_by_row.setdefault(first_pixel.y, set()).add(first_pixel.vcc_tap_x)
         gnd_taps_by_row.setdefault(last_pixel.y, set()).add(last_pixel.gnd_tap_x)
     row_ys = sorted(set(vcc_taps_by_row) | set(gnd_taps_by_row))
-    builder.add_via(7.0, 12.0, net=net_refs["GND"])
+    vcc_row_ys = sorted(vcc_taps_by_row)
+    gnd_row_ys = sorted(gnd_taps_by_row)
     builder.add_segment(
         7.0,
         VCC_RAIL_Y_MM,
@@ -312,24 +313,32 @@ def _add_power_rails(
         width_mm=TRACE_WIDTH_MM,
         net=net_refs["VCC"],
     )
-    vcc_trunk_points = [VCC_RAIL_Y_MM, *(row_y - ROW_POWER_OFFSET_MM for row_y in row_ys)]
+    builder.add_via(first_bus_x, VCC_RAIL_Y_MM, net=net_refs["VCC"])
+    vcc_trunk_points = [
+        VCC_RAIL_Y_MM,
+        *(row_y - ROW_POWER_OFFSET_MM for row_y in vcc_row_ys),
+    ]
     for start_y, end_y in zip(vcc_trunk_points, vcc_trunk_points[1:], strict=False):
+        builder.add_via(first_bus_x, end_y, net=net_refs["VCC"])
         builder.add_segment(
             first_bus_x,
             start_y,
             first_bus_x,
             end_y,
+            layer="B.Cu",
             width_mm=TRACE_WIDTH_MM,
             net=net_refs["VCC"],
         )
-    gnd_trunk_points = [12.0, *(row_y + ROW_POWER_OFFSET_MM for row_y in row_ys)]
+    gnd_trunk_points = [
+        12.0,
+        *(row_y + ROW_POWER_OFFSET_MM for row_y in gnd_row_ys),
+    ]
     for start_y, end_y in zip(gnd_trunk_points, gnd_trunk_points[1:], strict=False):
         builder.add_segment(
             row_start_x,
             start_y,
             row_start_x,
             end_y,
-            layer="B.Cu",
             width_mm=TRACE_WIDTH_MM,
             net=net_refs["GND"],
         )
@@ -344,7 +353,6 @@ def _add_power_rails(
             builder,
             y_mm=row_y + ROW_POWER_OFFSET_MM,
             x_points=(row_start_x, *sorted(gnd_taps_by_row.get(row_y, ()))),
-            layer="B.Cu",
             net=net_refs["GND"],
         )
 
@@ -454,15 +462,15 @@ def _add_led_string(
                 (pixel.gnd_tap_x, pixel.y),
                 (next_pixel.x + 1.05, next_pixel.y),
                 net_refs[_branch_net_name(string.index, index + 1)],
+                layer="B.Cu",
+                use_vias=True,
             )
         else:
-            builder.add_via(pixel.gnd_tap_x, pixel.y, net=net_refs["GND"])
             builder.add_segment(
                 pixel.gnd_tap_x,
                 pixel.y,
                 pixel.gnd_tap_x,
                 pixel.y + ROW_POWER_OFFSET_MM,
-                layer="B.Cu",
                 width_mm=TRACE_WIDTH_MM,
                 net=net_refs["GND"],
             )
@@ -476,17 +484,24 @@ def _add_resistor(
     reference: str,
     resistor_value_ohms: int,
 ) -> None:
+    value_label = _format_resistor_value(resistor_value_ohms)
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
             footprint="PCBSmith_R_0603_REAL",
             reference=reference,
-            value=str(resistor_value_ohms),
+            value=value_label,
             x_mm=pixel.resistor_x,
             y_mm=pixel.y,
             left_net=left_net,
             right_net=right_net,
             reference_offset_mm=(0.0, -2.0),
         )
+    )
+    builder.add_text(
+        value_label,
+        pixel.resistor_x,
+        pixel.y + 2.1,
+        size_mm=0.8,
     )
 
 
@@ -572,6 +587,14 @@ def _physical_branch_summary(plan: LedArtPlan) -> str:
     length_summary = _range_summary(string_lengths)
     resistor_summary = _range_summary(resistor_values, suffix="R")
     return f"{length_summary} LED/string, {resistor_summary}"
+
+
+def _format_resistor_value(resistor_value_ohms: int) -> str:
+    if resistor_value_ohms < 1000:
+        return f"{resistor_value_ohms}R"
+    if resistor_value_ohms % 1000 == 0:
+        return f"{resistor_value_ohms // 1000}K"
+    return f"{resistor_value_ohms // 1000}K{resistor_value_ohms % 1000 // 100}"
 
 
 def _range_summary(values: list[int], *, suffix: str = "") -> str:
