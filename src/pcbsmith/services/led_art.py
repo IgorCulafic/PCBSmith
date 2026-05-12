@@ -70,6 +70,7 @@ class LedArtString(BaseModel):
 
     index: int = Field(gt=0)
     led_refs: tuple[str, ...]
+    pixel_indices: tuple[int, ...]
     resistor_ref: str
     resistor_value_ohms: int = Field(gt=0)
     current_ma: float
@@ -153,48 +154,64 @@ def select_led_resistor_ohms(
 
 
 def build_led_art_plan(spec: LedArtSpec) -> LedArtPlan:
+    return build_led_art_plan_for_topology(spec, "5v_one_per_led")
+
+
+def build_led_art_plan_for_topology(spec: LedArtSpec, topology_id: str) -> LedArtPlan:
+    topology = _topology_profile(spec, topology_id)
+    effective_spec = spec.model_copy(update={"supply_voltage_v": topology.supply_voltage_v})
     pixels = _letter_pixels(spec)
-    resistor_value = select_led_resistor_ohms(
-        supply_voltage_v=spec.supply_voltage_v,
-        led_forward_voltage_v=spec.led_forward_voltage_v,
-        target_current_ma=spec.target_current_ma,
+    nominal_resistor_value = select_led_resistor_ohms(
+        supply_voltage_v=effective_spec.supply_voltage_v,
+        led_forward_voltage_v=effective_spec.led_forward_voltage_v
+        * topology.series_leds_per_string,
+        target_current_ma=effective_spec.target_current_ma,
     )
-    string_current_ma = (
-        (spec.supply_voltage_v - spec.led_forward_voltage_v) / resistor_value
-    ) * 1000.0
-    strings = tuple(
-        LedArtString(
-            index=pixel.index,
-            led_refs=(pixel.led_ref,),
-            resistor_ref=pixel.resistor_ref,
-            resistor_value_ohms=resistor_value,
-            current_ma=string_current_ma,
+    nominal_string_current_ma = (
+        (
+            effective_spec.supply_voltage_v
+            - (effective_spec.led_forward_voltage_v * topology.series_leds_per_string)
         )
-        for pixel in pixels
+        / nominal_resistor_value
+    ) * 1000.0
+    string_pixel_groups = _string_pixel_groups(
+        pixels,
+        max_series_leds=topology.series_leds_per_string,
+        x_step_mm=effective_spec.x_step_mm,
     )
-    total_current_ma = string_current_ma * len(strings)
-    warnings = _electrical_warnings(spec, total_current_ma)
+    strings = tuple(
+        _led_art_string(
+            string_index,
+            chunk,
+            effective_spec,
+        )
+        for string_index, chunk in enumerate(string_pixel_groups, start=1)
+    )
+    total_current_ma = sum(string.current_ma for string in strings)
+    warnings = _electrical_warnings(effective_spec, total_current_ma)
     electrical = LedArtElectricalReport(
-        text=spec.text.upper(),
-        supply_voltage_v=spec.supply_voltage_v,
-        led_forward_voltage_v=spec.led_forward_voltage_v,
-        target_current_ma=spec.target_current_ma,
-        resistor_value_ohms=resistor_value,
-        string_current_ma=string_current_ma,
+        text=effective_spec.text.upper(),
+        supply_voltage_v=effective_spec.supply_voltage_v,
+        led_forward_voltage_v=effective_spec.led_forward_voltage_v,
+        target_current_ma=effective_spec.target_current_ma,
+        resistor_value_ohms=nominal_resistor_value,
+        string_current_ma=nominal_string_current_ma,
         total_led_count=len(pixels),
         string_count=len(strings),
         total_current_ma=total_current_ma,
-        estimated_power_mw=spec.supply_voltage_v * total_current_ma,
-        grouping_strategy="one_led_per_resistor",
+        estimated_power_mw=effective_spec.supply_voltage_v * total_current_ma,
+        grouping_strategy=topology.id,
         warnings=warnings,
     )
     return LedArtPlan(
-        spec=spec,
+        spec=effective_spec,
         pixels=pixels,
         strings=strings,
         electrical=electrical,
-        board_width_mm=_board_width(spec),
-        board_height_mm=spec.y_origin_mm + (7 * spec.y_step_mm) + spec.board_margin_mm,
+        board_width_mm=_board_width(effective_spec),
+        board_height_mm=effective_spec.y_origin_mm
+        + (7 * effective_spec.y_step_mm)
+        + effective_spec.board_margin_mm,
     )
 
 
@@ -319,6 +336,108 @@ def _series_leds_for_density(supply_voltage_v: float, led_forward_voltage_v: flo
     return max(1, math.floor((supply_voltage_v - 1.0) / led_forward_voltage_v))
 
 
+class _TopologyProfile(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    id: str
+    supply_voltage_v: float
+    series_leds_per_string: int = Field(gt=0)
+
+
+def _topology_profile(spec: LedArtSpec, topology_id: str) -> _TopologyProfile:
+    if topology_id == "5v_one_per_led":
+        return _TopologyProfile(
+            id=topology_id,
+            supply_voltage_v=5.0,
+            series_leds_per_string=1,
+        )
+    if topology_id == "5v_two_led_dense":
+        return _TopologyProfile(
+            id=topology_id,
+            supply_voltage_v=5.0,
+            series_leds_per_string=2,
+        )
+    if topology_id == "12v_dense":
+        return _TopologyProfile(
+            id=topology_id,
+            supply_voltage_v=12.0,
+            series_leds_per_string=_series_leds_for_density(
+                12.0,
+                spec.led_forward_voltage_v,
+            ),
+        )
+    raise ValueError(f"Unsupported LED-art topology: {topology_id}")
+
+
+def _led_art_string(
+    string_index: int,
+    pixels: tuple[LedArtPixel, ...],
+    spec: LedArtSpec,
+) -> LedArtString:
+    resistor_value = select_led_resistor_ohms(
+        supply_voltage_v=spec.supply_voltage_v,
+        led_forward_voltage_v=spec.led_forward_voltage_v * len(pixels),
+        target_current_ma=spec.target_current_ma,
+    )
+    current_ma = (
+        (spec.supply_voltage_v - (spec.led_forward_voltage_v * len(pixels)))
+        / resistor_value
+    ) * 1000.0
+    return LedArtString(
+        index=string_index,
+        led_refs=tuple(pixel.led_ref for pixel in pixels),
+        pixel_indices=tuple(pixel.index for pixel in pixels),
+        resistor_ref=f"R{string_index}",
+        resistor_value_ohms=resistor_value,
+        current_ma=current_ma,
+    )
+
+
+def _ordered_pixels_for_strings(pixels: tuple[LedArtPixel, ...]) -> tuple[LedArtPixel, ...]:
+    return tuple(sorted(pixels, key=lambda pixel: (pixel.y, pixel.x, pixel.index)))
+
+
+def _string_pixel_groups(
+    pixels: tuple[LedArtPixel, ...],
+    *,
+    max_series_leds: int,
+    x_step_mm: float,
+) -> tuple[tuple[LedArtPixel, ...], ...]:
+    if max_series_leds == 1:
+        return tuple((pixel,) for pixel in _ordered_pixels_for_strings(pixels))
+
+    row_groups: dict[float, list[LedArtPixel]] = {}
+    for pixel in pixels:
+        row_groups.setdefault(pixel.y, []).append(pixel)
+
+    groups: list[tuple[LedArtPixel, ...]] = []
+    continuity_limit = x_step_mm * 3.0
+    for row_y in sorted(row_groups):
+        run: list[LedArtPixel] = []
+        previous_pixel: LedArtPixel | None = None
+        for pixel in sorted(row_groups[row_y], key=lambda item: (item.x, item.index)):
+            if (
+                previous_pixel is not None
+                and pixel.x - previous_pixel.x > continuity_limit
+            ):
+                groups.extend(_split_run(run, max_series_leds))
+                run = []
+            run.append(pixel)
+            previous_pixel = pixel
+        groups.extend(_split_run(run, max_series_leds))
+    return tuple(groups)
+
+
+def _split_run(
+    pixels: list[LedArtPixel],
+    max_series_leds: int,
+) -> tuple[tuple[LedArtPixel, ...], ...]:
+    return tuple(
+        tuple(pixels[index : index + max_series_leds])
+        for index in range(0, len(pixels), max_series_leds)
+    )
+
+
 def _topology_option(
     option_id: str,
     label: str,
@@ -390,6 +509,12 @@ def _board_width(spec: LedArtSpec) -> float:
 
 def _render_markdown_report(plan: LedArtPlan) -> str:
     report = plan.electrical
+    resistor_values = ", ".join(
+        f"{value} ohm" for value in sorted({string.resistor_value_ohms for string in plan.strings})
+    )
+    string_lengths = ", ".join(
+        str(length) for length in sorted({len(string.led_refs) for string in plan.strings})
+    )
     warning_lines = (
         "\n".join(f"- {warning}" for warning in report.warnings)
         if report.warnings
@@ -402,7 +527,9 @@ def _render_markdown_report(plan: LedArtPlan) -> str:
             f"- Supply: {report.supply_voltage_v:g} V",
             f"- LED forward voltage assumption: {report.led_forward_voltage_v:g} V",
             f"- Target current: {report.target_current_ma:g} mA",
-            f"- Resistor: {report.resistor_value_ohms} ohm",
+            f"- Nominal max-string resistor: {report.resistor_value_ohms} ohm",
+            f"- Per-string resistor values: {resistor_values}",
+            f"- LEDs per physical string: {string_lengths}",
             f"- Grouping strategy: {report.grouping_strategy}",
             f"- LED count: {report.total_led_count}",
             f"- String count: {report.string_count}",
@@ -458,6 +585,7 @@ __all__ = [
     "LedArtTopologyComparison",
     "LedArtTopologyOption",
     "build_led_art_plan",
+    "build_led_art_plan_for_topology",
     "compare_led_art_topologies",
     "select_led_resistor_ohms",
     "write_led_art_reports",
