@@ -22,6 +22,11 @@ from pcbsmith.services.board_manufacturability import (
     inspect_board_manufacturability,
 )
 from pcbsmith.services.builtin_library import SYMBOLS
+from pcbsmith.services.design_operations import (
+    LedArtDesignRequest,
+    format_design_operation_result,
+    generate_led_art_design,
+)
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
 from pcbsmith.services.kicad_doctor import (
@@ -356,6 +361,26 @@ def _cmd_ai_proposal_bundle(args: argparse.Namespace) -> int:
     return result.exit_code
 
 
+def _cmd_design_led_art(args: argparse.Namespace) -> int:
+    request = LedArtDesignRequest(
+        name=args.name,
+        text=args.text,
+        supply_voltage_v=args.voltage,
+        topology=args.topology,
+        control_mode=args.control,
+        show_polarity_marks=not args.no_polarity_marks,
+    )
+    result = generate_led_art_design(
+        request,
+        Path(args.output_project),
+        execute_kicad=not args.skip_execution,
+        overwrite=args.overwrite,
+    )
+    for line in format_design_operation_result(result):
+        print(line)
+    return result.exit_code
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -653,6 +678,46 @@ def build_parser() -> argparse.ArgumentParser:
         help="create KiCad files without running KiCad validation or preview exports",
     )
     ai_proposal_bundle_parser.set_defaults(func=_cmd_ai_proposal_bundle)
+
+    design_led_art_parser = subparsers.add_parser(
+        "design-led-art",
+        help="generate a KiCad LED-art review bundle from a structured request",
+    )
+    design_led_art_parser.add_argument("output_project")
+    design_led_art_parser.add_argument("--name", default="LED Art Design")
+    design_led_art_parser.add_argument("--text", default="VIR-LAB")
+    design_led_art_parser.add_argument(
+        "--voltage",
+        type=float,
+        default=12.0,
+        help="requested supply voltage; used to choose a topology if --topology is omitted",
+    )
+    design_led_art_parser.add_argument(
+        "--topology",
+        choices=("5v_one_per_led", "5v_two_led_dense", "12v_dense"),
+        default=None,
+    )
+    design_led_art_parser.add_argument(
+        "--control",
+        choices=("none", "low_side_mosfet"),
+        default="none",
+    )
+    design_led_art_parser.add_argument(
+        "--no-polarity-marks",
+        action="store_true",
+        help="omit educational LED anode + marks from the board silkscreen",
+    )
+    design_led_art_parser.add_argument(
+        "--skip-execution",
+        action="store_true",
+        help="write KiCad files and reports without running KiCad validation or preview exports",
+    )
+    design_led_art_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing output directory",
+    )
+    design_led_art_parser.set_defaults(func=_cmd_design_led_art)
 
     return parser
 

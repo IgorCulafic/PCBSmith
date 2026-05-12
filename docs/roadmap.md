@@ -180,8 +180,9 @@ The most valuable user help is collecting trusted examples and requirements:
 
 R0.1 and R0.2 now have a reusable foundation: text-driven VIR-LAB LED art,
 adjacent LED string grouping, resistor labeling, KiCad review bundles, and
-optional low-side MOSFET control. The next product-facing work should start
-Phase 1 by turning this foundation into AI-callable design operations instead of
-one-off scripts. In parallel, PCBSmith should keep building the R1 and R1.5
+optional low-side MOSFET control. Phase 1 has started with a structured
+`design-led-art` operation that turns AI/user request fields into a KiCad review
+bundle without creating a new generator script. The next work should keep
+expanding this AI-callable operation layer, then continue the R1 and R1.5
 library foundation so the AI can choose real parts without being overloaded by
 the full library at once.

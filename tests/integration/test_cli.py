@@ -917,3 +917,37 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
     assert '"reference": "R1"' not in original_text
     assert '"reference": "R1"' in staged_text
     assert (output_dir / "kicad-review" / "Proposal_Demo.kicad_pro").exists()
+
+
+def test_design_led_art_writes_structured_review_bundle(tmp_path: Path) -> None:
+    output_dir = tmp_path / "led-art-review"
+
+    result = _run_cli(
+        "design-led-art",
+        str(output_dir),
+        "--name",
+        "AI VIR LAB",
+        "--text",
+        "VIR-LAB",
+        "--topology",
+        "12v_dense",
+        "--control",
+        "low_side_mosfet",
+        "--skip-execution",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Design operation: led_art",
+        f"Review bundle: {output_dir}",
+        f"KiCad board: {output_dir / 'AI_VIR_LAB.kicad_pcb'}",
+        f"Operation summary: {output_dir / '.pcbsmith' / 'operation.json'}",
+        "Validation: skipped",
+        "Preview: skipped",
+    ]
+    assert (output_dir / "AI_VIR_LAB.kicad_pcb").exists()
+    summary = json.loads(
+        (output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8")
+    )
+    assert summary["request"]["control_mode"] == "low_side_mosfet"
