@@ -2,16 +2,21 @@ from __future__ import annotations
 
 from pcbsmith.services.board_intelligence import (
     BoardPlacementFrame,
+    BoardRoutingRules,
     NetRole,
     RouteStylePolicy,
     RoutingStyle,
+    ai_planner_routing_rule_notes,
+    board_routing_rules_summary,
     classify_net_role,
     mitered_route_points,
     recommended_trace_width_mm,
     route_segments,
+    routed_trace_segments,
     segment_angle_degrees,
     styled_route_points,
     tap_route_points,
+    tap_trace_segments,
 )
 
 
@@ -40,6 +45,72 @@ def test_recommended_trace_width_uses_net_role_defaults() -> None:
     assert recommended_trace_width_mm(NetRole.GROUND) == 0.45
     assert recommended_trace_width_mm(NetRole.LED_STRING) == 0.35
     assert recommended_trace_width_mm(NetRole.SIGNAL) == 0.3
+
+
+def test_default_board_routing_rules_capture_preferred_trace_style() -> None:
+    rules = BoardRoutingRules()
+
+    assert rules.route_style_policy.style is RoutingStyle.PREFER_45
+    assert rules.preferred_segment_angles == (0, 45, 90, 135, 180)
+
+
+def test_board_routing_rules_summary_is_ai_facing_best_practice_contract() -> None:
+    assert board_routing_rules_summary() == {
+        "routing_style": "prefer_45_mitered",
+        "preferred_segment_angles": [0, 45, 90, 135, 180],
+        "routing_style_authority": "cad_polish_preference",
+        "drc_authority": "hard_rule",
+        "trace_width_strategy": "classify_net_role_then_apply_default_width",
+        "notes": [
+            "Prefer cardinal or 45-degree trace segments when practical.",
+            "Avoid very sharp trace turns; DRC and manufacturability checks win over style.",
+        ],
+    }
+
+
+def test_ai_planner_routing_rule_notes_share_the_same_routing_contract() -> None:
+    assert ai_planner_routing_rule_notes() == [
+        "Prefer 45-degree/mitered PCB routing for CAD polish when practical.",
+        "Do not treat 45-degree routing as an electrical hard rule; DRC wins.",
+    ]
+
+
+def test_routed_trace_segments_applies_central_45_degree_preference() -> None:
+    segments = routed_trace_segments(
+        (
+            (0.0, 0.0),
+            (6.0, 4.0),
+        ),
+        net_name="LED_A",
+    )
+
+    assert [(segment.start, segment.end) for segment in segments] == [
+        ((0.0, 0.0), (4.5, 0.0)),
+        ((4.5, 0.0), (6.0, 1.5)),
+        ((6.0, 1.5), (6.0, 4.0)),
+    ]
+    assert [segment.width_mm for segment in segments] == [0.35, 0.35, 0.35]
+    assert [segment_angle_degrees(segment.start, segment.end) for segment in segments] == [
+        0,
+        45,
+        90,
+    ]
+
+
+def test_tap_trace_segments_uses_same_central_rules() -> None:
+    segments = tap_trace_segments(
+        (10.0, 0.0),
+        (10.0, 8.0),
+        net_name="GND",
+        side=-1,
+    )
+
+    assert [segment.width_mm for segment in segments] == [0.45, 0.45, 0.45]
+    assert [segment_angle_degrees(segment.start, segment.end) for segment in segments] == [
+        135,
+        90,
+        45,
+    ]
 
 
 def test_mitered_route_points_replaces_right_angle_with_45_degree_bends() -> None:

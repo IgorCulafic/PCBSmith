@@ -11,11 +11,9 @@ from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
 from pcbsmith.services.board_intelligence import (
     BoardPlacementFrame,
+    BoardRoutingRules,
     RouteStylePolicy,
-    classify_net_role,
-    recommended_trace_width_mm,
-    route_segments,
-    styled_route_points,
+    routed_trace_segments,
     tap_route_points,
 )
 from pcbsmith.services.kicad_board_builder import (
@@ -969,7 +967,7 @@ def _render_rc_low_pass_filter_board(circuit: RcLowPassFilterCircuit) -> str:
 
 def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     frame = BoardPlacementFrame(origin_mm=(60.0, 35.0), size_mm=(94.0, 61.0))
-    route_policy = RouteStylePolicy(chamfer_mm=1.5)
+    route_rules = BoardRoutingRules(route_style_policy=RouteStylePolicy(chamfer_mm=1.5))
 
     def point(local_x_mm: float, local_y_mm: float) -> tuple[float, float]:
         return frame.point(local_x_mm, local_y_mm)
@@ -983,21 +981,19 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     ) -> None:
         page_points = tuple(point(x_mm, y_mm) for x_mm, y_mm in points)
         page_preserved_points = tuple(point(x_mm, y_mm) for x_mm, y_mm in preserved_points)
-        width_mm = recommended_trace_width_mm(classify_net_role(net.name))
-        for start, end in route_segments(
-            styled_route_points(
-                page_points,
-                policy=route_policy,
-                preserved_points=page_preserved_points,
-            )
+        for segment in routed_trace_segments(
+            page_points,
+            net_name=net.name,
+            rules=route_rules,
+            preserved_points=page_preserved_points,
         ):
             builder.add_segment(
-                start[0],
-                start[1],
-                end[0],
-                end[1],
+                segment.start[0],
+                segment.start[1],
+                segment.end[0],
+                segment.end[1],
                 layer=layer,
-                width_mm=width_mm,
+                width_mm=segment.width_mm,
                 net=net,
             )
 
@@ -1010,7 +1006,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
         layer: str = "F.Cu",
     ) -> None:
         route(
-            tap_route_points(start, end, side=side, policy=route_policy),
+            tap_route_points(start, end, side=side, policy=route_rules.route_style_policy),
             net=net,
             layer=layer,
         )
@@ -1231,7 +1227,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
 
 def _render_timer_555_pwm_dimmer_board(circuit: Timer555PwmDimmerCircuit) -> str:
     frame = BoardPlacementFrame(origin_mm=(60.0, 35.0), size_mm=(100.0, 63.0))
-    route_policy = RouteStylePolicy(chamfer_mm=1.5)
+    route_rules = BoardRoutingRules(route_style_policy=RouteStylePolicy(chamfer_mm=1.5))
 
     def point(local_x_mm: float, local_y_mm: float) -> tuple[float, float]:
         return frame.point(local_x_mm, local_y_mm)
@@ -1246,21 +1242,20 @@ def _render_timer_555_pwm_dimmer_board(circuit: Timer555PwmDimmerCircuit) -> str
     ) -> None:
         page_points = tuple(point(x_mm, y_mm) for x_mm, y_mm in points)
         page_preserved_points = tuple(point(x_mm, y_mm) for x_mm, y_mm in preserved_points)
-        trace_width_mm = width_mm or recommended_trace_width_mm(classify_net_role(net.name))
-        for start, end in route_segments(
-            styled_route_points(
-                page_points,
-                policy=route_policy,
-                preserved_points=page_preserved_points,
-            )
+        for segment in routed_trace_segments(
+            page_points,
+            net_name=net.name,
+            width_mm=width_mm,
+            rules=route_rules,
+            preserved_points=page_preserved_points,
         ):
             builder.add_segment(
-                start[0],
-                start[1],
-                end[0],
-                end[1],
+                segment.start[0],
+                segment.start[1],
+                segment.end[0],
+                segment.end[1],
                 layer=layer,
-                width_mm=trace_width_mm,
+                width_mm=segment.width_mm,
                 net=net,
             )
 
@@ -1274,7 +1269,7 @@ def _render_timer_555_pwm_dimmer_board(circuit: Timer555PwmDimmerCircuit) -> str
         width_mm: float | None = None,
     ) -> None:
         route(
-            tap_route_points(start, end, side=side, policy=route_policy),
+            tap_route_points(start, end, side=side, policy=route_rules.route_style_policy),
             net=net,
             layer=layer,
             width_mm=width_mm,

@@ -104,9 +104,15 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
     assert context["kicad"] == {
         "project_dir": str(kicad_dir),
         "board_rules": {
-            "routing_style": "prefer_45",
+            "routing_style": "prefer_45_mitered",
+            "preferred_segment_angles": [0, 45, 90, 135, 180],
             "routing_style_authority": "cad_polish_preference",
             "drc_authority": "hard_rule",
+            "trace_width_strategy": "classify_net_role_then_apply_default_width",
+            "notes": [
+                "Prefer cardinal or 45-degree trace segments when practical.",
+                "Avoid very sharp trace turns; DRC and manufacturability checks win over style.",
+            ],
         },
         "board_layers": [
             {"id": "F.Cu", "role": "front_copper", "routing": True},

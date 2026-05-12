@@ -27,6 +27,23 @@ class RouteStylePolicy:
 
 
 DEFAULT_ROUTE_STYLE_POLICY = RouteStylePolicy()
+PREFERRED_SEGMENT_ANGLES = (0, 45, 90, 135, 180)
+
+
+@dataclass(frozen=True)
+class BoardRoutingRules:
+    route_style_policy: RouteStylePolicy = DEFAULT_ROUTE_STYLE_POLICY
+    preferred_segment_angles: tuple[int, ...] = PREFERRED_SEGMENT_ANGLES
+
+
+DEFAULT_BOARD_ROUTING_RULES = BoardRoutingRules()
+
+
+@dataclass(frozen=True)
+class RoutedTraceSegment:
+    start: tuple[float, float]
+    end: tuple[float, float]
+    width_mm: float
 
 
 @dataclass(frozen=True)
@@ -77,6 +94,69 @@ def recommended_trace_width_mm(role: NetRole) -> float:
         NetRole.CONTROL: 0.3,
         NetRole.SIGNAL: 0.3,
     }[role]
+
+
+def board_routing_rules_summary(
+    rules: BoardRoutingRules = DEFAULT_BOARD_ROUTING_RULES,
+) -> dict[str, object]:
+    return {
+        "routing_style": "prefer_45_mitered",
+        "preferred_segment_angles": list(rules.preferred_segment_angles),
+        "routing_style_authority": "cad_polish_preference",
+        "drc_authority": "hard_rule",
+        "trace_width_strategy": "classify_net_role_then_apply_default_width",
+        "notes": [
+            "Prefer cardinal or 45-degree trace segments when practical.",
+            "Avoid very sharp trace turns; DRC and manufacturability checks win over style.",
+        ],
+    }
+
+
+def ai_planner_routing_rule_notes() -> list[str]:
+    return [
+        "Prefer 45-degree/mitered PCB routing for CAD polish when practical.",
+        "Do not treat 45-degree routing as an electrical hard rule; DRC wins.",
+    ]
+
+
+def routed_trace_segments(
+    points: tuple[tuple[float, float], ...],
+    *,
+    net_name: str,
+    width_mm: float | None = None,
+    rules: BoardRoutingRules = DEFAULT_BOARD_ROUTING_RULES,
+    preserved_points: tuple[tuple[float, float], ...] = (),
+) -> tuple[RoutedTraceSegment, ...]:
+    trace_width_mm = width_mm or recommended_trace_width_mm(classify_net_role(net_name))
+    routed_points = styled_route_points(
+        _insert_preferred_doglegs(
+            points,
+            preferred_angles=rules.preferred_segment_angles,
+        ),
+        policy=rules.route_style_policy,
+        preserved_points=preserved_points,
+    )
+    return tuple(
+        RoutedTraceSegment(start=start, end=end, width_mm=trace_width_mm)
+        for start, end in route_segments(routed_points)
+    )
+
+
+def tap_trace_segments(
+    start: tuple[float, float],
+    end: tuple[float, float],
+    *,
+    net_name: str,
+    width_mm: float | None = None,
+    side: int = 1,
+    rules: BoardRoutingRules = DEFAULT_BOARD_ROUTING_RULES,
+) -> tuple[RoutedTraceSegment, ...]:
+    return routed_trace_segments(
+        tap_route_points(start, end, side=side, policy=rules.route_style_policy),
+        net_name=net_name,
+        width_mm=width_mm,
+        rules=rules,
+    )
 
 
 def styled_route_points(
@@ -208,6 +288,38 @@ def _is_axis_aligned_turn(
     return (incoming_horizontal and outgoing_vertical) or (
         incoming_vertical and outgoing_horizontal
     )
+
+
+def _insert_preferred_doglegs(
+    points: tuple[tuple[float, float], ...],
+    *,
+    preferred_angles: tuple[int, ...],
+) -> tuple[tuple[float, float], ...]:
+    if len(points) < 2:
+        return points
+
+    routed: list[tuple[float, float]] = [points[0]]
+    for end in points[1:]:
+        start = routed[-1]
+        if start == end:
+            continue
+        if segment_angle_degrees(start, end) not in preferred_angles:
+            bend = _dogleg_bend(start, end)
+            if bend != start and bend != end:
+                routed.append(bend)
+        routed.append(end)
+    return _dedupe_points(tuple(routed))
+
+
+def _dogleg_bend(
+    start: tuple[float, float],
+    end: tuple[float, float],
+) -> tuple[float, float]:
+    dx = abs(end[0] - start[0])
+    dy = abs(end[1] - start[1])
+    if dx >= dy:
+        return (end[0], start[1])
+    return (start[0], end[1])
 
 
 def _axis_distance(

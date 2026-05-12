@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from pcbsmith.services.ai_brief import AI_BRIEF_SCHEMA
+from pcbsmith.services.board_intelligence import ai_planner_routing_rule_notes
 
 AI_PLANNER_PACKAGE_SCHEMA = "pcbsmith-ai-planner-package-v1"
 
@@ -131,8 +132,7 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         "Use board-local integer nanometre coordinates for route_segment and place_text commands.",
         "Only use F.Cu for route_segment until back-copper routing is enabled.",
         "Only use F.SilkS or B.SilkS for place_text.",
-        "Prefer 45-degree/mitered PCB routing for CAD polish when practical.",
-        "Do not treat 45-degree routing as an electrical hard rule; DRC wins.",
+        *ai_planner_routing_rule_notes(),
     ]
     if review_only:
         return [

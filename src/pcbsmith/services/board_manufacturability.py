@@ -9,9 +9,13 @@ from pathlib import Path
 from pcbsmith.core.board import Board, Layer, Trace
 from pcbsmith.core.geom import Point
 from pcbsmith.core.project import DesignRules
-from pcbsmith.services.board_intelligence import route_segments, segment_angle_degrees
+from pcbsmith.services.board_intelligence import (
+    PREFERRED_SEGMENT_ANGLES,
+    route_segments,
+    segment_angle_degrees,
+)
 
-PREFERRED_TRACE_ANGLES = frozenset({0, 45, 90, 135, 180})
+PREFERRED_TRACE_ANGLES = frozenset(PREFERRED_SEGMENT_ANGLES)
 DEFAULT_MIN_TURN_DEGREES = 30
 BOARD_MANUFACTURABILITY_SCHEMA = "pcbsmith-board-manufacturability-v1"
 

@@ -4,6 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from pcbsmith.services.board_intelligence import routed_trace_segments
 from pcbsmith.services.kicad_board_builder import (
     KiCadBoardBuilder,
     NetRef,
@@ -429,15 +430,20 @@ def _route_between_pads(
     if use_vias:
         builder.add_via(start[0], start[1], net=net)
         builder.add_via(end[0], end[1], net=net)
-    builder.add_segment(
-        start[0],
-        start[1],
-        end[0],
-        end[1],
-        layer=layer,
+    for segment in routed_trace_segments(
+        (start, end),
+        net_name=net.name,
         width_mm=TRACE_WIDTH_MM,
-        net=net,
-    )
+    ):
+        builder.add_segment(
+            segment.start[0],
+            segment.start[1],
+            segment.end[0],
+            segment.end[1],
+            layer=layer,
+            width_mm=segment.width_mm,
+            net=net,
+        )
 
 
 def _add_silkscreen(
