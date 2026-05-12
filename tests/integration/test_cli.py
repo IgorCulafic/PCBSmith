@@ -358,6 +358,52 @@ def test_kicad_part_resolve_checks_catalog_binding_against_index(tmp_path: Path)
     ]
 
 
+def test_component_knowledge_index_writes_ai_facing_catalog(tmp_path: Path) -> None:
+    library_index_path = tmp_path / "kicad-library-index.json"
+    output_path = tmp_path / "component-knowledge-index.json"
+    library_index_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-kicad-library-index-v1",
+                "symbols": [
+                    {"id": "Device:R"},
+                    {"id": "Device:C"},
+                    {"id": "Device:LED"},
+                    {"id": "Device:D"},
+                    {"id": "power:VCC"},
+                    {"id": "power:GND"},
+                ],
+                "footprints": [
+                    {"id": "Resistor_SMD:R_0603_1608Metric"},
+                    {"id": "Capacitor_SMD:C_0603_1608Metric"},
+                    {"id": "LED_SMD:LED_0603_1608Metric"},
+                    {"id": "Diode_SMD:D_0603_1608Metric"},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    result = _run_cli(
+        "component-knowledge-index",
+        str(output_path),
+        "--kicad-library-index",
+        str(library_index_path),
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        f"Wrote component knowledge index to {output_path}",
+        "Tier 1 entries: 9",
+        "Families: 8",
+        "Coverage: well_supported=6, metadata_only=3, needs_datasheet_review=0",
+    ]
+    output = json.loads(output_path.read_text(encoding="utf-8"))
+    assert output["schema"] == "pcbsmith-component-knowledge-index-v1"
+    assert output["coverage_summary"]["well_supported"] == 6
+
+
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "review-bundle"
