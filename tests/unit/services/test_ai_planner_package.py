@@ -62,6 +62,28 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     assert "Do not treat 45-degree routing as an electrical hard rule; DRC wins." in (
         package["planner_rules"]
     )
+    assert package["component_selection"] == {
+        "schema": "pcbsmith-component-selection-tool-v1",
+        "cli_command": "component-selection <component-knowledge-index> <intent>",
+        "preferred_mounting_default": "smd",
+        "supported_intents": [
+            "555-timer",
+            "isolated-power",
+            "led-current-limit",
+            "low-side-switch",
+            "power-entry",
+            "relay-switching",
+            "zener-protection",
+        ],
+        "selection_statuses": ["preferred", "candidate", "needs_review"],
+        "instructions": [
+            "Use an intent when choosing a part role instead of inventing symbols or footprints.",
+            "Treat needs_review candidates as requiring user approval or deeper datasheet review.",
+        ],
+    }
+    assert "Use component_selection supported_intents before choosing catalog parts." in (
+        package["planner_rules"]
+    )
 
 
 def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
@@ -77,6 +99,7 @@ def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
     assert package["planner_mode"] == "review_response"
     assert package["allowed_command_types"] == []
     assert package["target_plan_schema"] is None
+    assert "component_selection" in package
     assert "Do not propose project mutations for review_only briefs." in (
         package["planner_rules"]
     )

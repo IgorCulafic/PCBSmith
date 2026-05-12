@@ -22,6 +22,25 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
         "schematics": ["schematics/main.sch.json"],
         "boards": ["boards/main.brd.json"],
     }
+    assert context["ai_tools"]["component_selection"] == {
+        "schema": "pcbsmith-component-selection-tool-v1",
+        "cli_command": "component-selection <component-knowledge-index> <intent>",
+        "preferred_mounting_default": "smd",
+        "supported_intents": [
+            "555-timer",
+            "isolated-power",
+            "led-current-limit",
+            "low-side-switch",
+            "power-entry",
+            "relay-switching",
+            "zener-protection",
+        ],
+        "selection_statuses": ["preferred", "candidate", "needs_review"],
+        "instructions": [
+            "Use an intent when choosing a part role instead of inventing symbols or footprints.",
+            "Treat needs_review candidates as requiring user approval or deeper datasheet review.",
+        ],
+    }
     assert context["schematics"] == [
         {
             "path": "schematics/main.sch.json",

@@ -211,3 +211,8 @@ candidate components. This is intentionally above raw search: it prefers SMD
 where requested, narrows broad tags to the correct family, and marks
 metadata-only or safety-sensitive choices as `needs_review` with compact
 warnings and next checks for the model.
+
+AI context and planner packages now include this selection contract directly.
+That means a local model can see the supported engineering intents during plan
+generation, while the actual candidate lookup remains a PCBSmith tool call over
+the component knowledge index.
