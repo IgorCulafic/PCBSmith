@@ -39,6 +39,8 @@ the model operate PCBSmith tools that know PCB constraints.
 - Basic manufacturability report for PCBSmith board models.
 - Reusable LED-art board rendering service with static strings, adjacent LED
   grouping, resistor labeling, and optional low-side MOSFET control.
+- Structured LED-art design operation and `design-led-art` CLI command for
+  generating KiCad review bundles from AI/user request fields.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
@@ -113,6 +115,12 @@ Generate a KiCad review bundle:
 
 ```powershell
 .\.venv\Scripts\python.exe -m pcbsmith.cli kicad-review-bundle <source-project> <output-dir>
+```
+
+Generate a structured LED-art review bundle:
+
+```powershell
+.\.venv\Scripts\python.exe -m pcbsmith.cli design-led-art .tmp\r0-led-art-ai-operation\kicad-review --name "AI VIR LAB" --text "VIR-LAB" --topology 12v_dense --control low_side_mosfet
 ```
 
 ## User Priorities
