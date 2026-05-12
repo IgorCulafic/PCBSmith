@@ -6,6 +6,7 @@ from typing import Any
 
 from pcbsmith.core.geom import Point, nm_to_mm
 from pcbsmith.core.schematic import Schematic, SymbolInstance
+from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.project_io import load_project, load_schematic
 
 AI_CONTEXT_SCHEMA = "pcbsmith-ai-context-v1"
@@ -85,12 +86,8 @@ def _kicad_context(kicad_project_dir: Path) -> dict[str, Any]:
     }
 
 
-def _board_rules() -> dict[str, str]:
-    return {
-        "routing_style": "prefer_45",
-        "routing_style_authority": "cad_polish_preference",
-        "drc_authority": "hard_rule",
-    }
+def _board_rules() -> dict[str, object]:
+    return board_routing_rules_summary()
 
 
 def _board_layers() -> list[dict[str, object]]:
