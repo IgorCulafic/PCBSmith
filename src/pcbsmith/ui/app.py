@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from typing import cast
 
 from PySide6.QtWidgets import QApplication
 
@@ -8,10 +9,12 @@ from pcbsmith.ui.theme import apply_light_palette
 
 
 def main(argv: list[str] | None = None) -> int:
-    app = QApplication.instance()
-    owns_app = app is None
-    if app is None:
+    instance = QApplication.instance()
+    owns_app = instance is None
+    if instance is None:
         app = QApplication(sys.argv if argv is None else argv)
+    else:
+        app = cast(QApplication, instance)
     app.setStyle("Fusion")
     apply_light_palette(app)
 

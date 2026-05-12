@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QTextEdit,
+    QToolBar,
 )
 
 from pcbsmith.core.geom import Point
@@ -41,7 +42,7 @@ class MainWindow(QMainWindow):
         self.console_dock = QDockWidget("Console", self)
         self.inspector = InspectorWidget()
         self.inspector_dock = QDockWidget("Inspector", self)
-        self.schematic_toolbar = None
+        self.schematic_toolbar: QToolBar | None = None
         self.select_action = QAction("Select", self)
         self.pan_action = QAction("Pan", self)
         self.wire_action = QAction("Wire", self)
@@ -491,14 +492,16 @@ class MainWindow(QMainWindow):
         if selection.kind != "symbol":
             return
 
-        updates: dict[str, object] = {}
         restored_selection = selection
+        new_reference: str | None = None
+        new_value: str | None = None
+        rotation_deg: int | None = None
+        footprint_id: str | None = None
         if field == "reference":
             new_reference = value.strip()
-            updates["new_reference"] = new_reference
             restored_selection = SelectionKey("symbol", new_reference)
         elif field == "value":
-            updates["value"] = value.strip()
+            new_value = value.strip()
         elif field == "rotation":
             try:
                 rotation_deg = int(value)
@@ -508,15 +511,20 @@ class MainWindow(QMainWindow):
             if rotation_deg not in {0, 90, 180, 270}:
                 self.show_error(f"Invalid rotation: {value}")
                 return
-            updates["rotation_deg"] = rotation_deg
         elif field == "footprint":
-            updates["footprint_id"] = value.strip()
+            footprint_id = value.strip()
         else:
             self.show_error(f"Unknown symbol field: {field}")
             return
 
         try:
-            self.scene.update_symbol(selection.key, **updates)
+            self.scene.update_symbol(
+                selection.key,
+                new_reference=new_reference,
+                value=new_value,
+                rotation_deg=rotation_deg,
+                footprint_id=footprint_id,
+            )
         except ValueError as exc:
             self.show_error(str(exc))
             return

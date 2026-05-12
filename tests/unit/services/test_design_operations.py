@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.design_operations import (
     LedArtDesignRequest,
     generate_led_art_design,
@@ -46,6 +47,7 @@ def test_generate_led_art_design_writes_review_bundle_without_kicad_execution(
     assert summary["request"]["text"] == "VIR-LAB"
     assert summary["request"]["control_mode"] == "low_side_mosfet"
     assert summary["outputs"]["board_file"] == "AI_VIR_LAB.kicad_pcb"
+    assert summary["routing_rules"] == board_routing_rules_summary()
     assert summary["checks"]["validation"] == "skipped"
     assert summary["checks"]["preview"] == "skipped"
 

@@ -59,8 +59,8 @@ class SymbolItem(QGraphicsItem):
 
     def boundingRect(self) -> QRectF:
         pin_positions = self.local_pin_positions()
-        xs = [point.x for point in pin_positions]
-        ys = [point.y for point in pin_positions]
+        xs: list[float] = [point.x for point in pin_positions]
+        ys: list[float] = [point.y for point in pin_positions]
         xs.extend((-SYMBOL_WIDTH / 2, SYMBOL_WIDTH / 2))
         ys.extend((-SYMBOL_HEIGHT / 2, SYMBOL_HEIGHT / 2))
         margin = CONNECTION_HANDLE_RADIUS

@@ -142,7 +142,10 @@ def _post_chat_completion(
 
 def _default_runner(request: urllib.request.Request, timeout: float) -> bytes:
     with urllib.request.urlopen(request, timeout=timeout) as response:
-        return response.read()
+        body = response.read()
+    if not isinstance(body, bytes):
+        raise TypeError("OpenAI-compatible endpoint returned a non-bytes response")
+    return body
 
 
 def _extract_candidate_plan(response: dict[str, Any]) -> dict[str, Any]:

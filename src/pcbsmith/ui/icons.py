@@ -20,6 +20,10 @@ def _base_icon(size: int) -> tuple[QPixmap, QPainter]:
     return pixmap, painter
 
 
+def _draw_line(painter: QPainter, x1: float, y1: float, x2: float, y2: float) -> None:
+    painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
+
+
 def symbol_icon(symbol_id: str, size: int = 40) -> QIcon:
     pixmap, painter = _base_icon(size)
     rect = QRectF(size * 0.16, size * 0.16, size * 0.68, size * 0.68)
@@ -47,8 +51,8 @@ def tool_icon(name: str, size: int = 22) -> QIcon:
         )
     elif name == "pan":
         painter.drawEllipse(QPointF(center, center), size * 0.26, size * 0.26)
-        painter.drawLine(center, size * 0.1, center, size * 0.9)
-        painter.drawLine(size * 0.1, center, size * 0.9, center)
+        _draw_line(painter, center, size * 0.1, center, size * 0.9)
+        _draw_line(painter, size * 0.1, center, size * 0.9, center)
     elif name == "wire":
         pen = painter.pen()
         pen.setColor(BLUE)
@@ -67,31 +71,31 @@ def tool_icon(name: str, size: int = 22) -> QIcon:
     elif name == "label":
         painter.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, "T")
     elif name == "no_connect":
-        painter.drawLine(size * 0.25, size * 0.25, size * 0.75, size * 0.75)
-        painter.drawLine(size * 0.75, size * 0.25, size * 0.25, size * 0.75)
+        _draw_line(painter, size * 0.25, size * 0.25, size * 0.75, size * 0.75)
+        _draw_line(painter, size * 0.75, size * 0.25, size * 0.25, size * 0.75)
     elif name == "undo":
         painter.drawArc(
             QRectF(size * 0.22, size * 0.24, size * 0.56, size * 0.5), 30 * 16, 250 * 16
         )
-        painter.drawLine(size * 0.27, size * 0.38, size * 0.12, size * 0.38)
-        painter.drawLine(size * 0.27, size * 0.38, size * 0.23, size * 0.22)
+        _draw_line(painter, size * 0.27, size * 0.38, size * 0.12, size * 0.38)
+        _draw_line(painter, size * 0.27, size * 0.38, size * 0.23, size * 0.22)
     elif name == "redo":
         painter.drawArc(
             QRectF(size * 0.22, size * 0.24, size * 0.56, size * 0.5), -100 * 16, 250 * 16
         )
-        painter.drawLine(size * 0.73, size * 0.38, size * 0.88, size * 0.38)
-        painter.drawLine(size * 0.73, size * 0.38, size * 0.77, size * 0.22)
+        _draw_line(painter, size * 0.73, size * 0.38, size * 0.88, size * 0.38)
+        _draw_line(painter, size * 0.73, size * 0.38, size * 0.77, size * 0.22)
     elif name == "delete":
         painter.drawRect(QRectF(size * 0.3, size * 0.35, size * 0.4, size * 0.45))
-        painter.drawLine(size * 0.24, size * 0.3, size * 0.76, size * 0.3)
+        _draw_line(painter, size * 0.24, size * 0.3, size * 0.76, size * 0.3)
     elif name == "rotate":
         painter.drawArc(
             QRectF(size * 0.22, size * 0.22, size * 0.56, size * 0.56), 35 * 16, 285 * 16
         )
-        painter.drawLine(size * 0.72, size * 0.22, size * 0.88, size * 0.28)
-        painter.drawLine(size * 0.72, size * 0.22, size * 0.78, size * 0.38)
+        _draw_line(painter, size * 0.72, size * 0.22, size * 0.88, size * 0.28)
+        _draw_line(painter, size * 0.72, size * 0.22, size * 0.78, size * 0.38)
     elif name == "mirror":
-        painter.drawLine(center, size * 0.14, center, size * 0.86)
+        _draw_line(painter, center, size * 0.14, center, size * 0.86)
         painter.drawPolyline(
             QPolygonF(
                 [
@@ -112,8 +116,8 @@ def tool_icon(name: str, size: int = 22) -> QIcon:
         )
     elif name == "fit":
         painter.drawRect(QRectF(size * 0.22, size * 0.22, size * 0.56, size * 0.56))
-        painter.drawLine(size * 0.22, size * 0.38, size * 0.38, size * 0.22)
-        painter.drawLine(size * 0.78, size * 0.62, size * 0.62, size * 0.78)
+        _draw_line(painter, size * 0.22, size * 0.38, size * 0.38, size * 0.22)
+        _draw_line(painter, size * 0.78, size * 0.62, size * 0.62, size * 0.78)
     elif name == "erc":
         painter.drawText(QRectF(0, 0, size, size), Qt.AlignmentFlag.AlignCenter, "!")
     painter.end()

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import sys
+from typing import cast
 
 from PySide6.QtCore import QObject, Qt
 from PySide6.QtGui import QKeyEvent
@@ -112,8 +113,24 @@ class SchematicScene(QGraphicsScene):
         committed = self._history.commit(state)
         self._render_editor_state(committed)
 
-    def update_symbol(self, reference: str, **updates: object) -> None:
-        self.apply_editor_state(self._editor_state.update_symbol(reference, **updates))
+    def update_symbol(
+        self,
+        reference: str,
+        *,
+        new_reference: str | None = None,
+        value: str | None = None,
+        rotation_deg: int | None = None,
+        footprint_id: str | None = None,
+    ) -> None:
+        self.apply_editor_state(
+            self._editor_state.update_symbol(
+                reference,
+                new_reference=new_reference,
+                value=value,
+                rotation_deg=rotation_deg,
+                footprint_id=footprint_id,
+            )
+        )
 
     def update_label(
         self,
@@ -334,9 +351,9 @@ class SchematicScene(QGraphicsScene):
 
         item = selected[0]
         selection_key = getattr(item, "selection_key", None)
-        if selection_key is None:
+        if not callable(selection_key):
             return None
-        return selection_key()
+        return cast(SelectionKey, selection_key())
 
     def mousePressEvent(self, event: QGraphicsSceneMouseEvent) -> None:
         if event.button() == Qt.MouseButton.LeftButton and self._tool != "select":

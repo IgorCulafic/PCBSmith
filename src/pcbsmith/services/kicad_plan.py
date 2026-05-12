@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Literal
+from typing import Literal, TypeGuard
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
@@ -18,10 +18,12 @@ from pcbsmith.services.project_io import (
 from pcbsmith.services.schematic_commands import (
     AddLabelCommand,
     AddWireCommand,
+    BoardCommand,
     PlaceSymbolCommand,
     PlaceTextCommand,
     PlanCommand,
     RouteSegmentCommand,
+    SchematicCommand,
     apply_board_command,
     apply_schematic_command,
 )
@@ -100,7 +102,9 @@ def run_kicad_plan(
             command_result = apply_schematic_command(updated, command)
             updated = command_result.schematic
             messages.extend(command_result.messages)
-        elif updated_board is not None:
+        elif _is_board_command(command):
+            if updated_board is None:
+                raise KiCadPlanError("Project has no board file for board commands")
             updated_board = apply_board_command(updated_board, command)
 
     lines = [
@@ -121,6 +125,8 @@ def run_kicad_plan(
 
     save_schematic(project_dir, package.schematic, updated)
     if updated_board is not None:
+        if board_path is None:
+            raise KiCadPlanError("Project has no board file for board commands")
         save_board(project_dir, board_path, updated_board)
     _append_action_log(
         project_dir,
@@ -138,11 +144,11 @@ def run_kicad_plan(
     )
 
 
-def _is_schematic_command(command: PlanCommand) -> bool:
+def _is_schematic_command(command: PlanCommand) -> TypeGuard[SchematicCommand]:
     return isinstance(command, PlaceSymbolCommand | AddWireCommand | AddLabelCommand)
 
 
-def _is_board_command(command: PlanCommand) -> bool:
+def _is_board_command(command: PlanCommand) -> TypeGuard[BoardCommand]:
     return isinstance(command, RouteSegmentCommand | PlaceTextCommand)
 
 
