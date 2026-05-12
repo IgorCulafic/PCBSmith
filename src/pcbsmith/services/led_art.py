@@ -406,35 +406,148 @@ def _string_pixel_groups(
     if max_series_leds == 1:
         return tuple((pixel,) for pixel in _ordered_pixels_for_strings(pixels))
 
-    row_groups: dict[float, list[LedArtPixel]] = {}
-    for pixel in pixels:
-        row_groups.setdefault(pixel.y, []).append(pixel)
+    return _adjacent_path_groups(
+        pixels,
+        max_series_leds=max_series_leds,
+        x_step_mm=x_step_mm,
+    )
 
+
+def _adjacent_path_groups(
+    pixels: tuple[LedArtPixel, ...],
+    *,
+    max_series_leds: int,
+    x_step_mm: float,
+) -> tuple[tuple[LedArtPixel, ...], ...]:
+    pixel_by_index = {pixel.index: pixel for pixel in pixels}
+    neighbors = _adjacent_pixel_neighbors(pixels, x_step_mm=x_step_mm)
+    unvisited = set(pixel_by_index)
     groups: list[tuple[LedArtPixel, ...]] = []
-    continuity_limit = x_step_mm * 3.0
-    for row_y in sorted(row_groups):
-        run: list[LedArtPixel] = []
-        previous_pixel: LedArtPixel | None = None
-        for pixel in sorted(row_groups[row_y], key=lambda item: (item.x, item.index)):
-            if (
-                previous_pixel is not None
-                and pixel.x - previous_pixel.x > continuity_limit
+    while unvisited:
+        best_path: tuple[int, ...] = ()
+        for start_index in sorted(unvisited):
+            candidate = _longest_path_from(
+                start_index,
+                neighbors,
+                unvisited,
+                max_series_leds=max_series_leds,
+                pixel_by_index=pixel_by_index,
+            )
+            if _path_score(candidate, pixel_by_index) > _path_score(
+                best_path,
+                pixel_by_index,
             ):
-                groups.extend(_split_run(run, max_series_leds))
-                run = []
-            run.append(pixel)
-            previous_pixel = pixel
-        groups.extend(_split_run(run, max_series_leds))
+                best_path = candidate
+        groups.append(tuple(pixel_by_index[index] for index in best_path))
+        unvisited.difference_update(best_path)
     return tuple(groups)
 
 
-def _split_run(
-    pixels: list[LedArtPixel],
+def _adjacent_pixel_neighbors(
+    pixels: tuple[LedArtPixel, ...],
+    *,
+    x_step_mm: float,
+) -> dict[int, tuple[int, ...]]:
+    ordered = _ordered_pixels_for_strings(pixels)
+    y_steps = sorted(
+        {
+            round(abs(left.y - right.y), 6)
+            for left in ordered
+            for right in ordered
+            if abs(left.y - right.y) > 0.001
+        }
+    )
+    y_step_mm = y_steps[0] if y_steps else x_step_mm
+    neighbors: dict[int, list[int]] = {pixel.index: [] for pixel in ordered}
+    for left in ordered:
+        for right in ordered:
+            if left.index == right.index:
+                continue
+            same_row = abs(left.y - right.y) < 0.001
+            same_column = abs(left.x - right.x) < 0.001
+            adjacent_column = abs(abs(left.x - right.x) - x_step_mm) < 0.001
+            adjacent_row = abs(abs(left.y - right.y) - y_step_mm) < 0.001
+            if (same_row and adjacent_column) or (same_column and adjacent_row):
+                neighbors[left.index].append(right.index)
+    return {
+        index: tuple(sorted(items, key=lambda item: _pixel_sort_key(ordered, item)))
+        for index, items in neighbors.items()
+    }
+
+
+def _pixel_sort_key(pixels: tuple[LedArtPixel, ...], index: int) -> tuple[float, float, int]:
+    pixel_by_index = {pixel.index: pixel for pixel in pixels}
+    pixel = pixel_by_index[index]
+    return (pixel.y, pixel.x, pixel.index)
+
+
+def _longest_path_from(
+    start_index: int,
+    neighbors: dict[int, tuple[int, ...]],
+    unvisited: set[int],
+    *,
     max_series_leds: int,
-) -> tuple[tuple[LedArtPixel, ...], ...]:
-    return tuple(
-        tuple(pixels[index : index + max_series_leds])
-        for index in range(0, len(pixels), max_series_leds)
+    pixel_by_index: dict[int, LedArtPixel],
+) -> tuple[int, ...]:
+    best_path = (start_index,)
+
+    def walk(path: tuple[int, ...]) -> None:
+        nonlocal best_path
+        if len(path) == max_series_leds:
+            best_path = path
+            return
+        for neighbor in neighbors[path[-1]]:
+            if neighbor not in unvisited or neighbor in path:
+                continue
+            if len(path) >= 2:
+                previous_direction = _edge_direction(
+                    pixel_by_index[path[-2]],
+                    pixel_by_index[path[-1]],
+                )
+                next_direction = _edge_direction(
+                    pixel_by_index[path[-1]],
+                    pixel_by_index[neighbor],
+                )
+                if next_direction != previous_direction:
+                    continue
+            candidate = (*path, neighbor)
+            if len(candidate) > len(best_path):
+                best_path = candidate
+            walk(candidate)
+
+    walk(best_path)
+    return best_path
+
+
+def _path_score(
+    path: tuple[int, ...],
+    pixel_by_index: dict[int, LedArtPixel],
+) -> tuple[int, int, int, float, float]:
+    if not path:
+        return (0, 0, 0, 0.0, 0.0)
+    vertical_edges = 0
+    horizontal_edges = 0
+    turns = 0
+    previous_direction: tuple[int, int] | None = None
+    for left_index, right_index in zip(path, path[1:], strict=False):
+        left = pixel_by_index[left_index]
+        right = pixel_by_index[right_index]
+        direction = _edge_direction(left, right)
+        if direction == (0, 1):
+            vertical_edges += 1
+        if direction == (1, 0):
+            horizontal_edges += 1
+        if previous_direction is not None and direction != previous_direction:
+            turns += 1
+        previous_direction = direction
+    first = pixel_by_index[path[0]]
+    return (len(path), vertical_edges, horizontal_edges, -turns, -first.y)
+
+
+def _edge_direction(left: LedArtPixel, right: LedArtPixel) -> tuple[int, int]:
+    return (
+        0 if abs(left.x - right.x) < 0.001 else 1,
+        0 if abs(left.y - right.y) < 0.001 else 1,
     )
 
 
