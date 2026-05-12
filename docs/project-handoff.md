@@ -43,6 +43,8 @@ the model operate PCBSmith tools that know PCB constraints.
   generating KiCad review bundles from AI/user request fields.
 - Component knowledge index with explicit mounting summaries for SMD,
   through-hole, and virtual parts.
+- Compact `component-knowledge-search` CLI for AI/local-model retrieval over
+  the generated component knowledge index.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
@@ -128,6 +130,13 @@ Generate a structured LED-art review bundle:
 The generated `.pcbsmith/operation.json` is the AI-facing contract for this
 operation. It records the request, output files, check status, and centralized
 board-routing rules from `pcbsmith.services.board_intelligence`.
+
+Generate and query component knowledge:
+
+```powershell
+.\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-index .tmp\component-knowledge.json
+.\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-search .tmp\component-knowledge.json --query "zener protection" --mounting smd
+```
 
 ## User Priorities
 

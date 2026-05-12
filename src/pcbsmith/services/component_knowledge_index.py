@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 from collections import Counter, defaultdict
 from collections.abc import Iterable
 from pathlib import Path
@@ -11,6 +12,7 @@ from pcbsmith.services.component_catalog import ComponentCatalog, builtin_catalo
 from pcbsmith.services.kicad_library_index import KICAD_LIBRARY_INDEX_SCHEMA
 
 COMPONENT_KNOWLEDGE_INDEX_SCHEMA = "pcbsmith-component-knowledge-index-v1"
+COMPONENT_KNOWLEDGE_SEARCH_SCHEMA = "pcbsmith-component-knowledge-search-v1"
 
 SupportStatus = Literal["well_supported", "metadata_only", "needs_datasheet_review"]
 _SUPPORT_STATUSES: tuple[SupportStatus, ...] = (
@@ -90,6 +92,88 @@ def format_component_knowledge_index_summary(
         f"virtual={index['mounting_summary']['virtual']}, "
         f"unspecified={index['mounting_summary']['unspecified']}",
     ]
+
+
+def search_component_knowledge_index(
+    index: dict[str, Any],
+    *,
+    query: str = "",
+    mounting: str | None = None,
+    support_status: SupportStatus | None = None,
+    tags: tuple[str, ...] = (),
+    limit: int = 10,
+) -> dict[str, Any]:
+    _validate_component_knowledge_index(index)
+    if limit < 1:
+        raise ValueError("Search limit must be at least 1")
+
+    query_terms = _search_terms(query)
+    tag_terms = tuple(_normalize_search_value(tag) for tag in tags)
+    results = []
+    for entry in index["tier1_core"]:
+        if mounting is not None and entry["mounting_style"] != mounting:
+            continue
+        if support_status is not None and entry["support_status"] != support_status:
+            continue
+        if tag_terms and not set(tag_terms).issubset(entry["tags"]):
+            continue
+        tokens = _entry_search_tokens(entry)
+        if query_terms and not all(term in tokens for term in query_terms):
+            continue
+        results.append(_compact_search_entry(entry))
+        if len(results) >= limit:
+            break
+
+    return {
+        "schema": COMPONENT_KNOWLEDGE_SEARCH_SCHEMA,
+        "query": query,
+        "filters": {
+            "mounting": mounting,
+            "support_status": support_status,
+            "tags": list(tag_terms),
+            "limit": limit,
+        },
+        "result_count": len(results),
+        "results": results,
+    }
+
+
+def search_component_knowledge_index_file(
+    index_path: Path,
+    *,
+    query: str = "",
+    mounting: str | None = None,
+    support_status: SupportStatus | None = None,
+    tags: tuple[str, ...] = (),
+    limit: int = 10,
+) -> dict[str, Any]:
+    loaded = json.loads(index_path.read_text(encoding="utf-8"))
+    if not isinstance(loaded, dict):
+        raise ValueError(f"Expected component knowledge index JSON object: {index_path}")
+    return search_component_knowledge_index(
+        loaded,
+        query=query,
+        mounting=mounting,
+        support_status=support_status,
+        tags=tags,
+        limit=limit,
+    )
+
+
+def format_component_knowledge_search_result(result: dict[str, Any]) -> list[str]:
+    lines = [
+        f"Component knowledge search: {result['query'] or '(all)'}",
+        f"Matches: {result['result_count']}",
+    ]
+    for entry in result["results"]:
+        lines.append(
+            f"{entry['entry_id']} | {entry['variant_name']} | "
+            f"{entry['mounting_style']} | {entry['support_status']} | "
+            f"tags: {', '.join(entry['tags'])}"
+        )
+    if not result["results"]:
+        lines.append("No component knowledge matches.")
+    return lines
 
 
 def _knowledge_entry(
@@ -211,9 +295,68 @@ def _validate_kicad_library_index(index: dict[str, Any]) -> None:
         raise ValueError(f"Unsupported KiCad library index schema: {index.get('schema')}")
 
 
+def _validate_component_knowledge_index(index: dict[str, Any]) -> None:
+    if index.get("schema") != COMPONENT_KNOWLEDGE_INDEX_SCHEMA:
+        raise ValueError(
+            f"Unsupported component knowledge index schema: {index.get('schema')}"
+        )
+    if not isinstance(index.get("tier1_core"), list):
+        raise ValueError("Component knowledge index is missing tier1_core entries")
+
+
+def _compact_search_entry(entry: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "entry_id": entry["entry_id"],
+        "family_id": entry["family_id"],
+        "family_name": entry["family_name"],
+        "variant_name": entry["variant_name"],
+        "package": entry["package"],
+        "mounting_style": entry["mounting_style"],
+        "preferred_mounting": entry["preferred_mounting"],
+        "default_value": entry["default_value"],
+        "tags": entry["tags"],
+        "support_status": entry["support_status"],
+        "kicad_symbol_id": entry["kicad_symbol_id"],
+        "kicad_footprint_id": entry["kicad_footprint_id"],
+    }
+
+
+def _entry_search_tokens(entry: dict[str, Any]) -> set[str]:
+    values = (
+        entry["entry_id"],
+        entry["family_id"],
+        entry["family_name"],
+        entry["variant_name"],
+        entry["package"] or "",
+        entry["mounting_style"],
+        entry["default_value"] or "",
+        *(entry["tags"] or []),
+        *(entry["aliases"] or []),
+    )
+    tokens: set[str] = set()
+    for value in values:
+        tokens.update(_search_terms(str(value)))
+    return tokens
+
+
+def _search_terms(value: str) -> tuple[str, ...]:
+    normalized = _normalize_search_value(value)
+    if not normalized:
+        return ()
+    return tuple(term for term in re.split(r"[-\s]+", normalized) if term)
+
+
+def _normalize_search_value(value: str) -> str:
+    return re.sub(r"[\s_]+", "-", value.strip().lower())
+
+
 __all__ = [
     "COMPONENT_KNOWLEDGE_INDEX_SCHEMA",
+    "COMPONENT_KNOWLEDGE_SEARCH_SCHEMA",
     "build_component_knowledge_index",
     "format_component_knowledge_index_summary",
+    "format_component_knowledge_search_result",
+    "search_component_knowledge_index",
+    "search_component_knowledge_index_file",
     "write_component_knowledge_index",
 ]

@@ -7,6 +7,8 @@ from pcbsmith.services.component_knowledge_index import (
     COMPONENT_KNOWLEDGE_INDEX_SCHEMA,
     build_component_knowledge_index,
     format_component_knowledge_index_summary,
+    format_component_knowledge_search_result,
+    search_component_knowledge_index,
     write_component_knowledge_index,
 )
 
@@ -135,3 +137,63 @@ def test_write_component_knowledge_index_and_format_summary(tmp_path: Path) -> N
         "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=0",
         "Mounting: smd=10, through-hole=7, virtual=2, unspecified=0",
     ]
+
+
+def test_search_component_knowledge_index_returns_compact_ai_results() -> None:
+    index = build_component_knowledge_index(kicad_library_index=_library_index())
+
+    result = search_component_knowledge_index(
+        index,
+        query="zener protection",
+        mounting="smd",
+        limit=3,
+    )
+
+    assert result == {
+        "schema": "pcbsmith-component-knowledge-search-v1",
+        "query": "zener protection",
+        "filters": {
+            "mounting": "smd",
+            "support_status": None,
+            "tags": [],
+            "limit": 3,
+        },
+        "result_count": 1,
+        "results": [
+            {
+                "entry_id": "pcbs:zener_0603",
+                "family_id": "zener-diode",
+                "family_name": "Zener Diode",
+                "variant_name": "Zener Diode 0603",
+                "package": "0603",
+                "mounting_style": "smd",
+                "preferred_mounting": True,
+                "default_value": "3.3V",
+                "tags": ["basic", "diode", "zener", "protection", "smd", "0603"],
+                "support_status": "well_supported",
+                "kicad_symbol_id": "Device:D_Zener",
+                "kicad_footprint_id": "Diode_SMD:D_0603_1608Metric",
+            }
+        ],
+    }
+    assert format_component_knowledge_search_result(result) == [
+        "Component knowledge search: zener protection",
+        "Matches: 1",
+        (
+            "pcbs:zener_0603 | Zener Diode 0603 | smd | "
+            "well_supported | tags: basic, diode, zener, protection, smd, 0603"
+        ),
+    ]
+
+
+def test_search_component_knowledge_index_filters_support_status_and_tags() -> None:
+    index = build_component_knowledge_index(kicad_library_index=_library_index())
+
+    result = search_component_knowledge_index(
+        index,
+        query="relay",
+        support_status="metadata_only",
+        tags=("needs-safety-review",),
+    )
+
+    assert [entry["entry_id"] for entry in result["results"]] == ["pcbs:relay_spdt_th"]

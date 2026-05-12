@@ -197,3 +197,8 @@ real-world connectors matter. Current common entries include fuses, inductors,
 zener diodes, photoresistors, potentiometers, MOSFETs, NE555, relays, and
 transformers, with safety-sensitive electromechanical/magnetic parts marked for
 deeper review before automated use.
+
+The first retrieval slice is a compact `component-knowledge-search` command. It
+lets local or hosted models query the generated index by text, mounting style,
+support status, and required tags instead of reading the entire component
+catalog into context.

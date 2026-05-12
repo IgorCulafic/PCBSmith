@@ -410,6 +410,34 @@ def test_component_knowledge_index_writes_ai_facing_catalog(tmp_path: Path) -> N
     assert output["coverage_summary"]["well_supported"] == 9
 
 
+def test_component_knowledge_search_finds_filtered_parts(tmp_path: Path) -> None:
+    output_path = tmp_path / "component-knowledge-index.json"
+
+    _run_cli("component-knowledge-index", str(output_path))
+
+    result = _run_cli(
+        "component-knowledge-search",
+        str(output_path),
+        "--query",
+        "pot",
+        "--mounting",
+        "smd",
+        "--limit",
+        "2",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Component knowledge search: pot",
+        "Matches: 1",
+        (
+            "pcbs:potentiometer_3pin_smd | Potentiometer 3-pin SMD | smd | "
+            "metadata_only | tags: adjustable, potentiometer, resistor, smd, 3-pin"
+        ),
+    ]
+
+
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "review-bundle"
