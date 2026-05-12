@@ -45,6 +45,10 @@ the model operate PCBSmith tools that know PCB constraints.
   through-hole, and virtual parts.
 - Compact `component-knowledge-search` CLI for AI/local-model retrieval over
   the generated component knowledge index.
+- Compact `component-selection` CLI for choosing ranked component candidates
+  from engineering intents such as LED current limiting, MOSFET low-side
+  switching, 555 timers, power entry, zener protection, relay switching, and
+  isolated power.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
@@ -136,6 +140,7 @@ Generate and query component knowledge:
 ```powershell
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-index .tmp\component-knowledge.json
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-search .tmp\component-knowledge.json --query "zener protection" --mounting smd
+.\.venv\Scripts\python.exe -m pcbsmith.cli component-selection .tmp\component-knowledge.json low-side-switch
 ```
 
 ## User Priorities

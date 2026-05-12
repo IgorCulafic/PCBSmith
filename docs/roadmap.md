@@ -202,3 +202,12 @@ The first retrieval slice is a compact `component-knowledge-search` command. It
 lets local or hosted models query the generated index by text, mounting style,
 support status, and required tags instead of reading the entire component
 catalog into context.
+
+The next selection slice now exists as `component-selection`, with
+`component-select` as a shorter alias. It turns engineering intents such as
+`led-current-limit`, `low-side-switch`, `555-timer`, `power-entry`,
+`zener-protection`, `relay-switching`, and `isolated-power` into ranked
+candidate components. This is intentionally above raw search: it prefers SMD
+where requested, narrows broad tags to the correct family, and marks
+metadata-only or safety-sensitive choices as `needs_review` with compact
+warnings and next checks for the model.

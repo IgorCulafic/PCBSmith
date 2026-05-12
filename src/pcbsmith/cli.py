@@ -28,6 +28,11 @@ from pcbsmith.services.component_knowledge_index import (
     search_component_knowledge_index_file,
     write_component_knowledge_index,
 )
+from pcbsmith.services.component_selection import (
+    SUPPORTED_COMPONENT_INTENTS,
+    format_component_selection_result,
+    select_components_for_intent_file,
+)
 from pcbsmith.services.design_operations import (
     LedArtDesignRequest,
     format_design_operation_result,
@@ -265,6 +270,18 @@ def _cmd_component_knowledge_search(args: argparse.Namespace) -> int:
         limit=args.limit,
     )
     for line in format_component_knowledge_search_result(result):
+        print(line)
+    return 0
+
+
+def _cmd_component_selection(args: argparse.Namespace) -> int:
+    result = select_components_for_intent_file(
+        Path(args.index),
+        args.intent,
+        preferred_mounting=args.preferred_mounting,
+        limit=args.limit,
+    )
+    for line in format_component_selection_result(result):
         print(line)
     return 0
 
@@ -574,6 +591,24 @@ def build_parser() -> argparse.ArgumentParser:
     )
     component_knowledge_search_parser.add_argument("--limit", type=int, default=10)
     component_knowledge_search_parser.set_defaults(func=_cmd_component_knowledge_search)
+
+    component_selection_parser = subparsers.add_parser(
+        "component-select",
+        aliases=["component-selection"],
+        help="select ranked component candidates for an engineering intent",
+    )
+    component_selection_parser.add_argument("index")
+    component_selection_parser.add_argument(
+        "intent",
+        choices=SUPPORTED_COMPONENT_INTENTS,
+    )
+    component_selection_parser.add_argument(
+        "--preferred-mounting",
+        choices=("smd", "through-hole", "virtual", "unspecified"),
+        default="smd",
+    )
+    component_selection_parser.add_argument("--limit", type=int, default=5)
+    component_selection_parser.set_defaults(func=_cmd_component_selection)
 
     kicad_plan_parser = subparsers.add_parser(
         "kicad-plan",

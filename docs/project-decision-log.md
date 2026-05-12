@@ -28,6 +28,10 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - KiCad libraries provide CAD metadata and optional datasheet links, but PCBSmith must build or ingest component behavior knowledge separately.
 - Component knowledge should be hierarchical: core parts always visible, family summaries searchable, deep profiles loaded on demand, and datasheets queried only for specific facts.
 - Each component should eventually expose a support status such as `well_supported`, `metadata_only`, or `needs_datasheet_review`.
+- Component selection should be intent-driven above raw search. The AI should ask
+  for roles such as `led-current-limit` or `low-side-switch`, then PCBSmith
+  should rank real catalog candidates and flag incomplete metadata or
+  safety-sensitive parts before automated use.
 
 ## Parametric Board Features
 
