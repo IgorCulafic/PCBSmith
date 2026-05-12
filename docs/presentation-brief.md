@@ -89,9 +89,10 @@ It also creates a path toward future multimodal workflows, such as giving the AI
 
 Near-term:
 
-- 555 PWM LED dimmer board with potentiometer, MOSFET/load switching, input/output terminals, wider load traces, and DRC-clean KiCad outputs.
-- More component catalog coverage: potentiometers, MOSFETs, terminal blocks, regulators, headers, and simple ICs.
-- Better AI constraints for current, voltage, trace width, polarity, and component choice.
+- R0 LED art showcase: stronger text/SVG-to-LED boards with current-limiting, input pads, silkscreen, KiCad PCB, Gerbers, drill files, and laser-oriented copper SVG.
+- LED electrical grouping: choose series/parallel groups from supply voltage, LED forward voltage, target current, resistor values, and total current warnings.
+- KiCad library indexing plus a hierarchical component knowledge layer so the AI can search families first and load deep component profiles only when needed.
+- Better AI constraints for current, voltage, trace width, polarity, component choice, and fabrication method.
 
 Later:
 
@@ -100,6 +101,7 @@ Later:
 - Local model support.
 - Optional multi-agent AI planning/review.
 - Broader KiCad library integration.
+- Parametric board features such as capacitive touch pads, PCB coils, antennas, copper logos, and fabrication-specific outputs.
 - Simulation hooks for checking circuit behavior where practical.
 
 ## Demo Narrative
