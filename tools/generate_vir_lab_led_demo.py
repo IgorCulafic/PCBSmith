@@ -4,12 +4,14 @@ import argparse
 import shutil
 import subprocess
 from pathlib import Path
+from typing import Literal
 from uuid import uuid4
 
 from pcbsmith.services.kicad_backend import find_kicad_cli
 from pcbsmith.services.kicad_board_builder import (
     KiCadBoardBuilder,
     NetRef,
+    ThreePadSmdFootprintSpec,
     TwoPadSmdFootprintSpec,
 )
 from pcbsmith.services.kicad_preview import (
@@ -45,6 +47,7 @@ TRACE_WIDTH_MM = 0.45
 ROW_POWER_OFFSET_MM = 3.0
 SOURCE_LOGO_SVG = Path("D:/VIR LAB/VEKTOR-04.svg")
 SOURCE_LOGO_PNG = Path("D:/VIR LAB/1-04.png")
+ControlMode = Literal["none", "low_side_mosfet"]
 
 
 def main() -> None:
@@ -69,6 +72,12 @@ def main() -> None:
         action="store_true",
         help="omit educational LED anode + marks from the board silkscreen",
     )
+    parser.add_argument(
+        "--control",
+        choices=("none", "low_side_mosfet"),
+        default="none",
+        help="optional LED return control circuit to include on the board",
+    )
     args = parser.parse_args()
 
     project_dir = args.output
@@ -87,11 +96,15 @@ def main() -> None:
         encoding="utf-8",
     )
     board_file.write_text(
-        _render_board(plan, show_polarity_marks=not args.no_polarity_marks),
+        _render_board(
+            plan,
+            show_polarity_marks=not args.no_polarity_marks,
+            control_mode=args.control,
+        ),
         encoding="utf-8",
     )
     _copy_logo_sources(project_dir)
-    _write_layout_first_readme(project_dir, project_name, plan)
+    _write_layout_first_readme(project_dir, project_name, plan, control_mode=args.control)
     reports_dir = project_dir / ".pcbsmith" / "reports"
     write_led_art_reports(plan, reports_dir)
     comparison = compare_led_art_topologies(build_led_art_plan(LedArtSpec(text="VIR-LAB")))
@@ -132,7 +145,14 @@ def _write_layout_first_readme(
     project_dir: Path,
     project_name: str,
     plan: LedArtPlan,
+    *,
+    control_mode: ControlMode,
 ) -> None:
+    control_summary = (
+        "low-side MOSFET return switching with a CTRL/PWM input pad"
+        if control_mode == "low_side_mosfet"
+        else "always-on LED strings"
+    )
     readme = project_dir / "README.md"
     readme.write_text(
         "\n".join(
@@ -145,6 +165,7 @@ def _write_layout_first_readme(
                 f"- Topology: {plan.electrical.grouping_strategy}.",
                 f"- Supply: {plan.electrical.supply_voltage_v:g} V.",
                 f"- Physical branch summary: {_physical_branch_summary(plan)}.",
+                f"- Control: {control_summary}.",
                 "- The electrical report estimates current draw and flags "
                 "input-power budget warnings.",
                 "- The KiCad schematic is intentionally minimal in this demo.",
@@ -240,18 +261,34 @@ def _export_assembly_preview(
     return output_file
 
 
-def _render_board(plan: LedArtPlan, *, show_polarity_marks: bool) -> str:
+def _render_board(
+    plan: LedArtPlan,
+    *,
+    show_polarity_marks: bool,
+    control_mode: ControlMode = "none",
+) -> str:
     builder = KiCadBoardBuilder()
     pixels = plan.pixels
     net_refs = {name: builder.net(name) for name in ["VCC", "GND"]}
+    if control_mode == "low_side_mosfet":
+        for name in ("LOAD_NEG", "CTRL", "GATE"):
+            net_refs[name] = builder.net(name)
     pixel_by_index = {pixel.index: pixel for pixel in pixels}
     for string in plan.strings:
         for net_name in _branch_net_names(string):
             net_refs[net_name] = builder.net(net_name)
 
     _add_silkscreen(builder, plan)
-    _add_power_pads(builder, net_refs, plan)
-    _add_power_rails(builder, net_refs, plan.strings, pixel_by_index)
+    _add_power_pads(builder, net_refs, plan, control_mode=control_mode)
+    _add_power_rails(
+        builder,
+        net_refs,
+        plan.strings,
+        pixel_by_index,
+        control_mode=control_mode,
+    )
+    if control_mode == "low_side_mosfet":
+        _add_low_side_mosfet_control(builder, net_refs)
     for string in plan.strings:
         string_pixels = tuple(pixel_by_index[index] for index in string.pixel_indices)
         _add_led_string(
@@ -260,6 +297,7 @@ def _render_board(plan: LedArtPlan, *, show_polarity_marks: bool) -> str:
             string_pixels,
             net_refs,
             show_polarity_marks=show_polarity_marks,
+            return_net_name=_return_net_name(control_mode),
         )
     return builder.render(outline_end_mm=(BOARD_WIDTH_MM, BOARD_HEIGHT_MM))
 
@@ -268,6 +306,8 @@ def _add_power_pads(
     builder: KiCadBoardBuilder,
     net_refs: dict[str, NetRef],
     plan: LedArtPlan,
+    *,
+    control_mode: ControlMode,
 ) -> None:
     builder.add_power_pad(
         "VCC",
@@ -285,6 +325,15 @@ def _add_power_pads(
         value="Input Return",
         reference_offset_mm=(-4.0, 0.0),
     )
+    if control_mode == "low_side_mosfet":
+        builder.add_power_pad(
+            "CTRL",
+            16.0,
+            107.3,
+            net=net_refs["CTRL"],
+            value="PWM / Switch Input",
+            reference_offset_mm=(-5.0, 0.0),
+        )
 
 
 def _add_power_rails(
@@ -292,9 +341,12 @@ def _add_power_rails(
     net_refs: dict[str, NetRef],
     strings: tuple[LedArtString, ...],
     pixel_by_index: dict[int, LedArtPixel],
+    *,
+    control_mode: ControlMode,
 ) -> None:
-    first_bus_x = 11.0
-    row_start_x = 7.0
+    first_bus_x = 18.0 if control_mode == "low_side_mosfet" else 11.0
+    return_rail_x = 15.0 if control_mode == "low_side_mosfet" else 7.0
+    return_net = net_refs[_return_net_name(control_mode)]
     vcc_taps_by_row: dict[float, set[float]] = {}
     gnd_taps_by_row: dict[float, set[float]] = {}
     for string in strings:
@@ -329,18 +381,28 @@ def _add_power_rails(
             width_mm=TRACE_WIDTH_MM,
             net=net_refs["VCC"],
         )
-    gnd_trunk_points = [
-        12.0,
-        *(row_y + ROW_POWER_OFFSET_MM for row_y in gnd_row_ys),
-    ]
-    for start_y, end_y in zip(gnd_trunk_points, gnd_trunk_points[1:], strict=False):
+    return_trunk_points = [row_y + ROW_POWER_OFFSET_MM for row_y in gnd_row_ys]
+    if control_mode == "none":
+        return_trunk_points.insert(0, 12.0)
+    else:
+        return_trunk_points.append(104.5)
+    for start_y, end_y in zip(return_trunk_points, return_trunk_points[1:], strict=False):
         builder.add_segment(
-            row_start_x,
+            return_rail_x,
             start_y,
-            row_start_x,
+            return_rail_x,
             end_y,
             width_mm=TRACE_WIDTH_MM,
-            net=net_refs["GND"],
+            net=return_net,
+        )
+    if control_mode == "low_side_mosfet":
+        builder.add_segment(
+            return_rail_x,
+            104.5,
+            30.0,
+            104.5,
+            width_mm=0.65,
+            net=return_net,
         )
     for row_y in row_ys:
         _add_bus_segments(
@@ -352,8 +414,8 @@ def _add_power_rails(
         _add_bus_segments(
             builder,
             y_mm=row_y + ROW_POWER_OFFSET_MM,
-            x_points=(row_start_x, *sorted(gnd_taps_by_row.get(row_y, ()))),
-            net=net_refs["GND"],
+            x_points=(return_rail_x, *sorted(gnd_taps_by_row.get(row_y, ()))),
+            net=return_net,
         )
 
 
@@ -416,6 +478,7 @@ def _add_led_string(
     net_refs: dict[str, NetRef],
     *,
     show_polarity_marks: bool,
+    return_net_name: str,
 ) -> None:
     first_pixel = pixels[0]
     builder.add_segment(
@@ -439,7 +502,7 @@ def _add_led_string(
         right_net = (
             net_refs[_branch_net_name(string.index, index + 1)]
             if index < len(pixels) - 1
-            else net_refs["GND"]
+            else net_refs[return_net_name]
         )
         _add_led(
             builder,
@@ -472,8 +535,71 @@ def _add_led_string(
                 pixel.gnd_tap_x,
                 pixel.y + ROW_POWER_OFFSET_MM,
                 width_mm=TRACE_WIDTH_MM,
-                net=net_refs["GND"],
+                net=net_refs[return_net_name],
             )
+
+
+def _add_low_side_mosfet_control(
+    builder: KiCadBoardBuilder,
+    net_refs: dict[str, NetRef],
+) -> None:
+    gate = net_refs["GATE"]
+    ctrl = net_refs["CTRL"]
+    gnd = net_refs["GND"]
+    load_neg = net_refs["LOAD_NEG"]
+
+    builder.add_three_pad_smd_footprint(
+        ThreePadSmdFootprintSpec(
+            footprint="PCBSmith_NMOS_POWER_REAL",
+            reference="Q1",
+            value="Logic N-MOSFET",
+            x_mm=30.0,
+            y_mm=106.0,
+            reference_offset_mm=(0.0, -4.0),
+            body_width_mm=5.0,
+            body_height_mm=4.0,
+            pads=(
+                ("G", -2.0, 1.3, 1.2, 1.4, gate),
+                ("S", 2.0, 1.3, 1.4, 1.4, gnd),
+                ("D", 0.0, -1.5, 3.0, 1.7, load_neg),
+            ),
+        )
+    )
+    builder.add_two_pad_smd_footprint(
+        TwoPadSmdFootprintSpec(
+            footprint="PCBSmith_R_0603_REAL",
+            reference="RCTRL",
+            value="100R",
+            x_mm=23.0,
+            y_mm=107.3,
+            left_net=ctrl,
+            right_net=gate,
+            reference_offset_mm=(0.0, -2.0),
+        )
+    )
+    builder.add_two_pad_smd_footprint(
+        TwoPadSmdFootprintSpec(
+            footprint="PCBSmith_R_0603_REAL",
+            reference="RPD",
+            value="100K",
+            x_mm=30.0,
+            y_mm=113.0,
+            left_net=gate,
+            right_net=gnd,
+            reference_offset_mm=(0.0, 2.2),
+        )
+    )
+
+    builder.add_segment(28.0, 107.3, 23.75, 107.3, width_mm=0.3, net=gate)
+    builder.add_segment(28.0, 107.3, 28.0, 113.0, width_mm=0.3, net=gate)
+    builder.add_segment(28.0, 113.0, 29.25, 113.0, width_mm=0.3, net=gate)
+    builder.add_segment(16.0, 107.3, 22.25, 107.3, width_mm=0.3, net=ctrl)
+    builder.add_segment(7.0, 12.0, 7.0, 116.0, width_mm=0.65, net=gnd)
+    builder.add_segment(7.0, 116.0, 32.0, 116.0, width_mm=0.65, net=gnd)
+    builder.add_segment(30.75, 113.0, 30.75, 116.0, width_mm=0.65, net=gnd)
+    builder.add_segment(32.0, 107.3, 32.0, 116.0, width_mm=0.65, net=gnd)
+    builder.add_text("CTRL/PWM", 15.0, 103.0, size_mm=1.0)
+    builder.add_text("LOW-SIDE SWITCH", 32.0, 100.0, size_mm=0.9)
 
 
 def _add_resistor(
@@ -535,6 +661,12 @@ def _branch_net_names(string: LedArtString) -> tuple[str, ...]:
 
 def _branch_net_name(string_index: int, node_index: int) -> str:
     return f"STR{string_index}_{node_index}"
+
+
+def _return_net_name(control_mode: ControlMode) -> str:
+    if control_mode == "low_side_mosfet":
+        return "LOAD_NEG"
+    return "GND"
 
 
 def _route_between_pads(
