@@ -19,6 +19,9 @@ def _library_index() -> dict[str, object]:
             {"id": "Device:C"},
             {"id": "Device:LED"},
             {"id": "Device:D"},
+            {"id": "Device:D_Zener"},
+            {"id": "Device:Fuse"},
+            {"id": "Device:L"},
             {"id": "power:VCC"},
             {"id": "power:GND"},
         ],
@@ -27,6 +30,8 @@ def _library_index() -> dict[str, object]:
             {"id": "Capacitor_SMD:C_0603_1608Metric"},
             {"id": "LED_SMD:LED_0603_1608Metric"},
             {"id": "Diode_SMD:D_0603_1608Metric"},
+            {"id": "Inductor_SMD:L_0603_1608Metric"},
+            {"id": "Fuse:Fuse_0603_1608Metric"},
         ],
     }
 
@@ -37,9 +42,15 @@ def test_build_component_knowledge_index_summarizes_core_supported_parts() -> No
     assert index["schema"] == COMPONENT_KNOWLEDGE_INDEX_SCHEMA
     assert index["source_catalog"] == "builtin"
     assert index["coverage_summary"] == {
-        "well_supported": 6,
-        "metadata_only": 3,
+        "well_supported": 9,
+        "metadata_only": 10,
         "needs_datasheet_review": 0,
+    }
+    assert index["mounting_summary"] == {
+        "smd": 10,
+        "through-hole": 7,
+        "virtual": 2,
+        "unspecified": 0,
     }
 
     entries = {entry["entry_id"]: entry for entry in index["tier1_core"]}
@@ -50,6 +61,8 @@ def test_build_component_knowledge_index_summarizes_core_supported_parts() -> No
         "variant_name": "Resistor 0603",
         "package": "0603",
         "mounting": "smd",
+        "mounting_style": "smd",
+        "preferred_mounting": True,
         "default_value": "10k",
         "tags": ["basic", "passive", "resistor", "smd", "0603"],
         "aliases": ["r", "chip-resistor", "res-0603"],
@@ -62,6 +75,9 @@ def test_build_component_knowledge_index_summarizes_core_supported_parts() -> No
     }
     assert entries["pcbs:push_button_th"]["support_status"] == "metadata_only"
     assert entries["pcbs:vcc_power"]["support_notes"] == ["KiCad symbol found"]
+    assert entries["pcbs:potentiometer_3pin_smd"]["mounting_style"] == "smd"
+    assert entries["pcbs:potentiometer_3pin_th"]["mounting_style"] == "through-hole"
+    assert entries["pcbs:relay_spdt_th"]["support_status"] == "metadata_only"
 
 
 def test_build_component_knowledge_index_groups_entries_by_family() -> None:
@@ -114,7 +130,8 @@ def test_write_component_knowledge_index_and_format_summary(tmp_path: Path) -> N
     assert json.loads(output_path.read_text(encoding="utf-8")) == index
     assert format_component_knowledge_index_summary(index, output_path=output_path) == [
         f"Wrote component knowledge index to {output_path}",
-        "Tier 1 entries: 9",
-        "Families: 8",
-        "Coverage: well_supported=6, metadata_only=3, needs_datasheet_review=0",
+        "Tier 1 entries: 19",
+        "Families: 17",
+        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=0",
+        "Mounting: smd=10, through-hole=7, virtual=2, unspecified=0",
     ]

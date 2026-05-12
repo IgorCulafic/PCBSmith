@@ -14,12 +14,21 @@ _PREFIX_BY_SYMBOL = {
     "stdlib:R": "R",
     "stdlib:C": "C",
     "stdlib:D": "D",
+    "stdlib:D_ZENER": "D",
+    "stdlib:L": "L",
+    "stdlib:FUSE": "F",
+    "stdlib:LDR": "R",
     "stdlib:LED": "LED",
     "stdlib:SW_PUSH": "SW",
     "stdlib:SW_SPST": "SW",
     "stdlib:VCC": "PWR",
     "stdlib:GND": "PWR",
     "stdlib:CONN_01X02": "J",
+    "stdlib:POT": "RV",
+    "stdlib:NMOS": "Q",
+    "stdlib:NE555": "U",
+    "stdlib:RELAY_SPDT": "K",
+    "stdlib:TRANSFORMER": "T",
 }
 
 

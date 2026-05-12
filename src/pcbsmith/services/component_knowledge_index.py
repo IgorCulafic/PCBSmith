@@ -36,6 +36,7 @@ def build_component_knowledge_index(
     ]
     families = _family_summaries(entries)
     coverage = _support_status_counts(entries)
+    mounting = _mounting_counts(entries)
     return {
         "schema": COMPONENT_KNOWLEDGE_INDEX_SCHEMA,
         "source_catalog": "builtin",
@@ -45,6 +46,7 @@ def build_component_knowledge_index(
         "tier1_core": entries,
         "families": families,
         "coverage_summary": coverage,
+        "mounting_summary": mounting,
     }
 
 
@@ -82,6 +84,11 @@ def format_component_knowledge_index_summary(
         f"well_supported={coverage['well_supported']}, "
         f"metadata_only={coverage['metadata_only']}, "
         f"needs_datasheet_review={coverage['needs_datasheet_review']}",
+        "Mounting: "
+        f"smd={index['mounting_summary']['smd']}, "
+        f"through-hole={index['mounting_summary']['through-hole']}, "
+        f"virtual={index['mounting_summary']['virtual']}, "
+        f"unspecified={index['mounting_summary']['unspecified']}",
     ]
 
 
@@ -97,6 +104,8 @@ def _knowledge_entry(
         "variant_name": entry.variant.name,
         "package": entry.variant.package,
         "mounting": entry.variant.mounting,
+        "mounting_style": entry.variant.mounting or "unspecified",
+        "preferred_mounting": entry.variant.mounting == "smd",
         "default_value": entry.variant.default_value,
         "tags": list(entry.tags),
         "aliases": list(entry.aliases),
@@ -171,6 +180,16 @@ def _family_summaries(entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
 def _support_status_counts(entries: list[dict[str, Any]]) -> dict[str, int]:
     counter = Counter(entry["support_status"] for entry in entries)
     return {status: counter[status] for status in _SUPPORT_STATUSES}
+
+
+def _mounting_counts(entries: list[dict[str, Any]]) -> dict[str, int]:
+    counter = Counter(entry["mounting_style"] for entry in entries)
+    return {
+        "smd": counter["smd"],
+        "through-hole": counter["through-hole"],
+        "virtual": counter["virtual"],
+        "unspecified": counter["unspecified"],
+    }
 
 
 def _sorted_non_null_values(values: Iterable[object]) -> list[str]:
