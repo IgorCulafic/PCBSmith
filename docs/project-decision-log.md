@@ -42,6 +42,10 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
   AI to repair a proposal. The model should revise against structured plan,
   KiCad, preview, manufacturability, and circuit-rule items instead of reading
   disconnected logs.
+- Every generated review surface should publish the same revision-brief shape.
+  KiCad review bundles, AI proposal bundles, and structured design operations
+  should all write `revision-brief.json`; visual/multimodal findings belong in
+  that brief as advisory items unless a deterministic checker confirms them.
 
 ## Parametric Board Features
 

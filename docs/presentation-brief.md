@@ -48,7 +48,8 @@ The corrected architecture is KiCad-first:
   - laser-oriented front-copper SVG;
   - Gerbers;
   - drill files;
-  - AI context JSON.
+  - AI context JSON;
+  - revision brief JSON.
 
 ## Recent Technical Milestone
 
@@ -76,6 +77,8 @@ PCBSmith treats AI-generated work as a proposal until validated and approved.
 - The AI proposes structured operations.
 - PCBSmith checks symbols, footprints, nets, routing assumptions, and design rules.
 - KiCad verifies ERC/DRC.
+- PCBSmith writes a machine-readable `revision-brief.json` for generated review
+  bundles and proposal bundles.
 - The user reviews generated visual and manufacturing artifacts.
 - Only approved changes should be applied.
 - Optional multimodal review can later inspect generated visuals for issues

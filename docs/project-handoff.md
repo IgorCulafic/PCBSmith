@@ -58,9 +58,11 @@ the model operate PCBSmith tools that know PCB constraints.
   AI-tool contract. The first supported intents are LED current limiting,
   voltage dividers, RC filters, NE555 astable/PWM assumptions, MOSFET low-side
   switching, and power entry.
-- AI proposal bundles now include a top-level `revision-brief.json` that merges
-  plan validation, KiCad validation, preview export, manufacturability, and
-  circuit-rule findings into one machine-readable revision queue.
+- KiCad review bundles, AI proposal bundles, and `design-led-art` operations
+  now write `revision-brief.json`. The brief merges plan validation where
+  available, KiCad validation, preview export, manufacturability, circuit-rule
+  findings, and advisory visual-review placeholders into one machine-readable
+  revision queue.
 - Roadmap now separates silkscreen/artwork requests from physical board-outline
   requests. Logos/text/labels go to `F.SilkS` or `B.SilkS`; custom board shapes,
   cutouts, and edge connector geometry go to `Edge.Cuts`.
@@ -141,6 +143,9 @@ Generate a KiCad review bundle:
 .\.venv\Scripts\python.exe -m pcbsmith.cli kicad-review-bundle <source-project> <output-dir>
 ```
 
+The review bundle writes `<output-dir>\revision-brief.json` beside the KiCad
+project and `ai-context.json`.
+
 Generate an AI proposal bundle with a revision brief:
 
 ```powershell
@@ -148,7 +153,8 @@ Generate an AI proposal bundle with a revision brief:
 ```
 
 The top-level `<output-dir>\revision-brief.json` is the AI-facing "fix these
-before approval" artifact for the proposal.
+before approval" artifact for the proposal. The nested KiCad review bundle also
+writes its own `<output-dir>\kicad-review\revision-brief.json`.
 
 Generate a structured LED-art review bundle:
 
@@ -158,7 +164,8 @@ Generate a structured LED-art review bundle:
 
 The generated `.pcbsmith/operation.json` is the AI-facing contract for this
 operation. It records the request, output files, check status, and centralized
-board-routing rules from `pcbsmith.services.board_intelligence`.
+board-routing rules from `pcbsmith.services.board_intelligence`. The generated
+review directory also includes `revision-brief.json`.
 
 Generate and query component knowledge:
 

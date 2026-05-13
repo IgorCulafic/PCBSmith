@@ -15,6 +15,12 @@ from pcbsmith.services.kicad_export import KiCadExportResult, export_pcbs_projec
 from pcbsmith.services.kicad_preview import KiCadPreviewReport, run_kicad_preview
 from pcbsmith.services.kicad_validate import KiCadValidationReport, run_kicad_validation
 from pcbsmith.services.project_io import load_board, load_project
+from pcbsmith.services.revision_brief import (
+    RevisionBrief,
+    build_revision_brief,
+    format_revision_brief,
+    write_revision_brief,
+)
 
 
 class KiCadReviewBundleResult(BaseModel):
@@ -23,11 +29,13 @@ class KiCadReviewBundleResult(BaseModel):
     source_project_dir: Path
     output_project_dir: Path
     context_file: Path
+    revision_brief_file: Path
     manufacturability_report_file: Path
     export_result: object
     validation_report: KiCadValidationReport
     preview_report: KiCadPreviewReport
     manufacturability_report: BoardManufacturabilityReport
+    revision_brief: RevisionBrief
     exit_code: int
 
 
@@ -65,16 +73,25 @@ def run_kicad_review_bundle(
         context_file,
         kicad_project_dir=output_project_dir,
     )
+    revision_brief = build_revision_brief(
+        validation_report=validation_report,
+        preview_report=preview_report,
+        manufacturability_report=manufacturability_report,
+    )
+    revision_brief_file = output_project_dir / "revision-brief.json"
+    write_revision_brief(revision_brief, revision_brief_file)
 
     return KiCadReviewBundleResult(
         source_project_dir=source_project_dir,
         output_project_dir=output_project_dir,
         context_file=context_file,
+        revision_brief_file=revision_brief_file,
         manufacturability_report_file=manufacturability_report_file,
         export_result=export_result,
         validation_report=validation_report,
         preview_report=preview_report,
         manufacturability_report=manufacturability_report,
+        revision_brief=revision_brief,
         exit_code=max(
             validation_report.exit_code,
             preview_report.exit_code,
@@ -91,6 +108,8 @@ def format_kicad_review_bundle_result(result: KiCadReviewBundleResult) -> list[s
         f"Preview: {_preview_status(result.preview_report)}",
         f"Board manufacturability: {_manufacturability_status(result.manufacturability_report)}",
         f"AI context: {result.context_file}",
+        f"Revision brief: {result.revision_brief_file}",
+        *format_revision_brief(result.revision_brief),
     ]
 
 

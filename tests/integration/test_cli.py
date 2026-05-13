@@ -527,12 +527,17 @@ def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) 
         "Preview: skipped",
         "Board manufacturability: passed",
         f"AI context: {output_project / 'ai-context.json'}",
+        f"Revision brief: {output_project / 'revision-brief.json'}",
+        "Revision brief: passed (0 items)",
+        "Visual review: not_run (advisory)",
+        "No revision items found.",
     ]
     assert (output_project / "Voltage_Divider.kicad_pro").exists()
     assert (output_project / "ai-context.json").exists()
     assert (
         output_project / ".pcbsmith" / "board-reports" / "manufacturability.json"
     ).exists()
+    assert (output_project / "revision-brief.json").exists()
 
 
 def test_kicad_new_creates_kicad_project_skeleton(tmp_path: Path) -> None:
@@ -1054,8 +1059,13 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
         "Preview: skipped",
         "Board manufacturability: passed",
         f"AI context: {output_dir / 'kicad-review' / 'ai-context.json'}",
+        f"Revision brief: {output_dir / 'kicad-review' / 'revision-brief.json'}",
+        "Revision brief: passed (0 items)",
+        "Visual review: not_run (advisory)",
+        "No revision items found.",
         f"Revision brief: {output_dir / 'revision-brief.json'}",
         "Revision brief: passed (0 items)",
+        "Visual review: not_run (advisory)",
         "No revision items found.",
     ]
     original_text = (project_dir / "schematics" / "main.sch.json").read_text(
@@ -1067,6 +1077,7 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
     assert '"reference": "R1"' not in original_text
     assert '"reference": "R1"' in staged_text
     assert (output_dir / "kicad-review" / "Proposal_Demo.kicad_pro").exists()
+    assert (output_dir / "kicad-review" / "revision-brief.json").exists()
     assert (output_dir / "revision-brief.json").exists()
 
 
@@ -1094,11 +1105,15 @@ def test_design_led_art_writes_structured_review_bundle(tmp_path: Path) -> None:
         f"Review bundle: {output_dir}",
         f"KiCad board: {output_dir / 'AI_VIR_LAB.kicad_pcb'}",
         f"Operation summary: {output_dir / '.pcbsmith' / 'operation.json'}",
+        f"Revision brief: {output_dir / 'revision-brief.json'}",
         "Validation: skipped",
         "Preview: skipped",
+        "Revision brief status: passed",
     ]
     assert (output_dir / "AI_VIR_LAB.kicad_pcb").exists()
     summary = json.loads(
         (output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8")
     )
     assert summary["request"]["control_mode"] == "low_side_mosfet"
+    assert summary["checks"]["revision_brief"] == "passed"
+    assert (output_dir / "revision-brief.json").exists()
