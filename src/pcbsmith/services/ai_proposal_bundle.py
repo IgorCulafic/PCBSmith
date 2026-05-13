@@ -12,6 +12,12 @@ from pcbsmith.services.kicad_review_bundle import (
     format_kicad_review_bundle_result,
     run_kicad_review_bundle,
 )
+from pcbsmith.services.revision_brief import (
+    RevisionBrief,
+    build_revision_brief,
+    format_revision_brief,
+    write_revision_brief,
+)
 
 
 class AIProposalBundleResult(BaseModel):
@@ -20,6 +26,8 @@ class AIProposalBundleResult(BaseModel):
     output_dir: Path
     staged_project_dir: Path
     kicad_review_dir: Path
+    revision_brief_file: Path
+    revision_brief: RevisionBrief
     review_bundle: KiCadReviewBundleResult
     lines: tuple[str, ...]
     exit_code: int
@@ -58,6 +66,14 @@ def run_ai_proposal_bundle(
         kicad_review_dir,
         execute_kicad=execute_kicad,
     )
+    revision_brief = build_revision_brief(
+        plan_check=check_result,
+        validation_report=review_bundle.validation_report,
+        preview_report=review_bundle.preview_report,
+        manufacturability_report=review_bundle.manufacturability_report,
+    )
+    revision_brief_file = output_dir / "revision-brief.json"
+    write_revision_brief(revision_brief, revision_brief_file)
 
     lines = (
         f"AI proposal bundle: {output_dir}",
@@ -65,11 +81,15 @@ def run_ai_proposal_bundle(
         *check_result.lines,
         "Applied candidate plan to staged copy only.",
         *format_kicad_review_bundle_result(review_bundle),
+        f"Revision brief: {revision_brief_file}",
+        *format_revision_brief(revision_brief),
     )
     return AIProposalBundleResult(
         output_dir=output_dir,
         staged_project_dir=staged_project_dir,
         kicad_review_dir=kicad_review_dir,
+        revision_brief_file=revision_brief_file,
+        revision_brief=revision_brief,
         review_bundle=review_bundle,
         lines=lines,
         exit_code=review_bundle.exit_code,

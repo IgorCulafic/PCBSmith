@@ -143,6 +143,13 @@ turns vague ideas into structured warnings, errors, and calculated values.
 - Keep visual previews, machine-readable reports, and fabrication outputs in one
   review bundle.
 
+The first R5 slice is implemented as `revision-brief.json` in AI proposal
+bundles. It combines AI plan validation, KiCad ERC/DRC status, preview export
+errors, board manufacturability findings, and circuit-rule findings into one
+machine-readable list of revision items with concrete next actions. This gives
+hosted or local models a constrained "fix these issues next" target instead of
+asking them to infer problems from scattered logs.
+
 ## R6: Bigger Real Demos
 
 - ATtiny or Arduino-style LED controller with programming header and IO labels.
@@ -223,3 +230,9 @@ AI context and planner packages now include this selection contract directly.
 That means a local model can see the supported engineering intents during plan
 generation, while the actual candidate lookup remains a PCBSmith tool call over
 the component knowledge index.
+
+AI proposal bundles now write a top-level `revision-brief.json` beside the
+staged project and KiCad review bundle. The brief is the first R5 review loop
+artifact: it summarizes plan-check, KiCad, preview, manufacturability, and
+circuit-rule findings into a single revision queue that an AI can revise against
+before the user approves any generated edits.

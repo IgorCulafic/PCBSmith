@@ -76,10 +76,13 @@ def test_ai_proposal_bundle_applies_plan_to_staged_copy_only(tmp_path: Path) -> 
     assert result.exit_code == 0
     assert result.staged_project_dir == output_dir / "pcbs-project"
     assert result.kicad_review_dir == output_dir / "kicad-review"
+    assert result.revision_brief_file == output_dir / "revision-brief.json"
+    assert result.revision_brief.status == "passed"
     assert len(original.symbols) == 0
     assert len(staged.symbols) == 1
     assert staged.symbols[0].reference == "R1"
     assert (output_dir / "kicad-review" / "Proposal_Demo.kicad_pro").exists()
+    assert (output_dir / "revision-brief.json").exists()
     assert result.lines[:5] == (
         f"AI proposal bundle: {output_dir}",
         f"Staged PCBSmith project: {output_dir / 'pcbs-project'}",
