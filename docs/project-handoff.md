@@ -56,6 +56,9 @@ the model operate PCBSmith tools that know PCB constraints.
   AI-tool contract. The first supported intents are LED current limiting,
   voltage dividers, RC filters, NE555 astable/PWM assumptions, MOSFET low-side
   switching, and power entry.
+- AI proposal bundles now include a top-level `revision-brief.json` that merges
+  plan validation, KiCad validation, preview export, manufacturability, and
+  circuit-rule findings into one machine-readable revision queue.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
@@ -131,6 +134,15 @@ Generate a KiCad review bundle:
 ```powershell
 .\.venv\Scripts\python.exe -m pcbsmith.cli kicad-review-bundle <source-project> <output-dir>
 ```
+
+Generate an AI proposal bundle with a revision brief:
+
+```powershell
+.\.venv\Scripts\python.exe -m pcbsmith.cli ai-proposal-bundle <source-project> <planner-package.json> <candidate-plan.json> <output-dir>
+```
+
+The top-level `<output-dir>\revision-brief.json` is the AI-facing "fix these
+before approval" artifact for the proposal.
 
 Generate a structured LED-art review bundle:
 

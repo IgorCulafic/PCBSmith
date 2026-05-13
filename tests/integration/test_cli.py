@@ -1054,6 +1054,9 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
         "Preview: skipped",
         "Board manufacturability: passed",
         f"AI context: {output_dir / 'kicad-review' / 'ai-context.json'}",
+        f"Revision brief: {output_dir / 'revision-brief.json'}",
+        "Revision brief: passed (0 items)",
+        "No revision items found.",
     ]
     original_text = (project_dir / "schematics" / "main.sch.json").read_text(
         encoding="utf-8"
@@ -1064,6 +1067,7 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
     assert '"reference": "R1"' not in original_text
     assert '"reference": "R1"' in staged_text
     assert (output_dir / "kicad-review" / "Proposal_Demo.kicad_pro").exists()
+    assert (output_dir / "revision-brief.json").exists()
 
 
 def test_design_led_art_writes_structured_review_bundle(tmp_path: Path) -> None:

@@ -38,6 +38,10 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - Circuit knowledge should be explicit, parameterized, and model-callable.
   Early rules should produce calculations plus warnings/errors for supported
   circuit intents, while KiCad ERC/DRC remains the fabrication gate.
+- Review findings should be normalized into one revision brief before asking an
+  AI to repair a proposal. The model should revise against structured plan,
+  KiCad, preview, manufacturability, and circuit-rule items instead of reading
+  disconnected logs.
 
 ## Parametric Board Features
 
