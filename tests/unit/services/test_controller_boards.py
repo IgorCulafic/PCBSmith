@@ -53,6 +53,24 @@ def test_attiny_led_controller_board_prefers_cardinal_or_45_degree_routing() -> 
     assert off_style_segments == []
 
 
+def test_attiny_led_controller_board_fans_vias_outside_smd_pads() -> None:
+    board_text = render_attiny_led_controller_board(AttinyLedControllerSpec())
+    via_positions = set(_board_vias(board_text))
+    solder_pad_centers = {
+        (22.0, 24.0),
+        (30.75, 23.0),
+        (31.0, 33.0),
+        (39.0, 27.0),
+        (39.0, 30.81),
+        (47.0, 29.54),
+        (47.0, 30.81),
+        (56.0, 14.0),
+        (56.0, 33.0),
+    }
+
+    assert via_positions.isdisjoint(solder_pad_centers)
+
+
 def _board_segments(board_text: str) -> list[tuple[tuple[float, float], tuple[float, float]]]:
     segment_pattern = re.compile(
         r"\(segment\s+"
@@ -66,4 +84,16 @@ def _board_segments(board_text: str) -> list[tuple[tuple[float, float], tuple[fl
             (float(match.group("end_x")), float(match.group("end_y"))),
         )
         for match in segment_pattern.finditer(board_text)
+    ]
+
+
+def _board_vias(board_text: str) -> list[tuple[float, float]]:
+    via_pattern = re.compile(
+        r"\(via\s+"
+        r"\(at (?P<x>-?\d+(?:\.\d+)?) (?P<y>-?\d+(?:\.\d+)?)\)",
+        re.MULTILINE,
+    )
+    return [
+        (float(match.group("x")), float(match.group("y")))
+        for match in via_pattern.finditer(board_text)
     ]

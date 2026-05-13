@@ -64,6 +64,8 @@ def test_board_routing_rules_summary_is_ai_facing_best_practice_contract() -> No
         "notes": [
             "Prefer cardinal or 45-degree trace segments when practical.",
             "Avoid very sharp trace turns; DRC and manufacturability checks win over style.",
+            "Avoid via-in-pad on SMD pads unless an advanced fabrication profile "
+            "explicitly allows it.",
         ],
     }
 
@@ -72,6 +74,7 @@ def test_ai_planner_routing_rule_notes_share_the_same_routing_contract() -> None
     assert ai_planner_routing_rule_notes() == [
         "Prefer 45-degree/mitered PCB routing for CAD polish when practical.",
         "Do not treat 45-degree routing as an electrical hard rule; DRC wins.",
+        "Use fanout vias beside SMD pads; via-in-pad requires explicit fabrication support.",
     ]
 
 

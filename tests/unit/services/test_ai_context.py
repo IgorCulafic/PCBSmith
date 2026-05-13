@@ -148,6 +148,8 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
             "notes": [
                 "Prefer cardinal or 45-degree trace segments when practical.",
                 "Avoid very sharp trace turns; DRC and manufacturability checks win over style.",
+                "Avoid via-in-pad on SMD pads unless an advanced fabrication profile "
+                "explicitly allows it.",
             ],
         },
         "board_layers": [
