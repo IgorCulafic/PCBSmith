@@ -1117,3 +1117,32 @@ def test_design_led_art_writes_structured_review_bundle(tmp_path: Path) -> None:
     assert summary["request"]["control_mode"] == "low_side_mosfet"
     assert summary["checks"]["revision_brief"] == "passed"
     assert (output_dir / "revision-brief.json").exists()
+
+
+def test_design_attiny_led_controller_writes_structured_review_bundle(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "attiny-review"
+
+    result = _run_cli(
+        "design-attiny-led-controller",
+        str(output_dir),
+        "--name",
+        "R6 ATtiny Controller",
+        "--skip-execution",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Design operation: attiny_led_controller",
+        f"Review bundle: {output_dir}",
+        f"KiCad board: {output_dir / 'R6_ATtiny_Controller.kicad_pcb'}",
+        f"Operation summary: {output_dir / '.pcbsmith' / 'operation.json'}",
+        f"Revision brief: {output_dir / 'revision-brief.json'}",
+        "Validation: skipped",
+        "Preview: skipped",
+        "Revision brief status: passed",
+    ]
+    assert (output_dir / "R6_ATtiny_Controller.kicad_pcb").exists()
+    assert (output_dir / "revision-brief.json").exists()

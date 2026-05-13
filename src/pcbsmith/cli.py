@@ -42,8 +42,10 @@ from pcbsmith.services.component_selection import (
     select_components_for_intent_file,
 )
 from pcbsmith.services.design_operations import (
+    AttinyLedControllerDesignRequest,
     LedArtDesignRequest,
     format_design_operation_result,
+    generate_attiny_led_controller_design,
     generate_led_art_design,
 )
 from pcbsmith.services.erc import run_erc
@@ -444,6 +446,25 @@ def _cmd_design_led_art(args: argparse.Namespace) -> int:
         show_polarity_marks=not args.no_polarity_marks,
     )
     result = generate_led_art_design(
+        request,
+        Path(args.output_project),
+        execute_kicad=not args.skip_execution,
+        overwrite=args.overwrite,
+    )
+    for line in format_design_operation_result(result):
+        print(line)
+    return result.exit_code
+
+
+def _cmd_design_attiny_led_controller(args: argparse.Namespace) -> int:
+    request = AttinyLedControllerDesignRequest(
+        name=args.name,
+        controller=args.controller,
+        led_outputs=args.led_outputs,
+        led_resistor_value=args.led_resistor,
+        show_polarity_marks=not args.no_polarity_marks,
+    )
+    result = generate_attiny_led_controller_design(
         request,
         Path(args.output_project),
         execute_kicad=not args.skip_execution,
@@ -866,6 +887,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="replace an existing output directory",
     )
     design_led_art_parser.set_defaults(func=_cmd_design_led_art)
+
+    design_attiny_parser = subparsers.add_parser(
+        "design-attiny-led-controller",
+        help="generate an ATtiny-style LED controller KiCad review bundle",
+    )
+    design_attiny_parser.add_argument("output_project")
+    design_attiny_parser.add_argument("--name", default="ATtiny LED Controller")
+    design_attiny_parser.add_argument("--controller", default="ATtiny84")
+    design_attiny_parser.add_argument("--led-outputs", type=int, choices=(1, 2), default=2)
+    design_attiny_parser.add_argument("--led-resistor", default="330R")
+    design_attiny_parser.add_argument(
+        "--no-polarity-marks",
+        action="store_true",
+        help="omit educational LED anode + marks from the board silkscreen",
+    )
+    design_attiny_parser.add_argument(
+        "--skip-execution",
+        action="store_true",
+        help="write KiCad files and reports without running KiCad validation or preview exports",
+    )
+    design_attiny_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing output directory",
+    )
+    design_attiny_parser.set_defaults(func=_cmd_design_attiny_led_controller)
 
     return parser
 
