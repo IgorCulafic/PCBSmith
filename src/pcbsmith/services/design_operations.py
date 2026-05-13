@@ -34,6 +34,11 @@ from pcbsmith.services.led_art_board import (
     led_art_physical_branch_summary,
     render_led_art_board,
 )
+from pcbsmith.services.revision_brief import (
+    RevisionBrief,
+    build_revision_brief,
+    write_revision_brief,
+)
 
 LedArtTopology = Literal["5v_one_per_led", "5v_two_led_dense", "12v_dense"]
 
@@ -58,6 +63,8 @@ class DesignOperationResult(BaseModel):
     schematic_file: Path
     board_file: Path
     operation_summary_file: Path
+    revision_brief_file: Path
+    revision_brief: RevisionBrief
     validation_status: str
     preview_status: str
     exit_code: int
@@ -107,6 +114,12 @@ def generate_led_art_design(
         preview = run_kicad_preview(project_dir)
         validation_status = "passed" if validation.exit_code == 0 else "failed"
         preview_status = "exported" if preview.exit_code == 0 else "failed"
+    revision_brief = build_revision_brief(
+        validation_report=validation,
+        preview_report=preview,
+    )
+    revision_brief_file = project_dir / "revision-brief.json"
+    write_revision_brief(revision_brief, revision_brief_file)
 
     operation_summary_file = project_dir / ".pcbsmith" / "operation.json"
     operation_summary_file.parent.mkdir(parents=True, exist_ok=True)
@@ -120,8 +133,10 @@ def generate_led_art_design(
                 project_file=project_file,
                 schematic_file=schematic_file,
                 board_file=board_file,
+                revision_brief_file=revision_brief_file,
                 validation_status=validation_status,
                 preview_status=preview_status,
+                revision_brief_status=revision_brief.status,
             ),
             indent=2,
         )
@@ -142,6 +157,8 @@ def generate_led_art_design(
         schematic_file=schematic_file,
         board_file=board_file,
         operation_summary_file=operation_summary_file,
+        revision_brief_file=revision_brief_file,
+        revision_brief=revision_brief,
         validation_status=validation_status,
         preview_status=preview_status,
         exit_code=exit_code,
@@ -154,8 +171,10 @@ def format_design_operation_result(result: DesignOperationResult) -> list[str]:
         f"Review bundle: {result.project_dir}",
         f"KiCad board: {result.board_file}",
         f"Operation summary: {result.operation_summary_file}",
+        f"Revision brief: {result.revision_brief_file}",
         f"Validation: {result.validation_status}",
         f"Preview: {result.preview_status}",
+        f"Revision brief status: {result.revision_brief.status}",
     ]
 
 
@@ -205,8 +224,10 @@ def _operation_summary(
     project_file: Path,
     schematic_file: Path,
     board_file: Path,
+    revision_brief_file: Path,
     validation_status: str,
     preview_status: str,
+    revision_brief_status: str,
 ) -> dict[str, object]:
     return {
         "schema": "pcbsmith-design-operation-v1",
@@ -225,12 +246,14 @@ def _operation_summary(
             "project_file": _relative_output(project_dir, project_file),
             "schematic_file": _relative_output(project_dir, schematic_file),
             "board_file": _relative_output(project_dir, board_file),
+            "revision_brief_file": _relative_output(project_dir, revision_brief_file),
             "reports_dir": ".pcbsmith/reports",
         },
         "routing_rules": board_routing_rules_summary(),
         "checks": {
             "validation": validation_status,
             "preview": preview_status,
+            "revision_brief": revision_brief_status,
         },
     }
 

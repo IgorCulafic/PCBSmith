@@ -106,9 +106,12 @@ def test_review_bundle_runs_export_validation_preview_and_context(
 
     assert result.exit_code == 0
     assert result.context_file == output_project / "ai-context.json"
+    assert result.revision_brief_file == output_project / "revision-brief.json"
     assert result.manufacturability_report_file == (
         output_project / ".pcbsmith" / "board-reports" / "manufacturability.json"
     )
+    assert result.revision_brief.status == "passed"
+    assert result.revision_brief_file.exists()
     assert calls == [
         ("export", (source_project, output_project, "Review Demo")),
         ("validate", (output_project, True)),
@@ -129,6 +132,10 @@ def test_review_bundle_runs_export_validation_preview_and_context(
         "Preview: exported",
         "Board manufacturability: passed",
         f"AI context: {output_project / 'ai-context.json'}",
+        f"Revision brief: {output_project / 'revision-brief.json'}",
+        "Revision brief: passed (0 items)",
+        "Visual review: not_run (advisory)",
+        "No revision items found.",
     ]
 
 

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
@@ -28,6 +29,7 @@ REVISION_NEXT_ACTIONS = (
 class RevisionSeverity(StrEnum):
     ERROR = "error"
     WARNING = "warning"
+    ADVISORY = "advisory"
 
 
 @dataclass(frozen=True)
@@ -51,10 +53,19 @@ class RevisionBriefItem:
 @dataclass(frozen=True)
 class RevisionBrief:
     items: tuple[RevisionBriefItem, ...]
+    visual_review_status: str = "not_run"
+    visual_review_message: str = "No multimodal visual review has been attached."
 
     @property
     def status(self) -> str:
-        return "needs_revision" if self.items else "passed"
+        if any(
+            item.severity in {RevisionSeverity.ERROR, RevisionSeverity.WARNING}
+            for item in self.items
+        ):
+            return "needs_revision"
+        if self.items:
+            return "passed_with_advisories"
+        return "passed"
 
     def to_data(self) -> dict[str, Any]:
         error_count = sum(
@@ -63,16 +74,29 @@ class RevisionBrief:
         warning_count = sum(
             1 for item in self.items if item.severity is RevisionSeverity.WARNING
         )
+        advisory_count = sum(
+            1 for item in self.items if item.severity is RevisionSeverity.ADVISORY
+        )
         return {
             "schema": REVISION_BRIEF_SCHEMA,
             "status": self.status,
+            "visual_review": {
+                "status": self.visual_review_status,
+                "authority": "advisory",
+                "message": self.visual_review_message,
+            },
             "summary": {
                 "item_count": len(self.items),
                 "error_count": error_count,
                 "warning_count": warning_count,
+                "advisory_count": advisory_count,
             },
             "items": [item.to_data() for item in self.items],
-            "next_actions": list(REVISION_NEXT_ACTIONS) if self.items else [],
+            "next_actions": (
+                list(REVISION_NEXT_ACTIONS)
+                if error_count > 0 or warning_count > 0
+                else []
+            ),
         }
 
 
@@ -83,6 +107,9 @@ def build_revision_brief(
     preview_report: KiCadPreviewReport | None = None,
     manufacturability_report: BoardManufacturabilityReport | None = None,
     circuit_rule_reports: tuple[CircuitRuleReport, ...] = (),
+    visual_review_status: str = "not_run",
+    visual_review_message: str = "No multimodal visual review has been attached.",
+    visual_review_items: tuple[Mapping[str, str], ...] = (),
 ) -> RevisionBrief:
     items: list[RevisionBriefItem] = []
     if plan_check is not None:
@@ -95,12 +122,18 @@ def build_revision_brief(
         items.extend(_manufacturability_items(manufacturability_report))
     for report in circuit_rule_reports:
         items.extend(_circuit_rule_items(report))
-    return RevisionBrief(items=tuple(items))
+    items.extend(_visual_review_items(visual_review_items))
+    return RevisionBrief(
+        items=tuple(items),
+        visual_review_status=visual_review_status,
+        visual_review_message=visual_review_message,
+    )
 
 
 def format_revision_brief(brief: RevisionBrief) -> list[str]:
     item_label = "item" if len(brief.items) == 1 else "items"
     lines = [f"Revision brief: {brief.status} ({len(brief.items)} {item_label})"]
+    lines.append(f"Visual review: {brief.visual_review_status} (advisory)")
     if not brief.items:
         lines.append("No revision items found.")
         return lines
@@ -250,6 +283,21 @@ def _circuit_rule_severity(severity: CircuitRuleSeverity) -> RevisionSeverity:
     if severity is CircuitRuleSeverity.ERROR:
         return RevisionSeverity.ERROR
     return RevisionSeverity.WARNING
+
+
+def _visual_review_items(
+    findings: tuple[Mapping[str, str], ...],
+) -> tuple[RevisionBriefItem, ...]:
+    return tuple(
+        RevisionBriefItem(
+            severity=RevisionSeverity.ADVISORY,
+            source="visual_review",
+            code=finding["code"],
+            message=finding["message"],
+            location=finding["location"],
+        )
+        for finding in findings
+    )
 
 
 __all__ = [

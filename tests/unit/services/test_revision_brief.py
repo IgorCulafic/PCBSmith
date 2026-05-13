@@ -78,10 +78,16 @@ def test_build_revision_brief_merges_review_findings(tmp_path: Path) -> None:
     assert brief.to_data() == {
         "schema": REVISION_BRIEF_SCHEMA,
         "status": "needs_revision",
+        "visual_review": {
+            "status": "not_run",
+            "authority": "advisory",
+            "message": "No multimodal visual review has been attached.",
+        },
         "summary": {
             "item_count": 4,
             "error_count": 2,
             "warning_count": 2,
+            "advisory_count": 0,
         },
         "items": [
             {
@@ -152,5 +158,46 @@ def test_format_revision_brief_is_compact() -> None:
 
     assert format_revision_brief(brief) == [
         "Revision brief: passed (0 items)",
+        "Visual review: not_run (advisory)",
         "No revision items found.",
+    ]
+
+
+def test_build_revision_brief_accepts_visual_review_advisories() -> None:
+    brief = build_revision_brief(
+        plan_check=AIPlanCheckResult(
+            valid=True,
+            lines=("AI plan: valid",),
+            exit_code=0,
+        ),
+        visual_review_status="reviewed",
+        visual_review_message="Local vision model found one cosmetic concern.",
+        visual_review_items=(
+            {
+                "code": "silkscreen_text_overlap",
+                "message": "Silkscreen text appears close to the LED outline",
+                "location": "board preview",
+            },
+        ),
+    )
+
+    assert brief.to_data()["visual_review"] == {
+        "status": "reviewed",
+        "authority": "advisory",
+        "message": "Local vision model found one cosmetic concern.",
+    }
+    assert brief.to_data()["summary"] == {
+        "item_count": 1,
+        "error_count": 0,
+        "warning_count": 0,
+        "advisory_count": 1,
+    }
+    assert brief.to_data()["items"] == [
+        {
+            "severity": "advisory",
+            "source": "visual_review",
+            "code": "silkscreen_text_overlap",
+            "message": "Silkscreen text appears close to the LED outline",
+            "location": "board preview",
+        }
     ]
