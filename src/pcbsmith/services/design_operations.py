@@ -9,6 +9,10 @@ from uuid import uuid4
 from pydantic import BaseModel, ConfigDict, Field
 
 from pcbsmith.services.board_intelligence import board_routing_rules_summary
+from pcbsmith.services.controller_boards import (
+    AttinyLedControllerSpec,
+    render_attiny_led_controller_board,
+)
 from pcbsmith.services.kicad_preview import (
     KiCadPreviewReport,
     run_kicad_preview,
@@ -51,6 +55,16 @@ class LedArtDesignRequest(BaseModel):
     supply_voltage_v: float = Field(default=12.0, gt=0)
     topology: LedArtTopology | None = None
     control_mode: LedArtControlMode = "none"
+    show_polarity_marks: bool = True
+
+
+class AttinyLedControllerDesignRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(default="ATtiny LED Controller", min_length=1)
+    controller: str = Field(default="ATtiny84", min_length=1)
+    led_outputs: int = Field(default=2, ge=1, le=2)
+    led_resistor_value: str = Field(default="330R", min_length=1)
     show_polarity_marks: bool = True
 
 
@@ -165,6 +179,99 @@ def generate_led_art_design(
     )
 
 
+def generate_attiny_led_controller_design(
+    request: AttinyLedControllerDesignRequest,
+    output_dir: Path,
+    *,
+    execute_kicad: bool = True,
+    overwrite: bool = False,
+) -> DesignOperationResult:
+    project_dir = output_dir
+    if project_dir.exists():
+        if not overwrite:
+            raise FileExistsError(f"Output already exists: {project_dir}")
+        shutil.rmtree(project_dir)
+    project_dir.mkdir(parents=True)
+
+    project_name = sanitize_kicad_project_name(request.name)
+    project_file = project_dir / f"{project_name}.kicad_pro"
+    schematic_file = project_dir / f"{project_name}.kicad_sch"
+    board_file = project_dir / f"{project_name}.kicad_pcb"
+    project_file.write_text(render_kicad_project_file(project_name), encoding="utf-8")
+    schematic_file.write_text(render_kicad_schematic_file(uuid4()), encoding="utf-8")
+    board_file.write_text(
+        render_attiny_led_controller_board(
+            AttinyLedControllerSpec(
+                title=request.name,
+                controller=request.controller,
+                led_outputs=request.led_outputs,
+                led_resistor_value=request.led_resistor_value,
+                show_polarity_marks=request.show_polarity_marks,
+            )
+        ),
+        encoding="utf-8",
+    )
+
+    _write_attiny_readme(project_dir, project_name, request)
+    validation: KiCadValidationReport | None = None
+    preview: KiCadPreviewReport | None = None
+    validation_status = "skipped"
+    preview_status = "skipped"
+    if execute_kicad:
+        validation = run_kicad_validation(project_dir)
+        preview = run_kicad_preview(project_dir)
+        validation_status = "passed" if validation.exit_code == 0 else "failed"
+        preview_status = "exported" if preview.exit_code == 0 else "failed"
+    revision_brief = build_revision_brief(
+        validation_report=validation,
+        preview_report=preview,
+    )
+    revision_brief_file = project_dir / "revision-brief.json"
+    write_revision_brief(revision_brief, revision_brief_file)
+
+    operation_summary_file = project_dir / ".pcbsmith" / "operation.json"
+    operation_summary_file.parent.mkdir(parents=True, exist_ok=True)
+    operation_summary_file.write_text(
+        json.dumps(
+            _attiny_operation_summary(
+                request,
+                project_name=project_name,
+                project_dir=project_dir,
+                project_file=project_file,
+                schematic_file=schematic_file,
+                board_file=board_file,
+                revision_brief_file=revision_brief_file,
+                validation_status=validation_status,
+                preview_status=preview_status,
+                revision_brief_status=revision_brief.status,
+            ),
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    exit_code = 0
+    if validation is not None and validation.exit_code:
+        exit_code = validation.exit_code
+    if preview is not None and preview.exit_code and exit_code == 0:
+        exit_code = preview.exit_code
+
+    return DesignOperationResult(
+        operation="attiny_led_controller",
+        project_dir=project_dir,
+        project_file=project_file,
+        schematic_file=schematic_file,
+        board_file=board_file,
+        operation_summary_file=operation_summary_file,
+        revision_brief_file=revision_brief_file,
+        revision_brief=revision_brief,
+        validation_status=validation_status,
+        preview_status=preview_status,
+        exit_code=exit_code,
+    )
+
+
 def format_design_operation_result(result: DesignOperationResult) -> list[str]:
     return [
         f"Design operation: {result.operation}",
@@ -215,6 +322,33 @@ def _write_readme(
     )
 
 
+def _write_attiny_readme(
+    project_dir: Path,
+    project_name: str,
+    request: AttinyLedControllerDesignRequest,
+) -> None:
+    readme = project_dir / "README.md"
+    readme.write_text(
+        "\n".join(
+            [
+                f"# {project_name}",
+                "",
+                "This KiCad review bundle was generated by a structured PCBSmith "
+                "R6 design operation.",
+                "",
+                "- Operation: ATtiny LED controller.",
+                f"- Controller: {request.controller}.",
+                f"- LED outputs: {request.led_outputs}.",
+                "- Includes 5 V/GND input pads, ISP pads, reset pull-up, "
+                "decoupling, and status LEDs.",
+                "- Review the KiCad PCB, revision brief, SVG previews, Gerbers, and drill outputs.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
 def _operation_summary(
     request: LedArtDesignRequest,
     *,
@@ -258,13 +392,55 @@ def _operation_summary(
     }
 
 
+def _attiny_operation_summary(
+    request: AttinyLedControllerDesignRequest,
+    *,
+    project_name: str,
+    project_dir: Path,
+    project_file: Path,
+    schematic_file: Path,
+    board_file: Path,
+    revision_brief_file: Path,
+    validation_status: str,
+    preview_status: str,
+    revision_brief_status: str,
+) -> dict[str, object]:
+    return {
+        "schema": "pcbsmith-design-operation-v1",
+        "operation": "attiny_led_controller",
+        "project_name": project_name,
+        "request": {
+            "name": request.name,
+            "controller": request.controller,
+            "led_outputs": request.led_outputs,
+            "led_resistor_value": request.led_resistor_value,
+            "show_polarity_marks": request.show_polarity_marks,
+        },
+        "outputs": {
+            "project_dir": str(project_dir),
+            "project_file": _relative_output(project_dir, project_file),
+            "schematic_file": _relative_output(project_dir, schematic_file),
+            "board_file": _relative_output(project_dir, board_file),
+            "revision_brief_file": _relative_output(project_dir, revision_brief_file),
+        },
+        "routing_rules": board_routing_rules_summary(),
+        "checks": {
+            "validation": validation_status,
+            "preview": preview_status,
+            "revision_brief": revision_brief_status,
+        },
+    }
+
+
 def _relative_output(project_dir: Path, output_file: Path) -> str:
     return output_file.relative_to(project_dir).as_posix()
 
 
 __all__ = [
+    "AttinyLedControllerDesignRequest",
     "DesignOperationResult",
     "LedArtDesignRequest",
     "format_design_operation_result",
+    "generate_attiny_led_controller_design",
     "generate_led_art_design",
 ]

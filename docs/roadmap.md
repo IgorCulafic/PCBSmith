@@ -180,6 +180,15 @@ checks.
 - More realistic two-layer boards with vias, silkscreen, polarity, and
   fabrication exports.
 
+The first R6 slice is implemented as `design-attiny-led-controller`. It
+generates a KiCad review bundle for an ATtiny-style 5 V LED controller with
+power pads, ISP pads, reset pull-up, decoupling capacitor, one or two
+current-limited status LED outputs, GPIO labels, silkscreen labels, KiCad
+validation/preview outputs, `operation.json`, and `revision-brief.json`. The
+generator uses the centralized routing-intelligence helpers so its traces follow
+the same cardinal/45-degree CAD polish preference recorded in AI-facing
+operation summaries.
+
 ## R7: Parametric PCB Features
 
 Some board elements are not normal library components. PCBSmith should model

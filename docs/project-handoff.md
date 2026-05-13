@@ -43,6 +43,10 @@ the model operate PCBSmith tools that know PCB constraints.
   grouping, resistor labeling, and optional low-side MOSFET control.
 - Structured LED-art design operation and `design-led-art` CLI command for
   generating KiCad review bundles from AI/user request fields.
+- Structured R6 ATtiny LED-controller operation and
+  `design-attiny-led-controller` CLI command for generating a KiCad review
+  bundle with 5 V/GND input pads, ISP pads, reset pull-up, decoupling, GPIO
+  labels, and one or two current-limited status LED outputs.
 - Component knowledge index with explicit mounting summaries for SMD,
   through-hole, and virtual parts.
 - Compact `component-knowledge-search` CLI for AI/local-model retrieval over
@@ -166,6 +170,16 @@ The generated `.pcbsmith/operation.json` is the AI-facing contract for this
 operation. It records the request, output files, check status, and centralized
 board-routing rules from `pcbsmith.services.board_intelligence`. The generated
 review directory also includes `revision-brief.json`.
+
+Generate a structured R6 ATtiny LED-controller review bundle:
+
+```powershell
+.\.venv\Scripts\python.exe -m pcbsmith.cli design-attiny-led-controller .tmp\r6-attiny-led-controller-demo --name "R6 ATtiny Controller" --led-outputs 2
+```
+
+The generated `.pcbsmith/operation.json` records the controller request, output
+files, centralized routing rules, KiCad validation/preview status, and revision
+brief status.
 
 Generate and query component knowledge:
 

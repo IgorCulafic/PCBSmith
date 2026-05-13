@@ -41,7 +41,8 @@ The corrected architecture is KiCad-first:
   - RC low-pass filter;
   - VIR-LAB 5V LED art board;
   - NE555 astable LED blinker;
-  - NE555 PWM LED dimmer.
+  - NE555 PWM LED dimmer;
+  - ATtiny-style LED controller board with programming header and GPIO labels.
 - KiCad review bundles with:
   - schematic SVG;
   - board SVG;
@@ -100,10 +101,10 @@ Near-term:
 - LED electrical grouping: choose series/parallel groups from supply voltage, LED forward voltage, target current, resistor values, and total current warnings.
 - KiCad library indexing plus a hierarchical component knowledge layer so the AI can search families first and load deep component profiles only when needed.
 - Better AI constraints for current, voltage, trace width, polarity, component choice, and fabrication method.
+- More R6 real demos such as sensor breakouts, MOSFET load drivers, regulator/power-entry boards, and addressable LED badges.
 
 Later:
 
-- Microcontroller boards with programming headers.
 - Image-to-LED PCB workflows.
 - Local model support.
 - Optional multi-agent AI planning/review.

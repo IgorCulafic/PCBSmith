@@ -7,7 +7,9 @@ import pytest
 
 from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.design_operations import (
+    AttinyLedControllerDesignRequest,
     LedArtDesignRequest,
+    generate_attiny_led_controller_design,
     generate_led_art_design,
 )
 
@@ -68,3 +70,33 @@ def test_generate_led_art_design_refuses_existing_output_without_overwrite(
             output_dir,
             execute_kicad=False,
         )
+
+
+def test_generate_attiny_led_controller_design_writes_review_bundle(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "attiny-review"
+    request = AttinyLedControllerDesignRequest(name="R6 ATtiny Controller")
+
+    result = generate_attiny_led_controller_design(
+        request,
+        output_dir,
+        execute_kicad=False,
+    )
+
+    assert result.operation == "attiny_led_controller"
+    assert result.exit_code == 0
+    assert result.project_dir == output_dir
+    assert result.board_file == output_dir / "R6_ATtiny_Controller.kicad_pcb"
+    assert result.revision_brief_file == output_dir / "revision-brief.json"
+    assert result.operation_summary_file == output_dir / ".pcbsmith" / "operation.json"
+    assert result.board_file.exists()
+    assert result.revision_brief_file.exists()
+
+    summary = json.loads(result.operation_summary_file.read_text(encoding="utf-8"))
+    assert summary["schema"] == "pcbsmith-design-operation-v1"
+    assert summary["operation"] == "attiny_led_controller"
+    assert summary["request"]["controller"] == "ATtiny84"
+    assert summary["request"]["led_outputs"] == 2
+    assert summary["outputs"]["revision_brief_file"] == "revision-brief.json"
+    assert summary["checks"]["revision_brief"] == "passed"
