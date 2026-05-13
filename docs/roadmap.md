@@ -150,6 +150,24 @@ machine-readable list of revision items with concrete next actions. This gives
 hosted or local models a constrained "fix these issues next" target instead of
 asking them to infer problems from scattered logs.
 
+## R5.5: Optional Multimodal Visual Review
+
+Multimodal review is a lower-authority quality-control layer. It should help the
+AI and user spot visible problems, but it must never replace deterministic
+checks.
+
+- Feed schematic SVGs, board SVGs, laser/copper SVGs, and targeted screenshots
+  into a multimodal model when available.
+- Ask visual review to look for text overlap, unreadable polarity labels,
+  missing logos, board centering, poor visual balance, odd routing aesthetics,
+  unexpected blank previews, and mismatch with the user's visual request.
+- Keep ERC, DRC, circuit rules, geometry checks, and fabrication checks above
+  visual review in authority.
+- Keep the interface provider-agnostic so hosted models and local multimodal
+  models can both be used later.
+- Record visual review findings in the revision brief as advisory items unless a
+  deterministic checker confirms the same issue.
+
 ## R6: Bigger Real Demos
 
 - ATtiny or Arduino-style LED controller with programming header and IO labels.
@@ -166,7 +184,6 @@ Some board elements are not normal library components. PCBSmith should model
 them as generated geometry with parameters, checks, and review warnings.
 
 - LED paths and LED art.
-- Copper text and logo geometry.
 - Mounting holes, fiducials, test points, and edge connectors.
 - Capacitive touch pads.
 - PCB coils and spiral inductors.
@@ -177,6 +194,35 @@ Early R7 work should stay with visible and lower-risk features such as LED paths
 logos, mounting holes, and touch pads. Coils, antennas, charging, metal
 detection, RF, high-current, and mains-related features need calculators,
 external references, simulation hooks, or explicit expert-review warnings.
+
+### R7A: Silkscreen And Board Artwork
+
+Silkscreen features are printed artwork on `F.SilkS` or `B.SilkS`. They are not
+the physical shape of the board.
+
+- Logos, decorative text, QR codes, component reference labels, polarity marks,
+  pin-1 markers, assembly notes, and component courtyard-style visual borders.
+- Import SVG/text artwork and place it as KiCad silkscreen geometry.
+- Check that silkscreen stays inside the board outline, avoids pads and exposed
+  copper, respects readable line/text sizes, and can be disabled or minimized
+  for professional boards.
+- Keep a decorative/showcase mode separate from a minimal/professional mode.
+
+### R7B: Board Outline And Cutout Geometry
+
+Board outline features are physical geometry on `Edge.Cuts`. They are not
+silkscreen artwork.
+
+- Logo-shaped boards, badge outlines, custom object outlines, rounded or
+  irregular board shapes, mounting slots, notches, holes, and cutouts.
+- Import SVG/DXF/path outlines, simplify geometry, scale to real units, and
+  generate closed KiCad `Edge.Cuts` loops.
+- Check minimum neck width, copper/silkscreen edge clearance, manufacturable
+  curves and corners, valid closed outlines, mounting-hole clearance, and
+  fabrication-profile compatibility.
+- Treat USB edge connectors, card-edge contacts, and other mechanical connector
+  outlines as specific connector features with their own dimensional rules, not
+  as generic decorative shapes.
 
 ## User Contribution Path
 
