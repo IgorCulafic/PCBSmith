@@ -245,33 +245,49 @@ def _add_routes(
     _route(builder, nets["GND"], ((35.75, 16.0), (35.75, 44.0)))
     _route(builder, nets["GND"], ((39.0, 29.54), (36.0, 29.54), (36.0, 44.0)))
     _route(builder, nets["GND"], ((47.0, 23.19), (47.0, 18.0), (80.0, 18.0), (80.0, 44.0)))
+    _route_layer_change(
+        builder,
+        nets["RESET"],
+        start_pad=(30.75, 23.0),
+        start_via=(32.25, 23.0),
+        back_points=((35.0, 23.0),),
+        end_via=(37.5, 27.0),
+        end_pad=(39.0, 27.0),
+    )
+    builder.add_via(23.5, 24.0, net=nets["RESET"])
+    _route(builder, nets["RESET"], ((22.0, 24.0), (23.5, 24.0)))
     _route(
         builder,
         nets["RESET"],
-        ((30.75, 23.0), (22.0, 24.0), (22.0, 27.0), (39.0, 27.0)),
+        ((23.5, 24.0), (32.25, 23.0)),
         layer="B.Cu",
-        via_points=((30.75, 23.0), (22.0, 24.0), (39.0, 27.0)),
     )
-    _route(
+    _route_layer_change(
         builder,
         nets["MOSI"],
-        ((31.0, 33.0), (36.81, 33.0), (39.0, 30.81)),
-        layer="B.Cu",
-        add_endpoint_vias=True,
+        start_pad=(31.0, 33.0),
+        start_via=(31.0, 35.0),
+        back_points=((36.0, 35.0),),
+        end_via=(39.0, 32.31),
+        end_pad=(39.0, 30.81),
     )
-    _route(
+    _route_layer_change(
         builder,
         nets["SCK"],
-        ((47.0, 29.54), (47.0, 20.0), (53.0, 20.0), (56.0, 17.0), (56.0, 14.0)),
-        layer="B.Cu",
-        add_endpoint_vias=True,
+        start_pad=(47.0, 29.54),
+        start_via=(48.5, 29.54),
+        back_points=((53.0, 25.04),),
+        end_via=(56.0, 15.5),
+        end_pad=(56.0, 14.0),
     )
-    _route(
+    _route_layer_change(
         builder,
         nets["MISO"],
-        ((47.0, 30.81), (47.0, 37.0), (56.0, 37.0), (56.0, 33.0)),
-        layer="B.Cu",
-        add_endpoint_vias=True,
+        start_pad=(47.0, 30.81),
+        start_via=(48.5, 30.81),
+        back_points=((53.0, 35.31),),
+        end_via=(56.0, 34.5),
+        end_pad=(56.0, 33.0),
     )
     _route(
         builder,
@@ -317,6 +333,30 @@ def _route(
             width_mm=segment.width_mm,
             net=net,
         )
+
+
+def _route_layer_change(
+    builder: KiCadBoardBuilder,
+    net: NetRef,
+    *,
+    start_pad: tuple[float, float],
+    start_via: tuple[float, float],
+    back_points: tuple[tuple[float, float], ...],
+    end_via: tuple[float, float],
+    end_pad: tuple[float, float],
+    width_mm: float = 0.35,
+) -> None:
+    builder.add_via(*start_via, net=net)
+    builder.add_via(*end_via, net=net)
+    _route(builder, net, (start_pad, start_via), width_mm=width_mm)
+    _route(
+        builder,
+        net,
+        (start_via, *back_points, end_via),
+        layer="B.Cu",
+        width_mm=width_mm,
+    )
+    _route(builder, net, (end_via, end_pad), width_mm=width_mm)
 
 
 __all__ = [
