@@ -78,6 +78,10 @@ PCBSmith treats AI-generated work as a proposal until validated and approved.
 - KiCad verifies ERC/DRC.
 - The user reviews generated visual and manufacturing artifacts.
 - Only approved changes should be applied.
+- Optional multimodal review can later inspect generated visuals for issues
+  such as missing logos, text overlap, unreadable labels, bad centering, and
+  mismatch with user intent. It is advisory; KiCad and PCBSmith checks remain
+  authoritative.
 
 ## Why This Matters
 
@@ -101,7 +105,10 @@ Later:
 - Local model support.
 - Optional multi-agent AI planning/review.
 - Broader KiCad library integration.
-- Parametric board features such as capacitive touch pads, PCB coils, antennas, copper logos, and fabrication-specific outputs.
+- Parametric board features such as capacitive touch pads, PCB coils, antennas, and fabrication-specific outputs.
+- Separate silkscreen/artwork features from physical board-shape features:
+  logos, text, and labels are printed on silkscreen, while custom outlines,
+  cutouts, badge shapes, and edge-connector geometry live on `Edge.Cuts`.
 - Simulation hooks for checking circuit behavior where practical.
 
 ## Demo Narrative

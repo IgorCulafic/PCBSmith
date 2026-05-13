@@ -49,6 +49,16 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - Custom PCB features such as LED paths, capacitive touch pads, PCB coils, antennas, copper logos, shunts, heaters, and RF structures are generated board geometry, not ordinary library components.
 - Generated board features need parameters, checks, and review warnings. Harder features such as coils, antennas, wireless charging, RF, high-current, and mains-related geometry should require calculators, external references, simulation hooks, or expert-review warnings.
 - PCBSmith should support multiple fabrication profiles over time: professional fab, laser engraving, CNC/isolation, and toner/etch.
+- Silkscreen artwork and board-outline geometry must remain separate systems.
+  Silkscreen/logo/text requests target `F.SilkS` or `B.SilkS`; custom board
+  shape, cutout, notch, USB-edge, or badge-outline requests target `Edge.Cuts`.
+- Requests like "put this logo on the board" mean silkscreen by default.
+  Requests like "make the board shaped like this logo" mean board outline by
+  default. Requests may use both, but they should become two separate operations
+  with separate checks.
+- USB edge connectors and card-edge features are mechanical connector features
+  with dimensional and fabrication assumptions. They should not be treated as
+  arbitrary decorative board shapes.
 
 ## Board Generation And Routing
 
@@ -67,6 +77,10 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - Blank schematic or board previews should not be treated as successful review artifacts.
 - Component text, silkscreen, polarity marks, pin-1 markers, board title, and component borders matter for visual judgment.
 - Generated boards should be placed away from the top-left corner of the KiCad sheet and centered enough for review.
+- Multimodal model review can be useful for visible quality issues such as text
+  overlap, missing logos, poor centering, unreadable labels, and mismatch with
+  the user's visual intent. It is advisory quality control, below ERC, DRC,
+  circuit rules, geometry checks, and fabrication checks.
 
 ## Important Corrections
 

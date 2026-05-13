@@ -19,6 +19,8 @@ PCBSmith owns:
 - circuit rules and safety checks;
 - deterministic generators for useful examples;
 - fabrication-profile helpers such as laser-oriented copper SVG.
+- separated generators for silkscreen/artwork and physical board-outline
+  geometry.
 
 ## Key Principle
 
@@ -59,6 +61,9 @@ the model operate PCBSmith tools that know PCB constraints.
 - AI proposal bundles now include a top-level `revision-brief.json` that merges
   plan validation, KiCad validation, preview export, manufacturability, and
   circuit-rule findings into one machine-readable revision queue.
+- Roadmap now separates silkscreen/artwork requests from physical board-outline
+  requests. Logos/text/labels go to `F.SilkS` or `B.SilkS`; custom board shapes,
+  cutouts, and edge connector geometry go to `Edge.Cuts`.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
@@ -69,6 +74,7 @@ the model operate PCBSmith tools that know PCB constraints.
 - 45-degree or mitered routing is a strong CAD polish preference, not an
   overheating law.
 - KiCad DRC/ERC and real manufacturability constraints are the gates.
+- Silkscreen artwork and physical board outlines must not be conflated.
 - Schematic visuals can be rough while PCB output is being proven, but final
   user-facing examples should still become readable over time.
 - Abstract board SVGs are not enough. Real KiCad PCB files and KiCad-derived
@@ -171,10 +177,14 @@ Generate and query component knowledge:
   CNC/isolation, and toner/etch.
 - Later support capacitive switches, dimming, strobing, RGB effects, coils,
   antennas, charging structures, and other generated board geometry.
+- Later support user-provided silkscreen artwork and user-provided/custom board
+  outlines as separate feature paths.
 - Local LLM support matters. The user has enough local GPU resources to test
   serious models later.
 - The AI should have both structured project context and visual artifacts where
   possible.
+- Multimodal review should become an optional visual QA layer for generated
+  artifacts, below deterministic KiCad and PCBSmith checks.
 
 ## When Starting A New Chat
 
