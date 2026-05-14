@@ -172,6 +172,7 @@ class KiCadBoardBuilder:
         value: str = "Power Pad",
         size_mm: float = 2.4,
         reference_offset_mm: tuple[float, float] = (0.0, -2.2),
+        show_reference: bool = True,
     ) -> None:
         ref_x, ref_y = reference_offset_mm
         self._items.append(
@@ -179,7 +180,7 @@ class KiCadBoardBuilder:
     (layer "F.Cu")
     (uuid {uuid4()})
     (at {_mm(x_mm)} {_mm(y_mm)})
-    {_property("Reference", reference, ref_x, ref_y, "F.SilkS", 1.0)}
+    {_property("Reference", reference, ref_x, ref_y, "F.SilkS", 1.0, hidden=not show_reference)}
     {_property("Value", value, 0, 2.2, "F.Fab", 1.0)}
     (attr smd)
 {_pad(PadSpec("1", 0, 0, size_mm, size_mm, net, roundrect_ratio=0.2))}
@@ -353,12 +354,20 @@ def _property(
     y_mm: float,
     layer: str,
     size_mm: float,
+    *,
+    hidden: bool = False,
 ) -> str:
+    hide_line = "\n        (hide yes)" if hidden else ""
     return f"""(property {_quote(name)} {_quote(value)}
       (at {_mm(x_mm)} {_mm(y_mm)} 0)
       (layer {_quote(layer)})
       (uuid {uuid4()})
-      (effects (font (size {_mm(size_mm)} {_mm(size_mm)}) (thickness {_mm(size_mm * 0.12)})))
+      (effects
+        (font
+          (size {_mm(size_mm)} {_mm(size_mm)})
+          (thickness {_mm(size_mm * 0.12)})
+        ){hide_line}
+      )
     )"""
 
 
