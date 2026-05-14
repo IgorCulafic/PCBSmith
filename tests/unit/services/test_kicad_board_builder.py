@@ -39,6 +39,17 @@ def test_board_builder_can_add_front_to_back_via() -> None:
     assert "(net 1)" in text
 
 
+def test_board_builder_can_hide_power_pad_reference() -> None:
+    builder = KiCadBoardBuilder()
+    vcc = builder.net("VCC")
+
+    builder.add_power_pad("J1_VCC", 8, 10, net=vcc, show_reference=False)
+    text = builder.render(outline_end_mm=(30, 20))
+
+    assert '(property "Reference" "J1_VCC"' in text
+    assert "(hide yes)" in text
+
+
 def test_board_builder_renders_two_pad_smd_footprint_with_fab_body() -> None:
     builder = KiCadBoardBuilder()
     vcc = builder.net("VCC")

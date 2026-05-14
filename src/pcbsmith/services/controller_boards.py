@@ -26,6 +26,8 @@ class AttinyLedControllerSpec(BaseModel):
     led_resistor_value: str = Field(default="330R", min_length=1)
     show_polarity_marks: bool = True
     show_values_on_silkscreen: bool = False
+    show_section_labels: bool = False
+    show_gpio_labels: bool = False
 
 
 @dataclass(frozen=True)
@@ -73,7 +75,8 @@ def render_attiny_led_controller_board(
     _add_controller(builder, nets, board_spec, references)
     _add_support_passives(builder, nets, references)
     _add_led_outputs(builder, nets, board_spec, references, annotation_policy)
-    _add_gpio_labels(builder)
+    if board_spec.show_gpio_labels:
+        _add_gpio_labels(builder)
     _add_routes(builder, nets, board_spec)
     return builder.render(outline_end_mm=(95.0, 55.0))
 
@@ -94,8 +97,9 @@ def _add_silkscreen(
     spec: AttinyLedControllerSpec,
 ) -> None:
     builder.add_text(spec.title, 47.5, 49.0, size_mm=1.5)
-    builder.add_text("ISP", 14.0, 12.5, size_mm=1.0)
-    builder.add_text("LED OUT", 72.0, 12.5, size_mm=1.0)
+    if spec.show_section_labels:
+        builder.add_text("ISP", 14.0, 12.5, size_mm=1.0)
+        builder.add_text("LED OUT", 72.0, 12.5, size_mm=1.0)
     builder.add_text("+", 4.2, 9.8, size_mm=1.0)
     builder.add_text("-", 4.2, 14.8, size_mm=1.0)
     builder.add_rect(3.0, 4.0, 92.0, 51.5, width_mm=0.15)
@@ -146,6 +150,7 @@ def _add_isp_header(
             value=net_name,
             size_mm=1.75,
             reference_offset_mm=(0.0, -1.7),
+            show_reference=False,
         )
 
 

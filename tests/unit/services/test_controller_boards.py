@@ -24,8 +24,8 @@ def test_attiny_led_controller_board_contains_controller_support_and_io() -> Non
     assert '(property "Reference" "RLED1"' not in board_text
     assert '(property "Reference" "LED1"' in board_text
     assert '(property "Reference" "LED2"' in board_text
-    assert '(gr_text "ISP"' in board_text
-    assert '(gr_text "LED OUT"' in board_text
+    assert '(gr_text "ISP"' not in board_text
+    assert '(gr_text "LED OUT"' not in board_text
     assert '(net 1 "VCC")' in board_text
     assert '(net 2 "GND")' in board_text
     assert '(net ' in board_text
@@ -33,6 +33,37 @@ def test_attiny_led_controller_board_contains_controller_support_and_io() -> Non
     assert '"MOSI"' in board_text
     assert '"SCK"' in board_text
     assert '"RESET"' in board_text
+
+
+def test_attiny_led_controller_board_hides_helper_pad_references() -> None:
+    board_text = render_attiny_led_controller_board(AttinyLedControllerSpec())
+
+    for reference in (
+        "J1_VCC",
+        "J1_RST",
+        "J1_MOSI",
+        "J1_SCK",
+        "J1_MISO",
+        "J1_GND",
+    ):
+        assert "(hide yes)" in _property_block(board_text, "Reference", reference)
+
+
+def test_attiny_led_controller_board_omits_gpio_silk_labels_by_default() -> None:
+    board_text = render_attiny_led_controller_board(AttinyLedControllerSpec())
+
+    for label in ("PA0", "PA1", "PA2", "PA3", "PA7"):
+        assert f'(gr_text "{label}"' not in board_text
+
+
+def test_attiny_led_controller_board_can_show_gpio_and_section_labels() -> None:
+    board_text = render_attiny_led_controller_board(
+        AttinyLedControllerSpec(show_gpio_labels=True, show_section_labels=True)
+    )
+
+    assert '(gr_text "ISP"' in board_text
+    assert '(gr_text "LED OUT"' in board_text
+    assert '(gr_text "PA0"' in board_text
 
 
 def test_attiny_led_controller_board_honors_led_output_count() -> None:
@@ -120,3 +151,15 @@ def _board_vias(board_text: str) -> list[tuple[float, float]]:
         (float(match.group("x")), float(match.group("y")))
         for match in via_pattern.finditer(board_text)
     ]
+
+
+def _property_block(board_text: str, name: str, value: str) -> str:
+    pattern = re.compile(
+        rf'\(property "{re.escape(name)}" "{re.escape(value)}".*?'
+        r"(?=\n    \(property|\n    \(attr)",
+        re.DOTALL,
+    )
+    match = pattern.search(board_text)
+    if match is None:
+        raise AssertionError(f"Property not found: {name}={value}")
+    return match.group(0)
