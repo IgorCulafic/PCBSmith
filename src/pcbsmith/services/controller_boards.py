@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -16,6 +17,8 @@ from pcbsmith.services.kicad_board_builder import (
     TwoPadSmdFootprintSpec,
 )
 
+ConnectorStyle = Literal["through_hole", "smd_pads"]
+
 
 class AttinyLedControllerSpec(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -28,6 +31,7 @@ class AttinyLedControllerSpec(BaseModel):
     show_values_on_silkscreen: bool = False
     show_section_labels: bool = False
     show_gpio_labels: bool = False
+    connector_style: ConnectorStyle = "through_hole"
 
 
 @dataclass(frozen=True)
@@ -71,7 +75,7 @@ def render_attiny_led_controller_board(
 
     _add_silkscreen(builder, board_spec)
     _add_power_input(builder, nets)
-    _add_isp_header(builder, nets)
+    _add_isp_header(builder, nets, connector_style=board_spec.connector_style)
     _add_controller(builder, nets, board_spec, references)
     _add_support_passives(builder, nets, references)
     _add_led_outputs(builder, nets, board_spec, references, annotation_policy)
@@ -132,26 +136,39 @@ def _add_power_input(
 def _add_isp_header(
     builder: KiCadBoardBuilder,
     nets: dict[str, NetRef],
+    *,
+    connector_style: ConnectorStyle,
 ) -> None:
     header_pads = (
-        ("J1_VCC", "VCC", 24.0, 10.0),
-        ("J1_RST", "RESET", 22.0, 24.0),
-        ("J1_MOSI", "MOSI", 31.0, 33.0),
-        ("J1_SCK", "SCK", 56.0, 14.0),
-        ("J1_MISO", "MISO", 56.0, 33.0),
-        ("J1_GND", "GND", 24.0, 42.0),
+        ("J1_VCC", "VCC", 55.0, 12.0, 55.0, 7.4),
+        ("J1_RST", "RESET", 59.0, 12.0, 59.0, 7.4),
+        ("J1_MOSI", "MOSI", 63.0, 12.0, 63.0, 7.4),
+        ("J1_SCK", "SCK", 67.0, 12.0, 67.0, 7.4),
+        ("J1_MISO", "MISO", 71.0, 12.0, 71.0, 7.4),
+        ("J1_GND", "GND", 75.0, 12.0, 75.0, 7.4),
     )
-    for reference, net_name, x_mm, y_mm in header_pads:
-        builder.add_power_pad(
-            reference,
-            x_mm,
-            y_mm,
-            net=nets[net_name],
-            value=net_name,
-            size_mm=1.75,
-            reference_offset_mm=(0.0, -1.7),
-            show_reference=False,
-        )
+    for reference, net_name, x_mm, y_mm, label_x_mm, label_y_mm in header_pads:
+        if connector_style == "through_hole":
+            builder.add_through_hole_pad(
+                reference,
+                x_mm,
+                y_mm,
+                net=nets[net_name],
+                value=net_name,
+                show_reference=False,
+            )
+        else:
+            builder.add_power_pad(
+                reference,
+                x_mm,
+                y_mm,
+                net=nets[net_name],
+                value=net_name,
+                size_mm=1.75,
+                reference_offset_mm=(0.0, -1.7),
+                show_reference=False,
+            )
+        builder.add_text(net_name, label_x_mm, label_y_mm, size_mm=0.8)
 
 
 def _add_controller(
@@ -289,13 +306,14 @@ def _add_routes(
     spec: AttinyLedControllerSpec,
 ) -> None:
     _route(builder, nets["VCC"], ((8.0, 10.0), (24.0, 10.0)))
+    _route(builder, nets["VCC"], ((55.0, 12.0), (55.0, 10.0), (37.5, 10.0)))
     _route(builder, nets["VCC"], ((24.0, 10.0), (34.25, 10.0), (34.25, 16.0)))
     _route(builder, nets["VCC"], ((24.0, 10.0), (29.25, 10.0), (29.25, 23.0)))
     _route(builder, nets["VCC"], ((24.0, 10.0), (39.0, 10.0), (39.0, 23.19)))
     _route(builder, nets["GND"], ((8.0, 15.0), (8.0, 44.0), (80.0, 44.0)))
-    _route(builder, nets["GND"], ((24.0, 42.0), (24.0, 44.0)))
     _route(builder, nets["GND"], ((35.75, 16.0), (35.75, 44.0)))
     _route(builder, nets["GND"], ((39.0, 29.54), (35.75, 29.54)))
+    _route(builder, nets["GND"], ((75.0, 12.0), (75.0, 18.0), (48.5, 18.0)))
     _route(builder, nets["GND"], ((47.0, 23.19), (47.0, 18.0), (80.0, 18.0), (80.0, 44.0)))
     _route_layer_change(
         builder,
@@ -306,20 +324,21 @@ def _add_routes(
         end_via=(37.5, 27.0),
         end_pad=(39.0, 27.0),
     )
-    builder.add_via(23.5, 24.0, net=nets["RESET"])
-    _route(builder, nets["RESET"], ((22.0, 24.0), (23.5, 24.0)))
-    _route(
+    _route_layer_change(
         builder,
         nets["RESET"],
-        ((23.5, 24.0), (32.25, 23.0)),
-        layer="B.Cu",
+        start_pad=(59.0, 12.0),
+        start_via=(59.0, 14.0),
+        back_points=((59.0, 23.0),),
+        end_via=(33.75, 23.0),
+        end_pad=(30.75, 23.0),
     )
     _route_layer_change(
         builder,
         nets["MOSI"],
-        start_pad=(31.0, 33.0),
-        start_via=(31.0, 35.0),
-        back_points=((36.0, 35.0),),
+        start_pad=(63.0, 12.0),
+        start_via=(63.0, 14.0),
+        back_points=((63.0, 28.0),),
         end_via=(39.0, 32.31),
         end_pad=(39.0, 30.81),
     )
@@ -328,18 +347,18 @@ def _add_routes(
         nets["SCK"],
         start_pad=(47.0, 29.54),
         start_via=(48.5, 29.54),
-        back_points=((53.0, 25.04),),
-        end_via=(56.0, 15.5),
-        end_pad=(56.0, 14.0),
+        back_points=((67.0, 29.54),),
+        end_via=(67.0, 14.0),
+        end_pad=(67.0, 12.0),
     )
     _route_layer_change(
         builder,
         nets["MISO"],
         start_pad=(47.0, 30.81),
         start_via=(48.5, 30.81),
-        back_points=((53.0, 35.31),),
-        end_via=(56.0, 34.5),
-        end_pad=(56.0, 33.0),
+        back_points=((71.0, 30.81),),
+        end_via=(71.0, 14.0),
+        end_pad=(71.0, 12.0),
     )
     _route(
         builder,
@@ -413,5 +432,6 @@ def _route_layer_change(
 
 __all__ = [
     "AttinyLedControllerSpec",
+    "ConnectorStyle",
     "render_attiny_led_controller_board",
 ]

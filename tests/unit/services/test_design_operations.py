@@ -100,6 +100,7 @@ def test_generate_attiny_led_controller_design_writes_review_bundle(
     assert summary["operation"] == "attiny_led_controller"
     assert summary["request"]["controller"] == "ATtiny84"
     assert summary["request"]["led_outputs"] == 2
+    assert summary["request"]["connector_style"] == "through_hole"
     assert summary["outputs"]["revision_brief_file"] == "revision-brief.json"
     assert summary["routing_rules"] == board_routing_rules_summary()
     assert summary["annotation_rules"] == board_annotation_rules_summary()

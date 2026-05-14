@@ -187,6 +187,32 @@ class KiCadBoardBuilder:
   )"""
         )
 
+    def add_through_hole_pad(
+        self,
+        reference: str,
+        x_mm: float,
+        y_mm: float,
+        *,
+        net: NetRef,
+        value: str = "Through Hole Pad",
+        size_mm: float = 1.7,
+        drill_mm: float = 0.9,
+        reference_offset_mm: tuple[float, float] = (0.0, -2.0),
+        show_reference: bool = True,
+    ) -> None:
+        ref_x, ref_y = reference_offset_mm
+        self._items.append(
+            f"""  (footprint "PCBSmith_THROUGH_HOLE_PAD"
+    (layer "F.Cu")
+    (uuid {uuid4()})
+    (at {_mm(x_mm)} {_mm(y_mm)})
+    {_property("Reference", reference, ref_x, ref_y, "F.SilkS", 1.0, hidden=not show_reference)}
+    {_property("Value", value, 0, 2.2, "F.Fab", 1.0)}
+    (attr through_hole)
+{_through_hole_pad(PadSpec("1", 0, 0, size_mm, size_mm, net), drill_mm)}
+  )"""
+        )
+
     def add_two_pad_smd_footprint(self, spec: TwoPadSmdFootprintSpec) -> None:
         ref_x, ref_y = spec.reference_offset_mm
         marker = _footprint_marker(spec.silk_marker) if spec.silk_marker else ""
@@ -377,6 +403,19 @@ def _pad(spec: PadSpec) -> str:
       (size {_mm(spec.width_mm)} {_mm(spec.height_mm)})
       (layers "F.Cu" "F.Paste" "F.Mask")
       (roundrect_rratio {_mm(spec.roundrect_ratio)})
+      (net {spec.net.number} {_quote(spec.net.name)})
+      (pinfunction {_quote(spec.name)})
+      (pintype "passive")
+      (uuid {uuid4()})
+    )"""
+
+
+def _through_hole_pad(spec: PadSpec, drill_mm: float) -> str:
+    return f"""    (pad {_quote(spec.name)} thru_hole circle
+      (at {_mm(spec.x_mm)} {_mm(spec.y_mm)})
+      (size {_mm(spec.width_mm)} {_mm(spec.height_mm)})
+      (drill {_mm(drill_mm)})
+      (layers "*.Cu" "*.Mask")
       (net {spec.net.number} {_quote(spec.net.name)})
       (pinfunction {_quote(spec.name)})
       (pintype "passive")
