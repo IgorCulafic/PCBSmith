@@ -71,14 +71,15 @@ def test_attiny_led_controller_board_fans_vias_outside_smd_pads() -> None:
     assert via_positions.isdisjoint(solder_pad_centers)
 
 
-def test_attiny_led_controller_board_avoids_redundant_parallel_ground_spine() -> None:
+def test_attiny_led_controller_board_merges_c1_and_u1_ground_on_shared_trunk() -> None:
     board_text = render_attiny_led_controller_board(AttinyLedControllerSpec())
     segments = _board_segments(board_text)
 
-    assert ((35.75, 16.0), (35.75, 44.0)) not in segments
-    assert _point_touches_route((35.75, 16.0), segments)
-    assert _point_touches_route((35.75, 17.5), segments)
-    assert _point_touches_route((48.5, 21.69), segments)
+    assert ((35.75, 16.0), (35.75, 44.0)) in segments
+    assert ((39.0, 29.54), (35.75, 29.54)) in segments
+    assert ((36.0, 29.54), (36.0, 44.0)) not in segments
+    assert (35.75, 17.5) not in set(_board_vias(board_text))
+    assert (48.5, 21.69) not in set(_board_vias(board_text))
 
 
 def _board_segments(board_text: str) -> list[tuple[tuple[float, float], tuple[float, float]]]:
@@ -108,9 +109,3 @@ def _board_vias(board_text: str) -> list[tuple[float, float]]:
         for match in via_pattern.finditer(board_text)
     ]
 
-
-def _point_touches_route(
-    point: tuple[float, float],
-    segments: list[tuple[tuple[float, float], tuple[float, float]]],
-) -> bool:
-    return any(point in segment for segment in segments)

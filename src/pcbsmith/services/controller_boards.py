@@ -242,16 +242,8 @@ def _add_routes(
     _route(builder, nets["VCC"], ((24.0, 10.0), (39.0, 10.0), (39.0, 23.19)))
     _route(builder, nets["GND"], ((8.0, 15.0), (8.0, 44.0), (80.0, 44.0)))
     _route(builder, nets["GND"], ((24.0, 42.0), (24.0, 44.0)))
-    _route_layer_change(
-        builder,
-        nets["GND"],
-        start_pad=(35.75, 16.0),
-        start_via=(35.75, 17.5),
-        back_points=((45.5, 17.5),),
-        end_via=(48.5, 21.69),
-        end_pad=(47.0, 23.19),
-    )
-    _route(builder, nets["GND"], ((39.0, 29.54), (36.0, 29.54), (36.0, 44.0)))
+    _route(builder, nets["GND"], ((35.75, 16.0), (35.75, 44.0)))
+    _route(builder, nets["GND"], ((39.0, 29.54), (35.75, 29.54)))
     _route(builder, nets["GND"], ((47.0, 23.19), (47.0, 18.0), (80.0, 18.0), (80.0, 44.0)))
     _route_layer_change(
         builder,
