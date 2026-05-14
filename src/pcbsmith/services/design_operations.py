@@ -8,6 +8,7 @@ from uuid import uuid4
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from pcbsmith.services.board_conventions import board_annotation_rules_summary
 from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.controller_boards import (
     AttinyLedControllerSpec,
@@ -384,6 +385,7 @@ def _operation_summary(
             "reports_dir": ".pcbsmith/reports",
         },
         "routing_rules": board_routing_rules_summary(),
+        "annotation_rules": board_annotation_rules_summary(),
         "checks": {
             "validation": validation_status,
             "preview": preview_status,
@@ -424,6 +426,7 @@ def _attiny_operation_summary(
             "revision_brief_file": _relative_output(project_dir, revision_brief_file),
         },
         "routing_rules": board_routing_rules_summary(),
+        "annotation_rules": board_annotation_rules_summary(),
         "checks": {
             "validation": validation_status,
             "preview": preview_status,

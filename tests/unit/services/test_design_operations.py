@@ -5,6 +5,7 @@ from pathlib import Path
 
 import pytest
 
+from pcbsmith.services.board_conventions import board_annotation_rules_summary
 from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.design_operations import (
     AttinyLedControllerDesignRequest,
@@ -52,6 +53,7 @@ def test_generate_led_art_design_writes_review_bundle_without_kicad_execution(
     assert summary["request"]["control_mode"] == "low_side_mosfet"
     assert summary["outputs"]["board_file"] == "AI_VIR_LAB.kicad_pcb"
     assert summary["routing_rules"] == board_routing_rules_summary()
+    assert summary["annotation_rules"] == board_annotation_rules_summary()
     assert summary["checks"]["validation"] == "skipped"
     assert summary["checks"]["preview"] == "skipped"
     assert summary["checks"]["revision_brief"] == "passed"
@@ -99,4 +101,6 @@ def test_generate_attiny_led_controller_design_writes_review_bundle(
     assert summary["request"]["controller"] == "ATtiny84"
     assert summary["request"]["led_outputs"] == 2
     assert summary["outputs"]["revision_brief_file"] == "revision-brief.json"
+    assert summary["routing_rules"] == board_routing_rules_summary()
+    assert summary["annotation_rules"] == board_annotation_rules_summary()
     assert summary["checks"]["revision_brief"] == "passed"

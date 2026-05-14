@@ -1,7 +1,14 @@
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 from pydantic import BaseModel, ConfigDict, Field
 
+from pcbsmith.services.board_conventions import (
+    BoardAnnotationPolicy,
+    ReferenceDesignatorAllocator,
+    silkscreen_value_enabled,
+)
 from pcbsmith.services.board_intelligence import routed_trace_segments
 from pcbsmith.services.kicad_board_builder import (
     KiCadBoardBuilder,
@@ -18,12 +25,26 @@ class AttinyLedControllerSpec(BaseModel):
     led_outputs: int = Field(default=2, ge=1, le=2)
     led_resistor_value: str = Field(default="330R", min_length=1)
     show_polarity_marks: bool = True
+    show_values_on_silkscreen: bool = False
+
+
+@dataclass(frozen=True)
+class _AttinyReferences:
+    controller: str
+    decoupling_capacitor: str
+    reset_resistor: str
+    led_resistors: tuple[str, ...]
+    leds: tuple[str, ...]
 
 
 def render_attiny_led_controller_board(
     spec: AttinyLedControllerSpec | None = None,
 ) -> str:
     board_spec = spec or AttinyLedControllerSpec()
+    references = _attiny_references(board_spec.led_outputs)
+    annotation_policy = BoardAnnotationPolicy(
+        show_values_on_silkscreen=board_spec.show_values_on_silkscreen
+    )
     builder = KiCadBoardBuilder()
     nets = {
         name: builder.net(name)
@@ -49,12 +70,23 @@ def render_attiny_led_controller_board(
     _add_silkscreen(builder, board_spec)
     _add_power_input(builder, nets)
     _add_isp_header(builder, nets)
-    _add_controller(builder, nets, board_spec)
-    _add_support_passives(builder, nets)
-    _add_led_outputs(builder, nets, board_spec)
+    _add_controller(builder, nets, board_spec, references)
+    _add_support_passives(builder, nets, references)
+    _add_led_outputs(builder, nets, board_spec, references, annotation_policy)
     _add_gpio_labels(builder)
     _add_routes(builder, nets, board_spec)
     return builder.render(outline_end_mm=(95.0, 55.0))
+
+
+def _attiny_references(led_outputs: int) -> _AttinyReferences:
+    allocator = ReferenceDesignatorAllocator()
+    return _AttinyReferences(
+        controller=allocator.next("ic"),
+        decoupling_capacitor=allocator.next("capacitor"),
+        reset_resistor=allocator.next("resistor"),
+        led_resistors=tuple(allocator.next("resistor") for _ in range(led_outputs)),
+        leds=tuple(allocator.next("led") for _ in range(led_outputs)),
+    )
 
 
 def _add_silkscreen(
@@ -121,10 +153,11 @@ def _add_controller(
     builder: KiCadBoardBuilder,
     nets: dict[str, NetRef],
     spec: AttinyLedControllerSpec,
+    references: _AttinyReferences,
 ) -> None:
     builder.add_rectangular_ic_footprint(
         footprint="PCBSmith_SOIC14_ATTINY_REAL",
-        reference="U1",
+        reference=references.controller,
         value=spec.controller,
         x_mm=43.0,
         y_mm=27.0,
@@ -157,11 +190,12 @@ def _add_controller(
 def _add_support_passives(
     builder: KiCadBoardBuilder,
     nets: dict[str, NetRef],
+    references: _AttinyReferences,
 ) -> None:
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
             footprint="PCBSmith_C_0603_REAL",
-            reference="C1",
+            reference=references.decoupling_capacitor,
             value="100nF",
             x_mm=35.0,
             y_mm=16.0,
@@ -173,7 +207,7 @@ def _add_support_passives(
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
             footprint="PCBSmith_R_0603_REAL",
-            reference="RRESET",
+            reference=references.reset_resistor,
             value="10K",
             x_mm=30.0,
             y_mm=23.0,
@@ -188,6 +222,8 @@ def _add_led_outputs(
     builder: KiCadBoardBuilder,
     nets: dict[str, NetRef],
     spec: AttinyLedControllerSpec,
+    references: _AttinyReferences,
+    annotation_policy: BoardAnnotationPolicy,
 ) -> None:
     for index, y_mm in enumerate((22.0, 34.0)[: spec.led_outputs], start=1):
         io_net = nets[f"LED{index}_IO"]
@@ -195,7 +231,7 @@ def _add_led_outputs(
         builder.add_two_pad_smd_footprint(
             TwoPadSmdFootprintSpec(
                 footprint="PCBSmith_R_0603_REAL",
-                reference=f"RLED{index}",
+                reference=references.led_resistors[index - 1],
                 value=spec.led_resistor_value,
                 x_mm=63.0,
                 y_mm=y_mm,
@@ -207,7 +243,7 @@ def _add_led_outputs(
         builder.add_two_pad_smd_footprint(
             TwoPadSmdFootprintSpec(
                 footprint="PCBSmith_LED_0603_REAL",
-                reference=f"LED{index}",
+                reference=references.leds[index - 1],
                 value="Status LED",
                 x_mm=74.0,
                 y_mm=y_mm,
@@ -218,6 +254,8 @@ def _add_led_outputs(
                 show_anode_plus=spec.show_polarity_marks,
             )
         )
+    if silkscreen_value_enabled(annotation_policy):
+        _add_led_output_values(builder, spec)
 
 
 def _add_gpio_labels(builder: KiCadBoardBuilder) -> None:
@@ -229,6 +267,15 @@ def _add_gpio_labels(builder: KiCadBoardBuilder) -> None:
         ("PA7", 34.5, 28.27),
     ):
         builder.add_text(label, x_mm, y_mm, size_mm=0.8)
+
+
+def _add_led_output_values(
+    builder: KiCadBoardBuilder,
+    spec: AttinyLedControllerSpec,
+) -> None:
+    builder.add_text("10K", 30.0, 19.2, size_mm=0.8)
+    for y_mm in (22.0, 34.0)[: spec.led_outputs]:
+        builder.add_text(spec.led_resistor_value, 63.0, y_mm + 2.4, size_mm=0.8)
 
 
 def _add_routes(

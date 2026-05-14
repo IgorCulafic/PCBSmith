@@ -6,6 +6,7 @@ from typing import Any
 
 from pcbsmith.core.geom import Point, nm_to_mm
 from pcbsmith.core.schematic import Schematic, SymbolInstance
+from pcbsmith.services.board_conventions import board_annotation_rules_summary
 from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.circuit_rules import circuit_rules_tool_contract
 from pcbsmith.services.component_selection import component_selection_tool_contract
@@ -86,6 +87,7 @@ def _kicad_context(kicad_project_dir: Path) -> dict[str, Any]:
     return {
         "project_dir": str(kicad_project_dir),
         "board_rules": _board_rules(),
+        "annotation_rules": _annotation_rules(),
         "board_layers": _board_layers(),
         "reports": _kicad_reports(kicad_project_dir),
         "visuals": _kicad_visuals(kicad_project_dir),
@@ -94,6 +96,10 @@ def _kicad_context(kicad_project_dir: Path) -> dict[str, Any]:
 
 def _board_rules() -> dict[str, object]:
     return board_routing_rules_summary()
+
+
+def _annotation_rules() -> dict[str, object]:
+    return board_annotation_rules_summary()
 
 
 def _board_layers() -> list[dict[str, object]]:

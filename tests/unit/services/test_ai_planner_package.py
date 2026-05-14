@@ -62,6 +62,15 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     assert "Do not treat 45-degree routing as an electrical hard rule; DRC wins." in (
         package["planner_rules"]
     )
+    assert (
+        "Use conventional EDA reference designators: R, C, LED, D, U, J, Q, L, SW, F, K, T, TP."
+        in package["planner_rules"]
+    )
+    assert (
+        "Keep references on silkscreen; keep values off silkscreen unless "
+        "educational/showcase mode asks for them."
+        in package["planner_rules"]
+    )
     assert package["component_selection"] == {
         "schema": "pcbsmith-component-selection-tool-v1",
         "cli_command": "component-selection <component-knowledge-index> <intent>",

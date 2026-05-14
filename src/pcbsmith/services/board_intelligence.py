@@ -105,9 +105,12 @@ def board_routing_rules_summary(
         "routing_style_authority": "cad_polish_preference",
         "drc_authority": "hard_rule",
         "trace_width_strategy": "classify_net_role_then_apply_default_width",
+        "same_net_topology_preference": "shared_trunk_with_short_branches",
         "notes": [
             "Prefer cardinal or 45-degree trace segments when practical.",
             "Avoid very sharp trace turns; DRC and manufacturability checks win over style.",
+            "Prefer shared trunks with short branches for nearby same-net endpoints "
+            "when it stays clear and DRC-clean.",
             "Avoid via-in-pad on SMD pads unless an advanced fabrication profile "
             "explicitly allows it.",
         ],
@@ -118,6 +121,7 @@ def ai_planner_routing_rule_notes() -> list[str]:
     return [
         "Prefer 45-degree/mitered PCB routing for CAD polish when practical.",
         "Do not treat 45-degree routing as an electrical hard rule; DRC wins.",
+        "Prefer shared same-net trunks with short branches over redundant parallel traces.",
         "Use fanout vias beside SMD pads; via-in-pad requires explicit fabrication support.",
     ]
 
