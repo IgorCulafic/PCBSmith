@@ -463,6 +463,7 @@ def _cmd_design_attiny_led_controller(args: argparse.Namespace) -> int:
         led_outputs=args.led_outputs,
         led_resistor_value=args.led_resistor,
         show_polarity_marks=not args.no_polarity_marks,
+        connector_style=args.connector_style,
     )
     result = generate_attiny_led_controller_design(
         request,
@@ -897,6 +898,12 @@ def build_parser() -> argparse.ArgumentParser:
     design_attiny_parser.add_argument("--controller", default="ATtiny84")
     design_attiny_parser.add_argument("--led-outputs", type=int, choices=(1, 2), default=2)
     design_attiny_parser.add_argument("--led-resistor", default="330R")
+    design_attiny_parser.add_argument(
+        "--connector-style",
+        choices=("through_hole", "smd_pads"),
+        default="through_hole",
+        help="choose a solderable through-hole ISP header or compact SMD programming pads",
+    )
     design_attiny_parser.add_argument(
         "--no-polarity-marks",
         action="store_true",

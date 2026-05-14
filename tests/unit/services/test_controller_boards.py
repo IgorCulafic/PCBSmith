@@ -49,6 +49,27 @@ def test_attiny_led_controller_board_hides_helper_pad_references() -> None:
         assert "(hide yes)" in _property_block(board_text, "Reference", reference)
 
 
+def test_attiny_led_controller_board_uses_labeled_through_hole_isp_by_default() -> None:
+    board_text = render_attiny_led_controller_board(AttinyLedControllerSpec())
+
+    assert '(footprint "PCBSmith_THROUGH_HOLE_PAD"' in board_text
+    assert '(pad "1" thru_hole circle' in board_text
+    assert '(footprint "PCBSmith_POWER_INPUT_PAD"' in board_text
+    for label in ("MISO", "VCC", "SCK", "MOSI", "RESET", "GND"):
+        assert f'(gr_text "{label}"' in board_text
+
+
+def test_attiny_led_controller_board_can_use_compact_smd_isp_pads() -> None:
+    board_text = render_attiny_led_controller_board(
+        AttinyLedControllerSpec(connector_style="smd_pads")
+    )
+
+    assert '(footprint "PCBSmith_THROUGH_HOLE_PAD"' not in board_text
+    assert '(footprint "PCBSmith_POWER_INPUT_PAD"' in board_text
+    assert '(property "Reference" "J1_MISO"' in board_text
+    assert "(hide yes)" in _property_block(board_text, "Reference", "J1_MISO")
+
+
 def test_attiny_led_controller_board_omits_gpio_silk_labels_by_default() -> None:
     board_text = render_attiny_led_controller_board(AttinyLedControllerSpec())
 

@@ -50,6 +50,21 @@ def test_board_builder_can_hide_power_pad_reference() -> None:
     assert "(hide yes)" in text
 
 
+def test_board_builder_can_add_through_hole_pad() -> None:
+    builder = KiCadBoardBuilder()
+    reset = builder.net("RESET")
+
+    builder.add_through_hole_pad("J1_RST", 10, 20, net=reset, show_reference=False)
+    text = builder.render(outline_end_mm=(30, 20))
+
+    assert '(footprint "PCBSmith_THROUGH_HOLE_PAD"' in text
+    assert '(pad "1" thru_hole circle' in text
+    assert '(drill 0.9)' in text
+    assert '(layers "*.Cu" "*.Mask")' in text
+    assert '(net 1 "RESET")' in text
+    assert "(hide yes)" in text
+
+
 def test_board_builder_renders_two_pad_smd_footprint_with_fab_body() -> None:
     builder = KiCadBoardBuilder()
     vcc = builder.net("VCC")

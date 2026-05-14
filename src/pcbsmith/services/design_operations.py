@@ -12,6 +12,7 @@ from pcbsmith.services.board_conventions import board_annotation_rules_summary
 from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.controller_boards import (
     AttinyLedControllerSpec,
+    ConnectorStyle,
     render_attiny_led_controller_board,
 )
 from pcbsmith.services.kicad_preview import (
@@ -67,6 +68,7 @@ class AttinyLedControllerDesignRequest(BaseModel):
     led_outputs: int = Field(default=2, ge=1, le=2)
     led_resistor_value: str = Field(default="330R", min_length=1)
     show_polarity_marks: bool = True
+    connector_style: ConnectorStyle = "through_hole"
 
 
 class DesignOperationResult(BaseModel):
@@ -208,6 +210,7 @@ def generate_attiny_led_controller_design(
                 led_outputs=request.led_outputs,
                 led_resistor_value=request.led_resistor_value,
                 show_polarity_marks=request.show_polarity_marks,
+                connector_style=request.connector_style,
             )
         ),
         encoding="utf-8",
@@ -340,6 +343,7 @@ def _write_attiny_readme(
                 "- Operation: ATtiny LED controller.",
                 f"- Controller: {request.controller}.",
                 f"- LED outputs: {request.led_outputs}.",
+                f"- Connector style: {request.connector_style}.",
                 "- Includes 5 V/GND input pads, ISP pads, reset pull-up, "
                 "decoupling, and status LEDs.",
                 "- Review the KiCad PCB, revision brief, SVG previews, Gerbers, and drill outputs.",
@@ -417,6 +421,7 @@ def _attiny_operation_summary(
             "led_outputs": request.led_outputs,
             "led_resistor_value": request.led_resistor_value,
             "show_polarity_marks": request.show_polarity_marks,
+            "connector_style": request.connector_style,
         },
         "outputs": {
             "project_dir": str(project_dir),
