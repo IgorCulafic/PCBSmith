@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from pcbsmith.services.ai_brief import AI_BRIEF_SCHEMA
+from pcbsmith.services.board_conventions import ai_planner_annotation_rule_notes
 from pcbsmith.services.board_intelligence import ai_planner_routing_rule_notes
 from pcbsmith.services.circuit_rules import (
     circuit_rules_planner_rule_notes,
@@ -147,6 +148,7 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         *component_selection_planner_rule_notes(),
         *circuit_rules_planner_rule_notes(),
         *ai_planner_routing_rule_notes(),
+        *ai_planner_annotation_rule_notes(),
     ]
     if review_only:
         return [

@@ -145,11 +145,44 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
             "routing_style_authority": "cad_polish_preference",
             "drc_authority": "hard_rule",
             "trace_width_strategy": "classify_net_role_then_apply_default_width",
+            "same_net_topology_preference": "shared_trunk_with_short_branches",
             "notes": [
                 "Prefer cardinal or 45-degree trace segments when practical.",
                 "Avoid very sharp trace turns; DRC and manufacturability checks win over style.",
+                "Prefer shared trunks with short branches for nearby same-net endpoints "
+                "when it stays clear and DRC-clean.",
                 "Avoid via-in-pad on SMD pads unless an advanced fabrication profile "
                 "explicitly allows it.",
+            ],
+        },
+        "annotation_rules": {
+            "reference_designators": {
+                "resistor": "R",
+                "capacitor": "C",
+                "led": "LED",
+                "diode": "D",
+                "ic": "U",
+                "connector": "J",
+                "transistor": "Q",
+                "mosfet": "Q",
+                "inductor": "L",
+                "switch": "SW",
+                "fuse": "F",
+                "relay": "K",
+                "transformer": "T",
+                "test_point": "TP",
+            },
+            "silkscreen_defaults": {
+                "show_references": True,
+                "show_values": False,
+                "value_default_destination": "fabrication_layers_and_bom",
+            },
+            "notes": [
+                "Use conventional EDA reference prefixes globally, not demo-specific names.",
+                "Keep component references on silkscreen by default.",
+                "Keep values in KiCad properties, fabrication layers, and BOM by default; "
+                "put values on silkscreen only for educational or showcase output.",
+                "Place labels so they do not overlap pads, courtyard outlines, or polarity marks.",
             ],
         },
         "board_layers": [

@@ -17,8 +17,11 @@ def test_attiny_led_controller_board_contains_controller_support_and_io() -> Non
     assert '(property "Value" "ATtiny84"' in board_text
     assert '(property "Reference" "C1"' in board_text
     assert '(property "Value" "100nF"' in board_text
-    assert '(property "Reference" "RRESET"' in board_text
-    assert '(property "Reference" "RLED1"' in board_text
+    assert '(property "Reference" "R1"' in board_text
+    assert '(property "Reference" "R2"' in board_text
+    assert '(property "Reference" "R3"' in board_text
+    assert '(property "Reference" "RRESET"' not in board_text
+    assert '(property "Reference" "RLED1"' not in board_text
     assert '(property "Reference" "LED1"' in board_text
     assert '(property "Reference" "LED2"' in board_text
     assert '(gr_text "ISP"' in board_text
@@ -35,10 +38,19 @@ def test_attiny_led_controller_board_contains_controller_support_and_io() -> Non
 def test_attiny_led_controller_board_honors_led_output_count() -> None:
     board_text = render_attiny_led_controller_board(AttinyLedControllerSpec(led_outputs=1))
 
-    assert '(property "Reference" "RLED1"' in board_text
+    assert '(property "Reference" "R2"' in board_text
     assert '(property "Reference" "LED1"' in board_text
-    assert '(property "Reference" "RLED2"' not in board_text
+    assert '(property "Reference" "R3"' not in board_text
     assert '(property "Reference" "LED2"' not in board_text
+
+
+def test_attiny_led_controller_board_can_show_values_on_silkscreen() -> None:
+    board_text = render_attiny_led_controller_board(
+        AttinyLedControllerSpec(show_values_on_silkscreen=True)
+    )
+
+    assert '(gr_text "10K"' in board_text
+    assert '(gr_text "330R"' in board_text
 
 
 def test_attiny_led_controller_board_prefers_cardinal_or_45_degree_routing() -> None:
@@ -108,4 +120,3 @@ def _board_vias(board_text: str) -> list[tuple[float, float]]:
         (float(match.group("x")), float(match.group("y")))
         for match in via_pattern.finditer(board_text)
     ]
-
