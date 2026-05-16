@@ -73,9 +73,10 @@ the model operate PCBSmith tools that know PCB constraints.
 - R7 groundwork now includes a `board_feature_intent` AI contract that classifies
   printed artwork separately from physical board-outline geometry before a model
   proposes edits.
-- R7A groundwork now includes `silkscreen_artwork`, which validates
-  front/back silkscreen text requests for readable size, stroke width, board-edge
-  margin, and copper keepout before rendering them as KiCad-native board text.
+- R7A groundwork now includes `silkscreen_artwork` and the
+  `design-silkscreen-artwork` CLI operation, which validate front/back
+  silkscreen text requests for readable size, stroke width, board-edge margin,
+  and copper keepout before rendering them as KiCad-native board text.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
@@ -187,6 +188,16 @@ Generate a structured R6 ATtiny LED-controller review bundle:
 The generated `.pcbsmith/operation.json` records the controller request, output
 files, centralized routing rules, KiCad validation/preview status, and revision
 brief status.
+
+Generate a structured R7A silkscreen artwork review bundle:
+
+```powershell
+.\.venv\Scripts\python.exe -m pcbsmith.cli design-silkscreen-artwork .tmp\r7a-silkscreen-demo --name "R7A Logo Placement" --text "VIR LAB" --x 18 --y 16
+```
+
+The generated `.pcbsmith/reports/silkscreen-preflight.json` records artwork
+readability, board-edge, and copper-keepout checks before the board text is
+written into the KiCad PCB.
 
 Generate and query component knowledge:
 
