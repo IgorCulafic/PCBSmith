@@ -1146,3 +1146,43 @@ def test_design_attiny_led_controller_writes_structured_review_bundle(
     ]
     assert (output_dir / "R6_ATtiny_Controller.kicad_pcb").exists()
     assert (output_dir / "revision-brief.json").exists()
+
+
+def test_design_silkscreen_artwork_writes_structured_review_bundle(
+    tmp_path: Path,
+) -> None:
+    output_dir = tmp_path / "silkscreen-review"
+
+    result = _run_cli(
+        "design-silkscreen-artwork",
+        str(output_dir),
+        "--name",
+        "R7A Logo Placement",
+        "--text",
+        "VIR LAB",
+        "--x",
+        "18",
+        "--y",
+        "16",
+        "--skip-execution",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Design operation: silkscreen_artwork",
+        f"Review bundle: {output_dir}",
+        f"KiCad board: {output_dir / 'R7A_Logo_Placement.kicad_pcb'}",
+        f"Operation summary: {output_dir / '.pcbsmith' / 'operation.json'}",
+        f"Revision brief: {output_dir / 'revision-brief.json'}",
+        "Validation: skipped",
+        "Preview: skipped",
+        "Revision brief status: passed",
+    ]
+    assert (output_dir / "R7A_Logo_Placement.kicad_pcb").exists()
+    assert (output_dir / ".pcbsmith" / "reports" / "silkscreen-preflight.json").exists()
+    summary = json.loads(
+        (output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8")
+    )
+    assert summary["operation"] == "silkscreen_artwork"
+    assert summary["checks"]["silkscreen_preflight"] == "passed"

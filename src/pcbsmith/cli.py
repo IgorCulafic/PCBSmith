@@ -6,6 +6,7 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from pcbsmith.core.board import Layer
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
 from pcbsmith.services.ai_brief import write_ai_brief
@@ -44,9 +45,11 @@ from pcbsmith.services.component_selection import (
 from pcbsmith.services.design_operations import (
     AttinyLedControllerDesignRequest,
     LedArtDesignRequest,
+    SilkscreenArtworkDesignRequest,
     format_design_operation_result,
     generate_attiny_led_controller_design,
     generate_led_art_design,
+    generate_silkscreen_artwork_design,
 )
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
@@ -466,6 +469,30 @@ def _cmd_design_attiny_led_controller(args: argparse.Namespace) -> int:
         connector_style=args.connector_style,
     )
     result = generate_attiny_led_controller_design(
+        request,
+        Path(args.output_project),
+        execute_kicad=not args.skip_execution,
+        overwrite=args.overwrite,
+    )
+    for line in format_design_operation_result(result):
+        print(line)
+    return result.exit_code
+
+
+def _cmd_design_silkscreen_artwork(args: argparse.Namespace) -> int:
+    request = SilkscreenArtworkDesignRequest(
+        name=args.name,
+        text=args.text,
+        layer=Layer(args.layer),
+        x_mm=args.x,
+        y_mm=args.y,
+        rotation_deg=args.rotation,
+        size_mm=args.size,
+        thickness_mm=args.thickness,
+        board_width_mm=args.board_width,
+        board_height_mm=args.board_height,
+    )
+    result = generate_silkscreen_artwork_design(
         request,
         Path(args.output_project),
         execute_kicad=not args.skip_execution,
@@ -920,6 +947,37 @@ def build_parser() -> argparse.ArgumentParser:
         help="replace an existing output directory",
     )
     design_attiny_parser.set_defaults(func=_cmd_design_attiny_led_controller)
+
+    design_silkscreen_parser = subparsers.add_parser(
+        "design-silkscreen-artwork",
+        help="generate a KiCad silkscreen artwork review bundle",
+    )
+    design_silkscreen_parser.add_argument("output_project")
+    design_silkscreen_parser.add_argument("--name", default="Silkscreen Artwork")
+    design_silkscreen_parser.add_argument("--text", required=True)
+    design_silkscreen_parser.add_argument(
+        "--layer",
+        choices=(Layer.F_SILK.value, Layer.B_SILK.value),
+        default=Layer.F_SILK.value,
+    )
+    design_silkscreen_parser.add_argument("--x", type=float, default=20.0)
+    design_silkscreen_parser.add_argument("--y", type=float, default=15.0)
+    design_silkscreen_parser.add_argument("--rotation", type=int, default=0)
+    design_silkscreen_parser.add_argument("--size", type=float, default=1.5)
+    design_silkscreen_parser.add_argument("--thickness", type=float, default=0.15)
+    design_silkscreen_parser.add_argument("--board-width", type=float, default=50.0)
+    design_silkscreen_parser.add_argument("--board-height", type=float, default=30.0)
+    design_silkscreen_parser.add_argument(
+        "--skip-execution",
+        action="store_true",
+        help="write KiCad files and reports without running KiCad validation or preview exports",
+    )
+    design_silkscreen_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing output directory",
+    )
+    design_silkscreen_parser.set_defaults(func=_cmd_design_silkscreen_artwork)
 
     return parser
 
