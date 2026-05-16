@@ -219,6 +219,13 @@ the physical shape of the board.
   for professional boards.
 - Keep a decorative/showcase mode separate from a minimal/professional mode.
 
+The first R7A foundation is implemented as `silkscreen_artwork`. It models
+front/back silkscreen text/artwork requests, checks readable size, stroke width,
+board-edge margin, and copper keepout, and renders accepted requests through
+the existing KiCad-native `BoardText` path. AI context and planner packages now
+advertise this as a separate `silkscreen_artwork` contract below the
+`board_feature_intent` classifier.
+
 ### R7B: Board Outline And Cutout Geometry
 
 Board outline features are physical geometry on `Edge.Cuts`. They are not

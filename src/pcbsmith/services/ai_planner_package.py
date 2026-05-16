@@ -19,6 +19,10 @@ from pcbsmith.services.component_selection import (
     component_selection_planner_rule_notes,
     component_selection_tool_contract,
 )
+from pcbsmith.services.silkscreen_artwork import (
+    silkscreen_artwork_planner_rule_notes,
+    silkscreen_artwork_tool_contract,
+)
 
 AI_PLANNER_PACKAGE_SCHEMA = "pcbsmith-ai-planner-package-v1"
 
@@ -36,6 +40,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "component_selection": component_selection_tool_contract(),
             "circuit_rules": circuit_rules_tool_contract(),
             "board_feature_intent": board_feature_tool_contract(),
+            "silkscreen_artwork": silkscreen_artwork_tool_contract(),
             "planner_rules": _planner_rules(review_only=True),
         }
 
@@ -54,6 +59,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
         "component_selection": component_selection_tool_contract(),
         "circuit_rules": circuit_rules_tool_contract(),
         "board_feature_intent": board_feature_tool_contract(),
+        "silkscreen_artwork": silkscreen_artwork_tool_contract(),
         "planner_rules": _planner_rules(review_only=False),
     }
 
@@ -154,6 +160,7 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         *component_selection_planner_rule_notes(),
         *circuit_rules_planner_rule_notes(),
         *board_feature_planner_rule_notes(),
+        *silkscreen_artwork_planner_rule_notes(),
         *ai_planner_routing_rule_notes(),
         *ai_planner_annotation_rule_notes(),
     ]

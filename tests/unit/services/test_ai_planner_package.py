@@ -143,6 +143,26 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
         "Classify physical shape requests separately: board outlines and cutouts target Edge.Cuts."
         in package["planner_rules"]
     )
+    assert package["silkscreen_artwork"] == {
+        "schema": "pcbsmith-silkscreen-artwork-tool-v1",
+        "allowed_layers": ["F.SilkS", "B.SilkS"],
+        "modes": ["professional", "showcase"],
+        "preflight_checks": [
+            "inside_board_outline",
+            "edge_margin",
+            "minimum_text_size_mm",
+            "minimum_stroke_width_mm",
+            "copper_keepout",
+        ],
+        "instructions": [
+            "Use silkscreen artwork for printed labels, logos, notes, and decorative text.",
+            "Do not use this operation for physical board outlines or cutouts.",
+            "Run preflight before applying artwork to a board.",
+        ],
+    }
+    assert "Run silkscreen artwork preflight before applying printed text or logos." in (
+        package["planner_rules"]
+    )
 
 
 def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
@@ -161,6 +181,7 @@ def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
     assert "component_selection" in package
     assert "circuit_rules" in package
     assert "board_feature_intent" in package
+    assert "silkscreen_artwork" in package
     assert "Do not propose project mutations for review_only briefs." in (
         package["planner_rules"]
     )
