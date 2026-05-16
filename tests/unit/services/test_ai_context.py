@@ -78,6 +78,23 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
             "Do not use silkscreen commands to change the physical board outline.",
         ],
     }
+    assert context["ai_tools"]["silkscreen_artwork"] == {
+        "schema": "pcbsmith-silkscreen-artwork-tool-v1",
+        "allowed_layers": ["F.SilkS", "B.SilkS"],
+        "modes": ["professional", "showcase"],
+        "preflight_checks": [
+            "inside_board_outline",
+            "edge_margin",
+            "minimum_text_size_mm",
+            "minimum_stroke_width_mm",
+            "copper_keepout",
+        ],
+        "instructions": [
+            "Use silkscreen artwork for printed labels, logos, notes, and decorative text.",
+            "Do not use this operation for physical board outlines or cutouts.",
+            "Run preflight before applying artwork to a board.",
+        ],
+    }
     assert context["schematics"] == [
         {
             "path": "schematics/main.sch.json",

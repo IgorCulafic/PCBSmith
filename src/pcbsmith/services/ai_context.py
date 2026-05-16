@@ -12,6 +12,7 @@ from pcbsmith.services.board_intelligence import board_routing_rules_summary
 from pcbsmith.services.circuit_rules import circuit_rules_tool_contract
 from pcbsmith.services.component_selection import component_selection_tool_contract
 from pcbsmith.services.project_io import load_project, load_schematic
+from pcbsmith.services.silkscreen_artwork import silkscreen_artwork_tool_contract
 
 AI_CONTEXT_SCHEMA = "pcbsmith-ai-context-v1"
 
@@ -37,6 +38,7 @@ def build_ai_context(
             "component_selection": component_selection_tool_contract(),
             "circuit_rules": circuit_rules_tool_contract(),
             "board_feature_intent": board_feature_tool_contract(),
+            "silkscreen_artwork": silkscreen_artwork_tool_contract(),
         },
         "schematics": [
             _schematic_summary(path, schematic) for path, schematic in schematics
