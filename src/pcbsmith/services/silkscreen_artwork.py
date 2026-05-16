@@ -5,7 +5,14 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from pcbsmith.core.board import Board, BoardText, Layer, Trace
+from pcbsmith.core.board import (
+    Board,
+    BoardGraphic,
+    BoardGraphicKind,
+    BoardText,
+    Layer,
+    Trace,
+)
 from pcbsmith.core.geom import Box, Point, mm_to_nm
 
 MIN_TEXT_SIZE_NM = mm_to_nm(0.8)
@@ -17,6 +24,11 @@ DEFAULT_COPPER_KEEP_OUT_NM = mm_to_nm(0.2)
 class SilkscreenMode(StrEnum):
     PROFESSIONAL = "professional"
     SHOWCASE = "showcase"
+
+
+class SilkscreenGraphicKind(StrEnum):
+    LINE = "line"
+    RECT = "rect"
 
 
 class SilkscreenArtworkRequest(BaseModel):
@@ -34,6 +46,23 @@ class SilkscreenArtworkRequest(BaseModel):
     def only_silkscreen_layers(self) -> SilkscreenArtworkRequest:
         if self.layer not in {Layer.F_SILK, Layer.B_SILK}:
             raise ValueError("silkscreen artwork must target F.SilkS or B.SilkS")
+        return self
+
+
+class SilkscreenGraphicRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: SilkscreenGraphicKind
+    layer: Layer = Layer.F_SILK
+    start: Point
+    end: Point
+    stroke_width: int = Field(default=150_000, gt=0)
+    mode: SilkscreenMode = SilkscreenMode.PROFESSIONAL
+
+    @model_validator(mode="after")
+    def only_silkscreen_layers(self) -> SilkscreenGraphicRequest:
+        if self.layer not in {Layer.F_SILK, Layer.B_SILK}:
+            raise ValueError("silkscreen graphics must target F.SilkS or B.SilkS")
         return self
 
 
@@ -79,6 +108,7 @@ def inspect_silkscreen_artwork(
     board: Board,
     requests: tuple[SilkscreenArtworkRequest, ...],
     *,
+    graphics: tuple[SilkscreenGraphicRequest, ...] = (),
     frame: SilkscreenPreflightFrame,
 ) -> SilkscreenPreflightReport:
     findings: list[SilkscreenPreflightFinding] = []
@@ -120,6 +150,33 @@ def inspect_silkscreen_artwork(
                     location=location,
                 )
             )
+    for index, graphic in enumerate(graphics, start=1):
+        location = f"silkscreen graphic {index}"
+        bounds = estimate_silkscreen_graphic_box(graphic)
+        if graphic.stroke_width < MIN_STROKE_WIDTH_NM:
+            findings.append(
+                SilkscreenPreflightFinding(
+                    code="silkscreen_stroke_too_thin",
+                    message="Silkscreen stroke is below the reliable minimum width",
+                    location=location,
+                )
+            )
+        if not _contains_box(frame.board_box, bounds):
+            findings.append(
+                SilkscreenPreflightFinding(
+                    code="silkscreen_outside_board",
+                    message="Silkscreen graphic crosses the board outline or edge margin",
+                    location=location,
+                )
+            )
+        if _overlaps_copper(bounds, copper_traces, frame.copper_keepout):
+            findings.append(
+                SilkscreenPreflightFinding(
+                    code="silkscreen_copper_overlap",
+                    message="Silkscreen graphic overlaps or crowds exposed copper",
+                    location=location,
+                )
+            )
     return SilkscreenPreflightReport(findings=tuple(findings))
 
 
@@ -127,15 +184,27 @@ def apply_silkscreen_artwork(
     board: Board,
     requests: tuple[SilkscreenArtworkRequest, ...],
     *,
+    graphics: tuple[SilkscreenGraphicRequest, ...] = (),
     frame: SilkscreenPreflightFrame,
 ) -> Board:
-    report = inspect_silkscreen_artwork(board, requests, frame=frame)
+    report = inspect_silkscreen_artwork(
+        board,
+        requests,
+        graphics=graphics,
+        frame=frame,
+    )
     if not report.passed:
         codes = ", ".join(finding.code for finding in report.findings)
         raise ValueError(f"silkscreen preflight failed: {codes}")
 
     texts = tuple(_request_to_board_text(request) for request in requests)
-    return board.model_copy(update={"texts": (*board.texts, *texts)})
+    board_graphics = tuple(_request_to_board_graphic(graphic) for graphic in graphics)
+    return board.model_copy(
+        update={
+            "texts": (*board.texts, *texts),
+            "graphics": (*board.graphics, *board_graphics),
+        }
+    )
 
 
 def estimate_silkscreen_text_box(request: SilkscreenArtworkRequest) -> Box:
@@ -151,10 +220,21 @@ def estimate_silkscreen_text_box(request: SilkscreenArtworkRequest) -> Box:
     )
 
 
+def estimate_silkscreen_graphic_box(request: SilkscreenGraphicRequest) -> Box:
+    expansion = max(1, request.stroke_width // 2)
+    return Box(
+        left=min(request.start.x, request.end.x) - expansion,
+        top=min(request.start.y, request.end.y) - expansion,
+        right=max(request.start.x, request.end.x) + expansion,
+        bottom=max(request.start.y, request.end.y) + expansion,
+    )
+
+
 def silkscreen_artwork_tool_contract() -> dict[str, object]:
     return {
         "schema": "pcbsmith-silkscreen-artwork-tool-v1",
         "allowed_layers": [Layer.F_SILK.value, Layer.B_SILK.value],
+        "allowed_graphics": [kind.value for kind in SilkscreenGraphicKind],
         "modes": [mode.value for mode in SilkscreenMode],
         "preflight_checks": [
             "inside_board_outline",
@@ -165,6 +245,7 @@ def silkscreen_artwork_tool_contract() -> dict[str, object]:
         ],
         "instructions": [
             "Use silkscreen artwork for printed labels, logos, notes, and decorative text.",
+            "Use native line and rectangle primitives for simple logo geometry when possible.",
             "Do not use this operation for physical board outlines or cutouts.",
             "Run preflight before applying artwork to a board.",
         ],
@@ -187,6 +268,16 @@ def _request_to_board_text(request: SilkscreenArtworkRequest) -> BoardText:
         rotation_deg=request.rotation_deg,
         size=request.size,
         thickness=request.thickness,
+    )
+
+
+def _request_to_board_graphic(request: SilkscreenGraphicRequest) -> BoardGraphic:
+    return BoardGraphic(
+        kind=BoardGraphicKind(request.kind.value),
+        layer=request.layer,
+        start=request.start,
+        end=request.end,
+        stroke_width=request.stroke_width,
     )
 
 
@@ -228,11 +319,14 @@ def _expanded_trace_segment_box(
 
 __all__ = [
     "SilkscreenArtworkRequest",
+    "SilkscreenGraphicKind",
+    "SilkscreenGraphicRequest",
     "SilkscreenMode",
     "SilkscreenPreflightFinding",
     "SilkscreenPreflightFrame",
     "SilkscreenPreflightReport",
     "apply_silkscreen_artwork",
+    "estimate_silkscreen_graphic_box",
     "estimate_silkscreen_text_box",
     "inspect_silkscreen_artwork",
     "silkscreen_artwork_planner_rule_notes",

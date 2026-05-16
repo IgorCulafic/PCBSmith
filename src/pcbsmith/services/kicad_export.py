@@ -7,7 +7,7 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
 
-from pcbsmith.core.board import Board, BoardText, Trace
+from pcbsmith.core.board import Board, BoardGraphic, BoardGraphicKind, BoardText, Trace
 from pcbsmith.core.geom import Point, Vec, mm_to_nm, nm_to_mm
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
@@ -469,6 +469,10 @@ def render_kicad_board_items(
         items.extend(
             _render_command_board_text(text, uuid=uuid_factory())
             for text in board.texts
+        )
+        items.extend(
+            _render_command_board_graphic(graphic, uuid=uuid_factory())
+            for graphic in board.graphics
         )
     if footprints and (board is None or not board.texts):
         items.append(
@@ -1213,6 +1217,32 @@ def _render_command_board_text(text: BoardText, *, uuid: UUID) -> str:
         thickness_mm=_format_mm(text.thickness),
         uuid=uuid,
     )
+
+
+def _render_command_board_graphic(graphic: BoardGraphic, *, uuid: UUID) -> str:
+    start_x_mm = _board_point_x_mm(graphic.start)
+    start_y_mm = _board_point_y_mm(graphic.start)
+    end_x_mm = _board_point_x_mm(graphic.end)
+    end_y_mm = _board_point_y_mm(graphic.end)
+    width_mm = _format_mm(graphic.stroke_width)
+    if graphic.kind == BoardGraphicKind.LINE:
+        return f"""  (gr_line
+    (start {start_x_mm} {start_y_mm})
+    (end {end_x_mm} {end_y_mm})
+    (stroke (width {width_mm}) (type solid))
+    (layer "{graphic.layer}")
+    (uuid {uuid})
+  )"""
+    if graphic.kind == BoardGraphicKind.RECT:
+        return f"""  (gr_rect
+    (start {start_x_mm} {start_y_mm})
+    (end {end_x_mm} {end_y_mm})
+    (stroke (width {width_mm}) (type solid))
+    (fill none)
+    (layer "{graphic.layer}")
+    (uuid {uuid})
+  )"""
+    raise ValueError(f"Unsupported board graphic kind: {graphic.kind}")
 
 
 def _render_board_segment_values(

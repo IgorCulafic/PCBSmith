@@ -6,7 +6,7 @@ import shutil
 from pathlib import Path
 from uuid import UUID
 
-from pcbsmith.core.board import Board, BoardText, Layer, Trace
+from pcbsmith.core.board import Board, BoardGraphic, BoardGraphicKind, BoardText, Layer, Trace
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
@@ -663,6 +663,53 @@ def test_export_renders_command_authored_board_text_and_route(tmp_path: Path) ->
     ) in board_text
     assert '(gr_text "AI LED Demo"' in board_text
     assert "(at 148.5 118.5 0)" in board_text
+
+
+def test_export_renders_command_authored_silkscreen_graphics(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Silkscreen Graphic Demo")
+    save_board(
+        source_project,
+        "boards/main.brd.json",
+        Board(
+            id="main",
+            graphics=(
+                BoardGraphic(
+                    kind=BoardGraphicKind.LINE,
+                    layer=Layer.F_SILK,
+                    start=Point.from_mm(10, 10),
+                    end=Point.from_mm(20, 10),
+                    stroke_width=150_000,
+                ),
+                BoardGraphic(
+                    kind=BoardGraphicKind.RECT,
+                    layer=Layer.B_SILK,
+                    start=Point.from_mm(30, 10),
+                    end=Point.from_mm(38, 16),
+                    stroke_width=200_000,
+                ),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
+
+    assert "(gr_line" in board_text
+    assert "(start 133.5 97.5)" in board_text
+    assert "(end 143.5 97.5)" in board_text
+    assert '(layer "F.SilkS")' in board_text
+    assert "(gr_rect" in board_text
+    assert "(start 153.5 97.5)" in board_text
+    assert "(end 161.5 103.5)" in board_text
+    assert "(width 0.2)" in board_text
+    assert '(layer "B.SilkS")' in board_text
 
 
 def test_export_skips_default_silkscreen_when_board_text_exists(tmp_path: Path) -> None:

@@ -75,8 +75,9 @@ the model operate PCBSmith tools that know PCB constraints.
   proposes edits.
 - R7A groundwork now includes `silkscreen_artwork` and the
   `design-silkscreen-artwork` CLI operation, which validate front/back
-  silkscreen text requests for readable size, stroke width, board-edge margin,
-  and copper keepout before rendering them as KiCad-native board text.
+  silkscreen text and simple line/rectangle graphic requests for readable size,
+  stroke width, board-edge margin, and copper keepout before rendering them as
+  KiCad-native board text and graphics.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 

@@ -81,6 +81,7 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
     assert context["ai_tools"]["silkscreen_artwork"] == {
         "schema": "pcbsmith-silkscreen-artwork-tool-v1",
         "allowed_layers": ["F.SilkS", "B.SilkS"],
+        "allowed_graphics": ["line", "rect"],
         "modes": ["professional", "showcase"],
         "preflight_checks": [
             "inside_board_outline",
@@ -91,6 +92,7 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
         ],
         "instructions": [
             "Use silkscreen artwork for printed labels, logos, notes, and decorative text.",
+            "Use native line and rectangle primitives for simple logo geometry when possible.",
             "Do not use this operation for physical board outlines or cutouts.",
             "Run preflight before applying artwork to a board.",
         ],
