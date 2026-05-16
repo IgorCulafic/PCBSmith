@@ -235,6 +235,28 @@ silkscreen artwork.
   outlines as specific connector features with their own dimensional rules, not
   as generic decorative shapes.
 
+## R8: Project Restructure And Cleanup
+
+R8 is the deliberate cleanup pass after the early prototype and demo-heavy
+work. The goal is not to delete useful history casually; the goal is to make the
+repository look like a serious open-source project instead of an active scratch
+workspace.
+
+- Separate committed source, docs, tests, and stable tools from generated
+  review bundles, temporary KiCad outputs, cache folders, old pytest workspaces,
+  and abandoned prototype artifacts.
+- Keep `.tmp`, cache folders, broken virtual environments, old phase workspaces,
+  and one-off generated outputs out of the project root.
+- Move any historically useful generated demos into a documented examples or
+  release-artifacts area only when they are intentionally curated.
+- Keep repeatable commands in `tools/`, with one startup/dev check that proves
+  the environment, tests, KiCad backend, library index, and review-bundle flow
+  still work.
+- Update `.gitignore`, cleanup tooling, README, project handoff, and
+  presentation docs so a new contributor can understand the project quickly.
+- Do not run destructive cleanup blindly. The cleanup tool should default to a
+  dry run or archive mode before deletion.
+
 ## User Contribution Path
 
 The most valuable user help is collecting trusted examples and requirements:

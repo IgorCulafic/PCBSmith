@@ -6,6 +6,10 @@ from typing import Any
 
 from pcbsmith.services.ai_brief import AI_BRIEF_SCHEMA
 from pcbsmith.services.board_conventions import ai_planner_annotation_rule_notes
+from pcbsmith.services.board_feature_intent import (
+    board_feature_planner_rule_notes,
+    board_feature_tool_contract,
+)
 from pcbsmith.services.board_intelligence import ai_planner_routing_rule_notes
 from pcbsmith.services.circuit_rules import (
     circuit_rules_planner_rule_notes,
@@ -31,6 +35,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "target_plan_schema": None,
             "component_selection": component_selection_tool_contract(),
             "circuit_rules": circuit_rules_tool_contract(),
+            "board_feature_intent": board_feature_tool_contract(),
             "planner_rules": _planner_rules(review_only=True),
         }
 
@@ -48,6 +53,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
         "target_plan_schema": _target_plan_schema(brief),
         "component_selection": component_selection_tool_contract(),
         "circuit_rules": circuit_rules_tool_contract(),
+        "board_feature_intent": board_feature_tool_contract(),
         "planner_rules": _planner_rules(review_only=False),
     }
 
@@ -147,6 +153,7 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         "Only use F.SilkS or B.SilkS for place_text.",
         *component_selection_planner_rule_notes(),
         *circuit_rules_planner_rule_notes(),
+        *board_feature_planner_rule_notes(),
         *ai_planner_routing_rule_notes(),
         *ai_planner_annotation_rule_notes(),
     ]

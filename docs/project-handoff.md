@@ -70,6 +70,9 @@ the model operate PCBSmith tools that know PCB constraints.
 - Roadmap now separates silkscreen/artwork requests from physical board-outline
   requests. Logos/text/labels go to `F.SilkS` or `B.SilkS`; custom board shapes,
   cutouts, and edge connector geometry go to `Edge.Cuts`.
+- R7 groundwork now includes a `board_feature_intent` AI contract that classifies
+  printed artwork separately from physical board-outline geometry before a model
+  proposes edits.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 
@@ -103,6 +106,7 @@ The current priority is:
 7. R5 Review And Revision Loop.
 8. R6 Bigger Real Demos.
 9. R7 Parametric PCB Features.
+10. R8 Project Restructure And Cleanup.
 
 ## KiCad Setup
 
@@ -206,6 +210,10 @@ Generate and query component knowledge:
   possible.
 - Multimodal review should become an optional visual QA layer for generated
   artifacts, below deterministic KiCad and PCBSmith checks.
+- The repository currently contains many generated folders from rapid
+  prototyping. R8 is reserved for a deliberate cleanup/restructure pass that
+  archives or removes generated artifacts, keeps stable examples intentionally,
+  updates `.gitignore`, and leaves a clean contributor-facing project layout.
 
 ## When Starting A New Chat
 

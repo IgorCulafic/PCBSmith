@@ -58,6 +58,26 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
             "Treat warning and error findings as revision inputs, not as fabrication approval.",
         ],
     }
+    assert context["ai_tools"]["board_feature_intent"] == {
+        "schema": "pcbsmith-board-feature-intent-v1",
+        "feature_kinds": [
+            "silkscreen_artwork",
+            "board_outline_geometry",
+            "needs_clarification",
+        ],
+        "layer_rules": {
+            "silkscreen_artwork": ["F.SilkS", "B.SilkS"],
+            "board_outline_geometry": ["Edge.Cuts"],
+        },
+        "instructions": [
+            "Treat logos, text, QR codes, labels, and printed artwork as silkscreen by default.",
+            "Treat shaped boards, cutouts, notches, USB edges, and card-edge "
+            "geometry as Edge.Cuts.",
+            "When a request asks for both artwork and physical shape, split it "
+            "into separate operations.",
+            "Do not use silkscreen commands to change the physical board outline.",
+        ],
+    }
     assert context["schematics"] == [
         {
             "path": "schematics/main.sch.json",

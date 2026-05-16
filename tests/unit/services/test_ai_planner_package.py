@@ -114,6 +114,35 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
         "Use circuit_rules supported_intents to check electrical assumptions before board edits."
         in package["planner_rules"]
     )
+    assert package["board_feature_intent"] == {
+        "schema": "pcbsmith-board-feature-intent-v1",
+        "feature_kinds": [
+            "silkscreen_artwork",
+            "board_outline_geometry",
+            "needs_clarification",
+        ],
+        "layer_rules": {
+            "silkscreen_artwork": ["F.SilkS", "B.SilkS"],
+            "board_outline_geometry": ["Edge.Cuts"],
+        },
+        "instructions": [
+            "Treat logos, text, QR codes, labels, and printed artwork as silkscreen by default.",
+            "Treat shaped boards, cutouts, notches, USB edges, and card-edge "
+            "geometry as Edge.Cuts.",
+            "When a request asks for both artwork and physical shape, split it "
+            "into separate operations.",
+            "Do not use silkscreen commands to change the physical board outline.",
+        ],
+    }
+    assert (
+        "Classify board artwork requests before planning: silkscreen artwork "
+        "targets F.SilkS/B.SilkS."
+        in package["planner_rules"]
+    )
+    assert (
+        "Classify physical shape requests separately: board outlines and cutouts target Edge.Cuts."
+        in package["planner_rules"]
+    )
 
 
 def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
@@ -131,6 +160,7 @@ def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
     assert package["target_plan_schema"] is None
     assert "component_selection" in package
     assert "circuit_rules" in package
+    assert "board_feature_intent" in package
     assert "Do not propose project mutations for review_only briefs." in (
         package["planner_rules"]
     )
