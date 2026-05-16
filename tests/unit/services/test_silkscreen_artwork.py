@@ -4,6 +4,8 @@ from pcbsmith.core.board import Board, Layer, Trace
 from pcbsmith.core.geom import Point
 from pcbsmith.services.silkscreen_artwork import (
     SilkscreenArtworkRequest,
+    SilkscreenGraphicKind,
+    SilkscreenGraphicRequest,
     SilkscreenPreflightFrame,
     apply_silkscreen_artwork,
     inspect_silkscreen_artwork,
@@ -32,6 +34,29 @@ def test_silkscreen_artwork_request_accepts_front_and_back_silk_only() -> None:
         raise AssertionError("Expected non-silkscreen layer to be rejected")
 
 
+def test_silkscreen_graphic_request_accepts_front_and_back_silk_only() -> None:
+    request = SilkscreenGraphicRequest(
+        kind=SilkscreenGraphicKind.LINE,
+        layer=Layer.B_SILK,
+        start=Point.from_mm(5, 5),
+        end=Point.from_mm(15, 5),
+    )
+
+    assert request.layer == Layer.B_SILK
+
+    try:
+        SilkscreenGraphicRequest(
+            kind=SilkscreenGraphicKind.LINE,
+            layer=Layer.F_CU,
+            start=Point.from_mm(5, 5),
+            end=Point.from_mm(15, 5),
+        )
+    except ValueError as exc:
+        assert "silkscreen graphics must target F.SilkS or B.SilkS" in str(exc)
+    else:
+        raise AssertionError("Expected non-silkscreen graphic layer to be rejected")
+
+
 def test_silkscreen_preflight_rejects_tiny_unreadable_text() -> None:
     report = inspect_silkscreen_artwork(
         Board(id="demo"),
@@ -53,6 +78,27 @@ def test_silkscreen_preflight_rejects_tiny_unreadable_text() -> None:
     ]
 
 
+def test_silkscreen_preflight_rejects_tiny_graphic_stroke() -> None:
+    report = inspect_silkscreen_artwork(
+        Board(id="demo"),
+        (),
+        graphics=(
+            SilkscreenGraphicRequest(
+                kind=SilkscreenGraphicKind.LINE,
+                layer=Layer.F_SILK,
+                start=Point.from_mm(5, 5),
+                end=Point.from_mm(15, 5),
+                stroke_width=60_000,
+            ),
+        ),
+        frame=SilkscreenPreflightFrame(width_mm=50, height_mm=30),
+    )
+
+    assert [finding.code for finding in report.findings] == [
+        "silkscreen_stroke_too_thin"
+    ]
+
+
 def test_silkscreen_preflight_rejects_artwork_outside_board_outline() -> None:
     report = inspect_silkscreen_artwork(
         Board(id="demo"),
@@ -62,6 +108,25 @@ def test_silkscreen_preflight_rejects_artwork_outside_board_outline() -> None:
                 layer=Layer.F_SILK,
                 position=Point.from_mm(48, 29),
                 size=1_500_000,
+            ),
+        ),
+        frame=SilkscreenPreflightFrame(width_mm=50, height_mm=30),
+    )
+
+    assert len(report.findings) == 1
+    assert report.findings[0].code == "silkscreen_outside_board"
+
+
+def test_silkscreen_preflight_rejects_graphic_outside_board_outline() -> None:
+    report = inspect_silkscreen_artwork(
+        Board(id="demo"),
+        (),
+        graphics=(
+            SilkscreenGraphicRequest(
+                kind=SilkscreenGraphicKind.RECT,
+                layer=Layer.F_SILK,
+                start=Point.from_mm(48, 25),
+                end=Point.from_mm(52, 28),
             ),
         ),
         frame=SilkscreenPreflightFrame(width_mm=50, height_mm=30),
@@ -100,6 +165,36 @@ def test_silkscreen_preflight_flags_copper_overlap() -> None:
     assert [finding.code for finding in report.findings] == ["silkscreen_copper_overlap"]
 
 
+def test_silkscreen_preflight_flags_graphic_copper_overlap() -> None:
+    board = Board(
+        id="demo",
+        traces=(
+            Trace(
+                net_name="VCC",
+                layer=Layer.F_CU,
+                points=(Point.from_mm(8, 10), Point.from_mm(30, 10)),
+                width=500_000,
+            ),
+        ),
+    )
+
+    report = inspect_silkscreen_artwork(
+        board,
+        (),
+        graphics=(
+            SilkscreenGraphicRequest(
+                kind=SilkscreenGraphicKind.LINE,
+                layer=Layer.F_SILK,
+                start=Point.from_mm(12, 10),
+                end=Point.from_mm(20, 10),
+            ),
+        ),
+        frame=SilkscreenPreflightFrame(width_mm=50, height_mm=30),
+    )
+
+    assert [finding.code for finding in report.findings] == ["silkscreen_copper_overlap"]
+
+
 def test_apply_silkscreen_artwork_adds_board_text_after_clean_preflight() -> None:
     board = apply_silkscreen_artwork(
         Board(id="demo"),
@@ -117,6 +212,26 @@ def test_apply_silkscreen_artwork_adds_board_text_after_clean_preflight() -> Non
     assert len(board.texts) == 1
     assert board.texts[0].text == "VIR LAB"
     assert board.texts[0].layer == Layer.F_SILK
+
+
+def test_apply_silkscreen_artwork_adds_board_graphic_after_clean_preflight() -> None:
+    board = apply_silkscreen_artwork(
+        Board(id="demo"),
+        (),
+        graphics=(
+            SilkscreenGraphicRequest(
+                kind=SilkscreenGraphicKind.RECT,
+                layer=Layer.F_SILK,
+                start=Point.from_mm(10, 10),
+                end=Point.from_mm(20, 15),
+            ),
+        ),
+        frame=SilkscreenPreflightFrame(width_mm=50, height_mm=30),
+    )
+
+    assert len(board.graphics) == 1
+    assert board.graphics[0].kind.value == "rect"
+    assert board.graphics[0].layer == Layer.F_SILK
 
 
 def test_apply_silkscreen_artwork_refuses_failed_preflight() -> None:
@@ -144,4 +259,5 @@ def test_silkscreen_artwork_tool_contract_is_ai_facing() -> None:
 
     assert contract["schema"] == "pcbsmith-silkscreen-artwork-tool-v1"
     assert contract["allowed_layers"] == ["F.SilkS", "B.SilkS"]
+    assert contract["allowed_graphics"] == ["line", "rect"]
     assert "minimum_text_size_mm" in contract["preflight_checks"]

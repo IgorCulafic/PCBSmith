@@ -222,10 +222,10 @@ the physical shape of the board.
 The first R7A foundation is implemented as `silkscreen_artwork` and
 `design-silkscreen-artwork`. It models front/back silkscreen text/artwork
 requests, checks readable size, stroke width, board-edge margin, and copper
-keepout, then renders accepted requests through the existing KiCad-native
-`BoardText` path. AI context and planner packages now advertise this as a
-separate `silkscreen_artwork` contract below the `board_feature_intent`
-classifier.
+keepout, then renders accepted requests through KiCad-native `BoardText` and
+simple `BoardGraphic` line/rectangle primitives. AI context and planner packages
+now advertise this as a separate `silkscreen_artwork` contract below the
+`board_feature_intent` classifier.
 
 ### R7B: Board Outline And Cutout Geometry
 

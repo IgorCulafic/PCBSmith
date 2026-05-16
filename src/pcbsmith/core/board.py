@@ -67,6 +67,21 @@ class BoardText(BaseModel):
     thickness: int = Field(default=150_000, gt=0)
 
 
+class BoardGraphicKind(StrEnum):
+    LINE = "line"
+    RECT = "rect"
+
+
+class BoardGraphic(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: BoardGraphicKind
+    layer: Layer
+    start: Point
+    end: Point
+    stroke_width: int = Field(default=150_000, gt=0)
+
+
 class Board(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -76,3 +91,4 @@ class Board(BaseModel):
     vias: tuple[Via, ...] = ()
     zones: tuple[Zone, ...] = ()
     texts: tuple[BoardText, ...] = ()
+    graphics: tuple[BoardGraphic, ...] = ()
