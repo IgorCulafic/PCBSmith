@@ -7,7 +7,14 @@ from uuid import UUID, uuid4
 
 from pydantic import BaseModel, ConfigDict
 
-from pcbsmith.core.board import Board, BoardGraphic, BoardGraphicKind, BoardText, Trace
+from pcbsmith.core.board import (
+    Board,
+    BoardEdgeLoop,
+    BoardGraphic,
+    BoardGraphicKind,
+    BoardText,
+    Trace,
+)
 from pcbsmith.core.geom import Point, Vec, mm_to_nm, nm_to_mm
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
@@ -277,6 +284,7 @@ def export_pcbs_project_to_kicad(
             ),
             outline_start_mm=KICAD_BOARD_OUTLINE_START_MM,
             outline_end_mm=KICAD_BOARD_OUTLINE_END_MM,
+            include_default_outline=not bool(board.edge_cuts),
         ),
         encoding="utf-8",
     )
@@ -474,6 +482,13 @@ def render_kicad_board_items(
             _render_command_board_graphic(graphic, uuid=uuid_factory())
             for graphic in board.graphics
         )
+        for edge_loop in board.edge_cuts:
+            items.extend(
+                _render_command_board_edge_loop(
+                    edge_loop,
+                    uuid_factory=uuid_factory,
+                )
+            )
     if footprints and (board is None or not board.texts):
         items.append(
             _render_board_silkscreen_text(
@@ -1243,6 +1258,25 @@ def _render_command_board_graphic(graphic: BoardGraphic, *, uuid: UUID) -> str:
     (uuid {uuid})
   )"""
     raise ValueError(f"Unsupported board graphic kind: {graphic.kind}")
+
+
+def _render_command_board_edge_loop(
+    edge_loop: BoardEdgeLoop,
+    *,
+    uuid_factory: Callable[[], UUID],
+) -> tuple[str, ...]:
+    points = (*edge_loop.points, edge_loop.points[0])
+    width_mm = _format_mm(edge_loop.stroke_width)
+    return tuple(
+        f"""  (gr_line
+    (start {_board_point_x_mm(start)} {_board_point_y_mm(start)})
+    (end {_board_point_x_mm(end)} {_board_point_y_mm(end)})
+    (stroke (width {width_mm}) (type solid))
+    (layer "{KICAD_LAYER_EDGE_CUTS}")
+    (uuid {uuid_factory()})
+  )"""
+        for start, end in zip(points, points[1:], strict=False)
+    )
 
 
 def _render_board_segment_values(

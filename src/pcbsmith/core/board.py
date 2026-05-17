@@ -82,6 +82,19 @@ class BoardGraphic(BaseModel):
     stroke_width: int = Field(default=150_000, gt=0)
 
 
+class BoardEdgeLoopRole(StrEnum):
+    OUTLINE = "outline"
+    CUTOUT = "cutout"
+
+
+class BoardEdgeLoop(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    role: BoardEdgeLoopRole
+    points: tuple[Point, ...] = Field(min_length=3)
+    stroke_width: int = Field(default=100_000, gt=0)
+
+
 class Board(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -92,3 +105,4 @@ class Board(BaseModel):
     zones: tuple[Zone, ...] = ()
     texts: tuple[BoardText, ...] = ()
     graphics: tuple[BoardGraphic, ...] = ()
+    edge_cuts: tuple[BoardEdgeLoop, ...] = ()

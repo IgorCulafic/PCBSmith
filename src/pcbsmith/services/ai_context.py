@@ -9,6 +9,7 @@ from pcbsmith.core.schematic import Schematic, SymbolInstance
 from pcbsmith.services.board_conventions import board_annotation_rules_summary
 from pcbsmith.services.board_feature_intent import board_feature_tool_contract
 from pcbsmith.services.board_intelligence import board_routing_rules_summary
+from pcbsmith.services.board_outline_geometry import board_outline_geometry_tool_contract
 from pcbsmith.services.circuit_rules import circuit_rules_tool_contract
 from pcbsmith.services.component_selection import component_selection_tool_contract
 from pcbsmith.services.project_io import load_project, load_schematic
@@ -39,6 +40,7 @@ def build_ai_context(
             "circuit_rules": circuit_rules_tool_contract(),
             "board_feature_intent": board_feature_tool_contract(),
             "silkscreen_artwork": silkscreen_artwork_tool_contract(),
+            "board_outline_geometry": board_outline_geometry_tool_contract(),
         },
         "schematics": [
             _schematic_summary(path, schematic) for path, schematic in schematics

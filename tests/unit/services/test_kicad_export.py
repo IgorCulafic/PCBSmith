@@ -6,7 +6,16 @@ import shutil
 from pathlib import Path
 from uuid import UUID
 
-from pcbsmith.core.board import Board, BoardGraphic, BoardGraphicKind, BoardText, Layer, Trace
+from pcbsmith.core.board import (
+    Board,
+    BoardEdgeLoop,
+    BoardEdgeLoopRole,
+    BoardGraphic,
+    BoardGraphicKind,
+    BoardText,
+    Layer,
+    Trace,
+)
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
 from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
@@ -710,6 +719,56 @@ def test_export_renders_command_authored_silkscreen_graphics(tmp_path: Path) -> 
     assert "(end 161.5 103.5)" in board_text
     assert "(width 0.2)" in board_text
     assert '(layer "B.SilkS")' in board_text
+
+
+def test_export_renders_custom_edge_cuts_without_default_outline(tmp_path: Path) -> None:
+    source_project = tmp_path / "source"
+    output_project = tmp_path / "kicad"
+    create_project(source_project, "Custom Outline Demo")
+    save_board(
+        source_project,
+        "boards/main.brd.json",
+        Board(
+            id="main",
+            edge_cuts=(
+                BoardEdgeLoop(
+                    role=BoardEdgeLoopRole.OUTLINE,
+                    points=(
+                        Point.from_mm(0, 0),
+                        Point.from_mm(40, 0),
+                        Point.from_mm(40, 20),
+                        Point.from_mm(0, 20),
+                    ),
+                ),
+                BoardEdgeLoop(
+                    role=BoardEdgeLoopRole.CUTOUT,
+                    points=(
+                        Point.from_mm(10, 5),
+                        Point.from_mm(15, 5),
+                        Point.from_mm(15, 10),
+                        Point.from_mm(10, 10),
+                    ),
+                ),
+            ),
+        ),
+    )
+
+    result = export_pcbs_project_to_kicad(
+        source_project,
+        output_project,
+        uuid_factory=_fixed_uuid,
+    )
+
+    board_text = result.skeleton.board_file.read_text(encoding="utf-8")
+
+    assert '(layer "Edge.Cuts")' in board_text
+    assert board_text.count("(gr_line") == 8
+    assert "(start 123.5 87.5)" in board_text
+    assert "(end 163.5 87.5)" in board_text
+    assert "(start 133.5 92.5)" in board_text
+    assert "(end 138.5 92.5)" in board_text
+    assert "(gr_rect" not in board_text
+    assert "(end 183.5 127.5)" not in board_text
 
 
 def test_export_skips_default_silkscreen_when_board_text_exists(tmp_path: Path) -> None:
