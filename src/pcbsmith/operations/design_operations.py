@@ -140,7 +140,16 @@ def generate_led_art_design(
     schematic_file = project_dir / f"{project_name}.kicad_sch"
     board_file = project_dir / f"{project_name}.kicad_pcb"
     project_file.write_text(render_kicad_project_file(project_name), encoding="utf-8")
-    schematic_file.write_text(render_kicad_schematic_file(uuid4()), encoding="utf-8")
+    schematic_file.write_text(
+        render_kicad_schematic_file(
+            uuid4(),
+            _board_only_schematic_items(
+                title="Board-first LED art design",
+                message="PCB layout is the authoritative generated artifact.",
+            ),
+        ),
+        encoding="utf-8",
+    )
     board_file.write_text(render_led_art_board(plan, board_spec), encoding="utf-8")
 
     _write_readme(project_dir, project_name, request, topology)
@@ -228,7 +237,16 @@ def generate_attiny_led_controller_design(
     schematic_file = project_dir / f"{project_name}.kicad_sch"
     board_file = project_dir / f"{project_name}.kicad_pcb"
     project_file.write_text(render_kicad_project_file(project_name), encoding="utf-8")
-    schematic_file.write_text(render_kicad_schematic_file(uuid4()), encoding="utf-8")
+    schematic_file.write_text(
+        render_kicad_schematic_file(
+            uuid4(),
+            _board_only_schematic_items(
+                title="Board-first ATtiny LED controller design",
+                message="PCB layout is the authoritative generated artifact.",
+            ),
+        ),
+        encoding="utf-8",
+    )
     board_file.write_text(
         render_attiny_led_controller_board(
             AttinyLedControllerSpec(
@@ -343,7 +361,16 @@ def generate_silkscreen_artwork_design(
     board_file = project_dir / f"{project_name}.kicad_pcb"
 
     project_file.write_text(render_kicad_project_file(project_name), encoding="utf-8")
-    schematic_file.write_text(render_kicad_schematic_file(uuid4()), encoding="utf-8")
+    schematic_file.write_text(
+        render_kicad_schematic_file(
+            uuid4(),
+            _board_only_schematic_items(
+                title="Board-first silkscreen artwork design",
+                message="PCB layout is the authoritative generated artifact.",
+            ),
+        ),
+        encoding="utf-8",
+    )
     board_file.write_text(
         render_kicad_board_file(
             uuid4(),
@@ -438,6 +465,27 @@ def _topology_for_voltage(supply_voltage_v: float) -> LedArtTopology:
     if supply_voltage_v >= 4.5:
         return "5v_two_led_dense"
     raise ValueError("LED art currently supports 5 V or 12 V style supplies")
+
+
+def _board_only_schematic_items(title: str, message: str) -> tuple[str, ...]:
+    return (
+        _schematic_text(title, x_mm=30.0, y_mm=40.0, size_mm=2.0),
+        _schematic_text(message, x_mm=30.0, y_mm=48.0, size_mm=1.27),
+    )
+
+
+def _schematic_text(text: str, *, x_mm: float, y_mm: float, size_mm: float) -> str:
+    escaped = text.replace("\\", "\\\\").replace('"', '\\"')
+    return f"""  (text "{escaped}"
+    (at {x_mm:.2f} {y_mm:.2f} 0)
+    (effects
+      (font
+        (size {size_mm:.2f} {size_mm:.2f})
+      )
+      (justify left)
+    )
+    (uuid "{uuid4()}")
+  )"""
 
 
 def _write_readme(
