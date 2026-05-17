@@ -31,7 +31,17 @@ from pcbsmith.generators.led_art_board import (
     led_art_physical_branch_summary,
     render_led_art_board,
 )
-from pcbsmith.kicad.kicad_export import render_kicad_board_items
+from pcbsmith.generators.led_art_circuit import led_art_plan_to_circuit_design
+from pcbsmith.kicad.circuit_schematic import circuit_design_to_schematic
+from pcbsmith.kicad.kicad_export import (
+    PCBSMITH_SYMBOL_LIBRARY_FILE_NAME,
+    PCBSMITH_SYMBOL_TABLE_FILE_NAME,
+    render_kicad_board_items,
+    render_kicad_schematic_items,
+    render_pcbs_kicad_embedded_symbols,
+    render_pcbs_kicad_symbol_library,
+    render_pcbs_kicad_symbol_table,
+)
 from pcbsmith.kicad.kicad_preview import (
     KiCadPreviewReport,
     run_kicad_preview,
@@ -140,13 +150,14 @@ def generate_led_art_design(
     schematic_file = project_dir / f"{project_name}.kicad_sch"
     board_file = project_dir / f"{project_name}.kicad_pcb"
     project_file.write_text(render_kicad_project_file(project_name), encoding="utf-8")
+    _write_pcbs_symbol_library(project_dir)
+    circuit = led_art_plan_to_circuit_design(plan, control_mode=request.control_mode)
+    schematic = circuit_design_to_schematic(circuit)
     schematic_file.write_text(
         render_kicad_schematic_file(
             uuid4(),
-            _board_only_schematic_items(
-                title="Board-first LED art design",
-                message="PCB layout is the authoritative generated artifact.",
-            ),
+            render_kicad_schematic_items(schematic, project_name=project_name),
+            lib_symbol_items=render_pcbs_kicad_embedded_symbols(),
         ),
         encoding="utf-8",
     )
@@ -744,6 +755,17 @@ def _write_silkscreen_preflight_report(
             indent=2,
         )
         + "\n",
+        encoding="utf-8",
+    )
+
+
+def _write_pcbs_symbol_library(project_dir: Path) -> None:
+    (project_dir / PCBSMITH_SYMBOL_LIBRARY_FILE_NAME).write_text(
+        render_pcbs_kicad_symbol_library(),
+        encoding="utf-8",
+    )
+    (project_dir / PCBSMITH_SYMBOL_TABLE_FILE_NAME).write_text(
+        render_pcbs_kicad_symbol_table(),
         encoding="utf-8",
     )
 
