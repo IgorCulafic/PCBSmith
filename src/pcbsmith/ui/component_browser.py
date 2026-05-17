@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
 )
 
 from pcbsmith.core.catalog import CatalogEntry, CatalogPreferences, CatalogSearchQuery
-from pcbsmith.services import component_catalog
+from pcbsmith.knowledge import component_catalog
 from pcbsmith.ui.icons import symbol_icon
 
 ENTRY_ID_ROLE = Qt.ItemDataRole.UserRole

@@ -7,8 +7,9 @@ from pcbsmith.core.catalog import (
     ComponentVariant,
 )
 from pcbsmith.core.geom import Point
-from pcbsmith.services import component_catalog, project_io
-from pcbsmith.services.component_catalog import ComponentCatalog
+from pcbsmith.knowledge import component_catalog
+from pcbsmith.knowledge.component_catalog import ComponentCatalog
+from pcbsmith.operations import project_io
 from pcbsmith.ui.component_browser import ComponentBrowser
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene

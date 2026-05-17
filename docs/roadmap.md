@@ -272,6 +272,24 @@ workspace.
 - Do not run destructive cleanup blindly. The cleanup tool should default to a
   dry run or archive mode before deletion.
 
+The first R8 foundation is in place. A pre-restructure workspace snapshot lives
+under ignored `old_files/`, generated review bundles belong under ignored
+`outputs/`, local model/RAG assets belong under ignored `ai_assets/`, and future
+integrations have an `extensions/` placeholder. The old overloaded
+`pcbsmith.services` package has been split into focused packages:
+
+- `pcbsmith.ai` for planner packages, approval/review helpers, and local/remote
+  model-facing contracts.
+- `pcbsmith.generators` for reusable board and circuit generators.
+- `pcbsmith.kicad` for KiCad project, validation, export, preview, library, and
+  review-bundle adapters.
+- `pcbsmith.knowledge` for built-in components, catalog metadata, and
+  retrieval/selection indexes.
+- `pcbsmith.operations` for AI-callable/user-callable design operations and
+  project mutation workflows.
+- `pcbsmith.rules` for ERC, circuit rules, routing/manufacturing conventions,
+  silkscreen checks, and board outline geometry.
+
 ## User Contribution Path
 
 The most valuable user help is collecting trusted examples and requirements:
@@ -291,7 +309,7 @@ adjacent LED string grouping, resistor labeling, KiCad review bundles, and
 optional low-side MOSFET control. Phase 1 has started with a structured
 `design-led-art` operation that turns AI/user request fields into a KiCad review
 bundle without creating a new generator script. The operation summary now embeds
-the centralized board-routing contract from `pcbsmith.services.board_intelligence`,
+the centralized board-routing contract from `pcbsmith.rules.board_intelligence`,
 so AI-facing tools inherit the same 45-degree routing preference, DRC authority,
 trace-width, and manufacturability guidance instead of carrying one-off rules.
 The next work should keep expanding this AI-callable operation layer, then

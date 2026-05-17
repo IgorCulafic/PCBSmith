@@ -4,16 +4,16 @@ import argparse
 import shutil
 from pathlib import Path
 
-from pcbsmith.services.ai_context import write_ai_context
-from pcbsmith.services.circuit_examples import (
+from pcbsmith.ai.ai_context import write_ai_context
+from pcbsmith.generators.circuit_examples import (
     CurrentLimitedLedCircuit,
     export_current_limited_led_kicad_project,
 )
-from pcbsmith.services.kicad_preview import (
+from pcbsmith.kicad.kicad_preview import (
     format_kicad_preview_report,
     run_kicad_preview,
 )
-from pcbsmith.services.kicad_validate import (
+from pcbsmith.kicad.kicad_validate import (
     format_kicad_validation_report,
     run_kicad_validation,
 )

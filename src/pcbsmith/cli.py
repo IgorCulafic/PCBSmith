@@ -6,43 +6,60 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from pcbsmith.ai.ai_brief import write_ai_brief
+from pcbsmith.ai.ai_context import write_ai_context
+from pcbsmith.ai.ai_demo_plan import write_ai_demo_plan
+from pcbsmith.ai.ai_openai_compatible_plan import write_openai_compatible_plan
+from pcbsmith.ai.ai_openai_compatible_review import run_openai_compatible_review
+from pcbsmith.ai.ai_plan_check import check_ai_plan
+from pcbsmith.ai.ai_plan_review import run_ai_plan_review
+from pcbsmith.ai.ai_planner_package import write_ai_planner_package
+from pcbsmith.ai.ai_proposal_bundle import run_ai_proposal_bundle
 from pcbsmith.core.board import Layer
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
-from pcbsmith.services.ai_brief import write_ai_brief
-from pcbsmith.services.ai_context import write_ai_context
-from pcbsmith.services.ai_demo_plan import write_ai_demo_plan
-from pcbsmith.services.ai_openai_compatible_plan import write_openai_compatible_plan
-from pcbsmith.services.ai_openai_compatible_review import run_openai_compatible_review
-from pcbsmith.services.ai_plan_check import check_ai_plan
-from pcbsmith.services.ai_plan_review import run_ai_plan_review
-from pcbsmith.services.ai_planner_package import write_ai_planner_package
-from pcbsmith.services.ai_proposal_bundle import run_ai_proposal_bundle
-from pcbsmith.services.board_manufacturability import (
-    format_board_manufacturability_report,
-    inspect_board_manufacturability,
+from pcbsmith.kicad.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
+from pcbsmith.kicad.kicad_doctor import (
+    format_kicad_doctor_report,
+    run_kicad_doctor,
 )
-from pcbsmith.services.builtin_library import SYMBOLS
-from pcbsmith.services.circuit_rules import (
-    SUPPORTED_CIRCUIT_RULE_INTENTS,
-    check_circuit_rules,
-    check_circuit_rules_file,
-    format_circuit_rule_report,
-    parse_rule_parameters,
-    write_circuit_rule_report,
+from pcbsmith.kicad.kicad_export import export_pcbs_project_to_kicad
+from pcbsmith.kicad.kicad_library_index import (
+    find_kicad_library_roots,
+    kicad_library_roots_from_cli,
+    write_kicad_library_index,
 )
-from pcbsmith.services.component_knowledge_index import (
+from pcbsmith.kicad.kicad_part_resolver import (
+    format_kicad_part_resolution,
+    resolve_kicad_part_from_index_file,
+)
+from pcbsmith.kicad.kicad_plan import KiCadPlanError, run_kicad_plan
+from pcbsmith.kicad.kicad_preview import (
+    format_kicad_preview_report,
+    run_kicad_preview,
+)
+from pcbsmith.kicad.kicad_project import create_kicad_project_skeleton
+from pcbsmith.kicad.kicad_review_bundle import (
+    format_kicad_review_bundle_result,
+    run_kicad_review_bundle,
+)
+from pcbsmith.kicad.kicad_validate import (
+    format_kicad_validation_report,
+    run_kicad_validation,
+)
+from pcbsmith.knowledge.builtin_library import SYMBOLS
+from pcbsmith.knowledge.component_knowledge_index import (
     format_component_knowledge_index_summary,
     format_component_knowledge_search_result,
     search_component_knowledge_index_file,
     write_component_knowledge_index,
 )
-from pcbsmith.services.component_selection import (
+from pcbsmith.knowledge.component_selection import (
     SUPPORTED_COMPONENT_INTENTS,
     format_component_selection_result,
     select_components_for_intent_file,
 )
-from pcbsmith.services.design_operations import (
+from pcbsmith.operations.design_operations import (
     AttinyLedControllerDesignRequest,
     LedArtDesignRequest,
     SilkscreenArtworkDesignRequest,
@@ -51,43 +68,26 @@ from pcbsmith.services.design_operations import (
     generate_led_art_design,
     generate_silkscreen_artwork_design,
 )
-from pcbsmith.services.erc import run_erc
-from pcbsmith.services.kicad_backend import KICAD_CLI_ENV, find_kicad_cli
-from pcbsmith.services.kicad_doctor import (
-    format_kicad_doctor_report,
-    run_kicad_doctor,
-)
-from pcbsmith.services.kicad_export import export_pcbs_project_to_kicad
-from pcbsmith.services.kicad_library_index import (
-    find_kicad_library_roots,
-    kicad_library_roots_from_cli,
-    write_kicad_library_index,
-)
-from pcbsmith.services.kicad_part_resolver import (
-    format_kicad_part_resolution,
-    resolve_kicad_part_from_index_file,
-)
-from pcbsmith.services.kicad_plan import KiCadPlanError, run_kicad_plan
-from pcbsmith.services.kicad_preview import (
-    format_kicad_preview_report,
-    run_kicad_preview,
-)
-from pcbsmith.services.kicad_project import create_kicad_project_skeleton
-from pcbsmith.services.kicad_review_bundle import (
-    format_kicad_review_bundle_result,
-    run_kicad_review_bundle,
-)
-from pcbsmith.services.kicad_validate import (
-    format_kicad_validation_report,
-    run_kicad_validation,
-)
-from pcbsmith.services.project_io import (
+from pcbsmith.operations.project_io import (
     ProjectIOError,
     create_project,
     load_board,
     load_project,
     load_schematic,
 )
+from pcbsmith.rules.board_manufacturability import (
+    format_board_manufacturability_report,
+    inspect_board_manufacturability,
+)
+from pcbsmith.rules.circuit_rules import (
+    SUPPORTED_CIRCUIT_RULE_INTENTS,
+    check_circuit_rules,
+    check_circuit_rules_file,
+    format_circuit_rule_report,
+    parse_rule_parameters,
+    write_circuit_rule_report,
+)
+from pcbsmith.rules.erc import run_erc
 
 
 def _cmd_new(args: argparse.Namespace) -> int:

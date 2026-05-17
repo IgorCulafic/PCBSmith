@@ -275,7 +275,7 @@ the KiCad-backed direction unless there is a strong reason to keep them native.
 - Schematic and PCB are separate domains linked by a netlist.
 - The data model is structured JSON/Pydantic. SVG, Gerber, PDF, and manufacturing files are export-only.
 - Future LLM features must emit validated intermediate representation before project state changes.
-- Core code has no UI or service imports.
+- Core code has no UI, KiCad, AI, operations, knowledge, or rules imports.
 - Coordinates are stored as signed integer nanometres.
 - Unknown parts, pins, and values are surfaced as errors instead of fabricated.
 

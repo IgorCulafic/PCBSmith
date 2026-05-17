@@ -8,6 +8,16 @@ __pycache__/
 .tmp/
 .cleanup-archive/
 old_files/
+outputs/*
+!outputs/README.md
+ai_assets/models/*
+!ai_assets/models/.gitkeep
+ai_assets/loras/*
+!ai_assets/loras/.gitkeep
+ai_assets/rag_indexes/*
+!ai_assets/rag_indexes/.gitkeep
+ai_assets/koboldcpp/*
+!ai_assets/koboldcpp/.gitkeep
 .pytest-*/
 .venv.broken-*/
 pytest-*/

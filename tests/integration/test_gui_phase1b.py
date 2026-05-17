@@ -3,7 +3,7 @@ from __future__ import annotations
 from PySide6.QtGui import QKeySequence
 
 from pcbsmith.core.geom import Point, mm_to_nm
-from pcbsmith.services import project_io
+from pcbsmith.operations import project_io
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene
