@@ -295,7 +295,7 @@ def test_kicad_library_index_writes_read_only_library_manifest(tmp_path: Path) -
         encoding="utf-8",
     )
     (footprints_library / "R_0603_1608Metric.kicad_mod").write_text(
-        "(footprint \"R_0603_1608Metric\")\n",
+        '(footprint "R_0603_1608Metric")\n',
         encoding="utf-8",
     )
 
@@ -400,14 +400,15 @@ def test_component_knowledge_index_writes_ai_facing_catalog(tmp_path: Path) -> N
     assert result.stderr == ""
     assert result.stdout.splitlines() == [
         f"Wrote component knowledge index to {output_path}",
-        "Tier 1 entries: 19",
-        "Families: 17",
-        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=0",
-        "Mounting: smd=10, through-hole=7, virtual=2, unspecified=0",
+        "Tier 1 entries: 25",
+        "Families: 22",
+        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=6",
+        "Mounting: smd=14, through-hole=9, virtual=2, unspecified=0",
     ]
     output = json.loads(output_path.read_text(encoding="utf-8"))
     assert output["schema"] == "pcbsmith-component-knowledge-index-v1"
     assert output["coverage_summary"]["well_supported"] == 9
+    assert output["coverage_summary"]["needs_datasheet_review"] == 6
 
 
 def test_component_knowledge_search_finds_filtered_parts(tmp_path: Path) -> None:
@@ -457,10 +458,7 @@ def test_component_selection_returns_intent_ranked_candidates(tmp_path: Path) ->
         "Component selection: low-side-switch",
         "Preferred mounting: smd",
         "Matches: 1",
-        (
-            "1. pcbs:nmos_sot23 | N-MOSFET SOT-23 | smd | "
-            "metadata_only | needs_review"
-        ),
+        ("1. pcbs:nmos_sot23 | N-MOSFET SOT-23 | smd | metadata_only | needs_review"),
         (
             "   reasons: Matches intent low-side-switch; Matches required tags: "
             "mosfet, nmos, switching; Uses preferred mounting: smd"
@@ -505,6 +503,31 @@ def test_circuit_rules_checks_intent_parameters() -> None:
     ]
 
 
+def test_circuit_topologies_reports_ranked_intent_guidance() -> None:
+    result = _run_cli("circuit-topologies", "metal-detector")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Circuit topologies: metal-detector",
+        "Matches: 1",
+        "1. lc-oscillator-metal-detector | LC oscillator metal detector | prototype",
+        (
+            "   required math: pcb-spiral-coil-estimate; lc-resonance; "
+            "bjt-bias; comparator-threshold; buzzer-output"
+        ),
+        (
+            "   component intents: lc-sense-coil; bjt-npn-amplifier; "
+            "trim-adjustment; comparator-threshold; buzzer-output; "
+            "led-current-limit; terminal-power-input"
+        ),
+        (
+            "   do not use: Do not choose NE555 just because it is familiar; "
+            "only use it when LC sensing math and topology justify it."
+        ),
+    ]
+
+
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "review-bundle"
@@ -534,9 +557,7 @@ def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) 
     ]
     assert (output_project / "Voltage_Divider.kicad_pro").exists()
     assert (output_project / "ai-context.json").exists()
-    assert (
-        output_project / ".pcbsmith" / "board-reports" / "manufacturability.json"
-    ).exists()
+    assert (output_project / ".pcbsmith" / "board-reports" / "manufacturability.json").exists()
     assert (output_project / "revision-brief.json").exists()
 
 
@@ -615,9 +636,7 @@ def test_kicad_plan_apply_writes_project_and_action_log(tmp_path: Path) -> None:
     _write_plan(package_path)
 
     result = _run_cli("kicad-plan", str(project_dir), str(package_path), "--apply")
-    schematic_text = (project_dir / "schematics" / "main.sch.json").read_text(
-        encoding="utf-8"
-    )
+    schematic_text = (project_dir / "schematics" / "main.sch.json").read_text(encoding="utf-8")
 
     assert result.returncode == 0
     assert result.stderr == ""
@@ -842,11 +861,7 @@ def test_ai_openai_plan_writes_candidate_plan_from_local_endpoint(tmp_path: Path
             self.end_headers()
             self.wfile.write(
                 json.dumps(
-                    {
-                        "choices": [
-                            {"message": {"content": json.dumps(response_content)}}
-                        ]
-                    }
+                    {"choices": [{"message": {"content": json.dumps(response_content)}}]}
                 ).encode("utf-8")
             )
 
@@ -913,11 +928,7 @@ def test_ai_openai_review_runs_request_to_approval_preview(
             self.end_headers()
             self.wfile.write(
                 json.dumps(
-                    {
-                        "choices": [
-                            {"message": {"content": json.dumps(response_content)}}
-                        ]
-                    }
+                    {"choices": [{"message": {"content": json.dumps(response_content)}}]}
                 ).encode("utf-8")
             )
 
@@ -1068,12 +1079,10 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
         "Visual review: not_run (advisory)",
         "No revision items found.",
     ]
-    original_text = (project_dir / "schematics" / "main.sch.json").read_text(
+    original_text = (project_dir / "schematics" / "main.sch.json").read_text(encoding="utf-8")
+    staged_text = (output_dir / "pcbs-project" / "schematics" / "main.sch.json").read_text(
         encoding="utf-8"
     )
-    staged_text = (
-        output_dir / "pcbs-project" / "schematics" / "main.sch.json"
-    ).read_text(encoding="utf-8")
     assert '"reference": "R1"' not in original_text
     assert '"reference": "R1"' in staged_text
     assert (output_dir / "kicad-review" / "Proposal_Demo.kicad_pro").exists()
@@ -1111,9 +1120,7 @@ def test_design_led_art_writes_structured_review_bundle(tmp_path: Path) -> None:
         "Revision brief status: passed",
     ]
     assert (output_dir / "AI_VIR_LAB.kicad_pcb").exists()
-    summary = json.loads(
-        (output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8")
-    )
+    summary = json.loads((output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8"))
     assert summary["request"]["control_mode"] == "low_side_mosfet"
     assert summary["checks"]["revision_brief"] == "passed"
     assert (output_dir / "revision-brief.json").exists()
@@ -1181,8 +1188,6 @@ def test_design_silkscreen_artwork_writes_structured_review_bundle(
     ]
     assert (output_dir / "R7A_Logo_Placement.kicad_pcb").exists()
     assert (output_dir / ".pcbsmith" / "reports" / "silkscreen-preflight.json").exists()
-    summary = json.loads(
-        (output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8")
-    )
+    summary = json.loads((output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8"))
     assert summary["operation"] == "silkscreen_artwork"
     assert summary["checks"]["silkscreen_preflight"] == "passed"

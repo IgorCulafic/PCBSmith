@@ -22,17 +22,40 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
         "schematics": ["schematics/main.sch.json"],
         "boards": ["boards/main.brd.json"],
     }
+    assert context["ai_tools"]["circuit_topologies"] == {
+        "schema": "pcbsmith-circuit-topology-tool-v1",
+        "cli_command": "circuit-topologies <intent>",
+        "supported_intents": [
+            "led-indicator",
+            "metal-detector",
+            "oscillator",
+            "power-switching",
+        ],
+        "instructions": [
+            "Select a circuit topology before choosing parts or laying out a board.",
+            "Treat topology required_math_tools as hard prerequisites for generation.",
+            "Honor do_not_use_rules when a familiar part is not justified by the topology.",
+        ],
+    }
     assert context["ai_tools"]["component_selection"] == {
         "schema": "pcbsmith-component-selection-tool-v1",
         "cli_command": "component-selection <component-knowledge-index> <intent>",
         "preferred_mounting_default": "smd",
         "supported_intents": [
             "555-timer",
+            "bjt-npn-amplifier",
+            "bjt-pnp-switch",
+            "buzzer-output",
+            "comparator-threshold",
             "isolated-power",
+            "lc-sense-coil",
             "led-current-limit",
             "low-side-switch",
+            "op-amp-buffer",
             "power-entry",
             "relay-switching",
+            "terminal-power-input",
+            "trim-adjustment",
             "zener-protection",
         ],
         "selection_statuses": ["preferred", "candidate", "needs_review"],

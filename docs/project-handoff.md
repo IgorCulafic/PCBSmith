@@ -53,11 +53,19 @@ the model operate PCBSmith tools that know PCB constraints.
   the generated component knowledge index.
 - Compact `component-selection` CLI for choosing ranked component candidates
   from engineering intents such as LED current limiting, MOSFET low-side
-  switching, 555 timers, power entry, zener protection, relay switching, and
-  isolated power.
+  switching, BJT stages, comparator thresholds, buzzer outputs, terminal power
+  input, 555 timers, power entry, zener protection, relay switching, and isolated
+  power.
+- Compact `circuit-topologies` CLI for choosing circuit-family topology before
+  part selection. The first supported non-demo topology is an LC oscillator metal
+  detector path with PCB spiral coil math, BJT/comparator/output stages, and an
+  explicit warning not to pick NE555 unless the topology and math justify it.
 - AI context and planner packages now expose the same `component_selection`
   tool contract so hosted or local models can discover supported component
   intents before proposing symbols, footprints, or board edits.
+- AI planner packages now expose a `circuit_topologies` contract before
+  component selection, so models are told to choose topology and required math
+  tools before choosing familiar parts.
 - Circuit knowledge rules now exist as a compact `circuit-rules` CLI and
   AI-tool contract. The first supported intents are LED current limiting,
   voltage dividers, RC filters, NE555 astable/PWM assumptions, MOSFET low-side
@@ -115,6 +123,13 @@ The current priority is:
 8. R6 Bigger Real Demos.
 9. R7 Parametric PCB Features.
 10. R8 Project Restructure And Cleanup.
+11. R9 Composable Circuit Blocks.
+12. R10 Circuit Intelligence Layer.
+13. R11 Deterministic Math Layer.
+14. R12 Validation And Reporting Layer.
+15. R13 Expanded Component And KiCad Library Integration.
+16. R14 Local AI Integration.
+17. R15 Metal Detector Prototype Track.
 
 ## KiCad Setup
 
@@ -209,6 +224,7 @@ Generate and query component knowledge:
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-index .tmp\component-knowledge.json
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-search .tmp\component-knowledge.json --query "zener protection" --mounting smd
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-selection .tmp\component-knowledge.json low-side-switch
+.\.venv\Scripts\python.exe -m pcbsmith.cli circuit-topologies metal-detector
 .\.venv\Scripts\python.exe -m pcbsmith.cli circuit-rules led-current-limit --param supply_voltage_v=5 --param led_forward_voltage_v=2 --param resistor_ohms=330
 ```
 
@@ -233,6 +249,11 @@ Generate and query component knowledge:
   model/RAG assets belong under ignored `ai_assets/`, and the former overloaded
   `pcbsmith.services` layer is being split into `ai`, `generators`, `kicad`,
   `knowledge`, `operations`, and `rules`.
+- Before attempting more speculative circuits such as a PCB-coil metal detector,
+  PCBSmith should strengthen topology selection, deterministic math, and
+  validation/reporting so the AI cannot simply reuse a familiar demo pattern.
+- The AI should not calculate engineering math on its own. It should call
+  PCBSmith calculators and work from structured results.
 
 ## When Starting A New Chat
 

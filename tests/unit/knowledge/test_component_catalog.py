@@ -43,6 +43,12 @@ def test_builtin_catalog_contains_basic_component_entries() -> None:
         "pcbs:potentiometer_3pin_smd",
         "pcbs:potentiometer_3pin_th",
         "pcbs:nmos_sot23",
+        "pcbs:npn_bjt_sot23",
+        "pcbs:pnp_bjt_sot23",
+        "pcbs:lm393_soic8",
+        "pcbs:lm358_soic8",
+        "pcbs:active_buzzer_th",
+        "pcbs:terminal_block_1x02_p5mm",
         "pcbs:ne555_soic8",
         "pcbs:relay_spdt_th",
         "pcbs:transformer_th",
@@ -53,10 +59,7 @@ def test_builtin_catalog_marks_smd_and_through_hole_variants_explicitly() -> Non
     catalog = builtin_catalog()
 
     assert entry_by_id(catalog, "pcbs:potentiometer_3pin_smd").variant.mounting == "smd"
-    assert (
-        entry_by_id(catalog, "pcbs:potentiometer_3pin_th").variant.mounting
-        == "through-hole"
-    )
+    assert entry_by_id(catalog, "pcbs:potentiometer_3pin_th").variant.mounting == "through-hole"
     assert "smd" in entry_by_id(catalog, "pcbs:nmos_sot23").tags
     assert "through-hole" in entry_by_id(catalog, "pcbs:relay_spdt_th").tags
 
@@ -75,6 +78,20 @@ def test_builtin_catalog_entries_include_kicad_bindings() -> None:
     assert vcc.kicad is not None
     assert vcc.kicad.symbol_id == "power:VCC"
     assert vcc.kicad.footprint_id is None
+
+    bjt = entry_by_id(catalog, "pcbs:npn_bjt_sot23")
+    comparator = entry_by_id(catalog, "pcbs:lm393_soic8")
+    terminal = entry_by_id(catalog, "pcbs:terminal_block_1x02_p5mm")
+
+    assert bjt.kicad is not None
+    assert bjt.kicad.symbol_id == "Transistor_BJT:Q_NPN_BEC"
+    assert bjt.kicad.footprint_id == "Package_TO_SOT_SMD:SOT-23"
+    assert comparator.kicad is not None
+    assert comparator.kicad.symbol_id == "Comparator:LM393"
+    assert terminal.kicad is not None
+    assert terminal.kicad.footprint_id == (
+        "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
+    )
 
 
 def test_builtin_catalog_validates() -> None:
@@ -98,9 +115,7 @@ def test_search_catalog_matches_text_package_tags_and_aliases() -> None:
     catalog = builtin_catalog()
 
     assert search_catalog(catalog, CatalogSearchQuery(text="0603"))
-    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="led"))) == [
-        "pcbs:led_0603"
-    ]
+    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="led"))) == ["pcbs:led_0603"]
     assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="button"))) == [
         "pcbs:push_button_th"
     ]
@@ -162,9 +177,7 @@ def test_preferred_search_cannot_force_non_user_visible_entries_visible() -> Non
     results = search_catalog(
         catalog,
         CatalogSearchQuery(preferred_only=True),
-        project_preferences=CatalogPreferences(
-            visible_entry_ids=("pcbs:hidden_dev_part",)
-        ),
+        project_preferences=CatalogPreferences(visible_entry_ids=("pcbs:hidden_dev_part",)),
     )
 
     assert "pcbs:hidden_dev_part" not in _entry_ids(results)

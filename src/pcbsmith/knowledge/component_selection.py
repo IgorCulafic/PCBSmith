@@ -55,6 +55,124 @@ _RULES: dict[str, ComponentSelectionRule] = {
             "Add flyback protection for inductive loads.",
         ),
     ),
+    "bjt-npn-amplifier": ComponentSelectionRule(
+        label="NPN BJT gain or switching stage",
+        query="npn bjt amplifier",
+        tags=("transistor", "bjt", "npn"),
+        family_ids=("bjt",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify gain, bias point, collector current, package power, and exact pinout."
+        ),
+        next_checks=(
+            "Calculate base resistor and collector/emitter operating point.",
+            "Confirm signal swing and saturation or linear-region intent.",
+            "Check selected package pin mapping against the footprint.",
+        ),
+    ),
+    "bjt-pnp-switch": ComponentSelectionRule(
+        label="PNP BJT high-side or signal switch",
+        query="pnp bjt switching",
+        tags=("transistor", "bjt", "pnp"),
+        family_ids=("bjt",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify high-side topology, base drive limits, package power, and exact pinout."
+        ),
+        next_checks=(
+            "Confirm load current and supply voltage.",
+            "Calculate base drive and pull resistor values.",
+            "Check selected package pin mapping against the footprint.",
+        ),
+    ),
+    "comparator-threshold": ComponentSelectionRule(
+        label="Comparator threshold stage",
+        query="comparator threshold",
+        tags=("comparator", "threshold"),
+        family_ids=("comparator",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify input common-mode range, output type, supply range, and hysteresis needs."
+        ),
+        next_checks=(
+            "Calculate threshold divider and optional hysteresis.",
+            "Confirm output pull-up and logic/input compatibility.",
+            "Add local decoupling near VCC/GND.",
+        ),
+    ),
+    "op-amp-buffer": ComponentSelectionRule(
+        label="Op amp buffer or gain stage",
+        query="op amp buffer amplifier",
+        tags=("op-amp", "amplifier"),
+        family_ids=("op-amp",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify input/output range, supply voltage, bandwidth, stability, and package pinout."
+        ),
+        next_checks=(
+            "Calculate gain and bias network.",
+            "Confirm input/output swing at the requested supply voltage.",
+            "Add local decoupling near VCC/GND.",
+        ),
+    ),
+    "buzzer-output": ComponentSelectionRule(
+        label="Audible buzzer output",
+        query="buzzer audio indicator",
+        tags=("buzzer",),
+        family_ids=("buzzer",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify active/passive buzzer type, voltage, current, polarity, and driver needs."
+        ),
+        next_checks=(
+            "Confirm output current budget and whether a transistor driver is needed.",
+            "Confirm active versus passive buzzer behavior.",
+            "Mark polarity on silkscreen when useful.",
+        ),
+    ),
+    "terminal-power-input": ComponentSelectionRule(
+        label="Solderable power input connector",
+        query="terminal block power entry",
+        tags=("connector", "power-entry"),
+        family_ids=("terminal-block", "pin-header"),
+        preferred_mounting="through-hole",
+        candidate_warning=(
+            "Verify pitch, wire gauge, current rating, polarity marking, and mechanical clearance."
+        ),
+        next_checks=(
+            "Place VCC and GND next to each other when practical.",
+            "Add clear polarity silkscreen.",
+            "Check current rating and edge clearance.",
+        ),
+    ),
+    "trim-adjustment": ComponentSelectionRule(
+        label="User trim adjustment",
+        query="potentiometer trimmer",
+        tags=("potentiometer",),
+        family_ids=("potentiometer",),
+        preferred_mounting="smd",
+        candidate_warning=None,
+        next_checks=(
+            "Choose adjustment range and taper.",
+            "Confirm the wiper is never left floating in the intended circuit.",
+        ),
+    ),
+    "lc-sense-coil": ComponentSelectionRule(
+        label="PCB spiral sensing coil",
+        query="inductor coil magnetic",
+        tags=("inductor", "magnetic"),
+        family_ids=("inductor",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "For a PCB spiral coil, use the deterministic coil geometry tool instead "
+            "of treating a discrete inductor as equivalent."
+        ),
+        next_checks=(
+            "Calculate PCB spiral inductance from geometry.",
+            "Check trace width, spacing, resistance, and board outline constraints.",
+            "Route the inner coil terminal on another layer or with a via strategy.",
+        ),
+    ),
     "555-timer": ComponentSelectionRule(
         label="555 timer IC",
         query="ne555 timer",
@@ -323,13 +441,11 @@ def _candidate_warnings(
         )
     elif entry["support_status"] == "needs_datasheet_review":
         warnings.append(
-            "KiCad binding is incomplete; resolve symbol and footprint before "
-            "automated placement."
+            "KiCad binding is incomplete; resolve symbol and footprint before automated placement."
         )
     if "needs-safety-review" in entry["tags"]:
         warnings.append(
-            "Safety-sensitive component; require datasheet and human review before "
-            "automated use."
+            "Safety-sensitive component; require datasheet and human review before automated use."
         )
     if rule.candidate_warning is not None:
         warnings.append(rule.candidate_warning)
