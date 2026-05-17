@@ -7,6 +7,7 @@ from typing import Any
 from pcbsmith.ai.board_feature_intent import board_feature_tool_contract
 from pcbsmith.core.geom import Point, nm_to_mm
 from pcbsmith.core.schematic import Schematic, SymbolInstance
+from pcbsmith.knowledge.circuit_topologies import circuit_topology_tool_contract
 from pcbsmith.knowledge.component_selection import component_selection_tool_contract
 from pcbsmith.operations.project_io import load_project, load_schematic
 from pcbsmith.rules.board_conventions import board_annotation_rules_summary
@@ -24,9 +25,7 @@ def build_ai_context(
     kicad_project_dir: Path | None = None,
 ) -> dict[str, Any]:
     project = load_project(project_dir)
-    schematics = tuple(
-        (path, load_schematic(project_dir, path)) for path in project.schematics
-    )
+    schematics = tuple((path, load_schematic(project_dir, path)) for path in project.schematics)
     context: dict[str, Any] = {
         "schema": AI_CONTEXT_SCHEMA,
         "project": {
@@ -36,15 +35,14 @@ def build_ai_context(
             "boards": list(project.boards),
         },
         "ai_tools": {
+            "circuit_topologies": circuit_topology_tool_contract(),
             "component_selection": component_selection_tool_contract(),
             "circuit_rules": circuit_rules_tool_contract(),
             "board_feature_intent": board_feature_tool_contract(),
             "silkscreen_artwork": silkscreen_artwork_tool_contract(),
             "board_outline_geometry": board_outline_geometry_tool_contract(),
         },
-        "schematics": [
-            _schematic_summary(path, schematic) for path, schematic in schematics
-        ],
+        "schematics": [_schematic_summary(path, schematic) for path, schematic in schematics],
     }
     if kicad_project_dir is not None:
         context["kicad"] = _kicad_context(kicad_project_dir)
@@ -134,9 +132,7 @@ def _kicad_reports(kicad_project_dir: Path) -> list[dict[str, Any]]:
 def _report_summary(name: str, path: Path) -> dict[str, Any]:
     data = json.loads(path.read_text(encoding="utf-8"))
     if name == "erc":
-        violations = sum(
-            len(sheet.get("violations", [])) for sheet in data.get("sheets", [])
-        )
+        violations = sum(len(sheet.get("violations", [])) for sheet in data.get("sheets", []))
         unconnected_items = 0
     else:
         violations = len(data.get("violations", []))

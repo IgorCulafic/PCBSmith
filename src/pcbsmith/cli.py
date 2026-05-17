@@ -48,6 +48,11 @@ from pcbsmith.kicad.kicad_validate import (
     run_kicad_validation,
 )
 from pcbsmith.knowledge.builtin_library import SYMBOLS
+from pcbsmith.knowledge.circuit_topologies import (
+    SUPPORTED_TOPOLOGY_INTENTS,
+    format_circuit_topology_selection,
+    select_topologies_for_intent,
+)
 from pcbsmith.knowledge.component_knowledge_index import (
     format_component_knowledge_index_summary,
     format_component_knowledge_search_result,
@@ -163,10 +168,7 @@ def _cmd_erc(args: argparse.Namespace) -> int:
 def _cmd_kicad_status(_args: argparse.Namespace) -> int:
     install = find_kicad_cli()
     if install is None:
-        print(
-            "KiCad CLI not found. Install KiCad or set "
-            f"{KICAD_CLI_ENV}=<path-to-kicad-cli>."
-        )
+        print(f"KiCad CLI not found. Install KiCad or set {KICAD_CLI_ENV}=<path-to-kicad-cli>.")
         return 1
 
     print(f"KiCad CLI: {install.cli_path} ({install.source})")
@@ -242,8 +244,7 @@ def _cmd_kicad_library_index(args: argparse.Namespace) -> int:
         footprints_dir=footprints_dir,
         symbol_libraries=tuple(args.symbol_library or ["Device", "power"]),
         footprint_libraries=tuple(
-            args.footprint_library
-            or ["Resistor_SMD", "Capacitor_SMD", "LED_SMD", "Diode_SMD"]
+            args.footprint_library or ["Resistor_SMD", "Capacitor_SMD", "LED_SMD", "Diode_SMD"]
         ),
     )
     print(f"Wrote KiCad library index to {Path(args.output)}")
@@ -295,6 +296,13 @@ def _cmd_component_selection(args: argparse.Namespace) -> int:
         limit=args.limit,
     )
     for line in format_component_selection_result(result):
+        print(line)
+    return 0
+
+
+def _cmd_circuit_topologies(args: argparse.Namespace) -> int:
+    result = select_topologies_for_intent(args.intent)
+    for line in format_circuit_topology_selection(result):
         print(line)
     return 0
 
@@ -681,6 +689,13 @@ def build_parser() -> argparse.ArgumentParser:
     )
     component_selection_parser.add_argument("--limit", type=int, default=5)
     component_selection_parser.set_defaults(func=_cmd_component_selection)
+
+    circuit_topologies_parser = subparsers.add_parser(
+        "circuit-topologies",
+        help="select ranked circuit topologies for an engineering intent",
+    )
+    circuit_topologies_parser.add_argument("intent", choices=SUPPORTED_TOPOLOGY_INTENTS)
+    circuit_topologies_parser.set_defaults(func=_cmd_circuit_topologies)
 
     circuit_rules_parser = subparsers.add_parser(
         "circuit-rules",

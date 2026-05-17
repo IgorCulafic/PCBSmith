@@ -46,11 +46,11 @@ def test_build_component_knowledge_index_summarizes_core_supported_parts() -> No
     assert index["coverage_summary"] == {
         "well_supported": 9,
         "metadata_only": 10,
-        "needs_datasheet_review": 0,
+        "needs_datasheet_review": 6,
     }
     assert index["mounting_summary"] == {
-        "smd": 10,
-        "through-hole": 7,
+        "smd": 14,
+        "through-hole": 9,
         "virtual": 2,
         "unspecified": 0,
     }
@@ -80,6 +80,11 @@ def test_build_component_knowledge_index_summarizes_core_supported_parts() -> No
     assert entries["pcbs:potentiometer_3pin_smd"]["mounting_style"] == "smd"
     assert entries["pcbs:potentiometer_3pin_th"]["mounting_style"] == "through-hole"
     assert entries["pcbs:relay_spdt_th"]["support_status"] == "metadata_only"
+    assert entries["pcbs:lm393_soic8"]["support_status"] == "needs_datasheet_review"
+    assert entries["pcbs:npn_bjt_sot23"]["support_notes"] == [
+        "KiCad symbol missing",
+        "KiCad footprint missing",
+    ]
 
 
 def test_build_component_knowledge_index_groups_entries_by_family() -> None:
@@ -132,10 +137,10 @@ def test_write_component_knowledge_index_and_format_summary(tmp_path: Path) -> N
     assert json.loads(output_path.read_text(encoding="utf-8")) == index
     assert format_component_knowledge_index_summary(index, output_path=output_path) == [
         f"Wrote component knowledge index to {output_path}",
-        "Tier 1 entries: 19",
-        "Families: 17",
-        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=0",
-        "Mounting: smd=10, through-hole=7, virtual=2, unspecified=0",
+        "Tier 1 entries: 25",
+        "Families: 22",
+        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=6",
+        "Mounting: smd=14, through-hole=9, virtual=2, unspecified=0",
     ]
 
 

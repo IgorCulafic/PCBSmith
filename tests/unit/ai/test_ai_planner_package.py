@@ -53,14 +53,17 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     assert package["target_plan_schema"]["commands"][3]["type"] == "route_segment"
     assert package["target_plan_schema"]["commands"][4]["type"] == "place_text"
     assert "Return only JSON matching target_plan_schema." in package["planner_rules"]
-    assert "Do not invent unknown symbols, footprints, pins, or KiCad capabilities." in (
-        package["planner_rules"]
+    assert (
+        "Do not invent unknown symbols, footprints, pins, or KiCad capabilities."
+        in (package["planner_rules"])
     )
-    assert "Prefer 45-degree/mitered PCB routing for CAD polish when practical." in (
-        package["planner_rules"]
+    assert (
+        "Prefer 45-degree/mitered PCB routing for CAD polish when practical."
+        in (package["planner_rules"])
     )
-    assert "Do not treat 45-degree routing as an electrical hard rule; DRC wins." in (
-        package["planner_rules"]
+    assert (
+        "Do not treat 45-degree routing as an electrical hard rule; DRC wins."
+        in (package["planner_rules"])
     )
     assert (
         "Use conventional EDA reference designators: R, C, LED, D, U, J, Q, L, SW, F, K, T, TP."
@@ -68,7 +71,29 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     )
     assert (
         "Keep references on silkscreen; keep values off silkscreen unless "
-        "educational/showcase mode asks for them."
+        "educational/showcase mode asks for them." in package["planner_rules"]
+    )
+    assert package["circuit_topologies"] == {
+        "schema": "pcbsmith-circuit-topology-tool-v1",
+        "cli_command": "circuit-topologies <intent>",
+        "supported_intents": [
+            "led-indicator",
+            "metal-detector",
+            "oscillator",
+            "power-switching",
+        ],
+        "instructions": [
+            "Select a circuit topology before choosing parts or laying out a board.",
+            "Treat topology required_math_tools as hard prerequisites for generation.",
+            "Honor do_not_use_rules when a familiar part is not justified by the topology.",
+        ],
+    }
+    assert (
+        "Choose a supported circuit topology before selecting parts for a new circuit family."
+        in package["planner_rules"]
+    )
+    assert (
+        "Run required math tools before generating schematics or PCB layout for that topology."
         in package["planner_rules"]
     )
     assert package["component_selection"] == {
@@ -77,11 +102,19 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
         "preferred_mounting_default": "smd",
         "supported_intents": [
             "555-timer",
+            "bjt-npn-amplifier",
+            "bjt-pnp-switch",
+            "buzzer-output",
+            "comparator-threshold",
             "isolated-power",
+            "lc-sense-coil",
             "led-current-limit",
             "low-side-switch",
+            "op-amp-buffer",
             "power-entry",
             "relay-switching",
+            "terminal-power-input",
+            "trim-adjustment",
             "zener-protection",
         ],
         "selection_statuses": ["preferred", "candidate", "needs_review"],
@@ -90,8 +123,9 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
             "Treat needs_review candidates as requiring user approval or deeper datasheet review.",
         ],
     }
-    assert "Use component_selection supported_intents before choosing catalog parts." in (
-        package["planner_rules"]
+    assert (
+        "Use component_selection supported_intents before choosing catalog parts."
+        in (package["planner_rules"])
     )
     assert package["circuit_rules"] == {
         "schema": "pcbsmith-circuit-rules-tool-v1",
@@ -136,8 +170,7 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     }
     assert (
         "Classify board artwork requests before planning: silkscreen artwork "
-        "targets F.SilkS/B.SilkS."
-        in package["planner_rules"]
+        "targets F.SilkS/B.SilkS." in package["planner_rules"]
     )
     assert (
         "Classify physical shape requests separately: board outlines and cutouts target Edge.Cuts."
@@ -162,8 +195,9 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
             "Run preflight before applying artwork to a board.",
         ],
     }
-    assert "Run silkscreen artwork preflight before applying printed text or logos." in (
-        package["planner_rules"]
+    assert (
+        "Run silkscreen artwork preflight before applying printed text or logos."
+        in (package["planner_rules"])
     )
     assert package["board_outline_geometry"] == {
         "schema": "pcbsmith-board-outline-geometry-tool-v1",
@@ -183,11 +217,11 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
             "Run preflight before applying board outline geometry.",
         ],
     }
-    assert "Use Edge.Cuts only for physical board outlines and cutouts." in (
-        package["planner_rules"]
+    assert (
+        "Use Edge.Cuts only for physical board outlines and cutouts." in (package["planner_rules"])
     )
-    assert "Keep silkscreen logos/text in the silkscreen_artwork tool." in (
-        package["planner_rules"]
+    assert (
+        "Keep silkscreen logos/text in the silkscreen_artwork tool." in (package["planner_rules"])
     )
 
 
@@ -204,14 +238,13 @@ def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
     assert package["planner_mode"] == "review_response"
     assert package["allowed_command_types"] == []
     assert package["target_plan_schema"] is None
+    assert "circuit_topologies" in package
     assert "component_selection" in package
     assert "circuit_rules" in package
     assert "board_feature_intent" in package
     assert "silkscreen_artwork" in package
     assert "board_outline_geometry" in package
-    assert "Do not propose project mutations for review_only briefs." in (
-        package["planner_rules"]
-    )
+    assert "Do not propose project mutations for review_only briefs." in (package["planner_rules"])
 
 
 def test_build_ai_planner_package_rejects_wrong_brief_schema() -> None:

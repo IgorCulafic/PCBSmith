@@ -26,6 +26,8 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - KiCad libraries should remain on the table for open-source usage. If PCBSmith ever needs different licensing constraints, library ingestion can be revisited later.
 - The component catalog should support tags and user-preferred component groups so models and users can choose from a known safe subset first.
 - KiCad libraries provide CAD metadata and optional datasheet links, but PCBSmith must build or ingest component behavior knowledge separately.
+- KiCad symbols and footprints prove that a CAD representation exists; they do
+  not prove that a component is electrically appropriate for a requested circuit.
 - Component knowledge should be hierarchical: core parts always visible, family summaries searchable, deep profiles loaded on demand, and datasheets queried only for specific facts.
 - Each component should eventually expose a support status such as `well_supported`, `metadata_only`, or `needs_datasheet_review`.
 - Component selection should be intent-driven above raw search. The AI should ask
@@ -38,6 +40,15 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - Circuit knowledge should be explicit, parameterized, and model-callable.
   Early rules should produce calculations plus warnings/errors for supported
   circuit intents, while KiCad ERC/DRC remains the fabrication gate.
+- The AI must select a supported circuit topology before choosing parts for a
+  new circuit family. This prevents "familiar part drift," such as using an
+  NE555 for a detector design simply because earlier demos used 555 timers.
+- Engineering math belongs in deterministic PCBSmith tools. The AI may request
+  calculations and explain assumptions, but resistor sizing, current/power,
+  timing, BJT bias, comparator thresholds, PCB coil estimates, and LC resonance
+  should come from code-backed calculators.
+- Unsupported circuit families should be reported as unsupported or
+  needs-review, not silently approximated from unrelated templates.
 - Review findings should be normalized into one revision brief before asking an
   AI to repair a proposal. The model should revise against structured plan,
   KiCad, preview, manufacturability, and circuit-rule items instead of reading

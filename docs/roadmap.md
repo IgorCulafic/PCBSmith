@@ -319,6 +319,114 @@ fixtures, not reusable template definitions. This is the direction for local and
 hosted models: they should operate PCBSmith's constrained template tools, not
 invent ad hoc PCB Python files for every prompt.
 
+## R10: Circuit Intelligence Layer
+
+R10 prevents the AI from choosing familiar parts before it has chosen a valid
+circuit topology. This directly addresses the metal detector lesson: a model may
+reach for a known NE555 pattern even when the request needs an LC sensing
+topology, coil geometry, gain/threshold stages, and actual math.
+
+- Select a circuit topology before choosing parts or laying out a board.
+- Record component intents, required math tools, required user inputs,
+  validation gates, and do-not-use rules per topology.
+- Expose topology selection through an AI-facing tool contract and CLI.
+- Treat unsupported circuit families as unsupported, not as an invitation to
+  improvise.
+- Require rationale when a familiar part is selected despite a topology warning.
+
+The first R10 foundation is implemented as `circuit-topologies`. The initial
+supported metal-detector topology is an LC oscillator/sensing path with a PCB
+spiral coil, BJT gain/switching support, trim adjustment, comparator threshold,
+buzzer output, LED indication, and terminal power input. The AI planner package
+now includes this topology contract before component selection, so models see
+the circuit-family guardrail before they see individual parts.
+
+## R11: Deterministic Math Layer
+
+R11 moves engineering calculations into reliable code. The AI may request a
+calculation, supply assumptions, and explain tradeoffs, but it should not freehand
+the math for values that determine whether hardware works.
+
+- LED resistor and string grouping calculations.
+- Ohm's law, resistor power, and connector current checks.
+- RC time constant, cutoff frequency, and 555 timing checks.
+- MOSFET gate/base resistor and pull resistor checks.
+- BJT bias checks for simple switching/amplifier stages.
+- Comparator threshold and hysteresis calculations.
+- PCB spiral coil inductance/resistance estimates and LC resonance estimates.
+- Geometry checks for trace width, spacing, vias, edge clearance, and fab
+  profile limits.
+
+The tool boundary is intentional: the AI can ask "calculate the coil estimate
+for these dimensions"; PCBSmith returns structured values, warnings, and blocked
+states.
+
+## R12: Validation And Reporting Layer
+
+R12 makes every generated design explain itself. A successful output should
+include what topology was chosen, which calculators ran, which library parts were
+selected, what KiCad checked, what PCBSmith checked, and what still needs human
+review.
+
+- Add topology, component-selection, math, ERC/DRC, manufacturability, and
+  fabrication-profile status to review bundles.
+- Distinguish hard failures, warnings, advisory visual findings, and human-review
+  items.
+- Keep simulation hooks lower priority than ERC/DRC and deterministic checks
+  until the relevant simulator path is proven.
+- Keep schematic readability as a quality target without blocking board-first
+  geometry demos when the board artifact is the authoritative result.
+
+## R13: Expanded Component And KiCad Library Integration
+
+R13 broadens the catalog and library bridge in a controlled way. KiCad provides
+symbols, footprints, and many 3D model references, but it does not provide
+complete behavioral knowledge for every component.
+
+- Index more KiCad symbol/footprint families needed by real beginner circuits:
+  BJTs, op-amps, comparators, buzzers, terminal blocks, regulators, batteries,
+  sensors, switches, connectors, and common microcontrollers.
+- Map those entries into PCBSmith families with tags, mounting style, package,
+  pin roles, support status, and datasheet/app-note links where available.
+- Keep `well_supported`, `metadata_only`, and `needs_datasheet_review` visible to
+  the model.
+- Use KiCad library data for CAD availability; use datasheets, app notes, and
+  curated examples for behavior and design rules.
+
+The first R13 slice expands the built-in catalog with NPN/PNP BJTs, LM393,
+LM358, active buzzer, and a 2-pin terminal block, all with KiCad bindings where
+available.
+
+## R14: Local AI Integration
+
+R14 connects the same constrained workflow to local models. The local model
+should not receive a giant dump of every symbol and datasheet. It should receive
+the request, current project context, topology options, compact component
+families, selected deep profiles, calculator outputs, and review findings.
+
+- Support OpenAI-compatible local endpoints first, including KoboldCPP or other
+  GGUF-backed servers when they expose compatible chat APIs.
+- Keep model assets under ignored local folders such as `ai_assets/`.
+- Add configuration for model path, context size, temperature, JSON mode support,
+  timeout, and whether multimodal input is available.
+- Add optional multimodal visual review later for schematic/PCB previews, below
+  deterministic checks in authority.
+- Preserve the same approval loop for hosted and local models.
+
+## R15: Metal Detector Prototype Track
+
+R15 resumes the metal detector request after R10-R12 are strong enough to stop
+unjustified part choices.
+
+- Use a PCB spiral coil generated as board geometry, not a pile of unrelated
+  circles.
+- Calculate coil geometry and LC resonance before choosing the sensing circuit.
+- Choose a topology such as LC oscillator plus gain/threshold/output stages.
+- Include power input, trim adjustment, LED/buzzer indication, and silkscreen
+  labels.
+- Mark the prototype as educational/experimental until calculator, ERC/DRC,
+  and human review agree that the design is plausible.
+
 ## User Contribution Path
 
 The most valuable user help is collecting trusted examples and requirements:
@@ -360,17 +468,25 @@ catalog into context.
 
 The next selection slice now exists as `component-selection`, with
 `component-select` as a shorter alias. It turns engineering intents such as
-`led-current-limit`, `low-side-switch`, `555-timer`, `power-entry`,
-`zener-protection`, `relay-switching`, and `isolated-power` into ranked
-candidate components. This is intentionally above raw search: it prefers SMD
-where requested, narrows broad tags to the correct family, and marks
-metadata-only or safety-sensitive choices as `needs_review` with compact
-warnings and next checks for the model.
+`led-current-limit`, `low-side-switch`, `bjt-npn-amplifier`,
+`comparator-threshold`, `buzzer-output`, `terminal-power-input`, `555-timer`,
+`power-entry`, `zener-protection`, `relay-switching`, and `isolated-power` into
+ranked candidate components. This is intentionally above raw search: it prefers
+SMD where requested, narrows broad tags to the correct family, and marks
+metadata-only, datasheet-sensitive, or safety-sensitive choices as
+`needs_review` with compact warnings and next checks for the model.
 
 AI context and planner packages now include this selection contract directly.
 That means a local model can see the supported engineering intents during plan
 generation, while the actual candidate lookup remains a PCBSmith tool call over
 the component knowledge index.
+
+The newest guardrail is `circuit-topologies`. Before the AI chooses parts, it
+must choose a supported topology for the circuit family. The first R10 topology
+targets the metal-detector problem: use an LC oscillator/sensing approach with a
+PCB spiral coil, deterministic coil/resonance math, BJT/comparator/output
+stages, and a clear rule not to select NE555 unless that choice is justified by
+the topology and math.
 
 Review bundles now write `revision-brief.json` directly. AI proposal bundles
 also write a top-level proposal brief beside the staged project and nested KiCad

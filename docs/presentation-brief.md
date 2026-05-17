@@ -71,6 +71,18 @@ The newer PWM dimmer demo adds potentiometer control, steering diodes, MOSFET/lo
 
 An important correction was made during this milestone: 45-degree routing is useful for CAD polish and professional style, but it is not a universal electrical hard rule. KiCad DRC, trace width, clearance, current capacity, and connectivity are the real hard gates.
 
+The newest architecture milestone is the start of the circuit-intelligence
+layer. PCBSmith now has a topology selector that tells the AI to choose a
+circuit family before choosing parts. For example, a metal detector request now
+points toward an LC oscillator/sensing topology with a PCB spiral coil,
+deterministic coil/resonance math, gain/threshold stages, and output drivers,
+instead of blindly reusing a familiar 555 timer pattern.
+
+The built-in component catalog has also expanded toward real analog/sensor
+circuits: NPN/PNP BJTs, LM393 comparator, LM358 op-amp, active buzzer, and 2-pin
+terminal block entries are available as KiCad-bound candidates where the local
+KiCad libraries provide matching symbols and footprints.
+
 ## AI Safety And Review Model
 
 PCBSmith treats AI-generated work as a proposal until validated and approved.
@@ -97,11 +109,20 @@ It also creates a path toward future multimodal workflows, such as giving the AI
 
 Near-term:
 
-- R0 LED art showcase: stronger text/SVG-to-LED boards with current-limiting, input pads, silkscreen, KiCad PCB, Gerbers, drill files, and laser-oriented copper SVG.
-- LED electrical grouping: choose series/parallel groups from supply voltage, LED forward voltage, target current, resistor values, and total current warnings.
-- KiCad library indexing plus a hierarchical component knowledge layer so the AI can search families first and load deep component profiles only when needed.
-- Better AI constraints for current, voltage, trace width, polarity, component choice, and fabrication method.
-- More R6 real demos such as sensor breakouts, MOSFET load drivers, regulator/power-entry boards, and addressable LED badges.
+- R10 circuit intelligence: force topology selection before part selection, with
+  explicit do-not-use rules when familiar parts are unjustified.
+- R11 deterministic math: LED grouping, current, power, RC/555 timing, BJT bias,
+  comparator thresholds, PCB coil estimates, and LC resonance should be computed
+  by PCBSmith tools, not freehanded by the AI.
+- R12 validation/reporting: every generated design should explain topology,
+  selected parts, calculator outputs, KiCad checks, PCBSmith checks, and review
+  status.
+- R13 expanded component and KiCad library integration: grow from basic demos
+  toward real analog, power, connector, sensor, and controller building blocks.
+- R14 local model integration: run the same constrained tool workflow through a
+  local OpenAI-compatible endpoint, with multimodal review later.
+- R15 metal detector prototype: resume the detector only after the topology and
+  math layers are in place.
 
 Later:
 
