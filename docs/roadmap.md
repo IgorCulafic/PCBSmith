@@ -290,6 +290,33 @@ integrations have an `extensions/` placeholder. The old overloaded
 - `pcbsmith.rules` for ERC, circuit rules, routing/manufacturing conventions,
   silkscreen checks, and board outline geometry.
 
+## R9: Composable Circuit Blocks
+
+R9 turns repeated circuit patterns into reusable blocks that can be combined by
+AI tools instead of recreated as board-specific scripts. A block is electrical
+intent: components, pins, nets, parameters, and net bindings. Layout remains a
+separate step so the same block can later appear in different board shapes,
+LED-art arrays, or controller designs.
+
+- Start with `power_input_2pin`, `decoupling_capacitor`, `led_string`,
+  `low_side_mosfet_switch`, and `gpio_led_output`.
+- Let callers bind local block nets such as `vcc`, `gnd`, `return`, `control`,
+  or `signal` onto shared circuit nets.
+- Auto-allocate conventional references such as `J1`, `R1`, `LED1`, `C1`, and
+  `Q1` so multiple instances of the same block can coexist.
+- Namespace internal nets by block instance so prebuilt arrays can be reused
+  safely.
+- Generate a real schematic from the composed circuit before PCB layout.
+- Add a future JSON/CLI operation that accepts block composition requests and
+  only attempts PCB layout when a supported layout strategy exists.
+
+The first R9 foundation is implemented as `compose_circuit_blocks`. It can
+combine named reusable blocks into one validated `CircuitDesign`, and the
+LED-art operation now uses the same circuit-intent layer to generate a real
+KiCad schematic with embedded PCBSmith symbols. This is the direction for local
+and hosted models: they should operate PCBSmith's constrained block tools, not
+invent ad hoc PCB Python files for every prompt.
+
 ## User Contribution Path
 
 The most valuable user help is collecting trusted examples and requirements:
