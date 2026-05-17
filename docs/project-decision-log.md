@@ -47,6 +47,9 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
   calculations and explain assumptions, but resistor sizing, current/power,
   timing, BJT bias, comparator thresholds, PCB coil estimates, and LC resonance
   should come from code-backed calculators.
+- Calculator code belongs under `pcbsmith.calculators`, not inside individual
+  demo generators. Board generators should consume calculator outputs rather
+  than each carrying their own math.
 - Unsupported circuit families should be reported as unsupported or
   needs-review, not silently approximated from unrelated templates.
 - Review findings should be normalized into one revision brief before asking an

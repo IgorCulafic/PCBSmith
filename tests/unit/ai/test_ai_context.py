@@ -22,6 +22,19 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
         "schematics": ["schematics/main.sch.json"],
         "boards": ["boards/main.brd.json"],
     }
+    assert context["ai_tools"]["calculators"] == {
+        "schema": "pcbsmith-calculator-tool-v1",
+        "cli_command": "calculator <calculator-name> --param key=value",
+        "supported_calculators": [
+            "lc-resonance",
+            "pcb-spiral-coil-estimate",
+        ],
+        "instructions": [
+            "Use calculators for engineering math instead of freehand model arithmetic.",
+            "Treat error status as blocking for generation.",
+            "Treat warning status as requiring review or conservative assumptions.",
+        ],
+    }
     assert context["ai_tools"]["circuit_topologies"] == {
         "schema": "pcbsmith-circuit-topology-tool-v1",
         "cli_command": "circuit-topologies <intent>",

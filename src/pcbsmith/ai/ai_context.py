@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from pcbsmith.ai.board_feature_intent import board_feature_tool_contract
+from pcbsmith.calculators.electronics import calculator_tool_contract
 from pcbsmith.core.geom import Point, nm_to_mm
 from pcbsmith.core.schematic import Schematic, SymbolInstance
 from pcbsmith.knowledge.circuit_topologies import circuit_topology_tool_contract
@@ -35,6 +36,7 @@ def build_ai_context(
             "boards": list(project.boards),
         },
         "ai_tools": {
+            "calculators": calculator_tool_contract(),
             "circuit_topologies": circuit_topology_tool_contract(),
             "component_selection": component_selection_tool_contract(),
             "circuit_rules": circuit_rules_tool_contract(),

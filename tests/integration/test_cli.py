@@ -528,6 +528,35 @@ def test_circuit_topologies_reports_ranked_intent_guidance() -> None:
     ]
 
 
+def test_calculator_cli_runs_spiral_coil_estimate() -> None:
+    result = _run_cli(
+        "calculator",
+        "pcb-spiral-coil-estimate",
+        "--param",
+        "shape=square",
+        "--param",
+        "outer_diameter_mm=55",
+        "--param",
+        "turns=24",
+        "--param",
+        "trace_width_mm=0.3",
+        "--param",
+        "trace_spacing_mm=0.3",
+        "--param",
+        "copper_thickness_um=35",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    lines = result.stdout.splitlines()
+    assert lines[0:2] == [
+        "Calculation: pcb-spiral-coil-estimate",
+        "Status: ok",
+    ]
+    assert "inductance_uH: 35." in result.stdout
+    assert "Warning: PCB spiral inductance is an estimate" in result.stdout
+
+
 def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) -> None:
     source_project = tmp_path / "source"
     output_project = tmp_path / "review-bundle"

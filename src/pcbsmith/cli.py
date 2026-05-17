@@ -15,6 +15,11 @@ from pcbsmith.ai.ai_plan_check import check_ai_plan
 from pcbsmith.ai.ai_plan_review import run_ai_plan_review
 from pcbsmith.ai.ai_planner_package import write_ai_planner_package
 from pcbsmith.ai.ai_proposal_bundle import run_ai_proposal_bundle
+from pcbsmith.calculators.electronics import (
+    SUPPORTED_CALCULATORS,
+    format_calculation_result,
+    run_calculator,
+)
 from pcbsmith.core.board import Layer
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
@@ -305,6 +310,13 @@ def _cmd_circuit_topologies(args: argparse.Namespace) -> int:
     for line in format_circuit_topology_selection(result):
         print(line)
     return 0
+
+
+def _cmd_calculator(args: argparse.Namespace) -> int:
+    result = run_calculator(args.calculator, parse_rule_parameters(tuple(args.param or ())))
+    for line in format_calculation_result(result):
+        print(line)
+    return 1 if result["status"] == "error" else 0
 
 
 def _cmd_circuit_rules(args: argparse.Namespace) -> int:
@@ -696,6 +708,19 @@ def build_parser() -> argparse.ArgumentParser:
     )
     circuit_topologies_parser.add_argument("intent", choices=SUPPORTED_TOPOLOGY_INTENTS)
     circuit_topologies_parser.set_defaults(func=_cmd_circuit_topologies)
+
+    calculator_parser = subparsers.add_parser(
+        "calculator",
+        help="run deterministic engineering math for AI and design operations",
+    )
+    calculator_parser.add_argument("calculator", choices=SUPPORTED_CALCULATORS)
+    calculator_parser.add_argument(
+        "--param",
+        action="append",
+        default=None,
+        help="calculator parameter as key=value; repeatable",
+    )
+    calculator_parser.set_defaults(func=_cmd_calculator)
 
     circuit_rules_parser = subparsers.add_parser(
         "circuit-rules",

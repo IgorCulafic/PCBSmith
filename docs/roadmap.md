@@ -361,6 +361,18 @@ The tool boundary is intentional: the AI can ask "calculate the coil estimate
 for these dimensions"; PCBSmith returns structured values, warnings, and blocked
 states.
 
+The first R11 foundation is implemented in the dedicated `pcbsmith.calculators`
+package so math tools do not get scattered across one-off board generators. It
+adds:
+
+- `pcb-spiral-coil-estimate` for square/hexagonal/octagonal/circular PCB spiral
+  estimates using the modified Wheeler expression from Mohan, Hershenson, Boyd,
+  and Lee, plus approximate trace length and DC resistance.
+- `lc-resonance` for frequency from L/C or required capacitance from target
+  frequency.
+- A `calculator` CLI tool and AI planner/context contract so hosted or local
+  models call deterministic math instead of inventing values.
+
 ## R12: Validation And Reporting Layer
 
 R12 makes every generated design explain itself. A successful output should
