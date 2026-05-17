@@ -7,6 +7,7 @@ __pycache__/
 .codex-tmp/
 .tmp/
 .cleanup-archive/
+old_files/
 .pytest-*/
 .venv.broken-*/
 pytest-*/
