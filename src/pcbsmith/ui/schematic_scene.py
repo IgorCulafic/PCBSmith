@@ -10,8 +10,8 @@ from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsSceneMouseE
 from pcbsmith.core.catalog import CatalogEntry
 from pcbsmith.core.geom import Point, mm_to_nm, snap
 from pcbsmith.core.schematic import SymbolInstance
-from pcbsmith.services.builtin_library import SYMBOLS
-from pcbsmith.services.schematic_anchors import nearest_anchor, schematic_anchors
+from pcbsmith.knowledge.builtin_library import SYMBOLS
+from pcbsmith.operations.schematic_anchors import nearest_anchor, schematic_anchors
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.history import EditHistory
 from pcbsmith.ui.items import NetLabelItem, NoConnectItem, SymbolItem, WireItem

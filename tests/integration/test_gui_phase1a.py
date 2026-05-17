@@ -5,8 +5,8 @@ from pathlib import Path
 from pcbsmith.core.geom import Point
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import Schematic
-from pcbsmith.services import project_io
-from pcbsmith.services.project_io import ProjectIOError
+from pcbsmith.operations import project_io
+from pcbsmith.operations.project_io import ProjectIOError
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.main_window import MainWindow
 from pcbsmith.ui.schematic_scene import SchematicScene

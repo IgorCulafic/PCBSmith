@@ -4,7 +4,7 @@ from dataclasses import dataclass, replace
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import Junction, NetLabel, NoConnect, Schematic, SymbolInstance, Wire
-from pcbsmith.services.schematic_commands import (
+from pcbsmith.operations.schematic_commands import (
     AddWireCommand,
     PlaceSymbolCommand,
     apply_schematic_command,

@@ -6,21 +6,7 @@ import subprocess
 from pathlib import Path
 from uuid import uuid4
 
-from pcbsmith.services.kicad_backend import find_kicad_cli
-from pcbsmith.services.kicad_preview import (
-    format_kicad_preview_report,
-    run_kicad_preview,
-)
-from pcbsmith.services.kicad_project import (
-    render_kicad_project_file,
-    render_kicad_schematic_file,
-    sanitize_kicad_project_name,
-)
-from pcbsmith.services.kicad_validate import (
-    format_kicad_validation_report,
-    run_kicad_validation,
-)
-from pcbsmith.services.led_art import (
+from pcbsmith.generators.led_art import (
     LedArtPlan,
     LedArtSpec,
     build_led_art_plan,
@@ -29,12 +15,26 @@ from pcbsmith.services.led_art import (
     write_led_art_reports,
     write_led_art_topology_comparison_reports,
 )
-from pcbsmith.services.led_art_board import (
+from pcbsmith.generators.led_art_board import (
     LedArtBoardSpec,
     LedArtControlMode,
     led_art_control_summary,
     led_art_physical_branch_summary,
     render_led_art_board,
+)
+from pcbsmith.kicad.kicad_backend import find_kicad_cli
+from pcbsmith.kicad.kicad_preview import (
+    format_kicad_preview_report,
+    run_kicad_preview,
+)
+from pcbsmith.kicad.kicad_project import (
+    render_kicad_project_file,
+    render_kicad_schematic_file,
+    sanitize_kicad_project_name,
+)
+from pcbsmith.kicad.kicad_validate import (
+    format_kicad_validation_report,
+    run_kicad_validation,
 )
 
 SOURCE_LOGO_SVG = Path("D:/VIR LAB/VEKTOR-04.svg")

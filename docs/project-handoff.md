@@ -180,7 +180,7 @@ Generate a structured LED-art review bundle:
 
 The generated `.pcbsmith/operation.json` is the AI-facing contract for this
 operation. It records the request, output files, check status, and centralized
-board-routing rules from `pcbsmith.services.board_intelligence`. The generated
+board-routing rules from `pcbsmith.rules.board_intelligence`. The generated
 review directory also includes `revision-brief.json`.
 
 Generate a structured R6 ATtiny LED-controller review bundle:
@@ -228,10 +228,11 @@ Generate and query component knowledge:
   possible.
 - Multimodal review should become an optional visual QA layer for generated
   artifacts, below deterministic KiCad and PCBSmith checks.
-- The repository currently contains many generated folders from rapid
-  prototyping. R8 is reserved for a deliberate cleanup/restructure pass that
-  archives or removes generated artifacts, keeps stable examples intentionally,
-  updates `.gitignore`, and leaves a clean contributor-facing project layout.
+- R8 has started. A pre-restructure archive snapshot is ignored under
+  `old_files/`, generated project outputs belong under ignored `outputs/`, local
+  model/RAG assets belong under ignored `ai_assets/`, and the former overloaded
+  `pcbsmith.services` layer is being split into `ai`, `generators`, `kicad`,
+  `knowledge`, `operations`, and `rules`.
 
 ## When Starting A New Chat
 

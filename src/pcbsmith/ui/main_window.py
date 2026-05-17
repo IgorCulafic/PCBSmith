@@ -16,9 +16,11 @@ from PySide6.QtWidgets import (
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.project import Project
-from pcbsmith.services import component_catalog, erc, project_io
-from pcbsmith.services.builtin_library import SYMBOLS
-from pcbsmith.services.project_io import ProjectIOError
+from pcbsmith.knowledge import component_catalog
+from pcbsmith.knowledge.builtin_library import SYMBOLS
+from pcbsmith.operations import project_io
+from pcbsmith.operations.project_io import ProjectIOError
+from pcbsmith.rules import erc
 from pcbsmith.ui.component_browser import ComponentBrowser
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.icons import tool_icon

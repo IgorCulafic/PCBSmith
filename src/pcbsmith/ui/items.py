@@ -13,7 +13,7 @@ from PySide6.QtWidgets import (
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, NoConnect, SymbolInstance, Wire
-from pcbsmith.services.builtin_library import SYMBOLS
+from pcbsmith.knowledge.builtin_library import SYMBOLS
 from pcbsmith.ui.icons import _draw_symbol_preview
 from pcbsmith.ui.selection import SelectionKey
 
