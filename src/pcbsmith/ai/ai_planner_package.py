@@ -9,6 +9,10 @@ from pcbsmith.ai.board_feature_intent import (
     board_feature_planner_rule_notes,
     board_feature_tool_contract,
 )
+from pcbsmith.calculators.electronics import (
+    calculator_planner_rule_notes,
+    calculator_tool_contract,
+)
 from pcbsmith.knowledge.circuit_topologies import (
     circuit_topology_planner_rule_notes,
     circuit_topology_tool_contract,
@@ -45,6 +49,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "brief": brief,
             "allowed_command_types": [],
             "target_plan_schema": None,
+            "calculators": calculator_tool_contract(),
             "circuit_topologies": circuit_topology_tool_contract(),
             "component_selection": component_selection_tool_contract(),
             "circuit_rules": circuit_rules_tool_contract(),
@@ -66,6 +71,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "place_text",
         ],
         "target_plan_schema": _target_plan_schema(brief),
+        "calculators": calculator_tool_contract(),
         "circuit_topologies": circuit_topology_tool_contract(),
         "component_selection": component_selection_tool_contract(),
         "circuit_rules": circuit_rules_tool_contract(),
@@ -169,6 +175,7 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         "Use board-local integer nanometre coordinates for route_segment and place_text commands.",
         "Only use F.Cu for route_segment until back-copper routing is enabled.",
         "Only use F.SilkS or B.SilkS for place_text.",
+        *calculator_planner_rule_notes(),
         *circuit_topology_planner_rule_notes(),
         *component_selection_planner_rule_notes(),
         *circuit_rules_planner_rule_notes(),

@@ -73,6 +73,23 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
         "Keep references on silkscreen; keep values off silkscreen unless "
         "educational/showcase mode asks for them." in package["planner_rules"]
     )
+    assert package["calculators"] == {
+        "schema": "pcbsmith-calculator-tool-v1",
+        "cli_command": "calculator <calculator-name> --param key=value",
+        "supported_calculators": [
+            "lc-resonance",
+            "pcb-spiral-coil-estimate",
+        ],
+        "instructions": [
+            "Use calculators for engineering math instead of freehand model arithmetic.",
+            "Treat error status as blocking for generation.",
+            "Treat warning status as requiring review or conservative assumptions.",
+        ],
+    }
+    assert (
+        "Use calculators supported_calculators for engineering math instead of "
+        "freehand arithmetic." in package["planner_rules"]
+    )
     assert package["circuit_topologies"] == {
         "schema": "pcbsmith-circuit-topology-tool-v1",
         "cli_command": "circuit-topologies <intent>",
@@ -238,6 +255,7 @@ def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
     assert package["planner_mode"] == "review_response"
     assert package["allowed_command_types"] == []
     assert package["target_plan_schema"] is None
+    assert "calculators" in package
     assert "circuit_topologies" in package
     assert "component_selection" in package
     assert "circuit_rules" in package

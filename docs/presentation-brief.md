@@ -83,6 +83,12 @@ circuits: NPN/PNP BJTs, LM393 comparator, LM358 op-amp, active buzzer, and 2-pin
 terminal block entries are available as KiCad-bound candidates where the local
 KiCad libraries provide matching symbols and footprints.
 
+PCBSmith now also has the first deterministic calculator package. Instead of
+asking the model to estimate a PCB coil or LC frequency from memory, the model
+can call PCBSmith's `calculator` tool for a PCB spiral coil estimate or LC
+resonance result, then use the returned structured warnings and values in its
+proposal.
+
 ## AI Safety And Review Model
 
 PCBSmith treats AI-generated work as a proposal until validated and approved.

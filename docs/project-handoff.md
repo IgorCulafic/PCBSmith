@@ -60,6 +60,9 @@ the model operate PCBSmith tools that know PCB constraints.
   part selection. The first supported non-demo topology is an LC oscillator metal
   detector path with PCB spiral coil math, BJT/comparator/output stages, and an
   explicit warning not to pick NE555 unless the topology and math justify it.
+- Dedicated `pcbsmith.calculators` package for deterministic engineering math.
+  The first calculators are `pcb-spiral-coil-estimate` and `lc-resonance`, both
+  exposed through the `calculator` CLI and AI planner/context packages.
 - AI context and planner packages now expose the same `component_selection`
   tool contract so hosted or local models can discover supported component
   intents before proposing symbols, footprints, or board edits.
@@ -225,6 +228,8 @@ Generate and query component knowledge:
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-knowledge-search .tmp\component-knowledge.json --query "zener protection" --mounting smd
 .\.venv\Scripts\python.exe -m pcbsmith.cli component-selection .tmp\component-knowledge.json low-side-switch
 .\.venv\Scripts\python.exe -m pcbsmith.cli circuit-topologies metal-detector
+.\.venv\Scripts\python.exe -m pcbsmith.cli calculator pcb-spiral-coil-estimate --param shape=square --param outer_diameter_mm=55 --param turns=24 --param trace_width_mm=0.3 --param trace_spacing_mm=0.3
+.\.venv\Scripts\python.exe -m pcbsmith.cli calculator lc-resonance --param inductance_uH=35.56 --param capacitance_nF=10
 .\.venv\Scripts\python.exe -m pcbsmith.cli circuit-rules led-current-limit --param supply_voltage_v=5 --param led_forward_voltage_v=2 --param resistor_ohms=330
 ```
 
