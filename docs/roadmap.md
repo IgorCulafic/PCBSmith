@@ -310,11 +310,13 @@ LED-art arrays, or controller designs.
 - Add a future JSON/CLI operation that accepts block composition requests and
   only attempts PCB layout when a supported layout strategy exists.
 
-The first R9 foundation is implemented as `compose_circuit_blocks`. It can
-combine named reusable blocks into one validated `CircuitDesign`, and the
-LED-art operation now uses the same circuit-intent layer to generate a real
-KiCad schematic with embedded PCBSmith symbols. This is the direction for local
-and hosted models: they should operate PCBSmith's constrained block tools, not
+The first R9 foundation is implemented as the `pcbsmith.templates` package. It
+contains source-controlled template metadata and builders for the initial power,
+LED, and switching blocks, while `compose_circuit_blocks` remains as a backward
+compatible operation adapter. The AI-facing source of truth is the template
+registry: generated KiCad projects and demo boards are outputs or regression
+fixtures, not reusable template definitions. This is the direction for local and
+hosted models: they should operate PCBSmith's constrained template tools, not
 invent ad hoc PCB Python files for every prompt.
 
 ## User Contribution Path
