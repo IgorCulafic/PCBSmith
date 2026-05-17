@@ -44,7 +44,9 @@ def test_generate_led_art_design_writes_review_bundle_without_kicad_execution(
     assert result.board_file.exists()
     assert result.revision_brief_file.exists()
     assert (output_dir / "AI_VIR_LAB.kicad_pro").exists()
-    assert (output_dir / "AI_VIR_LAB.kicad_sch").exists()
+    schematic_text = (output_dir / "AI_VIR_LAB.kicad_sch").read_text(encoding="utf-8")
+    assert "Board-first LED art design" in schematic_text
+    assert "PCB layout is the authoritative generated artifact" in schematic_text
     assert (output_dir / "README.md").exists()
     assert (output_dir / ".pcbsmith" / "reports" / "led-art-electrical.json").exists()
 
