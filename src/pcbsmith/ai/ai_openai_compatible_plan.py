@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import urllib.error
 import urllib.request
 from collections.abc import Callable
@@ -170,13 +171,36 @@ def _parse_candidate_json(content: str) -> dict[str, Any]:
         lines = text.splitlines()
         if len(lines) >= 3 and lines[-1].strip() == "```":
             text = "\n".join(lines[1:-1]).strip()
+    data = _load_json_object(text)
+    if data is None:
+        for fenced in reversed(_fenced_json_blocks(content)):
+            data = _load_json_object(fenced)
+            if data is not None:
+                break
+    if data is None:
+        raise ValueError("candidate plan is not valid JSON")
+    return data
+
+
+def _load_json_object(text: str) -> dict[str, Any] | None:
     try:
         data = json.loads(text)
-    except json.JSONDecodeError as exc:
-        raise ValueError("candidate plan is not valid JSON") from exc
+    except json.JSONDecodeError:
+        return None
     if not isinstance(data, dict):
         raise ValueError("candidate plan must be a JSON object")
     return data
+
+
+def _fenced_json_blocks(content: str) -> list[str]:
+    return [
+        match.group("body").strip()
+        for match in re.finditer(
+            r"```(?:json)?\s*(?P<body>.*?)```",
+            content,
+            flags=re.IGNORECASE | re.DOTALL,
+        )
+    ]
 
 
 def _validate_candidate_plan(

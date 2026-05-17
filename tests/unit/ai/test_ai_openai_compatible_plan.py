@@ -126,6 +126,44 @@ def test_request_accepts_fenced_json_model_content() -> None:
     assert result.candidate_plan["schematic"] == "schematics/main.sch.json"
 
 
+def test_request_accepts_noisy_local_model_content_with_fenced_json() -> None:
+    first = {
+        "not": "a candidate plan",
+    }
+
+    def runner(_request: urllib.request.Request, _timeout: float) -> bytes:
+        return json.dumps(
+            {
+                "choices": [
+                    {
+                        "message": {
+                            "content": (
+                                "<think>\nI should create a plan.\n"
+                                "```json\n"
+                                + json.dumps(first)
+                                + "\n```\n"
+                                "The final candidate is:\n"
+                                "```json\n"
+                                + json.dumps(_candidate_plan())
+                                + "\n```\n"
+                                "</think>"
+                            )
+                        }
+                    }
+                ]
+            }
+        ).encode("utf-8")
+
+    result = request_openai_compatible_plan(
+        _planner_package(),
+        base_url="http://127.0.0.1:1234",
+        model="local-model",
+        runner=runner,
+    )
+
+    assert result.candidate_plan["description"] == "Mock LED plan"
+
+
 def test_request_rejects_non_json_model_content() -> None:
     def runner(_request: urllib.request.Request, _timeout: float) -> bytes:
         return json.dumps({"choices": [{"message": {"content": "not json"}}]}).encode(
