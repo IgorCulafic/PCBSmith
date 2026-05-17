@@ -1056,6 +1056,119 @@ def test_local_ai_config_check_reads_environment_without_network() -> None:
     ]
 
 
+def test_local_agent_review_can_call_tool_then_preview_plan(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    request_path = tmp_path / "request.txt"
+    output_dir = tmp_path / "local-agent-run"
+    config_path = tmp_path / "local-agent.json"
+    create_result = _run_cli("new", str(project_dir), "--name", "Local Agent Demo")
+    assert create_result.returncode == 0
+    request_path.write_text("Add a resistor after checking the calculator.\n", encoding="utf-8")
+    config_path.write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-local-model-config-v1",
+                "provider": "openai-compatible",
+                "base_url": "placeholder",
+                "model": "local-agent-test",
+                "timeout_seconds": 30,
+                "use_json_mode": False,
+                "supports_multimodal": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+    responses = [
+        {
+            "version": 1,
+            "action": "tool_call",
+            "tool": "calculator",
+            "arguments": {
+                "calculator": "lc-resonance",
+                "parameters": {"inductance_uH": "35.56", "capacitance_nF": "10"},
+            },
+        },
+        {
+            "version": 1,
+            "action": "final_plan",
+            "candidate_plan": {
+                "version": 1,
+                "description": "Agent CLI resistor plan",
+                "schematic": "schematics/main.sch.json",
+                "commands": [
+                    {
+                        "type": "place_symbol",
+                        "symbol_id": "stdlib:R",
+                        "value": "1k",
+                        "position": {"x": 0, "y": 0},
+                        "footprint_id": "stdlib:R_0603",
+                    }
+                ],
+            },
+        },
+    ]
+
+    class Handler(BaseHTTPRequestHandler):
+        def do_POST(self) -> None:
+            length = int(self.headers["Content-Length"])
+            self.rfile.read(length)
+            response = responses.pop(0)
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(
+                json.dumps(
+                    {"choices": [{"message": {"content": json.dumps(response)}}]}
+                ).encode("utf-8")
+            )
+
+        def log_message(self, _format: str, *_args: object) -> None:
+            return
+
+    server = ThreadingHTTPServer(("127.0.0.1", 0), Handler)
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    config["base_url"] = f"http://127.0.0.1:{server.server_port}"
+    config_path.write_text(json.dumps(config), encoding="utf-8")
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        result = _run_cli(
+            "local-agent-review",
+            str(project_dir),
+            str(request_path),
+            str(output_dir),
+            "--config",
+            str(config_path),
+        )
+    finally:
+        server.shutdown()
+        server.server_close()
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        f"AI local agent review bundle: {output_dir}",
+        f"Local model: local-agent-test (openai-compatible, {config['base_url']})",
+        f"Brief: {output_dir / 'ai-brief.json'}",
+        f"Planner package: {output_dir / 'ai-planner-package.json'}",
+        f"Transcript: {output_dir / 'agent-transcript.json'}",
+        f"Candidate plan: {output_dir / 'candidate-plan.json'}",
+        "Agent steps: 2",
+        "Tool calls: 1",
+        "AI plan: valid",
+        "Target schematic: schematics/main.sch.json",
+        "Commands: 1",
+        "Approval preview:",
+        "Plan: Agent CLI resistor plan",
+        "Target schematic: schematics/main.sch.json",
+        "1. place_symbol stdlib:R value=1k at 0, 0 mm",
+        "Dry run only; no files changed. Pass --apply to save changes.",
+    ]
+    assert not responses
+    transcript = json.loads((output_dir / "agent-transcript.json").read_text(encoding="utf-8"))
+    assert transcript["steps"][0]["tool_result"]["calculator"] == "lc-resonance"
+
+
 def test_ai_plan_review_validates_and_dry_runs_candidate_plan(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     planner_path = tmp_path / "planner-package.json"

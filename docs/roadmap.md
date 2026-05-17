@@ -465,6 +465,13 @@ server, LM Studio, or another local runtime should host the model and expose
   that local execution is still governed by PCBSmith tools and the approval
   loop.
 
+The second R14 foundation is a local text-agent loop. `local-agent-review`
+lets the model request approved PCBSmith tools before it returns a candidate
+plan. The local model still cannot read or edit raw files; PCBSmith executes
+tool calls, writes an `agent-transcript.json`, and sends the final candidate
+through the same plan validation and approval preview. The first safe tools are
+`project_context`, `circuit_topologies`, and `calculator`.
+
 Direct in-process inference can be added later as a separate adapter if it is
 worth the CUDA/native dependency cost on Windows.
 

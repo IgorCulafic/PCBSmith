@@ -81,6 +81,10 @@ the model operate PCBSmith tools that know PCB constraints.
   review flow with local-model configuration. The first path expects a local
   server such as KoboldCPP, llama.cpp server, or LM Studio to expose
   `/v1/chat/completions`; direct in-process GGUF loading is deferred.
+- R14B adds `local-agent-review`, a safe local model loop where the model can
+  call approved PCBSmith tools before submitting a final candidate plan. The
+  local model still cannot read or edit raw files directly; PCBSmith records an
+  `agent-transcript.json` and runs the usual approval preview.
 - AI planner packages now expose a `circuit_topologies` contract before
   component selection, so models are told to choose topology and required math
   tools before choosing familiar parts.
@@ -256,12 +260,14 @@ Configure and use a local model endpoint:
 .\.venv\Scripts\python.exe -m pcbsmith.cli local-ai-config-template ai_assets\local-ai-config.json
 .\.venv\Scripts\python.exe -m pcbsmith.cli local-ai-config-check --config ai_assets\local-ai-config.json
 .\.venv\Scripts\python.exe -m pcbsmith.cli local-ai-review <project-dir> <request.txt> outputs\local-ai-review --config ai_assets\local-ai-config.json
+.\.venv\Scripts\python.exe -m pcbsmith.cli local-agent-review <project-dir> <request.txt> outputs\local-agent-review --config ai_assets\local-ai-config.json
 ```
 
 For the current GGUF-first path, run the model in KoboldCPP, llama.cpp server,
 LM Studio, or another OpenAI-compatible local runtime, then point
-`base_url`/`model` at that server. PCBSmith validates the returned candidate
-plan before any project mutation.
+`base_url`/`model` at that server. Use `local-ai-review` for one-shot planning
+and `local-agent-review` when the model should consult PCBSmith tools first.
+PCBSmith validates the returned candidate plan before any project mutation.
 
 ## User Priorities
 
