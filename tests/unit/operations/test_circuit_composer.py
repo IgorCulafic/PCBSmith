@@ -5,6 +5,7 @@ import pytest
 from pcbsmith.operations.circuit_composer import (
     CircuitBlockUse,
     compose_circuit_blocks,
+    list_circuit_block_templates,
 )
 
 
@@ -30,6 +31,13 @@ def test_compose_circuit_blocks_combines_reusable_blocks() -> None:
         {net.name for net in design.nets}
     )
     assert len(references) == len(set(references))
+
+
+def test_circuit_composer_exposes_template_metadata() -> None:
+    templates = {template.id: template for template in list_circuit_block_templates()}
+
+    assert templates["led_string"].parameters["led_count"].default == 1
+    assert templates["low_side_mosfet_switch"].category == "switching"
 
 
 def test_compose_circuit_blocks_can_reuse_same_block_multiple_times() -> None:
