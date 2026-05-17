@@ -50,7 +50,8 @@ The corrected architecture is KiCad-first:
   - Gerbers;
   - drill files;
   - AI context JSON;
-  - revision brief JSON.
+  - revision brief JSON;
+  - consolidated validation summary JSON and Markdown.
 
 ## Recent Technical Milestone
 
@@ -89,6 +90,12 @@ can call PCBSmith's `calculator` tool for a PCB spiral coil estimate or LC
 resonance result, then use the returned structured warnings and values in its
 proposal.
 
+The newest R12 reporting slice adds a consolidated validation summary to KiCad
+review bundles. It collects KiCad ERC/DRC status, preview exports,
+manufacturability findings, circuit-rule findings, calculator evidence,
+selected part candidates, topology choice, and human-review items into one
+machine-readable JSON report plus a readable Markdown summary.
+
 ## AI Safety And Review Model
 
 PCBSmith treats AI-generated work as a proposal until validated and approved.
@@ -120,9 +127,9 @@ Near-term:
 - R11 deterministic math: LED grouping, current, power, RC/555 timing, BJT bias,
   comparator thresholds, PCB coil estimates, and LC resonance should be computed
   by PCBSmith tools, not freehanded by the AI.
-- R12 validation/reporting: every generated design should explain topology,
-  selected parts, calculator outputs, KiCad checks, PCBSmith checks, and review
-  status.
+- R12 validation/reporting: extend the new consolidated report into every
+  generated operation and proposal bundle, including more topology/component
+  evidence as those layers expand.
 - R13 expanded component and KiCad library integration: grow from basic demos
   toward real analog, power, connector, sensor, and controller building blocks.
 - R14 local model integration: run the same constrained tool workflow through a

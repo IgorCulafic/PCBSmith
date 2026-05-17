@@ -21,6 +21,7 @@ from pcbsmith.knowledge.component_selection import (
     component_selection_planner_rule_notes,
     component_selection_tool_contract,
 )
+from pcbsmith.reporting.validation_report import validation_report_tool_contract
 from pcbsmith.rules.board_conventions import ai_planner_annotation_rule_notes
 from pcbsmith.rules.board_intelligence import ai_planner_routing_rule_notes
 from pcbsmith.rules.board_outline_geometry import (
@@ -56,6 +57,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "board_feature_intent": board_feature_tool_contract(),
             "silkscreen_artwork": silkscreen_artwork_tool_contract(),
             "board_outline_geometry": board_outline_geometry_tool_contract(),
+            "validation_reports": validation_report_tool_contract(),
             "planner_rules": _planner_rules(review_only=True),
         }
 
@@ -78,6 +80,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
         "board_feature_intent": board_feature_tool_contract(),
         "silkscreen_artwork": silkscreen_artwork_tool_contract(),
         "board_outline_geometry": board_outline_geometry_tool_contract(),
+        "validation_reports": validation_report_tool_contract(),
         "planner_rules": _planner_rules(review_only=False),
     }
 
@@ -182,6 +185,8 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         *board_feature_planner_rule_notes(),
         *silkscreen_artwork_planner_rule_notes(),
         *board_outline_geometry_planner_rule_notes(),
+        "Read validation_reports before claiming a design is ready for fabrication.",
+        "Treat blocked validation reports as revision requirements, not optional advice.",
         *ai_planner_routing_rule_notes(),
         *ai_planner_annotation_rule_notes(),
     ]

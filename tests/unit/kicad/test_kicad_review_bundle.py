@@ -107,11 +107,21 @@ def test_review_bundle_runs_export_validation_preview_and_context(
     assert result.exit_code == 0
     assert result.context_file == output_project / "ai-context.json"
     assert result.revision_brief_file == output_project / "revision-brief.json"
+    assert result.validation_report_file == (
+        output_project / ".pcbsmith" / "reports" / "validation-summary.json"
+    )
+    assert result.validation_report_markdown_file == (
+        output_project / ".pcbsmith" / "reports" / "validation-summary.md"
+    )
     assert result.manufacturability_report_file == (
         output_project / ".pcbsmith" / "board-reports" / "manufacturability.json"
     )
+    assert result.validation_summary["schema"] == "pcbsmith-validation-report-v1"
+    assert result.validation_summary["status"] == "passed"
     assert result.revision_brief.status == "passed"
     assert result.revision_brief_file.exists()
+    assert result.validation_report_file.exists()
+    assert result.validation_report_markdown_file.exists()
     assert calls == [
         ("export", (source_project, output_project, "Review Demo")),
         ("validate", (output_project, True)),
@@ -125,12 +135,14 @@ def test_review_bundle_runs_export_validation_preview_and_context(
         ),
         ("context", (source_project, output_project / "ai-context.json", output_project)),
     ]
+    validation_summary_file = output_project / ".pcbsmith" / "reports" / "validation-summary.json"
     assert format_kicad_review_bundle_result(result) == [
         f"Review bundle: {output_project}",
         f"Exported KiCad handoff: {output_project}",
         "Validation: passed",
         "Preview: exported",
         "Board manufacturability: passed",
+        f"Validation summary: {validation_summary_file}",
         f"AI context: {output_project / 'ai-context.json'}",
         f"Revision brief: {output_project / 'revision-brief.json'}",
         "Revision brief: passed (0 items)",

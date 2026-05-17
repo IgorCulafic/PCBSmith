@@ -10,6 +10,7 @@ def test_architecture_packages_are_available() -> None:
         "pcbsmith.kicad",
         "pcbsmith.knowledge",
         "pcbsmith.operations",
+        "pcbsmith.reporting",
         "pcbsmith.rules",
     ):
         assert importlib.import_module(package)
@@ -22,6 +23,7 @@ def test_representative_modules_live_in_their_architecture_packages() -> None:
         "pcbsmith.kicad.kicad_export",
         "pcbsmith.knowledge.component_selection",
         "pcbsmith.operations.design_operations",
+        "pcbsmith.reporting.validation_report",
         "pcbsmith.rules.board_manufacturability",
     )
 

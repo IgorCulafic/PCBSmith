@@ -16,6 +16,10 @@ from pcbsmith.operations.revision_brief import (
     format_revision_brief,
     write_revision_brief,
 )
+from pcbsmith.reporting.validation_report import (
+    build_validation_report,
+    write_validation_report_files,
+)
 from pcbsmith.rules.board_manufacturability import (
     BoardManufacturabilityReport,
     inspect_board_manufacturability,
@@ -30,12 +34,15 @@ class KiCadReviewBundleResult(BaseModel):
     output_project_dir: Path
     context_file: Path
     revision_brief_file: Path
+    validation_report_file: Path
+    validation_report_markdown_file: Path
     manufacturability_report_file: Path
     export_result: object
     validation_report: KiCadValidationReport
     preview_report: KiCadPreviewReport
     manufacturability_report: BoardManufacturabilityReport
     revision_brief: RevisionBrief
+    validation_summary: dict[str, object]
     exit_code: int
 
 
@@ -80,18 +87,31 @@ def run_kicad_review_bundle(
     )
     revision_brief_file = output_project_dir / "revision-brief.json"
     write_revision_brief(revision_brief, revision_brief_file)
+    validation_summary = build_validation_report(
+        project_name=project_name or output_project_dir.name,
+        validation_report=validation_report,
+        preview_report=preview_report,
+        manufacturability_report=manufacturability_report,
+    )
+    validation_report_paths = write_validation_report_files(
+        validation_summary,
+        output_project_dir / ".pcbsmith" / "reports",
+    )
 
     return KiCadReviewBundleResult(
         source_project_dir=source_project_dir,
         output_project_dir=output_project_dir,
         context_file=context_file,
         revision_brief_file=revision_brief_file,
+        validation_report_file=validation_report_paths["json"],
+        validation_report_markdown_file=validation_report_paths["markdown"],
         manufacturability_report_file=manufacturability_report_file,
         export_result=export_result,
         validation_report=validation_report,
         preview_report=preview_report,
         manufacturability_report=manufacturability_report,
         revision_brief=revision_brief,
+        validation_summary=validation_summary,
         exit_code=max(
             validation_report.exit_code,
             preview_report.exit_code,
@@ -107,6 +127,7 @@ def format_kicad_review_bundle_result(result: KiCadReviewBundleResult) -> list[s
         f"Validation: {_validation_status(result.validation_report)}",
         f"Preview: {_preview_status(result.preview_report)}",
         f"Board manufacturability: {_manufacturability_status(result.manufacturability_report)}",
+        f"Validation summary: {result.validation_report_file}",
         f"AI context: {result.context_file}",
         f"Revision brief: {result.revision_brief_file}",
         *format_revision_brief(result.revision_brief),

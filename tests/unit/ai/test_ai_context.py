@@ -151,6 +151,21 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
             "Run preflight before applying board outline geometry.",
         ],
     }
+    assert context["ai_tools"]["validation_reports"] == {
+        "schema": "pcbsmith-validation-report-tool-v1",
+        "output_files": [
+            ".pcbsmith/reports/validation-summary.json",
+            ".pcbsmith/reports/validation-summary.md",
+        ],
+        "instructions": [
+            "Treat blocked validation reports as stopping conditions.",
+            "Use validation report findings and next_actions before proposing revisions.",
+            (
+                "Include calculator and KiCad evidence when explaining why a board "
+                "is ready or not ready."
+            ),
+        ],
+    }
     assert context["schematics"] == [
         {
             "path": "schematics/main.sch.json",
@@ -203,9 +218,11 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
     shutil.copytree(FIXTURE, project_dir)
     report_dir = kicad_dir / ".pcbsmith" / "kicad-reports"
     board_report_dir = kicad_dir / ".pcbsmith" / "board-reports"
+    validation_report_dir = kicad_dir / ".pcbsmith" / "reports"
     visual_dir = kicad_dir / ".pcbsmith" / "visual"
     report_dir.mkdir(parents=True)
     board_report_dir.mkdir(parents=True)
+    validation_report_dir.mkdir(parents=True)
     visual_dir.mkdir(parents=True)
     (report_dir / "erc.json").write_text(
         json.dumps({"sheets": [{"violations": [{"type": "pin_not_connected"}]}]}),
@@ -221,6 +238,17 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
                 "schema": "pcbsmith-board-manufacturability-v1",
                 "summary": {"finding_count": 1, "error_count": 0, "warning_count": 1},
                 "findings": [{"code": "non_preferred_trace_angle"}],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (validation_report_dir / "validation-summary.json").write_text(
+        json.dumps(
+            {
+                "schema": "pcbsmith-validation-report-v1",
+                "status": "needs_review",
+                "summary": {"error_count": 0, "warning_count": 1, "advisory_count": 1},
+                "next_actions": ["Review warnings."],
             }
         ),
         encoding="utf-8",
@@ -306,6 +334,15 @@ def test_build_ai_context_includes_kicad_reports_and_visual_refs(tmp_path: Path)
                 "findings": 1,
                 "errors": 0,
                 "warnings": 1,
+            },
+            {
+                "name": "validation-summary",
+                "path": str(validation_report_dir / "validation-summary.json"),
+                "status": "needs_review",
+                "errors": 0,
+                "warnings": 1,
+                "advisories": 1,
+                "next_actions": 1,
             },
         ],
         "visuals": [
