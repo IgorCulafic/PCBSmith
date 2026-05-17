@@ -451,6 +451,23 @@ families, selected deep profiles, calculator outputs, and review findings.
   deterministic checks in authority.
 - Preserve the same approval loop for hosted and local models.
 
+The first R14 foundation is implemented as a local OpenAI-compatible endpoint
+adapter. PCBSmith does not load GGUF files directly yet; KoboldCPP, llama.cpp
+server, LM Studio, or another local runtime should host the model and expose
+`/v1/chat/completions`. PCBSmith now has:
+
+- `local-ai-config-template` to write a safe editable local endpoint config;
+- `local-ai-config-check` to print endpoint/model settings without contacting
+  the server;
+- `local-ai-review` to run the existing request -> brief -> planner package ->
+  model candidate -> approval-preview flow using local model settings;
+- a `local_ai` tool contract in AI context and planner packages so models see
+  that local execution is still governed by PCBSmith tools and the approval
+  loop.
+
+Direct in-process inference can be added later as a separate adapter if it is
+worth the CUDA/native dependency cost on Windows.
+
 ## R15: Metal Detector Prototype Track
 
 R15 resumes the metal detector request after R10-R12 are strong enough to stop

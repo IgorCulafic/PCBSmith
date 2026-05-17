@@ -17,6 +17,11 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - User approval remains mandatory before applying AI-generated edits.
 - The AI should receive both machine-readable project context and visual review artifacts where possible.
 - Local models should be supported later, but the near-term interface should stay provider-agnostic.
+- Local GGUF models should first be integrated through an OpenAI-compatible
+  local HTTP endpoint. KoboldCPP, llama.cpp server, LM Studio, or similar tools
+  can own native CUDA/model loading; PCBSmith should own planner packages,
+  validation, approval, and review. Direct in-process inference is a later
+  adapter only if it proves worth the Windows native dependency cost.
 
 ## Component And Library Strategy
 
@@ -70,6 +75,9 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
   evidence surface for topology, candidates, calculators, KiCad checks,
   PCBSmith checks, and human-review items; the revision brief remains the
   narrower repair queue.
+- Hosted and local models should use the same tool contracts. The local model
+  path must not bypass topology selection, deterministic calculators, component
+  selection, validation reports, or the approval loop.
 
 ## Parametric Board Features
 

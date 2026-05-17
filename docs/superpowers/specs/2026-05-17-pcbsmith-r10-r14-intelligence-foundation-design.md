@@ -121,6 +121,17 @@ Local models should use the same context and tool loop:
 Model assets, LoRAs, RAG indexes, and KoboldCPP/local runtime data belong under
 ignored local asset directories, not source control.
 
+The first R14 implementation standardizes this as an endpoint contract rather
+than direct GGUF loading:
+
+- local runtimes own model loading and CUDA/native execution;
+- PCBSmith owns local endpoint configuration, planner packages, validation, and
+  approval preview;
+- JSON mode defaults off because many local OpenAI-compatible servers ignore or
+  reject `response_format`;
+- local model paths are recorded only as local config metadata, never committed
+  as source-controlled model artifacts.
+
 ## Acceptance Criteria
 
 - `circuit-topologies metal-detector` returns the LC detector topology and its
@@ -134,6 +145,8 @@ ignored local asset directories, not source control.
 - Component selection exposes reusable roles for regulated power, battery power,
   user input, programming headers, clock sources, 8-bit microcontrollers, and
   reverse-polarity protection.
+- Local AI configuration can be written, inspected, and used to run the same
+  request-to-approval-preview flow through an OpenAI-compatible local endpoint.
 - Roadmap, handoff, decision log, and presentation brief all document the new
   topology/math-first direction.
 - No new detector board is generated until the foundation is in place.

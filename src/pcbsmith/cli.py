@@ -15,6 +15,12 @@ from pcbsmith.ai.ai_plan_check import check_ai_plan
 from pcbsmith.ai.ai_plan_review import run_ai_plan_review
 from pcbsmith.ai.ai_planner_package import write_ai_planner_package
 from pcbsmith.ai.ai_proposal_bundle import run_ai_proposal_bundle
+from pcbsmith.ai.local_ai_review import run_local_ai_review
+from pcbsmith.ai.local_model_config import (
+    format_local_model_config,
+    load_local_model_config,
+    write_local_model_config_template,
+)
 from pcbsmith.calculators.electronics import (
     SUPPORTED_CALCULATORS,
     format_calculation_result,
@@ -419,6 +425,35 @@ def _cmd_ai_openai_review(args: argparse.Namespace) -> int:
         or os.environ.get("OPENAI_API_KEY"),
         timeout_seconds=args.timeout,
         use_json_mode=not args.no_json_mode,
+        kicad_project_dir=Path(args.kicad_project) if args.kicad_project else None,
+        apply=args.apply,
+    )
+    for line in result.lines:
+        print(line)
+    return result.exit_code
+
+
+def _cmd_local_ai_config_template(args: argparse.Namespace) -> int:
+    config = write_local_model_config_template(Path(args.output))
+    print(f"Wrote local AI config template to {Path(args.output)}")
+    for line in format_local_model_config(config):
+        print(line)
+    return 0
+
+
+def _cmd_local_ai_config_check(args: argparse.Namespace) -> int:
+    config = load_local_model_config(Path(args.config) if args.config else None)
+    for line in format_local_model_config(config):
+        print(line)
+    return 0
+
+
+def _cmd_local_ai_review(args: argparse.Namespace) -> int:
+    result = run_local_ai_review(
+        Path(args.project),
+        Path(args.request),
+        Path(args.output_dir),
+        config_path=Path(args.config) if args.config else None,
         kicad_project_dir=Path(args.kicad_project) if args.kicad_project else None,
         apply=args.apply,
     )
@@ -878,6 +913,45 @@ def build_parser() -> argparse.ArgumentParser:
         help="apply the validated candidate plan instead of dry-running it",
     )
     ai_openai_review_parser.set_defaults(func=_cmd_ai_openai_review)
+
+    local_ai_config_template_parser = subparsers.add_parser(
+        "local-ai-config-template",
+        help="write a safe editable config for a local OpenAI-compatible model server",
+    )
+    local_ai_config_template_parser.add_argument("output")
+    local_ai_config_template_parser.set_defaults(func=_cmd_local_ai_config_template)
+
+    local_ai_config_check_parser = subparsers.add_parser(
+        "local-ai-config-check",
+        help="print local AI endpoint configuration without contacting the model",
+    )
+    local_ai_config_check_parser.add_argument(
+        "--config",
+        help="optional local AI JSON config; otherwise PCBSmith reads environment variables",
+    )
+    local_ai_config_check_parser.set_defaults(func=_cmd_local_ai_config_check)
+
+    local_ai_review_parser = subparsers.add_parser(
+        "local-ai-review",
+        help="run request-to-model-to-approval-preview using local AI config",
+    )
+    local_ai_review_parser.add_argument("project")
+    local_ai_review_parser.add_argument("request")
+    local_ai_review_parser.add_argument("output_dir")
+    local_ai_review_parser.add_argument(
+        "--config",
+        help="optional local AI JSON config; otherwise PCBSmith reads environment variables",
+    )
+    local_ai_review_parser.add_argument(
+        "--kicad-project",
+        help="optional KiCad review bundle with reports and visual references",
+    )
+    local_ai_review_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="apply the validated candidate plan instead of dry-running it",
+    )
+    local_ai_review_parser.set_defaults(func=_cmd_local_ai_review)
 
     ai_plan_check_parser = subparsers.add_parser(
         "ai-plan-check",
