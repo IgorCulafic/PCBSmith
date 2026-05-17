@@ -35,7 +35,7 @@ def test_component_browser_filters_by_search_text(qtbot) -> None:
 
     browser.search_box.setText("led")
 
-    assert browser.visible_entry_ids() == ("pcbs:led_0603",)
+    assert browser.visible_entry_ids() == ("pcbs:led_0603", "pcbs:led_0805")
 
 
 def test_component_browser_preferred_only_can_hide_entries(qtbot) -> None:
@@ -46,7 +46,7 @@ def test_component_browser_preferred_only_can_hide_entries(qtbot) -> None:
     browser.preferred_only.setChecked(True)
     browser.search_box.setText("led")
 
-    assert browser.visible_entry_ids() == ()
+    assert browser.visible_entry_ids() == ("pcbs:led_0805",)
 
 
 def test_component_browser_cannot_select_non_visible_entry(qtbot) -> None:
@@ -167,4 +167,4 @@ def test_open_project_applies_project_catalog_preferences(qtbot, tmp_path) -> No
     window.component_browser.preferred_only.setChecked(True)
     window.component_browser.search_box.setText("led")
 
-    assert window.component_browser.visible_entry_ids() == ()
+    assert window.component_browser.visible_entry_ids() == ("pcbs:led_0805",)

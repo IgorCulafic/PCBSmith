@@ -400,15 +400,15 @@ def test_component_knowledge_index_writes_ai_facing_catalog(tmp_path: Path) -> N
     assert result.stderr == ""
     assert result.stdout.splitlines() == [
         f"Wrote component knowledge index to {output_path}",
-        "Tier 1 entries: 25",
-        "Families: 22",
-        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=6",
-        "Mounting: smd=14, through-hole=9, virtual=2, unspecified=0",
+        "Tier 1 entries: 35",
+        "Families: 27",
+        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=16",
+        "Mounting: smd=23, through-hole=10, virtual=2, unspecified=0",
     ]
     output = json.loads(output_path.read_text(encoding="utf-8"))
     assert output["schema"] == "pcbsmith-component-knowledge-index-v1"
     assert output["coverage_summary"]["well_supported"] == 9
-    assert output["coverage_summary"]["needs_datasheet_review"] == 6
+    assert output["coverage_summary"]["needs_datasheet_review"] == 16
 
 
 def test_component_knowledge_search_finds_filtered_parts(tmp_path: Path) -> None:

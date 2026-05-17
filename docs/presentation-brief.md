@@ -79,10 +79,13 @@ points toward an LC oscillator/sensing topology with a PCB spiral coil,
 deterministic coil/resonance math, gain/threshold stages, and output drivers,
 instead of blindly reusing a familiar 555 timer pattern.
 
-The built-in component catalog has also expanded toward real analog/sensor
-circuits: NPN/PNP BJTs, LM393 comparator, LM358 op-amp, active buzzer, and 2-pin
-terminal block entries are available as KiCad-bound candidates where the local
-KiCad libraries provide matching symbols and footprints.
+The built-in component catalog has also expanded toward real analog, power,
+sensor, and controller circuits. NPN/PNP BJTs, LM393 comparator, LM358 op-amp,
+active buzzer, 2-pin terminal block, 0805 passives/LEDs, SOD-323 Schottky,
+AMS1117 regulator, CR2032 battery holder, SMD tactile switch, crystal,
+ATtiny85, and 1x06 programming header entries are available as KiCad-bound
+candidates where the local KiCad libraries provide matching symbols and
+footprints.
 
 PCBSmith now also has the first deterministic calculator package. Instead of
 asking the model to estimate a PCB coil or LC frequency from memory, the model

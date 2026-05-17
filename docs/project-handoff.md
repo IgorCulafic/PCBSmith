@@ -54,8 +54,10 @@ the model operate PCBSmith tools that know PCB constraints.
 - Compact `component-selection` CLI for choosing ranked component candidates
   from engineering intents such as LED current limiting, MOSFET low-side
   switching, BJT stages, comparator thresholds, buzzer outputs, terminal power
-  input, 555 timers, power entry, zener protection, relay switching, and isolated
-  power.
+  input, 555 timers, power entry, zener protection, relay switching, isolated
+  power, battery power, regulated power, tactile/user input, programming
+  headers, crystal clocks, small 8-bit microcontrollers, and reverse-polarity
+  protection.
 - Compact `circuit-topologies` CLI for choosing circuit-family topology before
   part selection. The first supported non-demo topology is an LC oscillator metal
   detector path with PCB spiral coil math, BJT/comparator/output stages, and an
@@ -71,6 +73,10 @@ the model operate PCBSmith tools that know PCB constraints.
 - AI context and planner packages now expose the same `component_selection`
   tool contract so hosted or local models can discover supported component
   intents before proposing symbols, footprints, or board edits.
+- R13 expands the built-in catalog with controller/power foundations beyond the
+  early detector set: 0805 passives/LEDs, SOD-323 Schottky diode,
+  AMS1117-3.3 SOT-223 regulator, CR2032 SMD battery holder, SMD tactile switch,
+  3225 crystal, ATtiny85 SOIC-8, and a 1x06 2.54 mm programming header.
 - AI planner packages now expose a `circuit_topologies` contract before
   component selection, so models are told to choose topology and required math
   tools before choosing familiar parts.

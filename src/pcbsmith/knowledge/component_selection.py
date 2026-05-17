@@ -145,6 +145,113 @@ _RULES: dict[str, ComponentSelectionRule] = {
             "Check current rating and edge clearance.",
         ),
     ),
+    "battery-power": ComponentSelectionRule(
+        label="Battery power source",
+        query="battery coin cell cr2032",
+        tags=("battery", "power"),
+        family_ids=("battery-holder",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify cell chemistry, holder polarity, load current, and whether the "
+            "requested circuit can run from the battery voltage."
+        ),
+        next_checks=(
+            "Confirm supply voltage and expected current draw.",
+            "Add clear polarity silkscreen and reverse-polarity protection when useful.",
+            "Check holder mechanical clearance and battery access.",
+        ),
+    ),
+    "regulated-power": ComponentSelectionRule(
+        label="Linear regulated power rail",
+        query="regulator ldo power",
+        tags=("regulator", "power"),
+        family_ids=("linear-regulator",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify input voltage, dropout, current, heat dissipation, stability, "
+            "and required input/output capacitors."
+        ),
+        next_checks=(
+            "Calculate regulator power dissipation from voltage drop and load current.",
+            "Add required input and output capacitors close to the regulator pins.",
+            "Check package thermal limits against the fabrication/use case.",
+        ),
+    ),
+    "user-input-button": ComponentSelectionRule(
+        label="User input push button",
+        query="button switch tactile",
+        tags=("button", "switch"),
+        family_ids=("push-button",),
+        preferred_mounting="smd",
+        candidate_warning=None,
+        next_checks=(
+            "Choose pull-up or pull-down behavior.",
+            "Decide whether hardware debounce or firmware debounce is expected.",
+            "Keep switch placement accessible at the board edge when practical.",
+        ),
+    ),
+    "programming-header": ComponentSelectionRule(
+        label="Programming/debug header",
+        query="programming header connector",
+        tags=("programming", "connector"),
+        family_ids=("pin-header",),
+        preferred_mounting="through-hole",
+        candidate_warning=(
+            "Verify pin order against the programmer and add unambiguous silkscreen labels."
+        ),
+        next_checks=(
+            "Confirm header pinout and orientation.",
+            "Place related pins together and label them on silkscreen.",
+            "Keep enough clearance for the programmer cable or pogo adapter.",
+        ),
+    ),
+    "clock-source": ComponentSelectionRule(
+        label="Crystal or resonator clock source",
+        query="crystal clock oscillator",
+        tags=("crystal", "clock"),
+        family_ids=("crystal",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify frequency, load capacitance, drive level, ESR, and MCU oscillator requirements."
+        ),
+        next_checks=(
+            "Calculate load capacitors from crystal CL and stray capacitance.",
+            "Place the crystal and capacitors close to the IC clock pins.",
+            "Keep high-current or fast-switching traces away from the oscillator loop.",
+        ),
+    ),
+    "microcontroller-8bit": ComponentSelectionRule(
+        label="Small 8-bit microcontroller",
+        query="attiny85 microcontroller avr",
+        tags=("microcontroller",),
+        family_ids=("microcontroller",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify supply voltage, clock source, programming method, pin mapping, "
+            "firmware availability, and decoupling."
+        ),
+        next_checks=(
+            "Reserve VCC/GND decoupling close to the IC.",
+            "Confirm reset, programming, and IO pin assignments.",
+            "Check that requested behavior is possible with the selected pin count "
+            "and firmware path.",
+        ),
+    ),
+    "reverse-polarity-protection": ComponentSelectionRule(
+        label="Reverse-polarity protection diode",
+        query="schottky protection reverse polarity",
+        tags=("schottky", "protection"),
+        family_ids=("schottky-diode",),
+        preferred_mounting="smd",
+        candidate_warning=(
+            "Verify forward voltage drop, current rating, reverse voltage, and power dissipation."
+        ),
+        next_checks=(
+            "Choose series or shunt protection topology.",
+            "Calculate voltage drop and diode heating at expected load current.",
+            "Confirm downstream circuit still receives enough voltage.",
+        ),
+    ),
     "trim-adjustment": ComponentSelectionRule(
         label="User trim adjustment",
         query="potentiometer trimmer",

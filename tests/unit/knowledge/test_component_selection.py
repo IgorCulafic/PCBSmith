@@ -16,10 +16,17 @@ def _library_index() -> dict[str, object]:
             {"id": "Device:C"},
             {"id": "Device:LED"},
             {"id": "Device:D"},
+            {"id": "Device:D_Schottky"},
             {"id": "Device:D_Zener"},
             {"id": "Device:Fuse"},
             {"id": "Device:L"},
             {"id": "Device:Buzzer"},
+            {"id": "Regulator_Linear:AMS1117-3.3"},
+            {"id": "Device:Battery_Cell"},
+            {"id": "Switch:SW_Push"},
+            {"id": "Device:Crystal"},
+            {"id": "MCU_Microchip_ATtiny:ATtiny85-20S"},
+            {"id": "Connector:Conn_01x06_Pin"},
             {"id": "Transistor_BJT:Q_NPN_BEC"},
             {"id": "Transistor_BJT:Q_PNP_BEC"},
             {"id": "Comparator:LM393"},
@@ -30,13 +37,22 @@ def _library_index() -> dict[str, object]:
         ],
         "footprints": [
             {"id": "Resistor_SMD:R_0603_1608Metric"},
+            {"id": "Resistor_SMD:R_0805_2012Metric"},
             {"id": "Capacitor_SMD:C_0603_1608Metric"},
+            {"id": "Capacitor_SMD:C_0805_2012Metric"},
             {"id": "LED_SMD:LED_0603_1608Metric"},
+            {"id": "LED_SMD:LED_0805_2012Metric"},
             {"id": "Diode_SMD:D_0603_1608Metric"},
+            {"id": "Diode_SMD:D_SOD-323"},
             {"id": "Inductor_SMD:L_0603_1608Metric"},
             {"id": "Fuse:Fuse_0603_1608Metric"},
+            {"id": "Package_TO_SOT_SMD:SOT-223-3_TabPin2"},
+            {"id": "Battery:BatteryHolder_LINX_BAT-HLD-012-SMT"},
+            {"id": "Button_Switch_SMD:SW_SPST_TL3305A"},
+            {"id": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm"},
             {"id": "Package_TO_SOT_SMD:SOT-23"},
             {"id": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"},
+            {"id": "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical"},
             {"id": "Buzzer_Beeper:Buzzer_12x9.5RM7.6"},
             {"id": "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"},
         ],
@@ -55,8 +71,12 @@ def test_select_components_prefers_supported_smd_led_current_limit_part() -> Non
 
     assert result["schema"] == COMPONENT_SELECTION_SCHEMA
     assert result["intent"] == "led-current-limit"
-    assert result["result_count"] == 1
+    assert result["result_count"] == 2
     assert result["warnings"] == []
+    assert [candidate["entry_id"] for candidate in result["candidates"]] == [
+        "pcbs:resistor_0603",
+        "pcbs:resistor_0805",
+    ]
     assert result["candidates"][0] == {
         "rank": 1,
         "entry_id": "pcbs:resistor_0603",
@@ -141,6 +161,31 @@ def test_select_components_supports_metal_detector_building_blocks() -> None:
         "No smd candidates matched; returned other mounting styles instead."
     ]
     assert power["candidates"][0]["entry_id"] == "pcbs:terminal_block_1x02_p5mm"
+
+
+def test_select_components_supports_controller_and_power_building_blocks() -> None:
+    index = build_component_knowledge_index(kicad_library_index=_library_index())
+
+    regulator = select_components_for_intent(index, "regulated-power")
+    battery = select_components_for_intent(index, "battery-power")
+    switch = select_components_for_intent(index, "user-input-button")
+    controller = select_components_for_intent(index, "microcontroller-8bit")
+    header = select_components_for_intent(index, "programming-header")
+    crystal = select_components_for_intent(index, "clock-source")
+    protection = select_components_for_intent(index, "reverse-polarity-protection")
+
+    assert regulator["candidates"][0]["entry_id"] == "pcbs:ams1117_3v3_sot223"
+    assert battery["candidates"][0]["entry_id"] == "pcbs:cr2032_battery_holder_smd"
+    assert switch["candidates"][0]["entry_id"] == "pcbs:tactile_switch_smd"
+    assert controller["candidates"][0]["entry_id"] == "pcbs:attiny85_soic8"
+    assert header["candidates"][0]["entry_id"] == "pcbs:pin_header_1x06_p2.54mm"
+    assert crystal["candidates"][0]["entry_id"] == "pcbs:crystal_3225"
+    assert protection["candidates"][0]["entry_id"] == "pcbs:schottky_diode_sod323"
+
+    assert header["warnings"] == [
+        "No smd candidates matched; returned other mounting styles instead."
+    ]
+    assert regulator["candidates"][0]["selection_status"] == "needs_review"
 
 
 def test_format_component_selection_result_is_compact_for_ai_prompts() -> None:
