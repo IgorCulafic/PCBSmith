@@ -52,6 +52,16 @@ def test_builtin_catalog_contains_basic_component_entries() -> None:
         "pcbs:ne555_soic8",
         "pcbs:relay_spdt_th",
         "pcbs:transformer_th",
+        "pcbs:resistor_0805",
+        "pcbs:capacitor_0805",
+        "pcbs:led_0805",
+        "pcbs:schottky_diode_sod323",
+        "pcbs:ams1117_3v3_sot223",
+        "pcbs:cr2032_battery_holder_smd",
+        "pcbs:tactile_switch_smd",
+        "pcbs:crystal_3225",
+        "pcbs:attiny85_soic8",
+        "pcbs:pin_header_1x06_p2.54mm",
     } <= {entry.id for entry in catalog.entries}
 
 
@@ -62,6 +72,8 @@ def test_builtin_catalog_marks_smd_and_through_hole_variants_explicitly() -> Non
     assert entry_by_id(catalog, "pcbs:potentiometer_3pin_th").variant.mounting == "through-hole"
     assert "smd" in entry_by_id(catalog, "pcbs:nmos_sot23").tags
     assert "through-hole" in entry_by_id(catalog, "pcbs:relay_spdt_th").tags
+    assert entry_by_id(catalog, "pcbs:attiny85_soic8").variant.mounting == "smd"
+    assert entry_by_id(catalog, "pcbs:pin_header_1x06_p2.54mm").variant.mounting == "through-hole"
 
 
 def test_builtin_catalog_entries_include_kicad_bindings() -> None:
@@ -93,6 +105,18 @@ def test_builtin_catalog_entries_include_kicad_bindings() -> None:
         "TerminalBlock:TerminalBlock_MaiXu_MX126-5.0-02P_1x02_P5.00mm"
     )
 
+    regulator = entry_by_id(catalog, "pcbs:ams1117_3v3_sot223")
+    attiny = entry_by_id(catalog, "pcbs:attiny85_soic8")
+    crystal = entry_by_id(catalog, "pcbs:crystal_3225")
+
+    assert regulator.kicad is not None
+    assert regulator.kicad.symbol_id == "Regulator_Linear:AMS1117-3.3"
+    assert regulator.kicad.footprint_id == "Package_TO_SOT_SMD:SOT-223-3_TabPin2"
+    assert attiny.kicad is not None
+    assert attiny.kicad.symbol_id == "MCU_Microchip_ATtiny:ATtiny85-20S"
+    assert crystal.kicad is not None
+    assert crystal.kicad.footprint_id == "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm"
+
 
 def test_builtin_catalog_validates() -> None:
     validate_catalog(builtin_catalog())
@@ -115,9 +139,13 @@ def test_search_catalog_matches_text_package_tags_and_aliases() -> None:
     catalog = builtin_catalog()
 
     assert search_catalog(catalog, CatalogSearchQuery(text="0603"))
-    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="led"))) == ["pcbs:led_0603"]
+    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="led"))) == [
+        "pcbs:led_0603",
+        "pcbs:led_0805",
+    ]
     assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="button"))) == [
-        "pcbs:push_button_th"
+        "pcbs:push_button_th",
+        "pcbs:tactile_switch_smd",
     ]
     assert search_catalog(catalog, CatalogSearchQuery(tags=("smd",)))
     assert search_catalog(catalog, CatalogSearchQuery(text="through hole"))
@@ -128,6 +156,12 @@ def test_search_catalog_matches_text_package_tags_and_aliases() -> None:
         "pcbs:potentiometer_3pin_smd",
         "pcbs:potentiometer_3pin_th",
     } <= set(_entry_ids(search_catalog(catalog, CatalogSearchQuery(text="pot"))))
+    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="attiny85"))) == [
+        "pcbs:attiny85_soic8"
+    ]
+    assert _entry_ids(search_catalog(catalog, CatalogSearchQuery(text="0805 led"))) == [
+        "pcbs:led_0805"
+    ]
 
 
 def test_search_catalog_matches_short_aliases_exactly() -> None:

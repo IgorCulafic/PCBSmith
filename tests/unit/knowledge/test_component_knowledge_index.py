@@ -21,19 +21,36 @@ def _library_index() -> dict[str, object]:
             {"id": "Device:C"},
             {"id": "Device:LED"},
             {"id": "Device:D"},
+            {"id": "Device:D_Schottky"},
             {"id": "Device:D_Zener"},
             {"id": "Device:Fuse"},
             {"id": "Device:L"},
+            {"id": "Regulator_Linear:AMS1117-3.3"},
+            {"id": "Device:Battery_Cell"},
+            {"id": "Switch:SW_Push"},
+            {"id": "Device:Crystal"},
+            {"id": "MCU_Microchip_ATtiny:ATtiny85-20S"},
+            {"id": "Connector:Conn_01x06_Pin"},
             {"id": "power:VCC"},
             {"id": "power:GND"},
         ],
         "footprints": [
             {"id": "Resistor_SMD:R_0603_1608Metric"},
+            {"id": "Resistor_SMD:R_0805_2012Metric"},
             {"id": "Capacitor_SMD:C_0603_1608Metric"},
+            {"id": "Capacitor_SMD:C_0805_2012Metric"},
             {"id": "LED_SMD:LED_0603_1608Metric"},
+            {"id": "LED_SMD:LED_0805_2012Metric"},
             {"id": "Diode_SMD:D_0603_1608Metric"},
+            {"id": "Diode_SMD:D_SOD-323"},
             {"id": "Inductor_SMD:L_0603_1608Metric"},
             {"id": "Fuse:Fuse_0603_1608Metric"},
+            {"id": "Package_TO_SOT_SMD:SOT-223-3_TabPin2"},
+            {"id": "Battery:BatteryHolder_LINX_BAT-HLD-012-SMT"},
+            {"id": "Button_Switch_SMD:SW_SPST_TL3305A"},
+            {"id": "Crystal:Crystal_SMD_3225-4Pin_3.2x2.5mm"},
+            {"id": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"},
+            {"id": "Connector_PinHeader_2.54mm:PinHeader_1x06_P2.54mm_Vertical"},
         ],
     }
 
@@ -44,13 +61,13 @@ def test_build_component_knowledge_index_summarizes_core_supported_parts() -> No
     assert index["schema"] == COMPONENT_KNOWLEDGE_INDEX_SCHEMA
     assert index["source_catalog"] == "builtin"
     assert index["coverage_summary"] == {
-        "well_supported": 9,
+        "well_supported": 19,
         "metadata_only": 10,
         "needs_datasheet_review": 6,
     }
     assert index["mounting_summary"] == {
-        "smd": 14,
-        "through-hole": 9,
+        "smd": 23,
+        "through-hole": 10,
         "virtual": 2,
         "unspecified": 0,
     }
@@ -84,6 +101,10 @@ def test_build_component_knowledge_index_summarizes_core_supported_parts() -> No
     assert entries["pcbs:npn_bjt_sot23"]["support_notes"] == [
         "KiCad symbol missing",
         "KiCad footprint missing",
+    ]
+    assert entries["pcbs:attiny85_soic8"]["support_status"] == "well_supported"
+    assert entries["pcbs:cr2032_battery_holder_smd"]["support_notes"] == [
+        "KiCad symbol and footprint found"
     ]
 
 
@@ -137,10 +158,10 @@ def test_write_component_knowledge_index_and_format_summary(tmp_path: Path) -> N
     assert json.loads(output_path.read_text(encoding="utf-8")) == index
     assert format_component_knowledge_index_summary(index, output_path=output_path) == [
         f"Wrote component knowledge index to {output_path}",
-        "Tier 1 entries: 25",
-        "Families: 22",
-        "Coverage: well_supported=9, metadata_only=10, needs_datasheet_review=6",
-        "Mounting: smd=14, through-hole=9, virtual=2, unspecified=0",
+        "Tier 1 entries: 35",
+        "Families: 27",
+        "Coverage: well_supported=19, metadata_only=10, needs_datasheet_review=6",
+        "Mounting: smd=23, through-hole=10, virtual=2, unspecified=0",
     ]
 
 

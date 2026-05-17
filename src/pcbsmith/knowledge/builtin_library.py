@@ -3,6 +3,66 @@ from __future__ import annotations
 from pcbsmith.core.geom import Point
 from pcbsmith.core.library import Footprint, Pad, PadShape, Pin, PinElectricalType, Symbol
 
+
+def _two_pin_symbol(
+    *,
+    id: str,
+    name: str,
+    default_footprint_id: str,
+    pin_1: str = "A",
+    pin_2: str = "B",
+) -> Symbol:
+    return Symbol(
+        id=id,
+        name=name,
+        default_footprint_id=default_footprint_id,
+        pins=[
+            Pin(
+                number="1",
+                name=pin_1,
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name=pin_2,
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    )
+
+
+def _two_pad_smd_footprint(
+    *,
+    id: str,
+    name: str,
+    pitch_mm: float,
+    pad_x: int,
+    pad_y: int,
+) -> Footprint:
+    return Footprint(
+        id=id,
+        name=name,
+        pads=[
+            Pad(
+                number="1",
+                position=Point.from_mm(-pitch_mm / 2, 0),
+                size_x=pad_x,
+                size_y=pad_y,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(pitch_mm / 2, 0),
+                size_x=pad_x,
+                size_y=pad_y,
+                shape=PadShape.RECT,
+            ),
+        ],
+    )
+
+
 SYMBOLS: dict[str, Symbol] = {
     "stdlib:R": Symbol(
         id="stdlib:R",
@@ -161,6 +221,39 @@ SYMBOLS: dict[str, Symbol] = {
             ),
         ],
     ),
+    "stdlib:CONN_01X06": Symbol(
+        id="stdlib:CONN_01X06",
+        name="Connector 1x06",
+        default_footprint_id="stdlib:PinHeader_1x06_P2.54mm",
+        pins=tuple(
+            Pin(
+                number=str(number),
+                name=f"Pin_{number}",
+                position=Point(x=0, y=(number - 1) * 2_540_000),
+                electrical_type=PinElectricalType.PASSIVE,
+            )
+            for number in range(1, 7)
+        ),
+    ),
+    "stdlib:BATTERY_CELL": Symbol(
+        id="stdlib:BATTERY_CELL",
+        name="Battery Cell",
+        default_footprint_id="stdlib:BATTERY_CR2032_SMD",
+        pins=[
+            Pin(
+                number="1",
+                name="+",
+                position=Point(x=-5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+            Pin(
+                number="2",
+                name="-",
+                position=Point(x=5_080_000, y=0),
+                electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
     "stdlib:D_ZENER": Symbol(
         id="stdlib:D_ZENER",
         name="Zener Diode",
@@ -217,6 +310,20 @@ SYMBOLS: dict[str, Symbol] = {
                 electrical_type=PinElectricalType.PASSIVE,
             ),
         ],
+    ),
+    "stdlib:D_SCHOTTKY": _two_pin_symbol(
+        id="stdlib:D_SCHOTTKY",
+        name="Schottky Diode",
+        default_footprint_id="stdlib:D_SOD323",
+        pin_1="K",
+        pin_2="A",
+    ),
+    "stdlib:CRYSTAL": _two_pin_symbol(
+        id="stdlib:CRYSTAL",
+        name="Crystal",
+        default_footprint_id="stdlib:CRYSTAL_3225",
+        pin_1="1",
+        pin_2="2",
     ),
     "stdlib:LDR": Symbol(
         id="stdlib:LDR",
@@ -284,6 +391,86 @@ SYMBOLS: dict[str, Symbol] = {
                 name="S",
                 position=Point.from_mm(0, 5.08),
                 electrical_type=PinElectricalType.PASSIVE,
+            ),
+        ],
+    ),
+    "stdlib:AMS1117": Symbol(
+        id="stdlib:AMS1117",
+        name="AMS1117 Linear Regulator",
+        default_footprint_id="stdlib:SOT223_REG",
+        pins=[
+            Pin(
+                number="1",
+                name="GND",
+                position=Point.from_mm(-5.08, -2.54),
+                electrical_type=PinElectricalType.POWER_IN,
+            ),
+            Pin(
+                number="2",
+                name="OUT",
+                position=Point.from_mm(5.08, 0),
+                electrical_type=PinElectricalType.POWER_OUT,
+            ),
+            Pin(
+                number="3",
+                name="IN",
+                position=Point.from_mm(-5.08, 2.54),
+                electrical_type=PinElectricalType.POWER_IN,
+            ),
+        ],
+    ),
+    "stdlib:ATTINY85": Symbol(
+        id="stdlib:ATTINY85",
+        name="ATtiny85",
+        default_footprint_id="stdlib:SOIC8",
+        pins=[
+            Pin(
+                number="1",
+                name="RESET/PB5",
+                position=Point.from_mm(-7.62, 5.08),
+                electrical_type=PinElectricalType.BIDIRECTIONAL,
+            ),
+            Pin(
+                number="2",
+                name="PB3",
+                position=Point.from_mm(-7.62, 2.54),
+                electrical_type=PinElectricalType.BIDIRECTIONAL,
+            ),
+            Pin(
+                number="3",
+                name="PB4",
+                position=Point.from_mm(-7.62, 0),
+                electrical_type=PinElectricalType.BIDIRECTIONAL,
+            ),
+            Pin(
+                number="4",
+                name="GND",
+                position=Point.from_mm(-7.62, -2.54),
+                electrical_type=PinElectricalType.POWER_IN,
+            ),
+            Pin(
+                number="5",
+                name="PB0",
+                position=Point.from_mm(7.62, -2.54),
+                electrical_type=PinElectricalType.BIDIRECTIONAL,
+            ),
+            Pin(
+                number="6",
+                name="PB1",
+                position=Point.from_mm(7.62, 0),
+                electrical_type=PinElectricalType.BIDIRECTIONAL,
+            ),
+            Pin(
+                number="7",
+                name="PB2",
+                position=Point.from_mm(7.62, 2.54),
+                electrical_type=PinElectricalType.BIDIRECTIONAL,
+            ),
+            Pin(
+                number="8",
+                name="VCC",
+                position=Point.from_mm(7.62, 5.08),
+                electrical_type=PinElectricalType.POWER_IN,
             ),
         ],
     ),
@@ -732,6 +919,54 @@ FOOTPRINTS: dict[str, Footprint] = {
             ),
         ],
     ),
+    "stdlib:R_0805": _two_pad_smd_footprint(
+        id="stdlib:R_0805",
+        name="R_0805",
+        pitch_mm=2.0,
+        pad_x=1_200_000,
+        pad_y=1_400_000,
+    ),
+    "stdlib:C_0805": _two_pad_smd_footprint(
+        id="stdlib:C_0805",
+        name="C_0805",
+        pitch_mm=2.0,
+        pad_x=1_180_000,
+        pad_y=1_450_000,
+    ),
+    "stdlib:LED_0805": _two_pad_smd_footprint(
+        id="stdlib:LED_0805",
+        name="LED_0805",
+        pitch_mm=2.0,
+        pad_x=1_150_000,
+        pad_y=1_400_000,
+    ),
+    "stdlib:D_SOD323": _two_pad_smd_footprint(
+        id="stdlib:D_SOD323",
+        name="D_SOD323",
+        pitch_mm=2.4,
+        pad_x=900_000,
+        pad_y=1_000_000,
+    ),
+    "stdlib:CRYSTAL_3225": Footprint(
+        id="stdlib:CRYSTAL_3225",
+        name="CRYSTAL_3225",
+        pads=(
+            Pad(
+                number="1",
+                position=Point.from_mm(-1.2, 0),
+                size_x=1_000_000,
+                size_y=1_400_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(1.2, 0),
+                size_x=1_000_000,
+                size_y=1_400_000,
+                shape=PadShape.RECT,
+            ),
+        ),
+    ),
     "stdlib:LDR_TH": Footprint(
         id="stdlib:LDR_TH",
         name="LDR_TH",
@@ -776,6 +1011,26 @@ FOOTPRINTS: dict[str, Footprint] = {
             ),
         ],
     ),
+    "stdlib:SW_PUSH_SMD": Footprint(
+        id="stdlib:SW_PUSH_SMD",
+        name="SW_PUSH_SMD",
+        pads=(
+            Pad(
+                number="1",
+                position=Point.from_mm(-2.25, 0),
+                size_x=1_500_000,
+                size_y=1_800_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(2.25, 0),
+                size_x=1_500_000,
+                size_y=1_800_000,
+                shape=PadShape.RECT,
+            ),
+        ),
+    ),
     "stdlib:SW_SPST_TH": Footprint(
         id="stdlib:SW_SPST_TH",
         name="SW_SPST_TH",
@@ -819,6 +1074,21 @@ FOOTPRINTS: dict[str, Footprint] = {
                 drill=1_000_000,
             ),
         ],
+    ),
+    "stdlib:PinHeader_1x06_P2.54mm": Footprint(
+        id="stdlib:PinHeader_1x06_P2.54mm",
+        name="PinHeader_1x06_P2.54mm",
+        pads=tuple(
+            Pad(
+                number=str(number),
+                position=Point(x=0, y=(number - 1) * 2_540_000),
+                size_x=1_700_000,
+                size_y=1_700_000,
+                shape=PadShape.CIRCLE,
+                drill=1_000_000,
+            )
+            for number in range(1, 7)
+        ),
     ),
     "stdlib:SOIC8": Footprint(
         id="stdlib:SOIC8",
@@ -1021,6 +1291,53 @@ FOOTPRINTS: dict[str, Footprint] = {
                 position=Point.from_mm(2, 1.3),
                 size_x=1_400_000,
                 size_y=1_400_000,
+                shape=PadShape.RECT,
+            ),
+        ),
+    ),
+    "stdlib:SOT223_REG": Footprint(
+        id="stdlib:SOT223_REG",
+        name="SOT223_REG",
+        pads=(
+            Pad(
+                number="1",
+                position=Point.from_mm(-2.3, 3.15),
+                size_x=1_200_000,
+                size_y=1_700_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(0, -3.15),
+                size_x=3_300_000,
+                size_y=2_000_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="3",
+                position=Point.from_mm(2.3, 3.15),
+                size_x=1_200_000,
+                size_y=1_700_000,
+                shape=PadShape.RECT,
+            ),
+        ),
+    ),
+    "stdlib:BATTERY_CR2032_SMD": Footprint(
+        id="stdlib:BATTERY_CR2032_SMD",
+        name="BATTERY_CR2032_SMD",
+        pads=(
+            Pad(
+                number="1",
+                position=Point.from_mm(-6, 0),
+                size_x=3_000_000,
+                size_y=4_000_000,
+                shape=PadShape.RECT,
+            ),
+            Pad(
+                number="2",
+                position=Point.from_mm(6, 0),
+                size_x=3_000_000,
+                size_y=4_000_000,
                 shape=PadShape.RECT,
             ),
         ),

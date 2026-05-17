@@ -128,6 +128,12 @@ ignored local asset directories, not source control.
 - AI planner packages expose topology selection before component selection.
 - The component catalog includes first-pass detector-related building blocks:
   BJTs, comparator/op-amp, buzzer, and terminal block.
+- The component catalog includes the second R13 controller/power slice:
+  0805 passives/LEDs, Schottky protection diode, AMS1117 regulator, CR2032
+  holder, tactile switch, crystal, ATtiny85, and 1x06 programming header.
+- Component selection exposes reusable roles for regulated power, battery power,
+  user input, programming headers, clock sources, 8-bit microcontrollers, and
+  reverse-polarity protection.
 - Roadmap, handoff, decision log, and presentation brief all document the new
   topology/math-first direction.
 - No new detector board is generated until the foundation is in place.

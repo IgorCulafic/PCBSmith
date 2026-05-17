@@ -421,9 +421,19 @@ complete behavioral knowledge for every component.
 - Use KiCad library data for CAD availability; use datasheets, app notes, and
   curated examples for behavior and design rules.
 
-The first R13 slice expands the built-in catalog with NPN/PNP BJTs, LM393,
+The first R13 slice expanded the built-in catalog with NPN/PNP BJTs, LM393,
 LM358, active buzzer, and a 2-pin terminal block, all with KiCad bindings where
 available.
+
+The second R13 slice broadens the reusable core set for controller, power, and
+sensor-style boards. The catalog now includes 0805 resistor/capacitor/LED
+variants, a SOD-323 Schottky diode, AMS1117-3.3 SOT-223 regulator, CR2032 SMD
+battery holder, SMD tactile switch, 3225 crystal, ATtiny85 SOIC-8, and a 1x06
+2.54 mm programming header. The component-selection tool also exposes new
+intents for battery power, regulated power, user input buttons, programming
+headers, clock sources, small 8-bit microcontrollers, and reverse-polarity
+protection. This keeps local and hosted models choosing from known PCBSmith
+roles instead of inventing parts.
 
 ## R14: Local AI Integration
 
