@@ -78,6 +78,9 @@ the model operate PCBSmith tools that know PCB constraints.
   silkscreen text and simple line/rectangle graphic requests for readable size,
   stroke width, board-edge margin, and copper keepout before rendering them as
   KiCad-native board text and graphics.
+- R7B groundwork now includes `board_outline_geometry`, which validates physical
+  outline/cutout loops separately from silkscreen art and renders accepted loops
+  as KiCad-native `Edge.Cuts` segments.
 - Demos for LED circuits, voltage divider, RC filter, VIR-LAB LED art, NE555
   astable, and NE555 PWM dimmer.
 

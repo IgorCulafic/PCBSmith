@@ -11,6 +11,10 @@ from pcbsmith.services.board_feature_intent import (
     board_feature_tool_contract,
 )
 from pcbsmith.services.board_intelligence import ai_planner_routing_rule_notes
+from pcbsmith.services.board_outline_geometry import (
+    board_outline_geometry_planner_rule_notes,
+    board_outline_geometry_tool_contract,
+)
 from pcbsmith.services.circuit_rules import (
     circuit_rules_planner_rule_notes,
     circuit_rules_tool_contract,
@@ -41,6 +45,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "circuit_rules": circuit_rules_tool_contract(),
             "board_feature_intent": board_feature_tool_contract(),
             "silkscreen_artwork": silkscreen_artwork_tool_contract(),
+            "board_outline_geometry": board_outline_geometry_tool_contract(),
             "planner_rules": _planner_rules(review_only=True),
         }
 
@@ -60,6 +65,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
         "circuit_rules": circuit_rules_tool_contract(),
         "board_feature_intent": board_feature_tool_contract(),
         "silkscreen_artwork": silkscreen_artwork_tool_contract(),
+        "board_outline_geometry": board_outline_geometry_tool_contract(),
         "planner_rules": _planner_rules(review_only=False),
     }
 
@@ -161,6 +167,7 @@ def _planner_rules(*, review_only: bool) -> list[str]:
         *circuit_rules_planner_rule_notes(),
         *board_feature_planner_rule_notes(),
         *silkscreen_artwork_planner_rule_notes(),
+        *board_outline_geometry_planner_rule_notes(),
         *ai_planner_routing_rule_notes(),
         *ai_planner_annotation_rule_notes(),
     ]

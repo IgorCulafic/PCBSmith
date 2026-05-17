@@ -97,6 +97,24 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
             "Run preflight before applying artwork to a board.",
         ],
     }
+    assert context["ai_tools"]["board_outline_geometry"] == {
+        "schema": "pcbsmith-board-outline-geometry-tool-v1",
+        "allowed_layer": "Edge.Cuts",
+        "loop_roles": ["outline", "cutout"],
+        "preflight_checks": [
+            "closed_edge_loop",
+            "minimum_outline_size_mm",
+            "minimum_stroke_width_mm",
+            "cutout_inside_outline",
+            "copper_edge_clearance",
+        ],
+        "instructions": [
+            "Use board outline geometry for physical board shape, slots, and cutouts.",
+            "Do not use this operation for silkscreen artwork.",
+            "Keep Edge.Cuts geometry separate from copper, mask, and silkscreen layers.",
+            "Run preflight before applying board outline geometry.",
+        ],
+    }
     assert context["schematics"] == [
         {
             "path": "schematics/main.sch.json",

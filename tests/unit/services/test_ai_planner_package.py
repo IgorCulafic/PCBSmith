@@ -165,6 +165,30 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     assert "Run silkscreen artwork preflight before applying printed text or logos." in (
         package["planner_rules"]
     )
+    assert package["board_outline_geometry"] == {
+        "schema": "pcbsmith-board-outline-geometry-tool-v1",
+        "allowed_layer": "Edge.Cuts",
+        "loop_roles": ["outline", "cutout"],
+        "preflight_checks": [
+            "closed_edge_loop",
+            "minimum_outline_size_mm",
+            "minimum_stroke_width_mm",
+            "cutout_inside_outline",
+            "copper_edge_clearance",
+        ],
+        "instructions": [
+            "Use board outline geometry for physical board shape, slots, and cutouts.",
+            "Do not use this operation for silkscreen artwork.",
+            "Keep Edge.Cuts geometry separate from copper, mask, and silkscreen layers.",
+            "Run preflight before applying board outline geometry.",
+        ],
+    }
+    assert "Use Edge.Cuts only for physical board outlines and cutouts." in (
+        package["planner_rules"]
+    )
+    assert "Keep silkscreen logos/text in the silkscreen_artwork tool." in (
+        package["planner_rules"]
+    )
 
 
 def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
@@ -184,6 +208,7 @@ def test_build_ai_planner_package_marks_review_only_brief_as_no_edit() -> None:
     assert "circuit_rules" in package
     assert "board_feature_intent" in package
     assert "silkscreen_artwork" in package
+    assert "board_outline_geometry" in package
     assert "Do not propose project mutations for review_only briefs." in (
         package["planner_rules"]
     )

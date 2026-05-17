@@ -117,6 +117,7 @@ def render_kicad_board_file(
     *,
     outline_start_mm: str = "0 0",
     outline_end_mm: str | None = None,
+    include_default_outline: bool = True,
 ) -> str:
     board_outline_uuid = uuid4() if board_outline_uuid is None else board_outline_uuid
     outline_end_mm = (
@@ -126,6 +127,19 @@ def render_kicad_board_file(
     )
     body = "\n\n".join(board_body_items)
     body_section = f"\n\n{body}" if body else ""
+    outline_section = (
+        f"""
+  (gr_rect
+    (start {outline_start_mm})
+    (end {outline_end_mm})
+    (stroke (width 0.1) (type default))
+    (fill none)
+    (layer "Edge.Cuts")
+    (uuid {board_outline_uuid})
+  )"""
+        if include_default_outline
+        else ""
+    )
     return f"""(kicad_pcb
   (version {KICAD_FILE_VERSION})
   (generator "{GENERATOR}")
@@ -150,14 +164,7 @@ def render_kicad_board_file(
     (44 "Edge.Cuts" user)
   )
 {body_section}
-  (gr_rect
-    (start {outline_start_mm})
-    (end {outline_end_mm})
-    (stroke (width 0.1) (type default))
-    (fill none)
-    (layer "Edge.Cuts")
-    (uuid {board_outline_uuid})
-  )
+{outline_section}
 )
 """
 

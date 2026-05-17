@@ -243,6 +243,13 @@ silkscreen artwork.
   outlines as specific connector features with their own dimensional rules, not
   as generic decorative shapes.
 
+The first R7B foundation is implemented as `board_outline_geometry`. It models
+physical outline and cutout loops separately from silkscreen art, checks minimum
+outline size, Edge.Cuts stroke width, cutout placement, and copper edge
+clearance, then renders accepted loops as KiCad-native `Edge.Cuts` segments.
+When custom edge loops exist, PCBSmith suppresses the generic rectangular board
+outline so the physical shape has a single source of truth.
+
 ## R8: Project Restructure And Cleanup
 
 R8 is the deliberate cleanup pass after the early prototype and demo-heavy
