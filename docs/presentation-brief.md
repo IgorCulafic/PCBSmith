@@ -99,6 +99,13 @@ manufacturability findings, circuit-rule findings, calculator evidence,
 selected part candidates, topology choice, and human-review items into one
 machine-readable JSON report plus a readable Markdown summary.
 
+The newest local-AI slice keeps the same safety model for self-hosted models.
+PCBSmith can now read a local endpoint configuration, call an OpenAI-compatible
+local server such as KoboldCPP, llama.cpp server, or LM Studio, and pass the
+response through the same candidate-plan validation and approval preview used
+for hosted models. The local model operates PCBSmith tools; it does not get to
+write KiCad files directly.
+
 ## AI Safety And Review Model
 
 PCBSmith treats AI-generated work as a proposal until validated and approved.
@@ -136,7 +143,8 @@ Near-term:
 - R13 expanded component and KiCad library integration: grow from basic demos
   toward real analog, power, connector, sensor, and controller building blocks.
 - R14 local model integration: run the same constrained tool workflow through a
-  local OpenAI-compatible endpoint, with multimodal review later.
+  local OpenAI-compatible endpoint, with multimodal review later. The first
+  endpoint/config layer is now in place.
 - R15 metal detector prototype: resume the detector only after the topology and
   math layers are in place.
 

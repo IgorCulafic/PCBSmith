@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Any
 
 from pcbsmith.ai.board_feature_intent import board_feature_tool_contract
+from pcbsmith.ai.local_model_config import local_model_tool_contract
 from pcbsmith.calculators.electronics import calculator_tool_contract
 from pcbsmith.core.geom import Point, nm_to_mm
 from pcbsmith.core.schematic import Schematic, SymbolInstance
@@ -45,6 +46,7 @@ def build_ai_context(
             "silkscreen_artwork": silkscreen_artwork_tool_contract(),
             "board_outline_geometry": board_outline_geometry_tool_contract(),
             "validation_reports": validation_report_tool_contract(),
+            "local_ai": local_model_tool_contract(),
         },
         "schematics": [_schematic_summary(path, schematic) for path, schematic in schematics],
     }

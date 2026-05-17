@@ -77,6 +77,10 @@ the model operate PCBSmith tools that know PCB constraints.
   early detector set: 0805 passives/LEDs, SOD-323 Schottky diode,
   AMS1117-3.3 SOT-223 regulator, CR2032 SMD battery holder, SMD tactile switch,
   3225 crystal, ATtiny85 SOIC-8, and a 1x06 2.54 mm programming header.
+- R14 local AI groundwork now wraps the existing OpenAI-compatible planner and
+  review flow with local-model configuration. The first path expects a local
+  server such as KoboldCPP, llama.cpp server, or LM Studio to expose
+  `/v1/chat/completions`; direct in-process GGUF loading is deferred.
 - AI planner packages now expose a `circuit_topologies` contract before
   component selection, so models are told to choose topology and required math
   tools before choosing familiar parts.
@@ -246,6 +250,19 @@ Generate and query component knowledge:
 .\.venv\Scripts\python.exe -m pcbsmith.cli circuit-rules led-current-limit --param supply_voltage_v=5 --param led_forward_voltage_v=2 --param resistor_ohms=330
 ```
 
+Configure and use a local model endpoint:
+
+```powershell
+.\.venv\Scripts\python.exe -m pcbsmith.cli local-ai-config-template ai_assets\local-ai-config.json
+.\.venv\Scripts\python.exe -m pcbsmith.cli local-ai-config-check --config ai_assets\local-ai-config.json
+.\.venv\Scripts\python.exe -m pcbsmith.cli local-ai-review <project-dir> <request.txt> outputs\local-ai-review --config ai_assets\local-ai-config.json
+```
+
+For the current GGUF-first path, run the model in KoboldCPP, llama.cpp server,
+LM Studio, or another OpenAI-compatible local runtime, then point
+`base_url`/`model` at that server. PCBSmith validates the returned candidate
+plan before any project mutation.
+
 ## User Priorities
 
 - Build visible showcase features first.
@@ -258,6 +275,9 @@ Generate and query component knowledge:
   outlines as separate feature paths.
 - Local LLM support matters. The user has enough local GPU resources to test
   serious models later.
+- Local model files, LoRAs, RAG indexes, and runtime binaries belong under the
+  ignored `ai_assets/` folders unless a tiny source-controlled manifest or
+  template is intentionally added.
 - The AI should have both structured project context and visual artifacts where
   possible.
 - Multimodal review should become an optional visual QA layer for generated

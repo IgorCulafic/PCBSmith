@@ -9,6 +9,7 @@ from pcbsmith.ai.board_feature_intent import (
     board_feature_planner_rule_notes,
     board_feature_tool_contract,
 )
+from pcbsmith.ai.local_model_config import local_model_tool_contract
 from pcbsmith.calculators.electronics import (
     calculator_planner_rule_notes,
     calculator_tool_contract,
@@ -58,6 +59,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
             "silkscreen_artwork": silkscreen_artwork_tool_contract(),
             "board_outline_geometry": board_outline_geometry_tool_contract(),
             "validation_reports": validation_report_tool_contract(),
+            "local_ai": local_model_tool_contract(),
             "planner_rules": _planner_rules(review_only=True),
         }
 
@@ -81,6 +83,7 @@ def build_ai_planner_package(brief: dict[str, Any]) -> dict[str, Any]:
         "silkscreen_artwork": silkscreen_artwork_tool_contract(),
         "board_outline_geometry": board_outline_geometry_tool_contract(),
         "validation_reports": validation_report_tool_contract(),
+        "local_ai": local_model_tool_contract(),
         "planner_rules": _planner_rules(review_only=False),
     }
 

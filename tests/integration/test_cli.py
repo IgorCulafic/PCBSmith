@@ -1007,6 +1007,55 @@ def test_ai_openai_review_runs_request_to_approval_preview(
     assert (output_dir / "candidate-plan.json").exists()
 
 
+def test_local_ai_config_template_writes_editable_config(tmp_path: Path) -> None:
+    config_path = tmp_path / "local-ai.json"
+
+    result = _run_cli("local-ai-config-template", str(config_path))
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        f"Wrote local AI config template to {config_path}",
+        "Local AI provider: openai-compatible",
+        "Endpoint: http://127.0.0.1:5001",
+        "Model: local-model",
+        "API key: not configured",
+        "Timeout: 120.0 seconds",
+        "JSON mode: off",
+        "Multimodal: no",
+        "Model path: unspecified",
+        "Context window: unspecified",
+    ]
+    data = json.loads(config_path.read_text(encoding="utf-8"))
+    assert data["schema"] == "pcbsmith-local-model-config-v1"
+
+
+def test_local_ai_config_check_reads_environment_without_network() -> None:
+    result = _run_cli(
+        "local-ai-config-check",
+        extra_env={
+            "PCBSMITH_LOCAL_AI_BASE_URL": "http://127.0.0.1:8080",
+            "PCBSMITH_LOCAL_AI_MODEL": "qwen-local",
+            "PCBSMITH_LOCAL_AI_MODEL_PATH": "ai_assets/models/qwen.gguf",
+            "PCBSMITH_LOCAL_AI_CONTEXT_TOKENS": "32768",
+        },
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    assert result.stdout.splitlines() == [
+        "Local AI provider: openai-compatible",
+        "Endpoint: http://127.0.0.1:8080",
+        "Model: qwen-local",
+        "API key: not configured",
+        "Timeout: 120.0 seconds",
+        "JSON mode: off",
+        "Multimodal: no",
+        "Model path: ai_assets/models/qwen.gguf",
+        "Context window: 32768 tokens",
+    ]
+
+
 def test_ai_plan_review_validates_and_dry_runs_candidate_plan(tmp_path: Path) -> None:
     project_dir = tmp_path / "project"
     planner_path = tmp_path / "planner-package.json"
