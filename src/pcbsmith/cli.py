@@ -15,6 +15,7 @@ from pcbsmith.ai.ai_plan_check import check_ai_plan
 from pcbsmith.ai.ai_plan_review import run_ai_plan_review
 from pcbsmith.ai.ai_planner_package import write_ai_planner_package
 from pcbsmith.ai.ai_proposal_bundle import run_ai_proposal_bundle
+from pcbsmith.ai.local_agent import run_local_agent_review
 from pcbsmith.ai.local_ai_review import run_local_ai_review
 from pcbsmith.ai.local_model_config import (
     format_local_model_config,
@@ -456,6 +457,21 @@ def _cmd_local_ai_review(args: argparse.Namespace) -> int:
         config_path=Path(args.config) if args.config else None,
         kicad_project_dir=Path(args.kicad_project) if args.kicad_project else None,
         apply=args.apply,
+    )
+    for line in result.lines:
+        print(line)
+    return result.exit_code
+
+
+def _cmd_local_agent_review(args: argparse.Namespace) -> int:
+    result = run_local_agent_review(
+        Path(args.project),
+        Path(args.request),
+        Path(args.output_dir),
+        config_path=Path(args.config) if args.config else None,
+        kicad_project_dir=Path(args.kicad_project) if args.kicad_project else None,
+        apply=args.apply,
+        max_steps=args.max_steps,
     )
     for line in result.lines:
         print(line)
@@ -952,6 +968,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="apply the validated candidate plan instead of dry-running it",
     )
     local_ai_review_parser.set_defaults(func=_cmd_local_ai_review)
+
+    local_agent_review_parser = subparsers.add_parser(
+        "local-agent-review",
+        help="run a safe local-model tool loop before the approval preview",
+    )
+    local_agent_review_parser.add_argument("project")
+    local_agent_review_parser.add_argument("request")
+    local_agent_review_parser.add_argument("output_dir")
+    local_agent_review_parser.add_argument(
+        "--config",
+        help="optional local AI JSON config; otherwise PCBSmith reads environment variables",
+    )
+    local_agent_review_parser.add_argument(
+        "--kicad-project",
+        help="optional KiCad review bundle with reports and visual references",
+    )
+    local_agent_review_parser.add_argument(
+        "--apply",
+        action="store_true",
+        help="apply the validated candidate plan instead of dry-running it",
+    )
+    local_agent_review_parser.add_argument(
+        "--max-steps",
+        type=int,
+        default=4,
+        help="maximum model turns before requiring a final candidate plan",
+    )
+    local_agent_review_parser.set_defaults(func=_cmd_local_agent_review)
 
     ai_plan_check_parser = subparsers.add_parser(
         "ai-plan-check",
