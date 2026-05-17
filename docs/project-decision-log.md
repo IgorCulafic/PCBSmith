@@ -60,6 +60,11 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
   KiCad review bundles, AI proposal bundles, and structured design operations
   should all write `revision-brief.json`; visual/multimodal findings belong in
   that brief as advisory items unless a deterministic checker confirms them.
+- Review bundles should also publish a broader validation summary under
+  `.pcbsmith/reports/validation-summary.*`. The validation summary is the
+  evidence surface for topology, candidates, calculators, KiCad checks,
+  PCBSmith checks, and human-review items; the revision brief remains the
+  narrower repair queue.
 
 ## Parametric Board Features
 

@@ -572,12 +572,14 @@ def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) 
 
     assert result.returncode == 0
     assert result.stderr == ""
+    validation_summary_file = output_project / ".pcbsmith" / "reports" / "validation-summary.json"
     assert result.stdout.splitlines() == [
         f"Review bundle: {output_project}",
         f"Exported KiCad handoff: {output_project}",
         "Validation: skipped",
         "Preview: skipped",
         "Board manufacturability: passed",
+        f"Validation summary: {validation_summary_file}",
         f"AI context: {output_project / 'ai-context.json'}",
         f"Revision brief: {output_project / 'revision-brief.json'}",
         "Revision brief: passed (0 items)",
@@ -587,6 +589,8 @@ def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) 
     assert (output_project / "Voltage_Divider.kicad_pro").exists()
     assert (output_project / "ai-context.json").exists()
     assert (output_project / ".pcbsmith" / "board-reports" / "manufacturability.json").exists()
+    assert validation_summary_file.exists()
+    assert (output_project / ".pcbsmith" / "reports" / "validation-summary.md").exists()
     assert (output_project / "revision-brief.json").exists()
 
 
@@ -1098,6 +1102,10 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
         "Validation: skipped",
         "Preview: skipped",
         "Board manufacturability: passed",
+        (
+            "Validation summary: "
+            f"{output_dir / 'kicad-review' / '.pcbsmith' / 'reports' / 'validation-summary.json'}"
+        ),
         f"AI context: {output_dir / 'kicad-review' / 'ai-context.json'}",
         f"Revision brief: {output_dir / 'kicad-review' / 'revision-brief.json'}",
         "Revision brief: passed (0 items)",
@@ -1116,6 +1124,9 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
     assert '"reference": "R1"' in staged_text
     assert (output_dir / "kicad-review" / "Proposal_Demo.kicad_pro").exists()
     assert (output_dir / "kicad-review" / "revision-brief.json").exists()
+    assert (
+        output_dir / "kicad-review" / ".pcbsmith" / "reports" / "validation-summary.json"
+    ).exists()
     assert (output_dir / "revision-brief.json").exists()
 
 

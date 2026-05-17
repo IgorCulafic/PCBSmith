@@ -63,6 +63,11 @@ the model operate PCBSmith tools that know PCB constraints.
 - Dedicated `pcbsmith.calculators` package for deterministic engineering math.
   The first calculators are `pcb-spiral-coil-estimate` and `lc-resonance`, both
   exposed through the `calculator` CLI and AI planner/context packages.
+- Dedicated `pcbsmith.reporting` package for consolidated validation summaries.
+  KiCad review bundles now write `.pcbsmith/reports/validation-summary.json`
+  and `.pcbsmith/reports/validation-summary.md`, and AI context/planner
+  packages expose these files as the evidence surface to read before claiming a
+  design is ready.
 - AI context and planner packages now expose the same `component_selection`
   tool contract so hosted or local models can discover supported component
   intents before proposing symbols, footprints, or board edits.
@@ -178,7 +183,9 @@ Generate a KiCad review bundle:
 ```
 
 The review bundle writes `<output-dir>\revision-brief.json` beside the KiCad
-project and `ai-context.json`.
+project and `ai-context.json`. It also writes consolidated R12 reports at
+`<output-dir>\.pcbsmith\reports\validation-summary.json` and
+`<output-dir>\.pcbsmith\reports\validation-summary.md`.
 
 Generate an AI proposal bundle with a revision brief:
 

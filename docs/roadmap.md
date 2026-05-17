@@ -389,6 +389,22 @@ review.
 - Keep schematic readability as a quality target without blocking board-first
   geometry demos when the board artifact is the authoritative result.
 
+The first R12 foundation is implemented as the `pcbsmith.reporting` package.
+KiCad review bundles now write both
+`.pcbsmith/reports/validation-summary.json` and
+`.pcbsmith/reports/validation-summary.md`. The summary gathers KiCad
+validation, preview exports, PCBSmith manufacturability findings, circuit-rule
+findings, calculator outputs, component candidates, topology choice, and
+human-review items into one status:
+
+- `passed` when no findings exist;
+- `needs_review` when warnings or advisories exist;
+- `blocked` when hard errors exist.
+
+AI context and planner packages now advertise this validation-report contract,
+so a hosted or local model should read the consolidated evidence before claiming
+a board is fabrication-ready or proposing revisions.
+
 ## R13: Expanded Component And KiCad Library Integration
 
 R13 broadens the catalog and library bridge in a controlled way. KiCad provides

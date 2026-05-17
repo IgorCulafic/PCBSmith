@@ -11,6 +11,7 @@ from pcbsmith.core.schematic import Schematic, SymbolInstance
 from pcbsmith.knowledge.circuit_topologies import circuit_topology_tool_contract
 from pcbsmith.knowledge.component_selection import component_selection_tool_contract
 from pcbsmith.operations.project_io import load_project, load_schematic
+from pcbsmith.reporting.validation_report import validation_report_tool_contract
 from pcbsmith.rules.board_conventions import board_annotation_rules_summary
 from pcbsmith.rules.board_intelligence import board_routing_rules_summary
 from pcbsmith.rules.board_outline_geometry import board_outline_geometry_tool_contract
@@ -43,6 +44,7 @@ def build_ai_context(
             "board_feature_intent": board_feature_tool_contract(),
             "silkscreen_artwork": silkscreen_artwork_tool_contract(),
             "board_outline_geometry": board_outline_geometry_tool_contract(),
+            "validation_reports": validation_report_tool_contract(),
         },
         "schematics": [_schematic_summary(path, schematic) for path, schematic in schematics],
     }
@@ -128,6 +130,9 @@ def _kicad_reports(kicad_project_dir: Path) -> list[dict[str, Any]]:
     board_report = kicad_project_dir / ".pcbsmith" / "board-reports" / "manufacturability.json"
     if board_report.exists():
         reports.append(_manufacturability_report_summary(board_report))
+    validation_summary = kicad_project_dir / ".pcbsmith" / "reports" / "validation-summary.json"
+    if validation_summary.exists():
+        reports.append(_validation_report_summary(validation_summary))
     return reports
 
 
@@ -158,6 +163,21 @@ def _manufacturability_report_summary(path: Path) -> dict[str, Any]:
         "findings": summary.get("finding_count", 0),
         "errors": summary.get("error_count", 0),
         "warnings": summary.get("warning_count", 0),
+    }
+
+
+def _validation_report_summary(path: Path) -> dict[str, Any]:
+    data = json.loads(path.read_text(encoding="utf-8"))
+    summary = data.get("summary", {})
+    next_actions = data.get("next_actions", [])
+    return {
+        "name": "validation-summary",
+        "path": str(path),
+        "status": data.get("status", "unknown"),
+        "errors": summary.get("error_count", 0),
+        "warnings": summary.get("warning_count", 0),
+        "advisories": summary.get("advisory_count", 0),
+        "next_actions": len(next_actions) if isinstance(next_actions, list) else 0,
     }
 
 
