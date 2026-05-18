@@ -3,6 +3,10 @@
 This file exists so a future Codex chat can resume PCBSmith without relying on
 compressed conversation memory.
 
+For a fresh restart after the long prototype thread, read
+`docs/project-reset-handoff-2026-05-18.md` first. That file is the blunt current
+state: what is proven, what is not trusted, and what architecture must come next.
+
 ## Current Direction
 
 PCBSmith is a free, open-source KiCad-first AI companion for PCB design. It does

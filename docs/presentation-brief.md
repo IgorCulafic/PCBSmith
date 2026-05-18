@@ -72,12 +72,11 @@ The newer PWM dimmer demo adds potentiometer control, steering diodes, MOSFET/lo
 
 An important correction was made during this milestone: 45-degree routing is useful for CAD polish and professional style, but it is not a universal electrical hard rule. KiCad DRC, trace width, clearance, current capacity, and connectivity are the real hard gates.
 
-The newest architecture milestone is the start of the circuit-intelligence
-layer. PCBSmith now has a topology selector that tells the AI to choose a
-circuit family before choosing parts. For example, a metal detector request now
-points toward an LC oscillator/sensing topology with a PCB spiral coil,
-deterministic coil/resonance math, gain/threshold stages, and output drivers,
-instead of blindly reusing a familiar 555 timer pattern.
+The newest architecture lesson is stricter than the earlier demos suggested:
+PCBSmith must not move from a new circuit-family request directly into board
+generation. It needs a real circuit-intelligence pipeline: topology selection,
+reference evidence, deterministic math, simulation where practical,
+schematic-first generation, PCB generation, and consolidated validation.
 
 The built-in component catalog has also expanded toward real analog, power,
 sensor, and controller circuits. NPN/PNP BJTs, LM393 comparator, LM358 op-amp,
@@ -93,12 +92,11 @@ can call PCBSmith's `calculator` tool for a PCB spiral coil estimate or LC
 resonance result, then use the returned structured warnings and values in its
 proposal.
 
-That calculator layer now includes an `lm2596-buck` path and a
-`design-buck-converter` operation. This is the first concrete correction after
-the earlier false-start buck prototype: PCBSmith now chooses an LM2596
-adjustable regulator topology, sizes the feedback divider and power-stage
-values through deterministic code, and emits a review bundle with schematic,
-PCB, calculator evidence, and global board-policy checks.
+The recent LM2596/buck-converter attempt exposed a gap rather than proving the
+feature. A buck request needs reference-design evidence, topology-specific math,
+simulation support, and schematic correctness before any generated PCB should be
+treated as meaningful. This is now documented as a reset point, not as a
+finished capability.
 
 The newest R12 reporting slice adds a consolidated validation summary to KiCad
 review bundles. It collects KiCad ERC/DRC status, preview exports,
@@ -147,6 +145,8 @@ Near-term:
 - R12 validation/reporting: extend the new consolidated report into every
   generated operation and proposal bundle, including more topology/component
   evidence as those layers expand.
+- R12.5 simulation: add ngspice as the first serious circuit simulation backend
+  and feed parsed simulation results into review bundles.
 - R13 expanded component and KiCad library integration: grow from basic demos
   toward real analog, power, connector, sensor, and controller building blocks.
 - R14 local model integration: run the same constrained tool workflow through a
