@@ -80,6 +80,7 @@ def test_calculator_tool_contract_is_ai_facing() -> None:
         "cli_command": "calculator <calculator-name> --param key=value",
         "supported_calculators": [
             "lc-resonance",
+            "lm2596-buck",
             "pcb-spiral-coil-estimate",
         ],
         "instructions": [

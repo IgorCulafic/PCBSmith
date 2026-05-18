@@ -60,6 +60,9 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - Calculator code belongs under `pcbsmith.calculators`, not inside individual
   demo generators. Board generators should consume calculator outputs rather
   than each carrying their own math.
+- Buck converters require a buck-specific topology and calculator gate. PCBSmith
+  should not satisfy a buck request with a timer, microcontroller, or generic
+  "connected parts" layout.
 - Unsupported circuit families should be reported as unsupported or
   needs-review, not silently approximated from unrelated templates.
 - Review findings should be normalized into one revision brief before asking an

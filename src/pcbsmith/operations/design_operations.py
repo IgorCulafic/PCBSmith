@@ -11,6 +11,12 @@ from pydantic import BaseModel, ConfigDict, Field
 from pcbsmith.core.board import Board, Layer
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.generators.buck_converter import (
+    BuckConverterSpec,
+    buck_converter_calculation,
+    buck_converter_to_circuit_design,
+    render_buck_converter_board,
+)
 from pcbsmith.generators.controller_boards import (
     AttinyLedControllerSpec,
     ConnectorStyle,
@@ -53,6 +59,7 @@ from pcbsmith.kicad.kicad_project import (
     sanitize_kicad_project_name,
 )
 from pcbsmith.kicad.kicad_validate import KiCadValidationReport, run_kicad_validation
+from pcbsmith.knowledge.circuit_topologies import select_topologies_for_intent
 from pcbsmith.operations.revision_brief import (
     RevisionBrief,
     build_revision_brief,
@@ -111,6 +118,17 @@ class SilkscreenArtworkDesignRequest(BaseModel):
     thickness_mm: float = Field(default=0.15, gt=0)
     board_width_mm: float = Field(default=50.0, gt=0)
     board_height_mm: float = Field(default=30.0, gt=0)
+
+
+class BuckConverterDesignRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    name: str = Field(default="LM2596 Buck Demo", min_length=1)
+    input_voltage_min_v: float = Field(default=7.0, gt=0)
+    input_voltage_nominal_v: float = Field(default=12.0, gt=0)
+    input_voltage_max_v: float = Field(default=24.0, gt=0)
+    output_voltage_v: float = Field(default=5.0, gt=0)
+    load_current_a: float = Field(default=1.0, gt=0)
 
 
 class DesignOperationResult(BaseModel):
@@ -349,6 +367,136 @@ def generate_attiny_led_controller_design(
 
     return DesignOperationResult(
         operation="attiny_led_controller",
+        project_dir=project_dir,
+        project_file=project_file,
+        schematic_file=schematic_file,
+        board_file=board_file,
+        operation_summary_file=operation_summary_file,
+        revision_brief_file=revision_brief_file,
+        kicad_board_policy_report_file=kicad_board_policy_report_file,
+        revision_brief=revision_brief,
+        validation_status=validation_status,
+        preview_status=preview_status,
+        exit_code=exit_code,
+    )
+
+
+def generate_buck_converter_design(
+    request: BuckConverterDesignRequest,
+    output_dir: Path,
+    *,
+    execute_kicad: bool = True,
+    overwrite: bool = False,
+) -> DesignOperationResult:
+    project_dir = output_dir
+    if project_dir.exists():
+        if not overwrite:
+            raise FileExistsError(f"Output already exists: {project_dir}")
+        shutil.rmtree(project_dir)
+    project_dir.mkdir(parents=True)
+
+    project_name = sanitize_kicad_project_name(request.name)
+    spec = BuckConverterSpec(
+        name=request.name,
+        input_voltage_min_v=request.input_voltage_min_v,
+        input_voltage_nominal_v=request.input_voltage_nominal_v,
+        input_voltage_max_v=request.input_voltage_max_v,
+        output_voltage_v=request.output_voltage_v,
+        load_current_a=request.load_current_a,
+    )
+    calculation = buck_converter_calculation(spec)
+    if calculation["status"] != "ok":
+        errors = calculation.get("errors", ())
+        if isinstance(errors, (tuple, list)):
+            message = ", ".join(str(error) for error in errors)
+        else:
+            message = str(errors)
+        raise ValueError(f"buck converter calculator failed: {message}")
+
+    project_file = project_dir / f"{project_name}.kicad_pro"
+    schematic_file = project_dir / f"{project_name}.kicad_sch"
+    board_file = project_dir / f"{project_name}.kicad_pcb"
+    project_file.write_text(render_kicad_project_file(project_name), encoding="utf-8")
+    _write_pcbs_symbol_library(project_dir)
+
+    circuit = buck_converter_to_circuit_design(spec, calculation)
+    schematic = circuit_design_to_schematic(circuit)
+    schematic_file.write_text(
+        render_kicad_schematic_file(
+            uuid4(),
+            render_kicad_schematic_items(schematic, project_name=project_name),
+            lib_symbol_items=render_pcbs_kicad_embedded_symbols(),
+        ),
+        encoding="utf-8",
+    )
+    board_file.write_text(render_buck_converter_board(spec, calculation), encoding="utf-8")
+
+    _write_buck_readme(project_dir, project_name, request, calculation)
+    reports_dir = project_dir / ".pcbsmith" / "reports"
+    calculation_report_file = reports_dir / "buck-calculation.json"
+    _write_calculation_report(calculation, calculation_report_file)
+    kicad_board_policy_report, kicad_board_policy_report_file = _write_board_policy(
+        board_file,
+        project_dir / ".pcbsmith" / "board-reports",
+    )
+
+    validation: KiCadValidationReport | None = None
+    preview: KiCadPreviewReport | None = None
+    validation_status = "skipped"
+    preview_status = "skipped"
+    if execute_kicad:
+        validation = run_kicad_validation(project_dir)
+        preview = run_kicad_preview(project_dir)
+        validation_status = "passed" if validation.exit_code == 0 else "failed"
+        preview_status = "exported" if preview.exit_code == 0 else "failed"
+    revision_brief = build_revision_brief(
+        validation_report=validation,
+        preview_report=preview,
+        kicad_board_policy_report=kicad_board_policy_report,
+    )
+    revision_brief_file = project_dir / "revision-brief.json"
+    write_revision_brief(revision_brief, revision_brief_file)
+
+    operation_summary_file = project_dir / ".pcbsmith" / "operation.json"
+    operation_summary_file.parent.mkdir(parents=True, exist_ok=True)
+    topology = select_topologies_for_intent("buck-converter")["topologies"][0]
+    operation_summary_file.write_text(
+        json.dumps(
+            _buck_operation_summary(
+                request,
+                project_name=project_name,
+                project_dir=project_dir,
+                project_file=project_file,
+                schematic_file=schematic_file,
+                board_file=board_file,
+                revision_brief_file=revision_brief_file,
+                kicad_board_policy_report_file=kicad_board_policy_report_file,
+                calculation_report_file=calculation_report_file,
+                topology=topology,
+                calculation=calculation,
+                kicad_board_policy_status=_board_policy_status(
+                    kicad_board_policy_report
+                ),
+                validation_status=validation_status,
+                preview_status=preview_status,
+                revision_brief_status=revision_brief.status,
+            ),
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    exit_code = 0
+    if validation is not None and validation.exit_code:
+        exit_code = validation.exit_code
+    if preview is not None and preview.exit_code and exit_code == 0:
+        exit_code = preview.exit_code
+    if kicad_board_policy_report.exit_code and exit_code == 0:
+        exit_code = kicad_board_policy_report.exit_code
+
+    return DesignOperationResult(
+        operation="buck_converter",
         project_dir=project_dir,
         project_file=project_file,
         schematic_file=schematic_file,
@@ -627,6 +775,51 @@ def _write_silkscreen_readme(
     )
 
 
+def _write_buck_readme(
+    project_dir: Path,
+    project_name: str,
+    request: BuckConverterDesignRequest,
+    calculation: dict[str, object],
+) -> None:
+    outputs = calculation["outputs"]
+    assert isinstance(outputs, dict)
+    readme = project_dir / "README.md"
+    readme.write_text(
+        "\n".join(
+            [
+                f"# {project_name}",
+                "",
+                "This KiCad review bundle was generated by a structured PCBSmith "
+                "buck-converter design operation.",
+                "",
+                "- Operation: LM2596 adjustable buck converter.",
+                f"- Input: {request.input_voltage_min_v:g}-"
+                f"{request.input_voltage_max_v:g} V "
+                f"(nominal {request.input_voltage_nominal_v:g} V).",
+                f"- Output: {request.output_voltage_v:g} V at "
+                f"{request.load_current_a:g} A.",
+                f"- Selected inductor: {outputs['selected_inductance_uH']:g} uH.",
+                f"- Feedback divider: {outputs['selected_feedback_upper_ohms']:g} ohm "
+                f"over {outputs['feedback_lower_ohms']:g} ohm.",
+                "- Uses a dedicated switching-regulator topology, not a timer or "
+                "microcontroller placeholder.",
+                "- Review the KiCad PCB, schematic, calculator report, revision brief, "
+                "SVG previews, Gerbers, and drill outputs.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+
+def _write_calculation_report(
+    calculation: dict[str, object],
+    output_path: Path,
+) -> None:
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    output_path.write_text(json.dumps(calculation, indent=2) + "\n", encoding="utf-8")
+
+
 def _operation_summary(
     request: LedArtDesignRequest,
     *,
@@ -714,6 +907,64 @@ def _attiny_operation_summary(
             "kicad_board_policy_report_file": _relative_output(
                 project_dir,
                 kicad_board_policy_report_file,
+            ),
+        },
+        "routing_rules": board_routing_rules_summary(),
+        "annotation_rules": board_annotation_rules_summary(),
+        "checks": {
+            "validation": validation_status,
+            "preview": preview_status,
+            "kicad_board_policy": kicad_board_policy_status,
+            "revision_brief": revision_brief_status,
+        },
+    }
+
+
+def _buck_operation_summary(
+    request: BuckConverterDesignRequest,
+    *,
+    project_name: str,
+    project_dir: Path,
+    project_file: Path,
+    schematic_file: Path,
+    board_file: Path,
+    revision_brief_file: Path,
+    kicad_board_policy_report_file: Path,
+    calculation_report_file: Path,
+    topology: dict[str, object],
+    calculation: dict[str, object],
+    kicad_board_policy_status: str,
+    validation_status: str,
+    preview_status: str,
+    revision_brief_status: str,
+) -> dict[str, object]:
+    return {
+        "schema": "pcbsmith-design-operation-v1",
+        "operation": "buck_converter",
+        "project_name": project_name,
+        "request": {
+            "name": request.name,
+            "input_voltage_min_v": request.input_voltage_min_v,
+            "input_voltage_nominal_v": request.input_voltage_nominal_v,
+            "input_voltage_max_v": request.input_voltage_max_v,
+            "output_voltage_v": request.output_voltage_v,
+            "load_current_a": request.load_current_a,
+        },
+        "topology": topology,
+        "calculator": calculation,
+        "outputs": {
+            "project_dir": str(project_dir),
+            "project_file": _relative_output(project_dir, project_file),
+            "schematic_file": _relative_output(project_dir, schematic_file),
+            "board_file": _relative_output(project_dir, board_file),
+            "revision_brief_file": _relative_output(project_dir, revision_brief_file),
+            "kicad_board_policy_report_file": _relative_output(
+                project_dir,
+                kicad_board_policy_report_file,
+            ),
+            "calculation_report_file": _relative_output(
+                project_dir,
+                calculation_report_file,
             ),
         },
         "routing_rules": board_routing_rules_summary(),
@@ -859,11 +1110,13 @@ def _relative_output(project_dir: Path, output_file: Path) -> str:
 
 __all__ = [
     "AttinyLedControllerDesignRequest",
+    "BuckConverterDesignRequest",
     "DesignOperationResult",
     "LedArtDesignRequest",
     "SilkscreenArtworkDesignRequest",
     "format_design_operation_result",
     "generate_attiny_led_controller_design",
+    "generate_buck_converter_design",
     "generate_led_art_design",
     "generate_silkscreen_artwork_design",
 ]

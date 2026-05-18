@@ -1406,3 +1406,38 @@ def test_design_silkscreen_artwork_writes_structured_review_bundle(
     summary = json.loads((output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8"))
     assert summary["operation"] == "silkscreen_artwork"
     assert summary["checks"]["silkscreen_preflight"] == "passed"
+
+
+def test_design_buck_converter_writes_structured_review_bundle(tmp_path: Path) -> None:
+    output_dir = tmp_path / "buck-review"
+
+    result = _run_cli(
+        "design-buck-converter",
+        str(output_dir),
+        "--name",
+        "LM2596 Buck Demo",
+        "--skip-execution",
+    )
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    board_policy_file = output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
+    assert result.stdout.splitlines() == [
+        "Design operation: buck_converter",
+        f"Review bundle: {output_dir}",
+        f"KiCad board: {output_dir / 'LM2596_Buck_Demo.kicad_pcb'}",
+        f"Operation summary: {output_dir / '.pcbsmith' / 'operation.json'}",
+        f"Revision brief: {output_dir / 'revision-brief.json'}",
+        f"KiCad board policy: {board_policy_file}",
+        "Validation: skipped",
+        "Preview: skipped",
+        "Revision brief status: passed",
+    ]
+    assert (output_dir / "LM2596_Buck_Demo.kicad_pcb").exists()
+    assert (output_dir / "LM2596_Buck_Demo.kicad_sch").exists()
+    assert board_policy_file.exists()
+    assert (output_dir / ".pcbsmith" / "reports" / "buck-calculation.json").exists()
+    summary = json.loads((output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8"))
+    assert summary["operation"] == "buck_converter"
+    assert summary["topology"]["id"] == "lm2596-adjustable-buck"
+    assert summary["calculator"]["calculator"] == "lm2596-buck"

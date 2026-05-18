@@ -370,8 +370,16 @@ adds:
   and Lee, plus approximate trace length and DC resistance.
 - `lc-resonance` for frequency from L/C or required capacitance from target
   frequency.
+- `lm2596-buck` for a dedicated LM2596 adjustable buck converter, including
+  voltage-window checks, nominal duty cycle, inductor selection, output
+  capacitance estimate, and feedback divider values.
 - A `calculator` CLI tool and AI planner/context contract so hosted or local
   models call deterministic math instead of inventing values.
+
+The first buck-converter generator is implemented as `design-buck-converter`.
+It deliberately uses a real switching-regulator topology and refuses the earlier
+bad pattern of substituting a timer or microcontroller when the user asks for a
+buck converter.
 
 ## R12: Validation And Reporting Layer
 

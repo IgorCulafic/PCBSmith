@@ -27,6 +27,7 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
         "cli_command": "calculator <calculator-name> --param key=value",
         "supported_calculators": [
             "lc-resonance",
+            "lm2596-buck",
             "pcb-spiral-coil-estimate",
         ],
         "instructions": [
