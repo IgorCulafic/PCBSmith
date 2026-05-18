@@ -43,8 +43,20 @@ Wrong outputs are useful. Keep them when they are labeled clearly:
 - `failed_drc`: KiCad DRC rejected the board.
 - `unsafe_electrical_assumption`: component choice/math was unsafe or unjustified.
 - `bad_visual_layout`: visible overlap, unreadable labels, poor routing, or misleading silkscreen.
+- `engineering_review_failed`: deterministic checks passed, but human/electrical review found the design was not a correct or useful circuit.
 
 Negative rows should include enough context to teach the model the correct behavior, but not so much that the dataset becomes noisy.
+
+## Acceptance Gates
+
+KiCad ERC/DRC passing is necessary, not sufficient. A design is only a positive training example when it also passes engineering review for:
+
+- correct topology for the requested circuit
+- justified component roles and values
+- consistent routing style and trace widths
+- no vias hidden under component pads unless explicitly allowed
+- no decorative or arbitrary bends when a direct route is correct
+- no misleading part names, fake IC choices, or placeholder circuits labeled as real
 
 ## Privacy And Safety
 
