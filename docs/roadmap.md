@@ -11,6 +11,9 @@ the AI-facing planning, review, library, and generation layers around it.
 - Treat AI output as a proposal until PCBSmith and KiCad checks pass.
 - Prefer constrained tools, indexed knowledge, and explicit rules over asking an
   LLM to "just know PCB design."
+- Do not move from a new circuit-family request directly to board generation.
+  Select topology, gather reference evidence, run deterministic math, and add
+  simulation where practical before producing PCB geometry.
 - Keep KiCad ERC/DRC as hard gates for manufacturability.
 - Keep PCBSmith checks advisory or preflight unless they cover hard physical
   constraints such as clearance or invalid connectivity.
@@ -421,6 +424,21 @@ inconsistent same-net trace widths, and vias inside SMD pad keepouts. Via-in-pad
 is treated as a hard error unless explicit fabrication support is added later;
 route-angle and trace-width findings are surfaced as revision items so they
 cannot silently disappear inside a one-off generator.
+
+## R12.5: Simulation Layer
+
+PCBSmith needs a simulation layer before it can credibly handle arbitrary
+circuits or sensitive analog/power designs.
+
+- Use ngspice as the first serious backend because KiCad already integrates it
+  and KiCad CLI can export SPICE netlists.
+- Start with simple `.op`, `.dc`, `.ac`, and `.tran` checks for supported
+  circuit families.
+- Store simulation netlists, raw simulator output, parsed metrics, pass/fail
+  criteria, and plots where useful.
+- Keep Falstad/CircuitJS as a possible educational visual preview later, not as
+  the main correctness gate.
+- Do not treat KiCad ERC/DRC as proof that a circuit electrically works.
 
 ## R13: Expanded Component And KiCad Library Integration
 
