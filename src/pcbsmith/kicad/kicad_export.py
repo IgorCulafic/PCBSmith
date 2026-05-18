@@ -137,6 +137,14 @@ NATIVE_SYMBOL_SPECS: dict[str, NativeSymbolSpec] = {
         description="Generic diode",
         pin_offsets=(Vec(-5_080_000, 0), Vec(5_080_000, 0)),
     ),
+    "stdlib:L": NativeSymbolSpec(
+        source_symbol_id="stdlib:L",
+        library_symbol_name="L",
+        reference_prefix="L",
+        value="L",
+        description="Generic inductor",
+        pin_offsets=(Vec(-5_080_000, 0), Vec(5_080_000, 0)),
+    ),
     "stdlib:LED": NativeSymbolSpec(
         source_symbol_id="stdlib:LED",
         library_symbol_name="LED",
@@ -182,6 +190,20 @@ NATIVE_SYMBOL_SPECS: dict[str, NativeSymbolSpec] = {
             Vec(mm_to_nm(7.62), mm_to_nm(-5.08)),
         ),
     ),
+    "stdlib:LM2596_ADJ": NativeSymbolSpec(
+        source_symbol_id="stdlib:LM2596_ADJ",
+        library_symbol_name="LM2596_ADJ",
+        reference_prefix="U",
+        value="LM2596-ADJ",
+        description="LM2596 adjustable buck regulator",
+        pin_offsets=(
+            Vec(mm_to_nm(-7.62), mm_to_nm(-5.08)),
+            Vec(mm_to_nm(7.62), mm_to_nm(-5.08)),
+            Vec(mm_to_nm(-7.62), 0),
+            Vec(mm_to_nm(7.62), 0),
+            Vec(mm_to_nm(-7.62), mm_to_nm(5.08)),
+        ),
+    ),
     "stdlib:POT": NativeSymbolSpec(
         source_symbol_id="stdlib:POT",
         library_symbol_name="POT",
@@ -223,8 +245,10 @@ BOARD_FOOTPRINT_NAMES = {
     "stdlib:R": "PCBSmith_R_0603",
     "stdlib:C": "PCBSmith_C_0603",
     "stdlib:D": "PCBSmith_D_0603",
+    "stdlib:L": "PCBSmith_L_POWER",
     "stdlib:LED": "PCBSmith_LED_0603",
     "stdlib:NE555": "PCBSmith_SOIC8_NE555",
+    "stdlib:LM2596_ADJ": "PCBSmith_LM2596_TO263",
     "stdlib:POT": "PCBSmith_POT_3PIN",
     "stdlib:NMOS": "PCBSmith_NMOS_POWER",
     "stdlib:CONN_01X02": "PCBSmith_CONN_01X02",
@@ -1588,6 +1612,8 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
     )
     if spec.library_symbol_name == "NE555":
         return _render_ne555_library_symbol(name, spec.description)
+    if spec.library_symbol_name == "LM2596_ADJ":
+        return _render_lm2596_library_symbol(name, spec.description)
     if spec.library_symbol_name == "POT":
         return _render_pot_library_symbol(name, spec.description)
     if spec.library_symbol_name == "NMOS":
@@ -1619,6 +1645,15 @@ def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
             value="D",
             description="Generic diode",
             drawing=_diode_symbol_drawing("D_0_1"),
+            pin_length_mm="3.81",
+        )
+    if spec.library_symbol_name == "L":
+        return _render_two_pin_box_library_symbol(
+            name,
+            reference="L",
+            value="L",
+            description="Generic inductor",
+            drawing=_inductor_symbol_drawing(),
             pin_length_mm="3.81",
         )
     if spec.library_symbol_name == "LED":
@@ -1805,6 +1840,45 @@ def _render_ne555_library_symbol(name: str, description: str) -> str:
 {_ne555_pin("6", "THRESH", 7.62, 0, 180)}
 {_ne555_pin("7", "DISCH", 7.62, 2.54, 180)}
 {_ne555_pin("8", "VCC", 7.62, 5.08, 180)}
+    )
+  )"""
+
+
+def _render_lm2596_library_symbol(name: str, description: str) -> str:
+    return f"""  (symbol "{name}"
+    (pin_numbers
+      (hide no)
+    )
+    (pin_names
+      (offset 0.762)
+    )
+    (exclude_from_sim no)
+    (in_bom yes)
+    (on_board yes)
+    {_render_symbol_property("Reference", "U", 0, -8_890_000)}
+    {_render_symbol_property("Value", "LM2596-ADJ", 0, 8_890_000)}
+    {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
+    {_render_symbol_property("Datasheet", "~", 0, 0, hidden=True)}
+    {_render_symbol_property("Description", description, 0, 0, hidden=True)}
+    (symbol "LM2596_ADJ_0_1"
+      (rectangle
+        (start -5.08 6.35)
+        (end 5.08 -6.35)
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )
+    (symbol "LM2596_ADJ_1_1"
+{_ne555_pin("1", "VIN", -7.62, -5.08, 0)}
+{_ne555_pin("2", "SW", 7.62, 5.08, 180)}
+{_ne555_pin("3", "GND", -7.62, 0, 0)}
+{_ne555_pin("4", "FB", 7.62, 0, 180)}
+{_ne555_pin("5", "ON/OFF", -7.62, 5.08, 0)}
     )
   )"""
 
@@ -2028,6 +2102,31 @@ def _resistor_symbol_drawing() -> str:
       (rectangle
         (start -2.54 -1.27)
         (end 2.54 1.27)
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+    )"""
+
+
+def _inductor_symbol_drawing() -> str:
+    return """    (symbol "L_0_1"
+      (polyline
+        (pts
+          (xy -2.54 0)
+          (xy -1.90 0.95)
+          (xy -1.27 0)
+          (xy -0.64 0.95)
+          (xy 0 0)
+          (xy 0.64 0.95)
+          (xy 1.27 0)
+          (xy 1.90 0.95)
+          (xy 2.54 0)
+        )
         (stroke
           (width 0.254)
           (type default)

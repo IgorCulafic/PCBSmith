@@ -78,10 +78,12 @@ from pcbsmith.knowledge.component_selection import (
 )
 from pcbsmith.operations.design_operations import (
     AttinyLedControllerDesignRequest,
+    BuckConverterDesignRequest,
     LedArtDesignRequest,
     SilkscreenArtworkDesignRequest,
     format_design_operation_result,
     generate_attiny_led_controller_design,
+    generate_buck_converter_design,
     generate_led_art_design,
     generate_silkscreen_artwork_design,
 )
@@ -564,6 +566,26 @@ def _cmd_design_silkscreen_artwork(args: argparse.Namespace) -> int:
         board_height_mm=args.board_height,
     )
     result = generate_silkscreen_artwork_design(
+        request,
+        Path(args.output_project),
+        execute_kicad=not args.skip_execution,
+        overwrite=args.overwrite,
+    )
+    for line in format_design_operation_result(result):
+        print(line)
+    return result.exit_code
+
+
+def _cmd_design_buck_converter(args: argparse.Namespace) -> int:
+    request = BuckConverterDesignRequest(
+        name=args.name,
+        input_voltage_min_v=args.vin_min,
+        input_voltage_nominal_v=args.vin_nominal,
+        input_voltage_max_v=args.vin_max,
+        output_voltage_v=args.vout,
+        load_current_a=args.current,
+    )
+    result = generate_buck_converter_design(
         request,
         Path(args.output_project),
         execute_kicad=not args.skip_execution,
@@ -1136,6 +1158,29 @@ def build_parser() -> argparse.ArgumentParser:
         help="replace an existing output directory",
     )
     design_silkscreen_parser.set_defaults(func=_cmd_design_silkscreen_artwork)
+
+    design_buck_parser = subparsers.add_parser(
+        "design-buck-converter",
+        help="generate an LM2596 adjustable buck converter KiCad review bundle",
+    )
+    design_buck_parser.add_argument("output_project")
+    design_buck_parser.add_argument("--name", default="LM2596 Buck Demo")
+    design_buck_parser.add_argument("--vin-min", type=float, default=7.0)
+    design_buck_parser.add_argument("--vin-nominal", type=float, default=12.0)
+    design_buck_parser.add_argument("--vin-max", type=float, default=24.0)
+    design_buck_parser.add_argument("--vout", type=float, default=5.0)
+    design_buck_parser.add_argument("--current", type=float, default=1.0)
+    design_buck_parser.add_argument(
+        "--skip-execution",
+        action="store_true",
+        help="write KiCad files and reports without running KiCad validation or preview exports",
+    )
+    design_buck_parser.add_argument(
+        "--overwrite",
+        action="store_true",
+        help="replace an existing output directory",
+    )
+    design_buck_parser.set_defaults(func=_cmd_design_buck_converter)
 
     return parser
 

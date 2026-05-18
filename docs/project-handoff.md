@@ -63,8 +63,14 @@ the model operate PCBSmith tools that know PCB constraints.
   detector path with PCB spiral coil math, BJT/comparator/output stages, and an
   explicit warning not to pick NE555 unless the topology and math justify it.
 - Dedicated `pcbsmith.calculators` package for deterministic engineering math.
-  The first calculators are `pcb-spiral-coil-estimate` and `lc-resonance`, both
-  exposed through the `calculator` CLI and AI planner/context packages.
+  The current calculators are `pcb-spiral-coil-estimate`, `lc-resonance`, and
+  `lm2596-buck`, exposed through the `calculator` CLI and AI planner/context
+  packages.
+- `design-buck-converter` generates the first real buck-converter review
+  bundle from topology and calculator evidence: LM2596-ADJ regulator, inductor,
+  Schottky catch diode, input/output capacitors, feedback divider, VIN/GND/VOUT
+  pads, schematic, board, calculation report, revision brief, and board-policy
+  report.
 - Dedicated `pcbsmith.reporting` package for consolidated validation summaries.
   KiCad review bundles now write `.pcbsmith/reports/validation-summary.json`
   and `.pcbsmith/reports/validation-summary.md`, and AI context/planner

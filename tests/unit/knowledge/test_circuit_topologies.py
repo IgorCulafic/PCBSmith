@@ -30,11 +30,12 @@ def test_unknown_intent_returns_empty_selection_with_supported_intents() -> None
     assert "metal-detector" in result["supported_intents"]
 
 
-def test_buck_converter_is_explicitly_unsupported_until_real_topology_exists() -> None:
+def test_buck_converter_selects_lm2596_topology_with_math_gate() -> None:
     result = select_topologies_for_intent("buck-converter")
 
     assert result["intent"] == "buck-converter"
-    assert result["topologies"] == []
+    assert result["topologies"][0]["id"] == "lm2596-adjustable-buck"
+    assert "lm2596-buck" in result["topologies"][0]["required_math_tools"]
     assert "buck-converter" in result["supported_intents"]
 
 

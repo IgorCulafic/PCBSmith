@@ -62,6 +62,23 @@ class ThreePadSmdFootprintSpec:
     body_layer: str = "F.Fab"
 
 
+@dataclass(frozen=True)
+class MultiPadSmdFootprintSpec:
+    footprint: str
+    reference: str
+    value: str
+    x_mm: float
+    y_mm: float
+    pads: tuple[tuple[str, float, float, float, float, NetRef], ...]
+    reference_offset_mm: tuple[float, float] = (0.0, -3.0)
+    value_offset_mm: tuple[float, float] = (0.0, 3.0)
+    body_width_mm: float = 8.0
+    body_height_mm: float = 6.0
+    body_layer: str = "F.Fab"
+    show_pin_one_marker: bool = True
+    show_silkscreen_outline: bool = True
+
+
 @dataclass
 class KiCadBoardBuilder:
     board_outline_uuid: UUID = field(default_factory=uuid4)
@@ -355,6 +372,48 @@ class KiCadBoardBuilder:
   )"""
         )
 
+    def add_multi_pad_smd_footprint(self, spec: MultiPadSmdFootprintSpec) -> None:
+        ref_x, ref_y = spec.reference_offset_mm
+        value_x, value_y = spec.value_offset_mm
+        pads = "\n".join(
+            _pad(PadSpec(name, pad_x, pad_y, pad_width, pad_height, net))
+            for name, pad_x, pad_y, pad_width, pad_height, net in spec.pads
+        )
+        pin_one_marker = (
+            _footprint_circle(
+                -spec.body_width_mm / 2 + 0.8,
+                -spec.body_height_mm / 2 + 0.8,
+                radius_mm=0.25,
+                layer="F.SilkS",
+            )
+            if spec.show_pin_one_marker
+            else ""
+        )
+        silkscreen_outline = (
+            _footprint_rect(
+                spec.body_width_mm + 1.2,
+                spec.body_height_mm + 0.9,
+                "F.SilkS",
+                stroke_width_mm=0.12,
+            )
+            if spec.show_silkscreen_outline
+            else ""
+        )
+        self._items.append(
+            f"""  (footprint {_quote(spec.footprint)}
+    (layer "F.Cu")
+    (uuid {uuid4()})
+    (at {_mm(spec.x_mm)} {_mm(spec.y_mm)})
+    {_property("Reference", spec.reference, ref_x, ref_y, "F.SilkS", 0.9)}
+{_property("Value", spec.value, value_x, value_y, "F.Fab", 0.7)}
+    (attr smd)
+{_footprint_rect(spec.body_width_mm, spec.body_height_mm, spec.body_layer)}
+{silkscreen_outline}
+{pin_one_marker}
+{pads}
+  )"""
+        )
+
     def render(
         self,
         *,
@@ -507,6 +566,7 @@ def _mm(value: float) -> str:
 
 __all__ = [
     "KiCadBoardBuilder",
+    "MultiPadSmdFootprintSpec",
     "NetRef",
     "PadSpec",
     "ThreePadSmdFootprintSpec",

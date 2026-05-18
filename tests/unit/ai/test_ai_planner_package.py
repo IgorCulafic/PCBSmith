@@ -78,6 +78,7 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
         "cli_command": "calculator <calculator-name> --param key=value",
         "supported_calculators": [
             "lc-resonance",
+            "lm2596-buck",
             "pcb-spiral-coil-estimate",
         ],
         "instructions": [

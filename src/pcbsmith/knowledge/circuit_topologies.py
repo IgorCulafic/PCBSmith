@@ -45,6 +45,50 @@ SUPPORTED_TOPOLOGY_INTENTS = (
 
 _TOPOLOGIES = (
     CircuitTopology(
+        id="lm2596-adjustable-buck",
+        label="LM2596 adjustable asynchronous buck converter",
+        intent="buck-converter",
+        description=(
+            "A non-isolated step-down converter using an LM2596-ADJ regulator, "
+            "external inductor, Schottky catch diode, input/output capacitors, "
+            "feedback divider, and ON/OFF pin tied for always-on operation."
+        ),
+        component_intents=(
+            "buck-regulator-ic",
+            "power-inductor",
+            "schottky-catch-diode",
+            "low-esr-input-capacitor",
+            "low-esr-output-capacitor",
+            "feedback-divider",
+            "terminal-power-input",
+            "terminal-power-output",
+        ),
+        required_math_tools=("lm2596-buck",),
+        required_inputs=(
+            "input_voltage_min_v",
+            "input_voltage_nominal_v",
+            "input_voltage_max_v",
+            "output_voltage_v",
+            "load_current_a",
+        ),
+        do_not_use_rules=(
+            "Do not use microcontrollers, Arduino-style boards, or timers as the buck regulator.",
+            (
+                "Do not label a board as a buck converter unless a regulator, "
+                "inductor, diode or synchronous switch path, capacitors, and "
+                "feedback path are present."
+            ),
+        ),
+        validation_gates=(
+            "topology-rationale",
+            "component-selection",
+            "deterministic-math",
+            "switching-loop-layout-review",
+            "KiCad ERC/DRC",
+            "KiCad board policy",
+        ),
+    ),
+    CircuitTopology(
         id="lc-oscillator-metal-detector",
         label="LC oscillator metal detector",
         intent="metal-detector",

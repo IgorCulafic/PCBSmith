@@ -9,6 +9,7 @@ CALCULATOR_TOOL_SCHEMA = "pcbsmith-calculator-tool-v1"
 
 SUPPORTED_CALCULATORS = (
     "lc-resonance",
+    "lm2596-buck",
     "pcb-spiral-coil-estimate",
 )
 
@@ -154,6 +155,99 @@ def solve_lc_resonance(
     return _result("lc-resonance", inputs=inputs, outputs=outputs)
 
 
+def solve_lm2596_buck(
+    *,
+    input_voltage_min_v: float,
+    input_voltage_nominal_v: float,
+    input_voltage_max_v: float,
+    output_voltage_v: float,
+    load_current_a: float,
+    ripple_current_ratio: float = 0.3,
+    switching_frequency_hz: float = 150_000.0,
+    feedback_reference_v: float = 1.23,
+    feedback_lower_ohms: float = 1210.0,
+    dropout_margin_v: float = 1.5,
+    output_ripple_target_v: float = 0.05,
+) -> dict[str, Any]:
+    inputs = {
+        "input_voltage_min_v": input_voltage_min_v,
+        "input_voltage_nominal_v": input_voltage_nominal_v,
+        "input_voltage_max_v": input_voltage_max_v,
+        "output_voltage_v": output_voltage_v,
+        "load_current_a": load_current_a,
+        "ripple_current_ratio": ripple_current_ratio,
+        "switching_frequency_hz": switching_frequency_hz,
+        "feedback_reference_v": feedback_reference_v,
+        "feedback_lower_ohms": feedback_lower_ohms,
+        "dropout_margin_v": dropout_margin_v,
+        "output_ripple_target_v": output_ripple_target_v,
+    }
+    errors = _validate_lm2596_buck_inputs(
+        input_voltage_min_v=input_voltage_min_v,
+        input_voltage_nominal_v=input_voltage_nominal_v,
+        input_voltage_max_v=input_voltage_max_v,
+        output_voltage_v=output_voltage_v,
+        load_current_a=load_current_a,
+        ripple_current_ratio=ripple_current_ratio,
+        switching_frequency_hz=switching_frequency_hz,
+        feedback_reference_v=feedback_reference_v,
+        feedback_lower_ohms=feedback_lower_ohms,
+        dropout_margin_v=dropout_margin_v,
+        output_ripple_target_v=output_ripple_target_v,
+    )
+    if errors:
+        return _result("lm2596-buck", inputs=inputs, outputs={}, errors=errors)
+
+    ripple_current_a = load_current_a * ripple_current_ratio
+    minimum_inductance_h = (
+        output_voltage_v
+        * (input_voltage_max_v - output_voltage_v)
+        / (input_voltage_max_v * switching_frequency_hz * ripple_current_a)
+    )
+    output_capacitance_f = ripple_current_a / (8 * switching_frequency_hz * output_ripple_target_v)
+    feedback_upper_ohms = feedback_lower_ohms * (
+        (output_voltage_v / feedback_reference_v) - 1
+    )
+    selected_feedback_upper = _nearest_standard_value(
+        feedback_upper_ohms,
+        (3300, 3480, 3600, 3740, 3900, 4020, 4220),
+    )
+    selected_inductance_uH = _nearest_standard_value(
+        minimum_inductance_h * 1_000_000,
+        (33, 47, 68, 100, 150, 220),
+        choose_at_least=True,
+    )
+    selected_output_cap_uF = _nearest_standard_value(
+        output_capacitance_f * 1_000_000,
+        (22, 47, 100, 220, 330, 470),
+        choose_at_least=True,
+    )
+
+    return _result(
+        "lm2596-buck",
+        inputs=inputs,
+        outputs={
+            "duty_cycle_nominal": round(output_voltage_v / input_voltage_nominal_v, 6),
+            "ripple_current_a": round(ripple_current_a, 6),
+            "minimum_inductance_uH": round(minimum_inductance_h * 1_000_000, 6),
+            "selected_inductance_uH": selected_inductance_uH,
+            "minimum_output_capacitance_uF": round(output_capacitance_f * 1_000_000, 6),
+            "selected_output_capacitance_uF": selected_output_cap_uF,
+            "feedback_lower_ohms": feedback_lower_ohms,
+            "feedback_upper_ohms": round(feedback_upper_ohms, 6),
+            "selected_feedback_upper_ohms": selected_feedback_upper,
+            "selected_input_capacitance_uF": 100,
+            "catch_diode": "1N5822 or equivalent 3A Schottky",
+        },
+        references=[
+            (
+                "Texas Instruments LM2596 datasheet, adjustable output buck "
+                "regulator design procedure."
+            ),
+        ],
+    )
+
+
 def run_calculator(name: str, parameters: Mapping[str, str]) -> dict[str, Any]:
     if name == "pcb-spiral-coil-estimate":
         return estimate_pcb_spiral_coil(
@@ -173,6 +267,19 @@ def run_calculator(name: str, parameters: Mapping[str, str]) -> dict[str, Any]:
             inductance_uH=_float_param(parameters, "inductance_uH"),
             capacitance_nF=_optional_float_param(parameters, "capacitance_nF"),
             target_frequency_hz=_optional_float_param(parameters, "target_frequency_hz"),
+        )
+    if name == "lm2596-buck":
+        return solve_lm2596_buck(
+            input_voltage_min_v=_float_param(parameters, "input_voltage_min_v"),
+            input_voltage_nominal_v=_float_param(parameters, "input_voltage_nominal_v"),
+            input_voltage_max_v=_float_param(parameters, "input_voltage_max_v"),
+            output_voltage_v=_float_param(parameters, "output_voltage_v"),
+            load_current_a=_float_param(parameters, "load_current_a"),
+            ripple_current_ratio=_float_param(
+                parameters,
+                "ripple_current_ratio",
+                default=0.3,
+            ),
         )
     raise ValueError(f"Unsupported calculator: {name}")
 
@@ -270,6 +377,56 @@ def _validate_spiral_inputs(
     return errors
 
 
+def _validate_lm2596_buck_inputs(
+    *,
+    input_voltage_min_v: float,
+    input_voltage_nominal_v: float,
+    input_voltage_max_v: float,
+    output_voltage_v: float,
+    load_current_a: float,
+    ripple_current_ratio: float,
+    switching_frequency_hz: float,
+    feedback_reference_v: float,
+    feedback_lower_ohms: float,
+    dropout_margin_v: float,
+    output_ripple_target_v: float,
+) -> list[str]:
+    errors = []
+    if output_voltage_v <= 0:
+        errors.append("Output voltage must be positive.")
+    if load_current_a <= 0:
+        errors.append("Load current must be positive.")
+    if input_voltage_min_v <= output_voltage_v + dropout_margin_v:
+        errors.append("Input minimum must be greater than output voltage plus dropout margin.")
+    if not input_voltage_min_v <= input_voltage_nominal_v <= input_voltage_max_v:
+        errors.append("Input voltage window must satisfy min <= nominal <= max.")
+    if ripple_current_ratio <= 0 or ripple_current_ratio >= 1:
+        errors.append("Ripple current ratio must be between 0 and 1.")
+    if switching_frequency_hz <= 0:
+        errors.append("Switching frequency must be positive.")
+    if feedback_reference_v <= 0:
+        errors.append("Feedback reference must be positive.")
+    if feedback_lower_ohms <= 0:
+        errors.append("Feedback lower resistor must be positive.")
+    if output_ripple_target_v <= 0:
+        errors.append("Output ripple target must be positive.")
+    return errors
+
+
+def _nearest_standard_value(
+    value: float,
+    options: tuple[int, ...],
+    *,
+    choose_at_least: bool = False,
+) -> int:
+    if choose_at_least:
+        for option in sorted(options):
+            if option >= value:
+                return option
+        return max(options)
+    return min(options, key=lambda option: abs(option - value))
+
+
 def _trace_length_mm(
     *,
     shape: str,
@@ -340,5 +497,6 @@ __all__ = [
     "estimate_pcb_spiral_coil",
     "format_calculation_result",
     "run_calculator",
+    "solve_lm2596_buck",
     "solve_lc_resonance",
 ]

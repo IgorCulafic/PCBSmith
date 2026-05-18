@@ -93,6 +93,13 @@ can call PCBSmith's `calculator` tool for a PCB spiral coil estimate or LC
 resonance result, then use the returned structured warnings and values in its
 proposal.
 
+That calculator layer now includes an `lm2596-buck` path and a
+`design-buck-converter` operation. This is the first concrete correction after
+the earlier false-start buck prototype: PCBSmith now chooses an LM2596
+adjustable regulator topology, sizes the feedback divider and power-stage
+values through deterministic code, and emits a review bundle with schematic,
+PCB, calculator evidence, and global board-policy checks.
+
 The newest R12 reporting slice adds a consolidated validation summary to KiCad
 review bundles. It collects KiCad ERC/DRC status, preview exports,
 manufacturability findings, circuit-rule findings, calculator evidence,
