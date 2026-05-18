@@ -7,6 +7,7 @@ from pcbsmith.circuit.models import (
     CircuitReviewBundle,
     ComponentRole,
     EvidenceRef,
+    SimulationReport,
     TopologySelection,
 )
 
@@ -76,6 +77,7 @@ def test_review_bundle_status_is_not_passed_when_human_review_is_required() -> N
             intent_id="divider_highpass_led_indicator",
             status="needs_human_review",
             items=("Generic LED is demo-only.",),
+            simulation=SimulationReport(backend="ngspice", status="unavailable"),
             artifacts={},
         )
 

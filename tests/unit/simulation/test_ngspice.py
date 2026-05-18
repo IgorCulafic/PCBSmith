@@ -9,9 +9,12 @@ from pcbsmith.circuit.intent import classify_circuit_intent
 from pcbsmith.circuit.topologies import select_topology
 from pcbsmith.generation.divider_highpass_led import compose_divider_highpass_led
 from pcbsmith.simulation.ngspice import (
+    ac_value_at,
     extract_ngspice_measurements,
     find_ngspice,
+    parse_ngspice_output,
     render_ngspice_netlist,
+    run_ngspice_batch,
     run_ngspice_simulation,
 )
 
@@ -29,6 +32,19 @@ Index   frequency       v(hp_out)
 20	1.000000e+02	1.568052e-01,	1.663726e-01
 40	1.000000e+03	3.296211e-01,	3.495961e-02
 80	1.000000e+05	3.333244e-01,	-1.04254e-03
+"""
+
+GENERIC_NGSPICE_OUTPUT = """
+	Node                                  Voltage
+	----                                  -------
+	out                              1.250000e+00
+	bias                             9.000000e-01
+	sensor_in                        1.000000e-02
+
+Index   frequency       vm(out)          vp(out)
+--------------------------------------------------------------------------------
+0	1.000000e+00	1.000000e-03	8.900000e+01
+1	1.000000e+03	2.500000e-01	3.000000e+00
 """
 
 
@@ -72,6 +88,44 @@ def test_extracts_dc_and_ac_measurements_from_ngspice_output() -> None:
     assert measurements["ac_hp_out_100khz_mag_v"] == pytest.approx(0.3333260303899174)
 
 
+def test_parses_generic_operating_point_nodes_and_scalar_ac_tables() -> None:
+    parsed = parse_ngspice_output(GENERIC_NGSPICE_OUTPUT)
+
+    assert parsed.operating_point_voltages == {
+        "out": 1.25,
+        "bias": 0.9,
+        "sensor_in": 0.01,
+    }
+    assert ac_value_at(parsed, "vm(out)", 1_000.0) == pytest.approx(0.25)
+    assert ac_value_at(parsed, "vp(out)", 1.0) == pytest.approx(89.0)
+
+
+def test_parses_complex_ac_tables_without_hardcoded_node_names() -> None:
+    parsed = parse_ngspice_output(NGSPICE_SAMPLE_OUTPUT)
+
+    assert parsed.operating_point_voltages["div_out"] == 2.5
+    assert ac_value_at(parsed, "v(hp_out)", 10.0) == complex(0.002934851, 0.03113932)
+
+
+def test_run_ngspice_batch_is_netlist_agnostic(tmp_path: Path) -> None:
+    def fake_runner(command, **_kwargs):
+        return subprocess.CompletedProcess(command, 0, stdout=GENERIC_NGSPICE_OUTPUT, stderr="")
+
+    result = run_ngspice_batch(
+        "* arbitrary testbench\n.op\n.end\n",
+        tmp_path,
+        netlist_filename="sensor_frontend.cir",
+        finder=lambda: Path("ngspice_con.exe"),
+        runner=fake_runner,
+    )
+
+    assert result.status == "completed"
+    assert result.netlist_path.name == "sensor_frontend.cir"
+    assert result.command[-1].endswith("sensor_frontend.cir")
+    assert result.parsed_output.operating_point_voltages["sensor_in"] == 0.01
+    assert (tmp_path / ".pcbsmith" / "simulation" / "sensor_frontend.cir").exists()
+
+
 def test_run_ngspice_captures_stdout_measurements_and_checks_them(tmp_path: Path) -> None:
     def fake_runner(command, **_kwargs):
         return subprocess.CompletedProcess(command, 0, stdout=NGSPICE_SAMPLE_OUTPUT, stderr="")
@@ -83,7 +137,8 @@ def test_run_ngspice_captures_stdout_measurements_and_checks_them(tmp_path: Path
         runner=fake_runner,
     )
 
-    output_path = tmp_path / ".pcbsmith" / "simulation" / "ngspice-output.txt"
+    assert report.raw_output_path is not None
+    output_path = Path(report.raw_output_path)
     assert report.status == "passed"
     assert "-o" not in report.command
     assert report.measurements["op_div_out_v"] == 2.5

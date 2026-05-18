@@ -6,20 +6,16 @@ import re
 import shutil
 import subprocess
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Literal
 
 from pcbsmith.circuit.models import CircuitObject, SimulationReport
 
 _NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
-_NODE_VOLTAGE_RE = re.compile(
-    rf"^\s*(?P<node>vin|div_out|hp_out|led_a)\s+(?P<value>{_NUMBER})\s*$",
-    re.IGNORECASE | re.MULTILINE,
-)
-_AC_HP_OUT_RE = re.compile(
-    rf"^\s*\d+\s+(?P<frequency>{_NUMBER})\s+"
-    rf"(?P<real>{_NUMBER}),\s*(?P<imag>{_NUMBER})\s*$",
-    re.IGNORECASE | re.MULTILINE,
-)
+_NODE_ROW_RE = re.compile(rf"^\s*(?P<node>\S+)\s+(?P<value>{_NUMBER})\s*$")
+_AC_HEADER_RE = re.compile(r"^\s*Index\s+frequency\s+(?P<columns>.+?)\s*$", re.IGNORECASE)
+_AC_ROW_START_RE = re.compile(r"^\s*\d+\s+")
 _REQUIRED_MEASUREMENTS = (
     "op_div_out_v",
     "op_hp_out_v",
@@ -28,6 +24,29 @@ _REQUIRED_MEASUREMENTS = (
     "ac_hp_out_1khz_mag_v",
     "ac_hp_out_100khz_mag_v",
 )
+
+
+@dataclass(frozen=True)
+class NgspiceAcPoint:
+    frequency_hz: float
+    values: dict[str, float | complex]
+
+
+@dataclass(frozen=True)
+class NgspiceOutput:
+    operating_point_voltages: dict[str, float]
+    ac_points: tuple[NgspiceAcPoint, ...]
+
+
+@dataclass(frozen=True)
+class NgspiceBatchResult:
+    status: Literal["completed", "failed", "unavailable"]
+    command: tuple[str, ...]
+    netlist_path: Path
+    raw_output_path: Path
+    raw_output: str
+    parsed_output: NgspiceOutput
+    findings: tuple[str, ...] = ()
 
 
 def find_ngspice() -> Path | None:
@@ -62,46 +81,117 @@ D1 LED_A 0 DRED
 """
 
 
+def run_ngspice_batch(
+    netlist_text: str,
+    output_dir: Path,
+    *,
+    netlist_filename: str,
+    finder: Callable[[], Path | None] = find_ngspice,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> NgspiceBatchResult:
+    executable = finder()
+    simulation_dir = output_dir / ".pcbsmith" / "simulation"
+    netlist_path = simulation_dir / netlist_filename
+    output_path = simulation_dir / f"{Path(netlist_filename).stem}-ngspice-output.txt"
+    simulation_dir.mkdir(parents=True, exist_ok=True)
+    netlist_path.write_text(netlist_text, encoding="utf-8")
+    if executable is None:
+        return NgspiceBatchResult(
+            status="unavailable",
+            command=(),
+            netlist_path=netlist_path,
+            raw_output_path=output_path,
+            raw_output="",
+            parsed_output=NgspiceOutput(operating_point_voltages={}, ac_points=()),
+            findings=(
+                "ngspice executable was not found; set PCBSMITH_NGSPICE or install "
+                "standalone ngspice before claiming simulation evidence.",
+            ),
+        )
+
+    command = (str(executable), "-b", str(netlist_path))
+    completed = runner(
+        list(command),
+        text=True,
+        capture_output=True,
+        check=False,
+    )
+    output = completed.stdout + completed.stderr
+    output_path.write_text(output, encoding="utf-8")
+    if completed.returncode != 0:
+        return NgspiceBatchResult(
+            status="failed",
+            command=command,
+            netlist_path=netlist_path,
+            raw_output_path=output_path,
+            raw_output=output,
+            parsed_output=parse_ngspice_output(output),
+            findings=(f"ngspice exited with code {completed.returncode}.",),
+        )
+    return NgspiceBatchResult(
+        status="completed",
+        command=command,
+        netlist_path=netlist_path,
+        raw_output_path=output_path,
+        raw_output=output,
+        parsed_output=parse_ngspice_output(output),
+    )
+
+
+def parse_ngspice_output(output: str) -> NgspiceOutput:
+    return NgspiceOutput(
+        operating_point_voltages=_parse_operating_point_voltages(output),
+        ac_points=_parse_ac_points(output),
+    )
+
+
+def ac_value_at(
+    parsed_output: NgspiceOutput,
+    expression: str,
+    target_frequency_hz: float,
+    *,
+    tolerance: float = 0.01,
+) -> float | complex | None:
+    expression_key = expression.lower()
+    candidates = [
+        point
+        for point in parsed_output.ac_points
+        if expression_key in point.values
+        and abs(point.frequency_hz - target_frequency_hz) / target_frequency_hz <= tolerance
+    ]
+    if not candidates:
+        return None
+    selected = min(
+        candidates,
+        key=lambda point: abs(point.frequency_hz - target_frequency_hz) / target_frequency_hz,
+    )
+    return selected.values[expression_key]
+
+
 def extract_ngspice_measurements(output: str) -> dict[str, float]:
     measurements: dict[str, float] = {}
-    for match in _NODE_VOLTAGE_RE.finditer(output):
-        node = match.group("node").lower()
-        measurements[f"op_{node}_v"] = float(match.group("value"))
+    parsed_output = parse_ngspice_output(output)
+    for node, voltage in parsed_output.operating_point_voltages.items():
+        measurements[f"op_{_measurement_key(node)}_v"] = voltage
 
-    rows = [
-        (
-            float(match.group("frequency")),
-            float(match.group("real")),
-            float(match.group("imag")),
-        )
-        for match in _AC_HP_OUT_RE.finditer(output)
-    ]
     for label, target_frequency in (
         ("10_hz", 10.0),
         ("100_hz", 100.0),
         ("1khz", 1_000.0),
         ("100khz", 100_000.0),
     ):
-        selected = _closest_ac_row(rows, target_frequency)
-        if selected is None:
+        value = ac_value_at(parsed_output, "v(hp_out)", target_frequency)
+        if value is None:
+            value = ac_value_at(parsed_output, "vm(hp_out)", target_frequency)
+        if value is None:
             continue
-        _frequency, real, imag = selected
-        measurements[f"ac_hp_out_{label}_real_v"] = real
-        measurements[f"ac_hp_out_{label}_imag_v"] = imag
-        measurements[f"ac_hp_out_{label}_mag_v"] = math.hypot(real, imag)
+        if isinstance(value, complex):
+            measurements[f"ac_hp_out_{label}_real_v"] = value.real
+            measurements[f"ac_hp_out_{label}_imag_v"] = value.imag
+            measurements[f"ac_hp_out_{label}_mag_v"] = abs(value)
+        else:
+            measurements[f"ac_hp_out_{label}_mag_v"] = value
     return measurements
-
-
-def _closest_ac_row(
-    rows: Sequence[tuple[float, float, float]],
-    target_frequency: float,
-) -> tuple[float, float, float] | None:
-    if not rows:
-        return None
-    selected = min(rows, key=lambda row: abs(row[0] - target_frequency) / target_frequency)
-    if abs(selected[0] - target_frequency) / target_frequency > 0.01:
-        return None
-    return selected
 
 
 def _evaluate_measurements(measurements: dict[str, float]) -> tuple[str, tuple[str, ...]]:
@@ -144,45 +234,106 @@ def run_ngspice_simulation(
     finder: Callable[[], Path | None] = find_ngspice,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> SimulationReport:
-    executable = finder()
-    netlist_path = output_dir / ".pcbsmith" / "simulation" / "divider_highpass_led.cir"
-    output_path = output_dir / ".pcbsmith" / "simulation" / "ngspice-output.txt"
-    netlist_path.parent.mkdir(parents=True, exist_ok=True)
-    netlist_path.write_text(render_ngspice_netlist(circuit), encoding="utf-8")
-    if executable is None:
+    result = run_ngspice_batch(
+        render_ngspice_netlist(circuit),
+        output_dir,
+        netlist_filename="divider_highpass_led.cir",
+        finder=finder,
+        runner=runner,
+    )
+    if result.status == "unavailable":
         return SimulationReport(
             backend="ngspice",
             status="unavailable",
-            findings=(
-                "ngspice executable was not found; set PCBSMITH_NGSPICE or install "
-                "standalone ngspice before claiming simulation evidence.",
-            ),
-            raw_output_path=str(output_path),
+            findings=result.findings,
+            raw_output_path=str(result.raw_output_path),
         )
-    command = (str(executable), "-b", str(netlist_path))
-    completed = runner(
-        list(command),
-        text=True,
-        capture_output=True,
-        check=False,
-    )
-    output = completed.stdout + completed.stderr
-    output_path.write_text(output, encoding="utf-8")
-    if completed.returncode != 0:
+    if result.status == "failed":
         return SimulationReport(
             backend="ngspice",
             status="failed",
-            command=command,
-            findings=(f"ngspice exited with code {completed.returncode}.",),
-            raw_output_path=str(output_path),
+            command=result.command,
+            findings=result.findings,
+            raw_output_path=str(result.raw_output_path),
         )
-    measurements = extract_ngspice_measurements(output)
+    measurements = extract_ngspice_measurements(result.raw_output)
     status, findings = _evaluate_measurements(measurements)
     return SimulationReport(
         backend="ngspice",
         status=status,
-        command=command,
+        command=result.command,
         measurements=measurements,
         findings=findings,
-        raw_output_path=str(output_path),
+        raw_output_path=str(result.raw_output_path),
     )
+
+
+def _parse_operating_point_voltages(output: str) -> dict[str, float]:
+    voltages: dict[str, float] = {}
+    in_node_table = False
+    for line in output.splitlines():
+        if re.search(r"\bNode\b", line, re.IGNORECASE) and re.search(
+            r"\bVoltage\b",
+            line,
+            re.IGNORECASE,
+        ):
+            in_node_table = True
+            continue
+        if not in_node_table:
+            continue
+        stripped = line.strip()
+        if not stripped or stripped.lower().startswith("source"):
+            break
+        if set(stripped) <= {"-", "\t"}:
+            continue
+        match = _NODE_ROW_RE.match(line)
+        if match:
+            voltages[match.group("node").lower()] = float(match.group("value"))
+    return voltages
+
+
+def _parse_ac_points(output: str) -> tuple[NgspiceAcPoint, ...]:
+    points: list[NgspiceAcPoint] = []
+    active_columns: tuple[str, ...] = ()
+    for line in output.splitlines():
+        header = _AC_HEADER_RE.match(line.lstrip("\f"))
+        if header:
+            active_columns = tuple(column.lower() for column in header.group("columns").split())
+            continue
+        if not active_columns or not _AC_ROW_START_RE.match(line):
+            continue
+        point = _parse_ac_row(line, active_columns)
+        if point is not None:
+            points.append(point)
+    return tuple(points)
+
+
+def _parse_ac_row(line: str, columns: Sequence[str]) -> NgspiceAcPoint | None:
+    tokens = line.strip().split()
+    if len(tokens) < 3:
+        return None
+    try:
+        frequency = float(tokens[1])
+    except ValueError:
+        return None
+
+    values: dict[str, float | complex] = {}
+    index = 2
+    for column in columns:
+        if index >= len(tokens):
+            return None
+        token = tokens[index]
+        if token.endswith(","):
+            if index + 1 >= len(tokens):
+                return None
+            values[column] = complex(float(token.rstrip(",")), float(tokens[index + 1]))
+            index += 2
+        else:
+            values[column] = float(token)
+            index += 1
+    return NgspiceAcPoint(frequency_hz=frequency, values=values)
+
+
+def _measurement_key(name: str) -> str:
+    key = re.sub(r"[^a-zA-Z0-9]+", "_", name.strip().lower()).strip("_")
+    return key or "unnamed"

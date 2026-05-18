@@ -25,10 +25,11 @@ def write_circuit_review_bundle(
 
     status = "needs_human_review" if items else "passed"
     bundle = CircuitReviewBundle(
-        schema="pcbsmith-circuit-review-bundle-v1",
+        schema_id="pcbsmith-circuit-review-bundle-v1",
         intent_id=circuit.intent.intent_id,
         status=status,
         items=tuple(dict.fromkeys(items)),
+        simulation=simulation_report,
         artifacts=artifacts,
     )
     path = output_dir / "review-bundle.json"

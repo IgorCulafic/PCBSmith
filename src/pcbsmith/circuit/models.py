@@ -85,4 +85,5 @@ class CircuitReviewBundle(BaseModel):
     intent_id: str
     status: Literal["passed", "warning", "failed", "unavailable", "needs_human_review"]
     items: tuple[str, ...]
+    simulation: SimulationReport
     artifacts: dict[str, str]
