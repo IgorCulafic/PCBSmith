@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from pcbsmith.calculators.passive import (
     led_current_limit,
     rc_highpass_cutoff_hz,
@@ -13,6 +15,13 @@ from pcbsmith.circuit.models import (
     MathReport,
     TopologySelection,
 )
+from pcbsmith.core.board import Board
+from pcbsmith.core.geom import Point
+from pcbsmith.core.project import Project
+from pcbsmith.core.schematic import NetLabel, Schematic, SymbolInstance, Wire
+from pcbsmith.services.project_io import save_board, save_project, save_schematic
+
+NM = 1_000_000
 
 
 def compose_divider_highpass_led(
@@ -101,5 +110,101 @@ def compose_divider_highpass_led(
                 "LED after AC coupling is signal-dependent; deterministic LED current is only a nominal rail-reference check.",
                 "Generic LED/passive bindings are demo-only until backed by real KiCad library and datasheet evidence.",
             ),
+        ),
+    )
+
+
+def write_divider_highpass_led_project(
+    circuit: CircuitObject,
+    project_dir: Path,
+    *,
+    project_name: str,
+) -> None:
+    if circuit.topology.topology_id != "divider_highpass_led_indicator":
+        raise ValueError("Unsupported circuit for project generation")
+    project = Project(name=project_name)
+    save_project(project_dir, project)
+    save_schematic(project_dir, project.schematics[0], _schematic_for_divider_highpass_led())
+    save_board(project_dir, project.boards[0], Board(id="main"))
+
+
+def _schematic_for_divider_highpass_led() -> Schematic:
+    return Schematic(
+        id="main",
+        symbols=(
+            SymbolInstance(
+                reference="P1",
+                symbol_id="stdlib:CONN_01X02",
+                value="5V input",
+                position=Point(x=0, y=0),
+            ),
+            SymbolInstance(
+                reference="R1",
+                symbol_id="stdlib:R",
+                value="10k",
+                position=Point(x=15 * NM, y=0),
+            ),
+            SymbolInstance(
+                reference="R2",
+                symbol_id="stdlib:R",
+                value="10k",
+                position=Point(x=15 * NM, y=10 * NM),
+                rotation_deg=90,
+            ),
+            SymbolInstance(
+                reference="C1",
+                symbol_id="stdlib:C",
+                value="100nF",
+                position=Point(x=30 * NM, y=0),
+            ),
+            SymbolInstance(
+                reference="RLOAD",
+                symbol_id="stdlib:R",
+                value="10k",
+                position=Point(x=45 * NM, y=10 * NM),
+                rotation_deg=90,
+            ),
+            SymbolInstance(
+                reference="R3",
+                symbol_id="stdlib:R",
+                value="680R",
+                position=Point(x=60 * NM, y=0),
+            ),
+            SymbolInstance(
+                reference="D1",
+                symbol_id="stdlib:LED",
+                value="Generic red LED",
+                position=Point(x=75 * NM, y=0),
+                rotation_deg=180,
+            ),
+            SymbolInstance(
+                reference="GND1",
+                symbol_id="stdlib:GND",
+                value="GND",
+                position=Point(x=0, y=20 * NM),
+            ),
+        ),
+        wires=(
+            Wire(points=(Point(x=0, y=0), Point(x=9_920_000, y=0))),
+            Wire(points=(Point(x=20_080_000, y=0), Point(x=24_920_000, y=0))),
+            Wire(points=(Point(x=15_000_000, y=4_920_000), Point(x=15_000_000, y=5_920_000))),
+            Wire(points=(Point(x=15_000_000, y=15_080_000), Point(x=15_000_000, y=16_080_000))),
+            Wire(points=(Point(x=35_080_000, y=0), Point(x=54_920_000, y=0))),
+            Wire(points=(Point(x=45_000_000, y=4_920_000), Point(x=45_000_000, y=5_920_000))),
+            Wire(points=(Point(x=45_000_000, y=15_080_000), Point(x=45_000_000, y=16_080_000))),
+            Wire(points=(Point(x=65_080_000, y=0), Point(x=69_920_000, y=0))),
+            Wire(points=(Point(x=80_080_000, y=0), Point(x=80_080_000, y=1_000_000))),
+            Wire(points=(Point(x=0, y=2_540_000), Point(x=0, y=20_000_000))),
+        ),
+        labels=(
+            NetLabel(name="VIN", position=Point(x=5 * NM, y=0)),
+            NetLabel(name="DIV_OUT", position=Point(x=22 * NM, y=0)),
+            NetLabel(name="DIV_OUT", position=Point(x=15 * NM, y=5_920_000)),
+            NetLabel(name="HP_OUT", position=Point(x=50 * NM, y=0)),
+            NetLabel(name="HP_OUT", position=Point(x=45 * NM, y=5_920_000)),
+            NetLabel(name="GND", position=Point(x=15 * NM, y=16_080_000)),
+            NetLabel(name="GND", position=Point(x=45 * NM, y=16_080_000)),
+            NetLabel(name="GND", position=Point(x=80_080_000, y=1_000_000)),
+            NetLabel(name="GND", position=Point(x=0, y=20 * NM)),
         ),
     )
