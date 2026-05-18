@@ -105,6 +105,11 @@ This log captures design decisions, mistakes, corrections, and lessons that shou
 - The default generated style should prefer 45-degree/mitered routing where practical.
 - If 45-degree styling creates a DRC issue, DRC wins and the route must be adjusted.
 - Power/load traces should be wider than signal traces. The board intelligence layer should classify net roles and choose widths consistently.
+- Generated boards must pass the global KiCad board-policy report before being
+  presented as clean. The report catches via-in-SMD-pad errors, inconsistent
+  trace widths on the same net, and route-angle style violations.
+- Fix routing policy failures in shared generators/helpers. Do not patch them in
+  isolated board demo files, because that hides regressions from future AI runs.
 
 ## Visual Review Lessons
 

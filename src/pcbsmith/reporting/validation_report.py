@@ -11,6 +11,10 @@ from pcbsmith.rules.board_manufacturability import (
     ManufacturabilitySeverity,
 )
 from pcbsmith.rules.circuit_rules import CircuitRuleReport, CircuitRuleSeverity
+from pcbsmith.rules.kicad_board_policy import (
+    KiCadBoardPolicyReport,
+    KiCadBoardPolicySeverity,
+)
 
 VALIDATION_REPORT_SCHEMA = "pcbsmith-validation-report-v1"
 VALIDATION_REPORT_TOOL_SCHEMA = "pcbsmith-validation-report-tool-v1"
@@ -25,6 +29,7 @@ def build_validation_report(
     validation_report: KiCadValidationReport | None = None,
     preview_report: KiCadPreviewReport | None = None,
     manufacturability_report: BoardManufacturabilityReport | None = None,
+    kicad_board_policy_report: KiCadBoardPolicyReport | None = None,
     circuit_rule_reports: tuple[CircuitRuleReport, ...] = (),
     human_review_items: list[str] | None = None,
 ) -> dict[str, Any]:
@@ -36,6 +41,7 @@ def build_validation_report(
         *_kicad_findings(validation_report),
         *_preview_findings(preview_report),
         *_manufacturability_findings(manufacturability_report),
+        *_kicad_board_policy_findings(kicad_board_policy_report),
         *_circuit_rule_findings(circuit_rule_reports),
         *_human_review_findings(human_review_items),
     ]
@@ -57,6 +63,9 @@ def build_validation_report(
             "kicad": _kicad_checks(validation_report),
             "preview": _preview_artifacts(preview_report),
             "manufacturability": _manufacturability_summary(manufacturability_report),
+            "kicad_board_policy": _kicad_board_policy_summary(
+                kicad_board_policy_report
+            ),
             "circuit_rules": _circuit_rule_summaries(circuit_rule_reports),
         },
         "findings": findings,
@@ -277,6 +286,23 @@ def _manufacturability_findings(
     ]
 
 
+def _kicad_board_policy_findings(
+    report: KiCadBoardPolicyReport | None,
+) -> list[dict[str, str]]:
+    if report is None:
+        return []
+    return [
+        _finding(
+            "error" if finding.severity is KiCadBoardPolicySeverity.ERROR else "warning",
+            "kicad_board_policy",
+            finding.code,
+            finding.message,
+            finding.location,
+        )
+        for finding in report.findings
+    ]
+
+
 def _circuit_rule_findings(
     reports: tuple[CircuitRuleReport, ...],
 ) -> list[dict[str, str]]:
@@ -340,6 +366,23 @@ def _manufacturability_summary(
         return {"status": "not_run", "finding_count": 0, "error_count": 0, "warning_count": 0}
     error_count = sum(
         1 for finding in report.findings if finding.severity is ManufacturabilitySeverity.ERROR
+    )
+    warning_count = len(report.findings) - error_count
+    return {
+        "status": "passed" if not report.findings else "issues_found",
+        "finding_count": len(report.findings),
+        "error_count": error_count,
+        "warning_count": warning_count,
+    }
+
+
+def _kicad_board_policy_summary(
+    report: KiCadBoardPolicyReport | None,
+) -> dict[str, int | str]:
+    if report is None:
+        return {"status": "not_run", "finding_count": 0, "error_count": 0, "warning_count": 0}
+    error_count = sum(
+        1 for finding in report.findings if finding.severity is KiCadBoardPolicySeverity.ERROR
     )
     warning_count = len(report.findings) - error_count
     return {

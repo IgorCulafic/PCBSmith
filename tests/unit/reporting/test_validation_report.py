@@ -23,6 +23,11 @@ from pcbsmith.rules.circuit_rules import (
     CircuitRuleReport,
     CircuitRuleSeverity,
 )
+from pcbsmith.rules.kicad_board_policy import (
+    KiCadBoardPolicyFinding,
+    KiCadBoardPolicyReport,
+    KiCadBoardPolicySeverity,
+)
 
 
 def test_validation_report_aggregates_evidence_and_blocks_on_errors(tmp_path: Path) -> None:
@@ -81,6 +86,16 @@ def test_validation_report_aggregates_evidence_and_blocks_on_errors(tmp_path: Pa
             ),
         )
     )
+    kicad_board_policy = KiCadBoardPolicyReport(
+        findings=(
+            KiCadBoardPolicyFinding(
+                severity=KiCadBoardPolicySeverity.ERROR,
+                code="via_in_smd_pad_keepout",
+                message="Via sits under an SMD pad",
+                location="via 1",
+            ),
+        )
+    )
     circuit_rules = (
         CircuitRuleReport(
             intent="power-entry",
@@ -107,6 +122,7 @@ def test_validation_report_aggregates_evidence_and_blocks_on_errors(tmp_path: Pa
         validation_report=validation,
         preview_report=preview,
         manufacturability_report=manufacturability,
+        kicad_board_policy_report=kicad_board_policy,
         circuit_rule_reports=circuit_rules,
         human_review_items=["Confirm coil estimate with measured prototype frequency."],
     )
@@ -114,7 +130,7 @@ def test_validation_report_aggregates_evidence_and_blocks_on_errors(tmp_path: Pa
     assert report["schema"] == VALIDATION_REPORT_SCHEMA
     assert report["status"] == "blocked"
     assert report["summary"] == {
-        "error_count": 1,
+        "error_count": 2,
         "warning_count": 2,
         "advisory_count": 1,
         "calculator_count": 1,
@@ -126,8 +142,9 @@ def test_validation_report_aggregates_evidence_and_blocks_on_errors(tmp_path: Pa
     assert report["checks"]["kicad"][1]["status"] == "failed"
     assert report["findings"][0]["source"] == "kicad_validation"
     assert report["findings"][1]["source"] == "board_manufacturability"
-    assert report["findings"][2]["source"] == "circuit_rules"
-    assert report["findings"][3]["source"] == "human_review"
+    assert report["findings"][2]["source"] == "kicad_board_policy"
+    assert report["findings"][3]["source"] == "circuit_rules"
+    assert report["findings"][4]["source"] == "human_review"
     assert report["next_actions"] == [
         "Fix blocking validation errors before fabrication or release.",
         "Review warnings and either revise the design or explicitly accept them.",

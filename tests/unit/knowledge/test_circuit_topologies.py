@@ -30,6 +30,14 @@ def test_unknown_intent_returns_empty_selection_with_supported_intents() -> None
     assert "metal-detector" in result["supported_intents"]
 
 
+def test_buck_converter_is_explicitly_unsupported_until_real_topology_exists() -> None:
+    result = select_topologies_for_intent("buck-converter")
+
+    assert result["intent"] == "buck-converter"
+    assert result["topologies"] == []
+    assert "buck-converter" in result["supported_intents"]
+
+
 def test_topology_tool_contract_is_ai_facing() -> None:
     contract = circuit_topology_tool_contract()
 
@@ -37,6 +45,7 @@ def test_topology_tool_contract_is_ai_facing() -> None:
         "schema": "pcbsmith-circuit-topology-tool-v1",
         "cli_command": "circuit-topologies <intent>",
         "supported_intents": [
+            "buck-converter",
             "led-indicator",
             "metal-detector",
             "oscillator",

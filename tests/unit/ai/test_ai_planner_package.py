@@ -92,11 +92,12 @@ def test_build_ai_planner_package_wraps_brief_with_output_contract() -> None:
     )
     assert package["circuit_topologies"] == {
         "schema": "pcbsmith-circuit-topology-tool-v1",
-        "cli_command": "circuit-topologies <intent>",
-        "supported_intents": [
-            "led-indicator",
-            "metal-detector",
-            "oscillator",
+            "cli_command": "circuit-topologies <intent>",
+            "supported_intents": [
+                "buck-converter",
+                "led-indicator",
+                "metal-detector",
+                "oscillator",
             "power-switching",
         ],
         "instructions": [

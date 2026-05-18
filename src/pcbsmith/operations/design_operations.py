@@ -60,6 +60,11 @@ from pcbsmith.operations.revision_brief import (
 )
 from pcbsmith.rules.board_conventions import board_annotation_rules_summary
 from pcbsmith.rules.board_intelligence import board_routing_rules_summary
+from pcbsmith.rules.kicad_board_policy import (
+    KiCadBoardPolicyReport,
+    inspect_kicad_board_policy,
+    write_kicad_board_policy_report,
+)
 from pcbsmith.rules.silkscreen_artwork import (
     SilkscreenArtworkRequest,
     SilkscreenPreflightFrame,
@@ -118,6 +123,7 @@ class DesignOperationResult(BaseModel):
     board_file: Path
     operation_summary_file: Path
     revision_brief_file: Path
+    kicad_board_policy_report_file: Path
     revision_brief: RevisionBrief
     validation_status: str
     preview_status: str
@@ -165,6 +171,11 @@ def generate_led_art_design(
 
     _write_readme(project_dir, project_name, request, topology)
     reports_dir = project_dir / ".pcbsmith" / "reports"
+    board_reports_dir = project_dir / ".pcbsmith" / "board-reports"
+    kicad_board_policy_report, kicad_board_policy_report_file = _write_board_policy(
+        board_file,
+        board_reports_dir,
+    )
     write_led_art_reports(plan, reports_dir)
     comparison = compare_led_art_topologies(build_led_art_plan(LedArtSpec(text=request.text)))
     write_led_art_topology_comparison_reports(comparison, reports_dir)
@@ -181,6 +192,7 @@ def generate_led_art_design(
     revision_brief = build_revision_brief(
         validation_report=validation,
         preview_report=preview,
+        kicad_board_policy_report=kicad_board_policy_report,
     )
     revision_brief_file = project_dir / "revision-brief.json"
     write_revision_brief(revision_brief, revision_brief_file)
@@ -198,6 +210,10 @@ def generate_led_art_design(
                 schematic_file=schematic_file,
                 board_file=board_file,
                 revision_brief_file=revision_brief_file,
+                kicad_board_policy_report_file=kicad_board_policy_report_file,
+                kicad_board_policy_status=_board_policy_status(
+                    kicad_board_policy_report
+                ),
                 validation_status=validation_status,
                 preview_status=preview_status,
                 revision_brief_status=revision_brief.status,
@@ -213,6 +229,8 @@ def generate_led_art_design(
         exit_code = validation.exit_code
     if preview is not None and preview.exit_code and exit_code == 0:
         exit_code = preview.exit_code
+    if kicad_board_policy_report.exit_code and exit_code == 0:
+        exit_code = kicad_board_policy_report.exit_code
 
     return DesignOperationResult(
         operation="led_art",
@@ -222,6 +240,7 @@ def generate_led_art_design(
         board_file=board_file,
         operation_summary_file=operation_summary_file,
         revision_brief_file=revision_brief_file,
+        kicad_board_policy_report_file=kicad_board_policy_report_file,
         revision_brief=revision_brief,
         validation_status=validation_status,
         preview_status=preview_status,
@@ -271,6 +290,10 @@ def generate_attiny_led_controller_design(
         ),
         encoding="utf-8",
     )
+    kicad_board_policy_report, kicad_board_policy_report_file = _write_board_policy(
+        board_file,
+        project_dir / ".pcbsmith" / "board-reports",
+    )
 
     _write_attiny_readme(project_dir, project_name, request)
     validation: KiCadValidationReport | None = None
@@ -285,6 +308,7 @@ def generate_attiny_led_controller_design(
     revision_brief = build_revision_brief(
         validation_report=validation,
         preview_report=preview,
+        kicad_board_policy_report=kicad_board_policy_report,
     )
     revision_brief_file = project_dir / "revision-brief.json"
     write_revision_brief(revision_brief, revision_brief_file)
@@ -301,6 +325,10 @@ def generate_attiny_led_controller_design(
                 schematic_file=schematic_file,
                 board_file=board_file,
                 revision_brief_file=revision_brief_file,
+                kicad_board_policy_report_file=kicad_board_policy_report_file,
+                kicad_board_policy_status=_board_policy_status(
+                    kicad_board_policy_report
+                ),
                 validation_status=validation_status,
                 preview_status=preview_status,
                 revision_brief_status=revision_brief.status,
@@ -316,6 +344,8 @@ def generate_attiny_led_controller_design(
         exit_code = validation.exit_code
     if preview is not None and preview.exit_code and exit_code == 0:
         exit_code = preview.exit_code
+    if kicad_board_policy_report.exit_code and exit_code == 0:
+        exit_code = kicad_board_policy_report.exit_code
 
     return DesignOperationResult(
         operation="attiny_led_controller",
@@ -325,6 +355,7 @@ def generate_attiny_led_controller_design(
         board_file=board_file,
         operation_summary_file=operation_summary_file,
         revision_brief_file=revision_brief_file,
+        kicad_board_policy_report_file=kicad_board_policy_report_file,
         revision_brief=revision_brief,
         validation_status=validation_status,
         preview_status=preview_status,
@@ -390,6 +421,10 @@ def generate_silkscreen_artwork_design(
         ),
         encoding="utf-8",
     )
+    kicad_board_policy_report, kicad_board_policy_report_file = _write_board_policy(
+        board_file,
+        project_dir / ".pcbsmith" / "board-reports",
+    )
 
     _write_silkscreen_readme(project_dir, project_name, request)
     reports_dir = project_dir / ".pcbsmith" / "reports"
@@ -408,6 +443,7 @@ def generate_silkscreen_artwork_design(
     revision_brief = build_revision_brief(
         validation_report=validation,
         preview_report=preview,
+        kicad_board_policy_report=kicad_board_policy_report,
     )
     revision_brief_file = project_dir / "revision-brief.json"
     write_revision_brief(revision_brief, revision_brief_file)
@@ -424,6 +460,10 @@ def generate_silkscreen_artwork_design(
                 schematic_file=schematic_file,
                 board_file=board_file,
                 revision_brief_file=revision_brief_file,
+                kicad_board_policy_report_file=kicad_board_policy_report_file,
+                kicad_board_policy_status=_board_policy_status(
+                    kicad_board_policy_report
+                ),
                 preflight_report_file=preflight_report_file,
                 validation_status=validation_status,
                 preview_status=preview_status,
@@ -441,6 +481,8 @@ def generate_silkscreen_artwork_design(
         exit_code = validation.exit_code
     if preview is not None and preview.exit_code and exit_code == 0:
         exit_code = preview.exit_code
+    if kicad_board_policy_report.exit_code and exit_code == 0:
+        exit_code = kicad_board_policy_report.exit_code
 
     return DesignOperationResult(
         operation="silkscreen_artwork",
@@ -450,6 +492,7 @@ def generate_silkscreen_artwork_design(
         board_file=board_file,
         operation_summary_file=operation_summary_file,
         revision_brief_file=revision_brief_file,
+        kicad_board_policy_report_file=kicad_board_policy_report_file,
         revision_brief=revision_brief,
         validation_status=validation_status,
         preview_status=preview_status,
@@ -464,6 +507,7 @@ def format_design_operation_result(result: DesignOperationResult) -> list[str]:
         f"KiCad board: {result.board_file}",
         f"Operation summary: {result.operation_summary_file}",
         f"Revision brief: {result.revision_brief_file}",
+        f"KiCad board policy: {result.kicad_board_policy_report_file}",
         f"Validation: {result.validation_status}",
         f"Preview: {result.preview_status}",
         f"Revision brief status: {result.revision_brief.status}",
@@ -593,6 +637,8 @@ def _operation_summary(
     schematic_file: Path,
     board_file: Path,
     revision_brief_file: Path,
+    kicad_board_policy_report_file: Path,
+    kicad_board_policy_status: str,
     validation_status: str,
     preview_status: str,
     revision_brief_status: str,
@@ -615,6 +661,10 @@ def _operation_summary(
             "schematic_file": _relative_output(project_dir, schematic_file),
             "board_file": _relative_output(project_dir, board_file),
             "revision_brief_file": _relative_output(project_dir, revision_brief_file),
+            "kicad_board_policy_report_file": _relative_output(
+                project_dir,
+                kicad_board_policy_report_file,
+            ),
             "reports_dir": ".pcbsmith/reports",
         },
         "routing_rules": board_routing_rules_summary(),
@@ -622,6 +672,7 @@ def _operation_summary(
         "checks": {
             "validation": validation_status,
             "preview": preview_status,
+            "kicad_board_policy": kicad_board_policy_status,
             "revision_brief": revision_brief_status,
         },
     }
@@ -636,6 +687,8 @@ def _attiny_operation_summary(
     schematic_file: Path,
     board_file: Path,
     revision_brief_file: Path,
+    kicad_board_policy_report_file: Path,
+    kicad_board_policy_status: str,
     validation_status: str,
     preview_status: str,
     revision_brief_status: str,
@@ -658,12 +711,17 @@ def _attiny_operation_summary(
             "schematic_file": _relative_output(project_dir, schematic_file),
             "board_file": _relative_output(project_dir, board_file),
             "revision_brief_file": _relative_output(project_dir, revision_brief_file),
+            "kicad_board_policy_report_file": _relative_output(
+                project_dir,
+                kicad_board_policy_report_file,
+            ),
         },
         "routing_rules": board_routing_rules_summary(),
         "annotation_rules": board_annotation_rules_summary(),
         "checks": {
             "validation": validation_status,
             "preview": preview_status,
+            "kicad_board_policy": kicad_board_policy_status,
             "revision_brief": revision_brief_status,
         },
     }
@@ -678,6 +736,8 @@ def _silkscreen_operation_summary(
     schematic_file: Path,
     board_file: Path,
     revision_brief_file: Path,
+    kicad_board_policy_report_file: Path,
+    kicad_board_policy_status: str,
     preflight_report_file: Path,
     validation_status: str,
     preview_status: str,
@@ -705,6 +765,10 @@ def _silkscreen_operation_summary(
             "schematic_file": _relative_output(project_dir, schematic_file),
             "board_file": _relative_output(project_dir, board_file),
             "revision_brief_file": _relative_output(project_dir, revision_brief_file),
+            "kicad_board_policy_report_file": _relative_output(
+                project_dir,
+                kicad_board_policy_report_file,
+            ),
             "preflight_report_file": _relative_output(project_dir, preflight_report_file),
         },
         "annotation_rules": board_annotation_rules_summary(),
@@ -712,6 +776,7 @@ def _silkscreen_operation_summary(
             "silkscreen_preflight": preflight_status,
             "validation": validation_status,
             "preview": preview_status,
+            "kicad_board_policy": kicad_board_policy_status,
             "revision_brief": revision_brief_status,
         },
     }
@@ -768,6 +833,24 @@ def _write_pcbs_symbol_library(project_dir: Path) -> None:
         render_pcbs_kicad_symbol_table(),
         encoding="utf-8",
     )
+
+
+def _write_board_policy(
+    board_file: Path,
+    output_dir: Path,
+) -> tuple[KiCadBoardPolicyReport, Path]:
+    report = inspect_kicad_board_policy(board_file.read_text(encoding="utf-8"))
+    output_path = output_dir / "kicad-board-policy.json"
+    write_kicad_board_policy_report(report, output_path)
+    return report, output_path
+
+
+def _board_policy_status(report: KiCadBoardPolicyReport) -> str:
+    if report.exit_code != 0:
+        return "failed"
+    if report.findings:
+        return "needs_review"
+    return "passed"
 
 
 def _relative_output(project_dir: Path, output_file: Path) -> str:

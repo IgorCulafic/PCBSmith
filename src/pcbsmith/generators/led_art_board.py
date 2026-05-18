@@ -18,6 +18,7 @@ BOARD_HEIGHT_MM = 120.0
 VCC_RAIL_Y_MM = 8.0
 TRACE_WIDTH_MM = 0.45
 ROW_POWER_OFFSET_MM = 3.0
+FANOUT_VIA_OFFSET_MM = 1.5
 
 LedArtControlMode = Literal["none", "low_side_mosfet"]
 
@@ -127,6 +128,7 @@ def _add_power_rails(
     first_bus_x = 18.0 if control_mode == "low_side_mosfet" else 11.0
     return_rail_x = 15.0 if control_mode == "low_side_mosfet" else 7.0
     return_net = net_refs[_return_net_name(control_mode)]
+    return_trace_width = _return_trace_width(control_mode)
     vcc_taps_by_row: dict[float, set[float]] = {}
     return_taps_by_row: dict[float, set[float]] = {}
     for string in strings:
@@ -172,7 +174,7 @@ def _add_power_rails(
             start_y,
             return_rail_x,
             end_y,
-            width_mm=TRACE_WIDTH_MM,
+            width_mm=return_trace_width,
             net=return_net,
         )
     if control_mode == "low_side_mosfet":
@@ -181,7 +183,7 @@ def _add_power_rails(
             104.5,
             30.0,
             104.5,
-            width_mm=0.65,
+            width_mm=return_trace_width,
             net=return_net,
         )
     for row_y in row_ys:
@@ -196,6 +198,7 @@ def _add_power_rails(
             y_mm=row_y + ROW_POWER_OFFSET_MM,
             x_points=(return_rail_x, *sorted(return_taps_by_row.get(row_y, ()))),
             net=return_net,
+            width_mm=return_trace_width,
         )
 
 
@@ -206,6 +209,7 @@ def _add_bus_segments(
     x_points: tuple[float, ...],
     net: NetRef,
     layer: str = "F.Cu",
+    width_mm: float = TRACE_WIDTH_MM,
 ) -> None:
     points = tuple(dict.fromkeys(x_points))
     for start_x, end_x in zip(points, points[1:], strict=False):
@@ -215,7 +219,7 @@ def _add_bus_segments(
             end_x,
             y_mm,
             layer=layer,
-            width_mm=TRACE_WIDTH_MM,
+            width_mm=width_mm,
             net=net,
         )
 
@@ -229,6 +233,7 @@ def _add_led_string(
     show_polarity_marks: bool,
     return_net_name: str,
 ) -> None:
+    return_trace_width = _return_trace_width_for_net(return_net_name)
     first_pixel = pixels[0]
     builder.add_segment(
         first_pixel.vcc_tap_x,
@@ -283,7 +288,7 @@ def _add_led_string(
                 pixel.y,
                 pixel.gnd_tap_x,
                 pixel.y + ROW_POWER_OFFSET_MM,
-                width_mm=TRACE_WIDTH_MM,
+                width_mm=return_trace_width,
                 net=net_refs[return_net_name],
             )
 
@@ -418,6 +423,16 @@ def _return_net_name(control_mode: LedArtControlMode) -> str:
     return "GND"
 
 
+def _return_trace_width(control_mode: LedArtControlMode) -> float:
+    return _return_trace_width_for_net(_return_net_name(control_mode))
+
+
+def _return_trace_width_for_net(net_name: str) -> float:
+    if net_name == "LOAD_NEG":
+        return 0.65
+    return TRACE_WIDTH_MM
+
+
 def _route_between_pads(
     builder: KiCadBoardBuilder,
     start: tuple[float, float],
@@ -428,8 +443,14 @@ def _route_between_pads(
     use_vias: bool = False,
 ) -> None:
     if use_vias:
-        builder.add_via(start[0], start[1], net=net)
-        builder.add_via(end[0], end[1], net=net)
+        start_via = _fanout_via_point(start, end)
+        end_via = _fanout_via_point(end, start)
+        _route_between_pads(builder, start, start_via, net, layer="F.Cu")
+        _route_between_pads(builder, end_via, end, net, layer="F.Cu")
+        builder.add_via(start_via[0], start_via[1], net=net)
+        builder.add_via(end_via[0], end_via[1], net=net)
+        start = start_via
+        end = end_via
     for segment in routed_trace_segments(
         (start, end),
         net_name=net.name,
@@ -444,6 +465,14 @@ def _route_between_pads(
             width_mm=segment.width_mm,
             net=net,
         )
+
+
+def _fanout_via_point(
+    pad: tuple[float, float],
+    target: tuple[float, float],
+) -> tuple[float, float]:
+    direction = -1 if target[1] < pad[1] else 1
+    return (pad[0], pad[1] + (direction * FANOUT_VIA_OFFSET_MM))
 
 
 def _add_silkscreen(

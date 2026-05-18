@@ -40,8 +40,12 @@ def test_generate_led_art_design_writes_review_bundle_without_kicad_execution(
     assert result.project_dir == output_dir
     assert result.board_file == output_dir / "AI_VIR_LAB.kicad_pcb"
     assert result.operation_summary_file == output_dir / ".pcbsmith" / "operation.json"
+    assert result.kicad_board_policy_report_file == (
+        output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
+    )
     assert result.revision_brief_file == output_dir / "revision-brief.json"
     assert result.board_file.exists()
+    assert result.kicad_board_policy_report_file.exists()
     assert result.revision_brief_file.exists()
     assert (output_dir / "AI_VIR_LAB.kicad_pro").exists()
     assert (output_dir / "PCBSmith.kicad_sym").exists()
@@ -67,6 +71,7 @@ def test_generate_led_art_design_writes_review_bundle_without_kicad_execution(
     assert summary["checks"]["validation"] == "skipped"
     assert summary["checks"]["preview"] == "skipped"
     assert summary["checks"]["revision_brief"] == "passed"
+    assert summary["checks"]["kicad_board_policy"] == "passed"
     assert summary["outputs"]["revision_brief_file"] == "revision-brief.json"
 
 

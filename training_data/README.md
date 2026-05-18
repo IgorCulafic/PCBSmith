@@ -29,6 +29,8 @@ Each run should capture:
 - parsed PCBSmith action if parsing succeeds
 - deterministic calculator outputs
 - KiCad ERC/DRC/export results
+- PCBSmith board-policy results, especially route-angle, trace-width, and
+  via-in-pad findings
 - visual QA findings when available
 - human approval, rejection, or correction notes
 
@@ -41,6 +43,8 @@ Wrong outputs are useful. Keep them when they are labeled clearly:
 - `failed_schema_validation`: JSON parsed but did not match the PCBSmith plan schema.
 - `failed_erc`: KiCad ERC rejected the design.
 - `failed_drc`: KiCad DRC rejected the board.
+- `failed_board_policy`: PCBSmith board-policy checks rejected the board, for
+  example a via inside an SMD pad keepout.
 - `unsafe_electrical_assumption`: component choice/math was unsafe or unjustified.
 - `bad_visual_layout`: visible overlap, unreadable labels, poor routing, or misleading silkscreen.
 - `engineering_review_failed`: deterministic checks passed, but human/electrical review found the design was not a correct or useful circuit.

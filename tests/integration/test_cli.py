@@ -573,12 +573,14 @@ def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) 
     assert result.returncode == 0
     assert result.stderr == ""
     validation_summary_file = output_project / ".pcbsmith" / "reports" / "validation-summary.json"
+    board_policy_file = output_project / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
     assert result.stdout.splitlines() == [
         f"Review bundle: {output_project}",
         f"Exported KiCad handoff: {output_project}",
         "Validation: skipped",
         "Preview: skipped",
         "Board manufacturability: passed",
+        "KiCad board policy: passed",
         f"Validation summary: {validation_summary_file}",
         f"AI context: {output_project / 'ai-context.json'}",
         f"Revision brief: {output_project / 'revision-brief.json'}",
@@ -589,6 +591,7 @@ def test_kicad_review_bundle_writes_context_with_skip_execution(tmp_path: Path) 
     assert (output_project / "Voltage_Divider.kicad_pro").exists()
     assert (output_project / "ai-context.json").exists()
     assert (output_project / ".pcbsmith" / "board-reports" / "manufacturability.json").exists()
+    assert board_policy_file.exists()
     assert validation_summary_file.exists()
     assert (output_project / ".pcbsmith" / "reports" / "validation-summary.md").exists()
     assert (output_project / "revision-brief.json").exists()
@@ -1264,6 +1267,7 @@ def test_ai_proposal_bundle_stages_plan_and_exports_kicad_review(
         "Validation: skipped",
         "Preview: skipped",
         "Board manufacturability: passed",
+        "KiCad board policy: passed",
         (
             "Validation summary: "
             f"{output_dir / 'kicad-review' / '.pcbsmith' / 'reports' / 'validation-summary.json'}"
@@ -1311,17 +1315,20 @@ def test_design_led_art_writes_structured_review_bundle(tmp_path: Path) -> None:
 
     assert result.returncode == 0
     assert result.stderr == ""
+    board_policy_file = output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
     assert result.stdout.splitlines() == [
         "Design operation: led_art",
         f"Review bundle: {output_dir}",
         f"KiCad board: {output_dir / 'AI_VIR_LAB.kicad_pcb'}",
         f"Operation summary: {output_dir / '.pcbsmith' / 'operation.json'}",
         f"Revision brief: {output_dir / 'revision-brief.json'}",
+        f"KiCad board policy: {board_policy_file}",
         "Validation: skipped",
         "Preview: skipped",
         "Revision brief status: passed",
     ]
     assert (output_dir / "AI_VIR_LAB.kicad_pcb").exists()
+    assert board_policy_file.exists()
     summary = json.loads((output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8"))
     assert summary["request"]["control_mode"] == "low_side_mosfet"
     assert summary["checks"]["revision_brief"] == "passed"
@@ -1343,17 +1350,20 @@ def test_design_attiny_led_controller_writes_structured_review_bundle(
 
     assert result.returncode == 0
     assert result.stderr == ""
+    board_policy_file = output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
     assert result.stdout.splitlines() == [
         "Design operation: attiny_led_controller",
         f"Review bundle: {output_dir}",
         f"KiCad board: {output_dir / 'R6_ATtiny_Controller.kicad_pcb'}",
         f"Operation summary: {output_dir / '.pcbsmith' / 'operation.json'}",
         f"Revision brief: {output_dir / 'revision-brief.json'}",
+        f"KiCad board policy: {board_policy_file}",
         "Validation: skipped",
         "Preview: skipped",
         "Revision brief status: passed",
     ]
     assert (output_dir / "R6_ATtiny_Controller.kicad_pcb").exists()
+    assert board_policy_file.exists()
     assert (output_dir / "revision-brief.json").exists()
 
 
@@ -1378,17 +1388,20 @@ def test_design_silkscreen_artwork_writes_structured_review_bundle(
 
     assert result.returncode == 0
     assert result.stderr == ""
+    board_policy_file = output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
     assert result.stdout.splitlines() == [
         "Design operation: silkscreen_artwork",
         f"Review bundle: {output_dir}",
         f"KiCad board: {output_dir / 'R7A_Logo_Placement.kicad_pcb'}",
         f"Operation summary: {output_dir / '.pcbsmith' / 'operation.json'}",
         f"Revision brief: {output_dir / 'revision-brief.json'}",
+        f"KiCad board policy: {board_policy_file}",
         "Validation: skipped",
         "Preview: skipped",
         "Revision brief status: passed",
     ]
     assert (output_dir / "R7A_Logo_Placement.kicad_pcb").exists()
+    assert board_policy_file.exists()
     assert (output_dir / ".pcbsmith" / "reports" / "silkscreen-preflight.json").exists()
     summary = json.loads((output_dir / ".pcbsmith" / "operation.json").read_text(encoding="utf-8"))
     assert summary["operation"] == "silkscreen_artwork"
