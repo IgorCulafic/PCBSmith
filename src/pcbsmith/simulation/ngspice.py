@@ -1,12 +1,33 @@
 from __future__ import annotations
 
+import math
 import os
+import re
 import shutil
 import subprocess
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from pathlib import Path
 
 from pcbsmith.circuit.models import CircuitObject, SimulationReport
+
+_NUMBER = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
+_NODE_VOLTAGE_RE = re.compile(
+    rf"^\s*(?P<node>vin|div_out|hp_out|led_a)\s+(?P<value>{_NUMBER})\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+_AC_HP_OUT_RE = re.compile(
+    rf"^\s*\d+\s+(?P<frequency>{_NUMBER})\s+"
+    rf"(?P<real>{_NUMBER}),\s*(?P<imag>{_NUMBER})\s*$",
+    re.IGNORECASE | re.MULTILINE,
+)
+_REQUIRED_MEASUREMENTS = (
+    "op_div_out_v",
+    "op_hp_out_v",
+    "op_vin_v",
+    "ac_hp_out_10_hz_mag_v",
+    "ac_hp_out_1khz_mag_v",
+    "ac_hp_out_100khz_mag_v",
+)
 
 
 def find_ngspice() -> Path | None:
@@ -41,11 +62,87 @@ D1 LED_A 0 DRED
 """
 
 
+def extract_ngspice_measurements(output: str) -> dict[str, float]:
+    measurements: dict[str, float] = {}
+    for match in _NODE_VOLTAGE_RE.finditer(output):
+        node = match.group("node").lower()
+        measurements[f"op_{node}_v"] = float(match.group("value"))
+
+    rows = [
+        (
+            float(match.group("frequency")),
+            float(match.group("real")),
+            float(match.group("imag")),
+        )
+        for match in _AC_HP_OUT_RE.finditer(output)
+    ]
+    for label, target_frequency in (
+        ("10_hz", 10.0),
+        ("100_hz", 100.0),
+        ("1khz", 1_000.0),
+        ("100khz", 100_000.0),
+    ):
+        selected = _closest_ac_row(rows, target_frequency)
+        if selected is None:
+            continue
+        _frequency, real, imag = selected
+        measurements[f"ac_hp_out_{label}_real_v"] = real
+        measurements[f"ac_hp_out_{label}_imag_v"] = imag
+        measurements[f"ac_hp_out_{label}_mag_v"] = math.hypot(real, imag)
+    return measurements
+
+
+def _closest_ac_row(
+    rows: Sequence[tuple[float, float, float]],
+    target_frequency: float,
+) -> tuple[float, float, float] | None:
+    if not rows:
+        return None
+    selected = min(rows, key=lambda row: abs(row[0] - target_frequency) / target_frequency)
+    if abs(selected[0] - target_frequency) / target_frequency > 0.01:
+        return None
+    return selected
+
+
+def _evaluate_measurements(measurements: dict[str, float]) -> tuple[str, tuple[str, ...]]:
+    missing = tuple(key for key in _REQUIRED_MEASUREMENTS if key not in measurements)
+    if missing:
+        return (
+            "failed",
+            (
+                "ngspice completed, but PCBSmith could not extract required "
+                f"measurements: {', '.join(missing)}.",
+            ),
+        )
+
+    findings: list[str] = []
+    if not math.isclose(measurements["op_vin_v"], 5.0, rel_tol=0.0, abs_tol=0.01):
+        findings.append("ngspice DC operating point did not preserve the expected 5 V input.")
+    if not math.isclose(measurements["op_div_out_v"], 2.5, rel_tol=0.0, abs_tol=0.05):
+        findings.append(
+            "ngspice DC operating point did not show the expected 2.5 V divider output."
+        )
+    if abs(measurements["op_hp_out_v"]) > 0.001:
+        findings.append(
+            "ngspice DC operating point did not block DC through the high-pass capacitor."
+        )
+    if measurements["ac_hp_out_1khz_mag_v"] <= measurements["ac_hp_out_10_hz_mag_v"]:
+        findings.append(
+            "ngspice AC response did not rise from 10 Hz to 1 kHz as a high-pass should."
+        )
+    if not (0.30 <= measurements["ac_hp_out_100khz_mag_v"] <= 0.36):
+        findings.append(
+            "ngspice AC high-frequency gain was outside the expected divider/load range."
+        )
+    return ("failed", tuple(findings)) if findings else ("passed", ())
+
+
 def run_ngspice_simulation(
     circuit: CircuitObject,
     output_dir: Path,
     *,
     finder: Callable[[], Path | None] = find_ngspice,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> SimulationReport:
     executable = finder()
     netlist_path = output_dir / ".pcbsmith" / "simulation" / "divider_highpass_led.cir"
@@ -62,15 +159,15 @@ def run_ngspice_simulation(
             ),
             raw_output_path=str(output_path),
         )
-    command = (str(executable), "-b", "-o", str(output_path), str(netlist_path))
-    completed = subprocess.run(
+    command = (str(executable), "-b", str(netlist_path))
+    completed = runner(
         list(command),
         text=True,
         capture_output=True,
         check=False,
     )
-    if completed.stdout or completed.stderr:
-        output_path.write_text(completed.stdout + completed.stderr, encoding="utf-8")
+    output = completed.stdout + completed.stderr
+    output_path.write_text(output, encoding="utf-8")
     if completed.returncode != 0:
         return SimulationReport(
             backend="ngspice",
@@ -79,13 +176,13 @@ def run_ngspice_simulation(
             findings=(f"ngspice exited with code {completed.returncode}.",),
             raw_output_path=str(output_path),
         )
+    measurements = extract_ngspice_measurements(output)
+    status, findings = _evaluate_measurements(measurements)
     return SimulationReport(
         backend="ngspice",
-        status="warning",
+        status=status,
         command=command,
-        findings=(
-            "ngspice ran, but this slice only records execution status; measured "
-            "pass/fail thresholds are not yet implemented.",
-        ),
+        measurements=measurements,
+        findings=findings,
         raw_output_path=str(output_path),
     )
