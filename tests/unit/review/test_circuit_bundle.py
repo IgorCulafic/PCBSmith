@@ -27,10 +27,12 @@ def test_review_bundle_records_math_simulation_and_human_review_items(tmp_path: 
     assert data["schema"] == "pcbsmith-circuit-review-bundle-v1"
     assert data["status"] == "needs_human_review"
     assert (
-        "ngspice executable was not found; set PCBSMITH_NGSPICE or install standalone ngspice before claiming simulation evidence."
+        "ngspice executable was not found; set PCBSMITH_NGSPICE or install "
+        "standalone ngspice before claiming simulation evidence."
         in data["items"]
     )
     assert (
-        "Generic LED/passive bindings are demo-only until backed by real KiCad library and datasheet evidence."
+        "Generic LED/passive bindings are demo-only until backed by real KiCad "
+        "library and datasheet evidence."
         in data["items"]
     )

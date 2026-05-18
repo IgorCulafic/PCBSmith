@@ -57,7 +57,8 @@ def run_ngspice_simulation(
             backend="ngspice",
             status="unavailable",
             findings=(
-                "ngspice executable was not found; set PCBSMITH_NGSPICE or install standalone ngspice before claiming simulation evidence.",
+                "ngspice executable was not found; set PCBSMITH_NGSPICE or install "
+                "standalone ngspice before claiming simulation evidence.",
             ),
             raw_output_path=str(output_path),
         )
@@ -83,7 +84,8 @@ def run_ngspice_simulation(
         status="warning",
         command=command,
         findings=(
-            "ngspice ran, but this slice only records execution status; measured pass/fail thresholds are not yet implemented.",
+            "ngspice ran, but this slice only records execution status; measured "
+            "pass/fail thresholds are not yet implemented.",
         ),
         raw_output_path=str(output_path),
     )

@@ -32,7 +32,8 @@ def test_reports_unavailable_when_ngspice_missing(tmp_path: Path) -> None:
 
     assert report.status == "unavailable"
     assert report.findings == (
-        "ngspice executable was not found; set PCBSMITH_NGSPICE or install standalone ngspice before claiming simulation evidence.",
+        "ngspice executable was not found; set PCBSMITH_NGSPICE or install "
+        "standalone ngspice before claiming simulation evidence.",
     )
 
 

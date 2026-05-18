@@ -107,8 +107,10 @@ def compose_divider_highpass_led(
             status="warning",
             calculations=calculations,
             findings=(
-                "LED after AC coupling is signal-dependent; deterministic LED current is only a nominal rail-reference check.",
-                "Generic LED/passive bindings are demo-only until backed by real KiCad library and datasheet evidence.",
+                "LED after AC coupling is signal-dependent; deterministic LED current "
+                "is only a nominal rail-reference check.",
+                "Generic LED/passive bindings are demo-only until backed by real KiCad "
+                "library and datasheet evidence.",
             ),
         ),
     )
