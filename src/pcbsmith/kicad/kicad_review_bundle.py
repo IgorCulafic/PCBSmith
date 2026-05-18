@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
@@ -25,6 +26,11 @@ from pcbsmith.rules.board_manufacturability import (
     inspect_board_manufacturability,
     write_board_manufacturability_report,
 )
+from pcbsmith.rules.kicad_board_policy import (
+    KiCadBoardPolicyReport,
+    inspect_kicad_board_policy,
+    write_kicad_board_policy_report,
+)
 
 
 class KiCadReviewBundleResult(BaseModel):
@@ -37,10 +43,12 @@ class KiCadReviewBundleResult(BaseModel):
     validation_report_file: Path
     validation_report_markdown_file: Path
     manufacturability_report_file: Path
+    kicad_board_policy_report_file: Path
     export_result: object
     validation_report: KiCadValidationReport
     preview_report: KiCadPreviewReport
     manufacturability_report: BoardManufacturabilityReport
+    kicad_board_policy_report: KiCadBoardPolicyReport
     revision_brief: RevisionBrief
     validation_summary: dict[str, object]
     exit_code: int
@@ -74,6 +82,13 @@ def run_kicad_review_bundle(
         source_project_dir,
         manufacturability_report_file,
     )
+    kicad_board_policy_report_file = (
+        output_project_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
+    )
+    kicad_board_policy_report = _write_kicad_board_policy_report(
+        _exported_board_file(export_result),
+        kicad_board_policy_report_file,
+    )
     context_file = output_project_dir / "ai-context.json"
     context_writer(
         source_project_dir,
@@ -84,6 +99,7 @@ def run_kicad_review_bundle(
         validation_report=validation_report,
         preview_report=preview_report,
         manufacturability_report=manufacturability_report,
+        kicad_board_policy_report=kicad_board_policy_report,
     )
     revision_brief_file = output_project_dir / "revision-brief.json"
     write_revision_brief(revision_brief, revision_brief_file)
@@ -92,6 +108,7 @@ def run_kicad_review_bundle(
         validation_report=validation_report,
         preview_report=preview_report,
         manufacturability_report=manufacturability_report,
+        kicad_board_policy_report=kicad_board_policy_report,
     )
     validation_report_paths = write_validation_report_files(
         validation_summary,
@@ -106,16 +123,19 @@ def run_kicad_review_bundle(
         validation_report_file=validation_report_paths["json"],
         validation_report_markdown_file=validation_report_paths["markdown"],
         manufacturability_report_file=manufacturability_report_file,
+        kicad_board_policy_report_file=kicad_board_policy_report_file,
         export_result=export_result,
         validation_report=validation_report,
         preview_report=preview_report,
         manufacturability_report=manufacturability_report,
+        kicad_board_policy_report=kicad_board_policy_report,
         revision_brief=revision_brief,
         validation_summary=validation_summary,
         exit_code=max(
             validation_report.exit_code,
             preview_report.exit_code,
             manufacturability_report.exit_code,
+            kicad_board_policy_report.exit_code,
         ),
     )
 
@@ -127,6 +147,7 @@ def format_kicad_review_bundle_result(result: KiCadReviewBundleResult) -> list[s
         f"Validation: {_validation_status(result.validation_report)}",
         f"Preview: {_preview_status(result.preview_report)}",
         f"Board manufacturability: {_manufacturability_status(result.manufacturability_report)}",
+        f"KiCad board policy: {_kicad_board_policy_status(result.kicad_board_policy_report)}",
         f"Validation summary: {result.validation_report_file}",
         f"AI context: {result.context_file}",
         f"Revision brief: {result.revision_brief_file}",
@@ -145,6 +166,19 @@ def _write_project_board_manufacturability_report(
     report = inspect_board_manufacturability(board, design_rules=project.design_rules)
     write_board_manufacturability_report(report, output_path)
     return report
+
+
+def _write_kicad_board_policy_report(
+    board_file: Path,
+    output_path: Path,
+) -> KiCadBoardPolicyReport:
+    report = inspect_kicad_board_policy(board_file.read_text(encoding="utf-8"))
+    write_kicad_board_policy_report(report, output_path)
+    return report
+
+
+def _exported_board_file(export_result: Any) -> Path:
+    return Path(export_result.skeleton.board_file)
 
 
 def _validation_status(report: KiCadValidationReport) -> str:
@@ -171,6 +205,14 @@ def _manufacturability_status(report: BoardManufacturabilityReport) -> str:
             return "warnings found"
         return "passed"
     return "issues found"
+
+
+def _kicad_board_policy_status(report: KiCadBoardPolicyReport) -> str:
+    if report.exit_code != 0:
+        return "issues found"
+    if report.findings:
+        return "warnings found"
+    return "passed"
 
 
 __all__ = [

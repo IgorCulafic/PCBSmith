@@ -15,6 +15,10 @@ from pcbsmith.rules.board_manufacturability import (
     ManufacturabilitySeverity,
 )
 from pcbsmith.rules.circuit_rules import CircuitRuleReport, CircuitRuleSeverity
+from pcbsmith.rules.kicad_board_policy import (
+    KiCadBoardPolicyReport,
+    KiCadBoardPolicySeverity,
+)
 
 REVISION_BRIEF_SCHEMA = "pcbsmith-revision-brief-v1"
 
@@ -106,6 +110,7 @@ def build_revision_brief(
     validation_report: KiCadValidationReport | None = None,
     preview_report: KiCadPreviewReport | None = None,
     manufacturability_report: BoardManufacturabilityReport | None = None,
+    kicad_board_policy_report: KiCadBoardPolicyReport | None = None,
     circuit_rule_reports: tuple[CircuitRuleReport, ...] = (),
     visual_review_status: str = "not_run",
     visual_review_message: str = "No multimodal visual review has been attached.",
@@ -120,6 +125,8 @@ def build_revision_brief(
         items.extend(_preview_items(preview_report))
     if manufacturability_report is not None:
         items.extend(_manufacturability_items(manufacturability_report))
+    if kicad_board_policy_report is not None:
+        items.extend(_kicad_board_policy_items(kicad_board_policy_report))
     for report in circuit_rule_reports:
         items.extend(_circuit_rule_items(report))
     items.extend(_visual_review_items(visual_review_items))
@@ -256,6 +263,29 @@ def _manufacturability_items(
         )
         for finding in report.findings
     )
+
+
+def _kicad_board_policy_items(
+    report: KiCadBoardPolicyReport,
+) -> tuple[RevisionBriefItem, ...]:
+    return tuple(
+        RevisionBriefItem(
+            severity=_kicad_board_policy_severity(finding.severity),
+            source="kicad_board_policy",
+            code=finding.code,
+            message=finding.message,
+            location=finding.location,
+        )
+        for finding in report.findings
+    )
+
+
+def _kicad_board_policy_severity(
+    severity: KiCadBoardPolicySeverity,
+) -> RevisionSeverity:
+    if severity is KiCadBoardPolicySeverity.ERROR:
+        return RevisionSeverity.ERROR
+    return RevisionSeverity.WARNING
 
 
 def _manufacturability_severity(

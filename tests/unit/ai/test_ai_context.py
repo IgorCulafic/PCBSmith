@@ -37,11 +37,12 @@ def test_build_ai_context_summarizes_project_and_schematic(tmp_path: Path) -> No
     }
     assert context["ai_tools"]["circuit_topologies"] == {
         "schema": "pcbsmith-circuit-topology-tool-v1",
-        "cli_command": "circuit-topologies <intent>",
-        "supported_intents": [
-            "led-indicator",
-            "metal-detector",
-            "oscillator",
+            "cli_command": "circuit-topologies <intent>",
+            "supported_intents": [
+                "buck-converter",
+                "led-indicator",
+                "metal-detector",
+                "oscillator",
             "power-switching",
         ],
         "instructions": [

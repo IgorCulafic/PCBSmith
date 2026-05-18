@@ -17,6 +17,11 @@ from pcbsmith.rules.board_manufacturability import (
     ManufacturabilitySeverity,
 )
 from pcbsmith.rules.circuit_rules import check_circuit_rules
+from pcbsmith.rules.kicad_board_policy import (
+    KiCadBoardPolicyFinding,
+    KiCadBoardPolicyReport,
+    KiCadBoardPolicySeverity,
+)
 
 
 def _validation_report(tmp_path: Path) -> KiCadValidationReport:
@@ -67,11 +72,22 @@ def test_build_revision_brief_merges_review_findings(tmp_path: Path) -> None:
             ),
         )
     )
+    kicad_board_policy_report = KiCadBoardPolicyReport(
+        findings=(
+            KiCadBoardPolicyFinding(
+                severity=KiCadBoardPolicySeverity.ERROR,
+                code="via_in_smd_pad_keepout",
+                message="Via is inside an SMD pad keepout",
+                location="via 1",
+            ),
+        )
+    )
 
     brief = build_revision_brief(
         plan_check=plan_check,
         validation_report=_validation_report(tmp_path),
         manufacturability_report=board_report,
+        kicad_board_policy_report=kicad_board_policy_report,
         circuit_rule_reports=(circuit_report,),
     )
 
@@ -84,8 +100,8 @@ def test_build_revision_brief_merges_review_findings(tmp_path: Path) -> None:
             "message": "No multimodal visual review has been attached.",
         },
         "summary": {
-            "item_count": 4,
-            "error_count": 2,
+            "item_count": 5,
+            "error_count": 3,
             "warning_count": 2,
             "advisory_count": 0,
         },
@@ -110,6 +126,13 @@ def test_build_revision_brief_merges_review_findings(tmp_path: Path) -> None:
                 "code": "non_preferred_trace_angle",
                 "message": "Trace uses non-preferred routing",
                 "location": "trace 1 segment 1",
+            },
+            {
+                "severity": "error",
+                "source": "kicad_board_policy",
+                "code": "via_in_smd_pad_keepout",
+                "message": "Via is inside an SMD pad keepout",
+                "location": "via 1",
             },
             {
                 "severity": "warning",

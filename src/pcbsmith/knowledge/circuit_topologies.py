@@ -36,6 +36,7 @@ class CircuitTopology:
 
 
 SUPPORTED_TOPOLOGY_INTENTS = (
+    "buck-converter",
     "led-indicator",
     "metal-detector",
     "oscillator",

@@ -11,6 +11,7 @@ from pcbsmith.kicad.kicad_review_bundle import (
 )
 from pcbsmith.kicad.kicad_validate import KiCadValidationReport
 from pcbsmith.rules.board_manufacturability import BoardManufacturabilityReport
+from pcbsmith.rules.kicad_board_policy import KiCadBoardPolicyReport
 
 
 class FakeExportResult:
@@ -23,6 +24,7 @@ class FakeExportResult:
             board_file=project_dir / "Review_Demo.kicad_pcb",
         )
         self.handoff_file = project_dir / "pcbsmith_handoff.json"
+        self.skeleton.board_file.write_text("", encoding="utf-8")
 
 
 def _validation_report(project_dir: Path, exit_code: int = 0) -> KiCadValidationReport:
@@ -113,6 +115,9 @@ def test_review_bundle_runs_export_validation_preview_and_context(
     assert result.validation_report_markdown_file == (
         output_project / ".pcbsmith" / "reports" / "validation-summary.md"
     )
+    assert result.kicad_board_policy_report_file == (
+        output_project / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
+    )
     assert result.manufacturability_report_file == (
         output_project / ".pcbsmith" / "board-reports" / "manufacturability.json"
     )
@@ -142,6 +147,7 @@ def test_review_bundle_runs_export_validation_preview_and_context(
         "Validation: passed",
         "Preview: exported",
         "Board manufacturability: passed",
+        "KiCad board policy: passed",
         f"Validation summary: {validation_summary_file}",
         f"AI context: {output_project / 'ai-context.json'}",
         f"Revision brief: {output_project / 'revision-brief.json'}",
@@ -219,3 +225,58 @@ def test_review_bundle_returns_nonzero_when_validation_or_preview_fails(
         "Validation: issues found",
         "Preview: failed",
     ]
+
+
+def test_review_bundle_returns_nonzero_when_kicad_board_policy_fails(
+    tmp_path: Path,
+) -> None:
+    output_project = tmp_path / "review"
+
+    def exporter(
+        _source: Path, output: Path, *, project_name: str | None = None
+    ) -> FakeExportResult:
+        output.mkdir()
+        result = FakeExportResult(output)
+        result.skeleton.board_file.write_text(
+            """
+  (net 1 "GND")
+  (footprint "PCBSmith_C_0603_REAL"
+    (layer "F.Cu")
+    (at 10 10)
+    (attr smd)
+    (pad "1" smd roundrect
+      (at 0 0)
+      (size 1 1)
+      (layers "F.Cu" "F.Paste" "F.Mask")
+      (net 1 "GND")
+    )
+  )
+  (via
+    (at 10 10)
+    (size 0.8)
+    (drill 0.4)
+    (layers "F.Cu" "B.Cu")
+    (net 1)
+  )
+""",
+            encoding="utf-8",
+        )
+        return result
+
+    result = run_kicad_review_bundle(
+        tmp_path / "source",
+        output_project,
+        exporter=exporter,
+        validator=lambda project_dir, *, execute=True: _validation_report(project_dir),
+        previewer=lambda project_dir, *, execute=True: _preview_report(project_dir),
+        context_writer=lambda _project, output, *, kicad_project_dir=None: output.write_text(
+            "{}\n", encoding="utf-8"
+        ),
+        board_reporter=_board_report,
+    )
+
+    assert result.exit_code == 1
+    assert isinstance(result.kicad_board_policy_report, KiCadBoardPolicyReport)
+    assert format_kicad_review_bundle_result(result)[5] == (
+        "KiCad board policy: issues found"
+    )

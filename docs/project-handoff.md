@@ -121,6 +121,10 @@ the model operate PCBSmith tools that know PCB constraints.
 - 45-degree or mitered routing is a strong CAD polish preference, not an
   overheating law.
 - KiCad DRC/ERC and real manufacturability constraints are the gates.
+- Global board-policy checks now inspect generated KiCad board files for
+  via-in-SMD-pad errors, non-preferred trace angles, and inconsistent same-net
+  trace widths. These must be fixed in shared generators or routing helpers, not
+  hidden inside single demo files.
 - Silkscreen artwork and physical board outlines must not be conflated.
 - Schematic visuals can be rough while PCB output is being proven, but final
   user-facing examples should still become readable over time.
@@ -199,7 +203,9 @@ Generate a KiCad review bundle:
 The review bundle writes `<output-dir>\revision-brief.json` beside the KiCad
 project and `ai-context.json`. It also writes consolidated R12 reports at
 `<output-dir>\.pcbsmith\reports\validation-summary.json` and
-`<output-dir>\.pcbsmith\reports\validation-summary.md`.
+`<output-dir>\.pcbsmith\reports\validation-summary.md`, plus the global board
+policy report at
+`<output-dir>\.pcbsmith\board-reports\kicad-board-policy.json`.
 
 Generate an AI proposal bundle with a revision brief:
 
@@ -220,7 +226,8 @@ Generate a structured LED-art review bundle:
 The generated `.pcbsmith/operation.json` is the AI-facing contract for this
 operation. It records the request, output files, check status, and centralized
 board-routing rules from `pcbsmith.rules.board_intelligence`. The generated
-review directory also includes `revision-brief.json`.
+review directory also includes `revision-brief.json` and
+`.pcbsmith/board-reports/kicad-board-policy.json`.
 
 Generate a structured R6 ATtiny LED-controller review bundle:
 

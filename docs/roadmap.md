@@ -405,6 +405,15 @@ AI context and planner packages now advertise this validation-report contract,
 so a hosted or local model should read the consolidated evidence before claiming
 a board is fabrication-ready or proposing revisions.
 
+R12 now also includes a KiCad-native board policy gate that reads the generated
+`.kicad_pcb` text directly and writes
+`.pcbsmith/board-reports/kicad-board-policy.json`. This is the global guardrail
+that was missing from earlier demos: it flags non-preferred trace angles,
+inconsistent same-net trace widths, and vias inside SMD pad keepouts. Via-in-pad
+is treated as a hard error unless explicit fabrication support is added later;
+route-angle and trace-width findings are surfaced as revision items so they
+cannot silently disappear inside a one-off generator.
+
 ## R13: Expanded Component And KiCad Library Integration
 
 R13 broadens the catalog and library bridge in a controlled way. KiCad provides
