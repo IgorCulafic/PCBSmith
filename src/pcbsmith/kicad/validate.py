@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable, Sequence
+from json import JSONDecodeError
 from pathlib import Path
 
 from pcbsmith.circuit.models import KiCadReport
@@ -40,7 +41,16 @@ def run_kicad_erc(
         str(schematic_file),
     )
     report_file.parent.mkdir(parents=True, exist_ok=True)
-    process = run_kicad_process(command) if runner is None else runner(command)
+    try:
+        process = run_kicad_process(command) if runner is None else runner(command)
+    except OSError as exc:
+        return KiCadReport(
+            status="failed",
+            command=command,
+            schematic_file=str(schematic_file),
+            erc_report=str(report_file),
+            findings=(f"KiCad ERC could not run: {exc}",),
+        )
 
     if process.returncode != 0:
         return KiCadReport(
@@ -66,10 +76,28 @@ def _process_failure_finding(process: KiCadProcessResult) -> str:
 
 
 def _erc_findings(report_file: Path) -> tuple[str, ...]:
-    data = json.loads(report_file.read_text(encoding="utf-8"))
+    if not report_file.exists():
+        return ("KiCad ERC report was not written.",)
+    try:
+        data = json.loads(report_file.read_text(encoding="utf-8"))
+    except JSONDecodeError:
+        return ("KiCad ERC report was not valid JSON.",)
+    if not isinstance(data, dict):
+        return ("KiCad ERC report root was not a JSON object.",)
+    sheets = data.get("sheets")
+    if not isinstance(sheets, list):
+        return ("KiCad ERC report did not contain a sheets list.",)
+
     findings: list[str] = []
-    for sheet in data.get("sheets", []):
-        for violation in sheet.get("violations", []):
+    for sheet in sheets:
+        if not isinstance(sheet, dict):
+            return ("KiCad ERC report contained a malformed sheet entry.",)
+        violations = sheet.get("violations")
+        if not isinstance(violations, list):
+            return ("KiCad ERC report sheet did not contain a violations list.",)
+        for violation in violations:
+            if not isinstance(violation, dict):
+                return ("KiCad ERC report contained a malformed violation entry.",)
             description = str(violation.get("description") or "ERC violation")
             severity = str(
                 violation.get("severity") or violation.get("type") or "unknown"
