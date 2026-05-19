@@ -20,6 +20,7 @@ def export_divider_highpass_led_to_kicad(
 ) -> dict[str, str]:
     if circuit.topology.topology_id != SUPPORTED_TOPOLOGY_ID:
         raise ValueError("Unsupported circuit for KiCad export")
+    project_name = _validate_project_name(project_name)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     project_file = output_dir / f"{project_name}.kicad_pro"
@@ -37,6 +38,19 @@ def export_divider_highpass_led_to_kicad(
         "schematic_file": str(schematic_file),
         "symbol_library": str(symbol_library),
     }
+
+
+def _validate_project_name(project_name: str) -> str:
+    name = project_name.strip()
+    if (
+        not name
+        or name in {".", ".."}
+        or "/" in name
+        or "\\" in name
+        or Path(name).name != name
+    ):
+        raise ValueError("Project name must be a file stem, not a path")
+    return name
 
 
 def _render_project() -> str:
@@ -58,36 +72,7 @@ def _render_symbol_table() -> str:
 
 
 def _render_symbol_library() -> str:
-    symbols = "\n\n".join(
-        (
-            _render_two_pin_box_library_symbol(
-                "R",
-                reference="R",
-                value="R",
-                description="Generic resistor",
-                drawing=_resistor_symbol_drawing(),
-                pin_length_mm="2.54",
-            ),
-            _render_two_pin_box_library_symbol(
-                "C",
-                reference="C",
-                value="C",
-                description="Generic capacitor",
-                drawing=_capacitor_symbol_drawing(),
-                pin_length_mm="4.318",
-            ),
-            _render_two_pin_box_library_symbol(
-                "LED",
-                reference="LED",
-                value="LED",
-                description="Generic LED",
-                drawing=_led_symbol_drawing(),
-                pin_length_mm="3.81",
-            ),
-            _render_connector_01x02_library_symbol(),
-            _render_power_library_symbol(),
-        )
-    )
+    symbols = _render_library_symbols(name_prefix="")
     return f"""(kicad_symbol_lib
   (version {KICAD_SYMBOL_LIBRARY_VERSION})
   (generator "PCBSmith")
@@ -97,40 +82,88 @@ def _render_symbol_library() -> str:
 """
 
 
+def _render_embedded_symbol_library() -> str:
+    return f"""(lib_symbols
+{_render_library_symbols(name_prefix="PCBSmith:")}
+  )"""
+
+
+def _render_library_symbols(*, name_prefix: str) -> str:
+    symbols = "\n\n".join(
+        (
+            _render_two_pin_box_library_symbol(
+                f"{name_prefix}R",
+                reference="R",
+                value="R",
+                description="Generic resistor",
+                drawing=_resistor_symbol_drawing(),
+                pin_length_mm="2.54",
+            ),
+            _render_two_pin_box_library_symbol(
+                f"{name_prefix}C",
+                reference="C",
+                value="C",
+                description="Generic capacitor",
+                drawing=_capacitor_symbol_drawing(),
+                pin_length_mm="4.318",
+            ),
+            _render_two_pin_box_library_symbol(
+                f"{name_prefix}LED",
+                reference="LED",
+                value="LED",
+                description="Generic LED",
+                drawing=_led_symbol_drawing(),
+                pin_length_mm="3.81",
+            ),
+            _render_connector_01x02_library_symbol(f"{name_prefix}CONN_01X02"),
+            _render_power_library_symbol(f"{name_prefix}GND"),
+        )
+    )
+    return symbols
+
+
 def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
     component_values = _component_values(circuit)
     symbols = (
-        _symbol("PCBSmith:CONN_01X02", "P1", "5V input", 20, 40, project_name),
-        _symbol("PCBSmith:R", "R1", component_values["R1"], 45, 40, project_name),
-        _symbol("PCBSmith:R", "R2", component_values["R2"], 55, 55, project_name, rotation=90),
-        _symbol("PCBSmith:C", "C1", component_values["C1"], 80, 40, project_name),
-        _symbol("PCBSmith:R", "RLOAD", "10k", 105, 55, project_name, rotation=90),
-        _symbol("PCBSmith:R", "R3", component_values["R3"], 130, 40, project_name),
-        _symbol("PCBSmith:LED", "D1", component_values["D1"], 155, 40, project_name),
-        _symbol("PCBSmith:GND", "#PWR01", "GND", 20, 70, project_name),
+        _symbol("PCBSmith:CONN_01X02", "P1", "5V input", 25.4, 50.8, project_name),
+        _symbol("PCBSmith:R", "R1", component_values["R1"], 40.64, 50.8, project_name),
+        _symbol(
+            "PCBSmith:R",
+            "R2",
+            component_values["R2"],
+            53.34,
+            55.88,
+            project_name,
+            rotation=90,
+        ),
+        _symbol("PCBSmith:C", "C1", component_values["C1"], 66.04, 50.8, project_name),
+        _symbol("PCBSmith:R", "RLOAD", "10k", 81.28, 55.88, project_name, rotation=90),
+        _symbol("PCBSmith:R", "R3", component_values["R3"], 99.06, 50.8, project_name),
+        _symbol("PCBSmith:LED", "D1", component_values["D1"], 109.22, 50.8, project_name),
+        _symbol("PCBSmith:GND", "#PWR01", "GND", 25.4, 76.2, project_name),
     )
     wires = (
-        _wire((20, 40), (39.92, 40)),
-        _wire((50.08, 40), (74.92, 40)),
-        _wire((55, 40), (55, 49.92)),
-        _wire((55, 60.08), (55, 70)),
-        _wire((85.08, 40), (124.92, 40)),
-        _wire((105, 40), (105, 49.92)),
-        _wire((105, 60.08), (105, 70)),
-        _wire((135.08, 40), (149.92, 40)),
-        _wire((160.08, 40), (160.08, 70)),
-        _wire((20, 42.54), (20, 70)),
+        _wire((25.4, 50.8), (35.56, 50.8)),
+        _wire((45.72, 50.8), (53.34, 50.8)),
+        _wire((53.34, 50.8), (60.96, 50.8)),
+        _wire((53.34, 60.96), (53.34, 76.2)),
+        _wire((71.12, 50.8), (81.28, 50.8)),
+        _wire((81.28, 50.8), (93.98, 50.8)),
+        _wire((81.28, 60.96), (81.28, 76.2)),
+        _wire((114.3, 50.8), (114.3, 76.2)),
+        _wire((25.4, 48.26), (25.4, 76.2)),
+        _wire((25.4, 76.2), (53.34, 76.2)),
+        _wire((53.34, 76.2), (81.28, 76.2)),
+        _wire((81.28, 76.2), (114.3, 76.2)),
     )
     labels = (
-        _label("VIN", 30, 40),
-        _label("DIV_OUT", 65, 40),
-        _label("DIV_OUT", 55, 49.92),
-        _label("HP_OUT", 115, 40),
-        _label("HP_OUT", 105, 49.92),
-        _label("GND", 55, 70),
-        _label("GND", 105, 70),
-        _label("GND", 160.08, 70),
-        _label("GND", 20, 70),
+        _label("VIN", 30.48, 50.8),
+        _label("DIV_OUT", 53.34, 50.8),
+        _label("HP_OUT", 81.28, 50.8),
+        _label("GND", 25.4, 76.2),
+        _label("GND", 53.34, 76.2),
+        _label("GND", 81.28, 76.2),
+        _label("GND", 114.3, 76.2),
     )
     items = "\n".join((*symbols, *wires, *labels, _spice_directives()))
     return f"""(kicad_sch
@@ -140,7 +173,7 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   (uuid {uuid4()})
   (paper "A4")
 
-  (lib_symbols)
+  {_render_embedded_symbol_library()}
 {items}
   (sheet_instances
     (path "/" (page "1"))
@@ -291,8 +324,8 @@ def _render_two_pin_box_library_symbol(
   )"""
 
 
-def _render_connector_01x02_library_symbol() -> str:
-    return f"""  (symbol "CONN_01X02"
+def _render_connector_01x02_library_symbol(name: str) -> str:
+    return f"""  (symbol "{name}"
     (pin_numbers
       (hide no)
     )
@@ -322,13 +355,13 @@ def _render_connector_01x02_library_symbol() -> str:
     )
     (symbol "CONN_01X02_1_1"
 {_generic_pin("1", "Pin_1", 0, 0, 0, "2.54")}
-{_generic_pin("2", "Pin_2", 0, -2.54, 0, "2.54")}
+{_generic_pin("2", "Pin_2", 0, 2.54, 0, "2.54")}
     )
   )"""
 
 
-def _render_power_library_symbol() -> str:
-    return f"""  (symbol "GND"
+def _render_power_library_symbol(name: str) -> str:
+    return f"""  (symbol "{name}"
     (power)
     (pin_numbers
       (hide yes)
