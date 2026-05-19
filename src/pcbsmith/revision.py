@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Iterable
 
 from pcbsmith.circuit.models import RevisionRecord
 
@@ -55,6 +56,9 @@ def revision_for_authority_failure(
     )
 
 
-def should_stop_revision_loop(failure_codes: tuple[str, ...], *, limit: int = 3) -> bool:
+def should_stop_revision_loop(failure_codes: Iterable[str], *, limit: int = 3) -> bool:
+    if limit <= 0:
+        raise ValueError("Revision loop limit must be positive.")
+
     counts = Counter(failure_codes)
     return any(count >= limit for count in counts.values())
