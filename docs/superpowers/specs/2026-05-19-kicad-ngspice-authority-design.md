@@ -76,12 +76,92 @@ flowchart TD
   F --> L
   E --> L
   L --> M["Review bundle"]
+  M --> N{"Authority gate"}
+  N -->|"passed or needs human review"| O["Return reviewable artifacts"]
+  N -->|"evidence missing"| D
+  N -->|"math mismatch"| F
+  N -->|"KiCad ERC/export failed"| H
+  N -->|"simulation failed"| J
+  N -->|"reconciliation failed"| P["Revision plan"]
+  P --> C
+  P --> G
+  P --> H
 ```
 
 The key rule is that ngspice should simulate the SPICE netlist exported from the
 KiCad schematic whenever that path is available. PCBSmith-rendered SPICE netlists
 may remain useful as early test fixtures, but they are not enough for an authority
 claim once KiCad export exists for that circuit.
+
+The flow is iterative. A failed authority check produces a structured issue report
+and a revision plan, then PCBSmith patches the existing circuit object, evidence
+records, KiCad schematic, or simulation setup. It should not discard all artifacts
+and regenerate from the original prompt unless the existing artifacts are invalid
+or the user explicitly asks for a fresh start.
+
+## Revision Loop
+
+Iteration over regeneration is a core requirement.
+
+Each run should produce a revision record with:
+
+- parent revision id;
+- changed files or circuit objects;
+- authority checks run;
+- raw reports from KiCad and ngspice;
+- extracted findings;
+- model-facing error messages;
+- next proposed patch or human-review request.
+
+Failure routing:
+
+| Failure | Primary fix target | Example response |
+| --- | --- | --- |
+| `evidence_missing` | Evidence cache and part selection | Fetch or request the missing datasheet, SPICE model, pinout, or app-note fact before changing the schematic. |
+| `math_mismatch` | Deterministic calculators, selected values, assumptions | Recalculate component values and update the existing circuit object before schematic export. |
+| `kicad_failed` | KiCad schematic, symbol mapping, pin mapping, net labels | Patch the existing `.kicad_sch` or symbol mapping, then rerun ERC/export. |
+| `simulation_failed` | SPICE model fields, exported netlist assumptions, topology, component values | Patch simulation setup or circuit values, then rerun ngspice from the KiCad-exported netlist. |
+| `reconciliation_failed` | Translation boundary between PCBSmith, KiCad, and ngspice | Compare expected components/nets/values against exported artifacts and patch the mismatched layer. |
+
+The local AI tool loop should consume these revision records and authority reports.
+The model gets the current files, the exact failure, and the allowed patch target.
+It should make a small patch, rerun only the required checks first, then rerun the
+full authority bundle before claiming improvement.
+
+Revision attempts should be bounded. If the same failure class repeats without a
+new finding, PCBSmith should stop and request human review rather than looping
+blindly.
+
+## Deterministic Math Layer
+
+ngspice is not the deterministic math layer. It is the simulation authority.
+
+PCBSmith still needs explicit calculators before schematic generation. These
+calculators are responsible for values that can be derived from first principles,
+datasheet equations, reference-design equations, or topology rules. Examples:
+
+- resistor divider output voltage and current;
+- RC cutoff frequency;
+- LED current-limit resistor and power;
+- regulator feedback divider values;
+- op-amp gain and bandwidth sanity checks;
+- filter poles, expected gain, and loading;
+- decoupling and timing values required by a datasheet.
+
+The calculator output should become part of the circuit object and review bundle.
+ngspice then checks whether the KiCad-exported circuit behaves consistently with
+those expectations under the declared models and stimuli.
+
+This creates two different gates:
+
+1. Math gate: deterministic calculations are complete, units are valid, tolerances
+   are declared, and values are inside allowed ranges.
+2. Simulation gate: ngspice measurements from the KiCad-exported netlist agree
+   with the math expectations within declared tolerances.
+
+A circuit can fail either gate independently. A passing simulation does not erase a
+bad or missing calculation, and a passing calculation does not prove simulated
+behavior.
 
 ## Review Bundle Shape
 
@@ -253,4 +333,3 @@ when:
 6. The top-level status remains honest and conservative.
 7. Tests prove missing KiCad, failed ERC, missing SPICE export, failed simulation,
    and measurement mismatch paths.
-
