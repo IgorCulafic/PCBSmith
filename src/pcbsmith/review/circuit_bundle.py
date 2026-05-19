@@ -18,6 +18,8 @@ def write_circuit_review_bundle(
     items.extend(circuit.topology.warnings)
     items.extend(circuit.math.findings)
     items.extend(simulation_report.findings)
+    if simulation_report.status != "passed":
+        items.append(f"ngspice simulation status: {simulation_report.status}.")
     if kicad_status != "passed":
         items.append(f"KiCad validation status: {kicad_status}.")
     if any(component.support_status != "supported" for component in circuit.components):

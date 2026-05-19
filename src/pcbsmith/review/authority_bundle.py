@@ -58,18 +58,17 @@ def _derive_status(
     simulation: SimulationReport,
     reconciliation: ReconciliationReport,
 ) -> AuthorityStatus:
-    validation_statuses = (kicad.status, simulation.status, reconciliation.status)
-    if "failed" in validation_statuses:
-        return "failed"
-    if kicad.status == "unavailable" or simulation.status == "unavailable":
-        return "unavailable"
-
     authority_statuses = (evidence.status, kicad.status, simulation.status, reconciliation.status)
+    if circuit.math.status == "failed" or "failed" in authority_statuses:
+        return "failed"
+    if "unavailable" in authority_statuses:
+        return "unavailable"
     if "not_run" in authority_statuses:
         return "not_run"
 
     if (
-        evidence.status != "passed"
+        circuit.math.status != "passed"
+        or evidence.status != "passed"
         or kicad.status != "passed"
         or simulation.status != "passed"
         or reconciliation.status != "passed"
