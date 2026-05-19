@@ -152,8 +152,10 @@ def test_run_ngspice_captures_stdout_measurements_and_checks_them(tmp_path: Path
 def test_run_ngspice_from_existing_netlist_file(tmp_path: Path) -> None:
     netlist = tmp_path / "Slice.cir"
     netlist.write_text("* KiCad exported netlist\n.op\n.end\n", encoding="utf-8")
+    seen_commands = []
 
     def fake_runner(command, **_kwargs):
+        seen_commands.append(tuple(command))
         return subprocess.CompletedProcess(command, 0, stdout=NGSPICE_SAMPLE_OUTPUT, stderr="")
 
     report = run_ngspice_netlist_file(
@@ -166,6 +168,8 @@ def test_run_ngspice_from_existing_netlist_file(tmp_path: Path) -> None:
     assert report.status == "passed"
     assert report.measurements["op_div_out_v"] == 2.5
     assert report.raw_output_path is not None
+    assert seen_commands == [("ngspice_con.exe", "-b", str(netlist))]
+    assert report.command == ("ngspice_con.exe", "-b", str(netlist))
 
 
 def test_run_ngspice_from_existing_netlist_fails_for_empty_file(tmp_path: Path) -> None:
@@ -196,6 +200,42 @@ def test_run_ngspice_from_existing_netlist_fails_for_missing_file(tmp_path: Path
         f"ngspice netlist file could not be read: {netlist} "
         "(No such file or directory)",
     )
+
+
+def test_run_ngspice_from_existing_netlist_fails_for_invalid_utf8(tmp_path: Path) -> None:
+    netlist = tmp_path / "invalid.cir"
+    netlist.write_bytes(b"\xff\xfe\x00")
+
+    report = run_ngspice_netlist_file(
+        netlist,
+        tmp_path,
+        finder=lambda: Path("ngspice_con.exe"),
+    )
+
+    assert report.status == "failed"
+    assert report.findings == (
+        f"ngspice netlist file could not be read as UTF-8: {netlist}",
+    )
+
+
+def test_run_ngspice_from_existing_netlist_reports_launch_failure(tmp_path: Path) -> None:
+    netlist = tmp_path / "Slice.cir"
+    netlist.write_text("* KiCad exported netlist\n.op\n.end\n", encoding="utf-8")
+
+    def fake_runner(_command, **_kwargs):
+        raise OSError("blocked")
+
+    report = run_ngspice_netlist_file(
+        netlist,
+        tmp_path,
+        finder=lambda: Path("ngspice_con.exe"),
+        runner=fake_runner,
+    )
+
+    assert report.status == "failed"
+    assert report.command == ("ngspice_con.exe", "-b", str(netlist))
+    assert report.raw_output_path is not None
+    assert report.findings == ("ngspice could not run: blocked",)
 
 
 def test_run_ngspice_fails_when_successful_process_has_no_measurements(tmp_path: Path) -> None:

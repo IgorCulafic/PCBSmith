@@ -89,12 +89,58 @@ def run_ngspice_batch(
     finder: Callable[[], Path | None] = find_ngspice,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> NgspiceBatchResult:
-    executable = finder()
     simulation_dir = output_dir / ".pcbsmith" / "simulation"
     netlist_path = simulation_dir / netlist_filename
     output_path = simulation_dir / f"{Path(netlist_filename).stem}-ngspice-output.txt"
-    simulation_dir.mkdir(parents=True, exist_ok=True)
-    netlist_path.write_text(netlist_text, encoding="utf-8")
+    try:
+        simulation_dir.mkdir(parents=True, exist_ok=True)
+        netlist_path.write_text(netlist_text, encoding="utf-8")
+    except OSError as exc:
+        reason = exc.strerror or str(exc)
+        return NgspiceBatchResult(
+            status="failed",
+            command=(),
+            netlist_path=netlist_path,
+            raw_output_path=output_path,
+            raw_output="",
+            parsed_output=NgspiceOutput(operating_point_voltages={}, ac_points=()),
+            findings=(f"ngspice netlist file could not be written: {reason}",),
+        )
+    return run_ngspice_netlist_path(
+        netlist_path,
+        output_dir,
+        finder=finder,
+        runner=runner,
+    )
+
+
+def run_ngspice_netlist_path(
+    netlist_path: Path,
+    output_dir: Path,
+    *,
+    finder: Callable[[], Path | None] = find_ngspice,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> NgspiceBatchResult:
+    executable = finder()
+    output_path = (
+        output_dir
+        / ".pcbsmith"
+        / "simulation"
+        / f"{netlist_path.stem}-ngspice-output.txt"
+    )
+    try:
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+    except OSError as exc:
+        reason = exc.strerror or str(exc)
+        return NgspiceBatchResult(
+            status="failed",
+            command=(),
+            netlist_path=netlist_path,
+            raw_output_path=output_path,
+            raw_output="",
+            parsed_output=NgspiceOutput(operating_point_voltages={}, ac_points=()),
+            findings=(f"ngspice output directory could not be created: {reason}",),
+        )
     if executable is None:
         return NgspiceBatchResult(
             status="unavailable",
@@ -110,14 +156,37 @@ def run_ngspice_batch(
         )
 
     command = (str(executable), "-b", str(netlist_path))
-    completed = runner(
-        list(command),
-        text=True,
-        capture_output=True,
-        check=False,
-    )
+    try:
+        completed = runner(
+            list(command),
+            text=True,
+            capture_output=True,
+            check=False,
+        )
+    except OSError as exc:
+        return NgspiceBatchResult(
+            status="failed",
+            command=command,
+            netlist_path=netlist_path,
+            raw_output_path=output_path,
+            raw_output="",
+            parsed_output=NgspiceOutput(operating_point_voltages={}, ac_points=()),
+            findings=(f"ngspice could not run: {exc}",),
+        )
     output = completed.stdout + completed.stderr
-    output_path.write_text(output, encoding="utf-8")
+    try:
+        output_path.write_text(output, encoding="utf-8")
+    except OSError as exc:
+        reason = exc.strerror or str(exc)
+        return NgspiceBatchResult(
+            status="failed",
+            command=command,
+            netlist_path=netlist_path,
+            raw_output_path=output_path,
+            raw_output=output,
+            parsed_output=parse_ngspice_output(output),
+            findings=(f"ngspice output log could not be written: {reason}",),
+        )
     if completed.returncode != 0:
         return NgspiceBatchResult(
             status="failed",
@@ -286,6 +355,12 @@ def run_ngspice_netlist_file(
                 f"ngspice netlist file could not be read: {netlist_path} ({reason})",
             ),
         )
+    except UnicodeDecodeError:
+        return SimulationReport(
+            backend="ngspice",
+            status="failed",
+            findings=(f"ngspice netlist file could not be read as UTF-8: {netlist_path}",),
+        )
     if not netlist_text.strip():
         return SimulationReport(
             backend="ngspice",
@@ -293,10 +368,9 @@ def run_ngspice_netlist_file(
             findings=(f"ngspice netlist file is empty: {netlist_path}",),
         )
 
-    result = run_ngspice_batch(
-        netlist_text,
+    result = run_ngspice_netlist_path(
+        netlist_path,
         output_dir,
-        netlist_filename=netlist_path.name,
         finder=finder,
         runner=runner,
     )

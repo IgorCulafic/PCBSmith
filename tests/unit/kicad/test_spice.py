@@ -24,7 +24,7 @@ def test_spice_export_writes_netlist_with_fake_runner(tmp_path: Path) -> None:
     schematic.write_text("(kicad_sch)", encoding="utf-8")
 
     def fake_runner(command):
-        output_file = Path(command[7])
+        output_file = Path(command[command.index("--output") + 1])
         output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.write_text("* exported by KiCad\n.op\n.end\n", encoding="utf-8")
         return KiCadProcessResult(command=tuple(command), returncode=0, stdout="", stderr="")
@@ -99,7 +99,7 @@ def test_spice_export_reports_missing_or_empty_output_file(tmp_path: Path) -> No
     schematic.write_text("(kicad_sch)", encoding="utf-8")
 
     def fake_runner(command):
-        output_file = Path(command[7])
+        output_file = Path(command[command.index("--output") + 1])
         output_file.parent.mkdir(parents=True, exist_ok=True)
         output_file.write_text("   \n", encoding="utf-8")
         return KiCadProcessResult(command=tuple(command), returncode=0, stdout="", stderr="")
@@ -113,4 +113,48 @@ def test_spice_export_reports_missing_or_empty_output_file(tmp_path: Path) -> No
     assert report.status == "failed"
     assert report.findings == (
         "KiCad SPICE netlist export did not produce a non-empty file.",
+    )
+
+
+def test_spice_export_does_not_pass_with_stale_output_file(tmp_path: Path) -> None:
+    schematic = tmp_path / "Slice.kicad_sch"
+    schematic.write_text("(kicad_sch)", encoding="utf-8")
+    stale_netlist = tmp_path / ".pcbsmith" / "kicad" / "Slice.cir"
+    stale_netlist.parent.mkdir(parents=True)
+    stale_netlist.write_text("* stale output\n.op\n.end\n", encoding="utf-8")
+
+    def fake_runner(command):
+        return KiCadProcessResult(command=tuple(command), returncode=0, stdout="", stderr="")
+
+    report = export_kicad_spice_netlist(
+        schematic,
+        finder=lambda: KiCadInstall(path=Path("kicad-cli.exe"), source="test"),
+        runner=fake_runner,
+    )
+
+    assert report.status == "failed"
+    assert report.findings == (
+        "KiCad SPICE netlist export did not produce a non-empty file.",
+    )
+
+
+def test_spice_export_reports_invalid_utf8_output_file(tmp_path: Path) -> None:
+    schematic = tmp_path / "Slice.kicad_sch"
+    schematic.write_text("(kicad_sch)", encoding="utf-8")
+
+    def fake_runner(command):
+        output_file = Path(command[command.index("--output") + 1])
+        output_file.parent.mkdir(parents=True, exist_ok=True)
+        output_file.write_bytes(b"\xff\xfe\x00")
+        return KiCadProcessResult(command=tuple(command), returncode=0, stdout="", stderr="")
+
+    report = export_kicad_spice_netlist(
+        schematic,
+        finder=lambda: KiCadInstall(path=Path("kicad-cli.exe"), source="test"),
+        runner=fake_runner,
+    )
+
+    assert report.status == "failed"
+    assert report.findings == (
+        "KiCad SPICE netlist export output could not be read as UTF-8.",
     )

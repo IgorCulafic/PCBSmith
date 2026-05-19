@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from pathlib import Path
 
 from pcbsmith.circuit.models import KiCadReport
@@ -10,6 +11,12 @@ from pcbsmith.kicad.cli import (
     find_kicad_cli,
     run_kicad_process,
 )
+
+
+@dataclass(frozen=True)
+class _NetlistReadResult:
+    text: str | None
+    finding: str | None = None
 
 
 def export_kicad_spice_netlist(
@@ -43,6 +50,7 @@ def export_kicad_spice_netlist(
     )
     netlist_file.parent.mkdir(parents=True, exist_ok=True)
     try:
+        netlist_file.unlink(missing_ok=True)
         process = run_kicad_process(command) if runner is None else runner(command)
     except OSError as exc:
         return KiCadReport(
@@ -62,7 +70,16 @@ def export_kicad_spice_netlist(
             findings=(_process_failure_finding(process),),
         )
 
-    if not netlist_file.exists() or not netlist_file.read_text(encoding="utf-8").strip():
+    exported = _read_exported_netlist(netlist_file)
+    if exported.finding is not None:
+        return KiCadReport(
+            status="failed",
+            command=process.command,
+            schematic_file=str(schematic_file),
+            spice_netlist=str(netlist_file),
+            findings=(exported.finding,),
+        )
+    if exported.text is None or not exported.text.strip():
         return KiCadReport(
             status="failed",
             command=process.command,
@@ -87,3 +104,21 @@ def _process_failure_finding(process: KiCadProcessResult) -> str:
         or process.stdout.strip()
         or "KiCad SPICE netlist export failed."
     )
+
+
+def _read_exported_netlist(netlist_file: Path) -> _NetlistReadResult:
+    if not netlist_file.exists():
+        return _NetlistReadResult(text=None)
+    try:
+        return _NetlistReadResult(text=netlist_file.read_text(encoding="utf-8"))
+    except UnicodeDecodeError:
+        return _NetlistReadResult(
+            text=None,
+            finding="KiCad SPICE netlist export output could not be read as UTF-8.",
+        )
+    except OSError as exc:
+        reason = exc.strerror or str(exc)
+        return _NetlistReadResult(
+            text=None,
+            finding=f"KiCad SPICE netlist export output could not be read: {reason}",
+        )
