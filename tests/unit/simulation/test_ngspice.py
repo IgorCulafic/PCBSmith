@@ -35,6 +35,20 @@ Index   frequency       v(hp_out)
 80	1.000000e+05	3.333244e-01,	-1.04254e-03
 """
 
+KICAD_NGSPICE_SAMPLE_OUTPUT = """
+	Node                                  Voltage
+	----                                  -------
+	/vin                             5.000000e+00
+	/div_out                         2.500000e+00
+	/hp_out                          2.149611e-24
+
+Index   frequency       v(/hp_out)
+--------------------------------------------------------------------------------
+0	1.000000e+01	2.934851e-03,	3.113932e-02
+40	1.000000e+03	3.296211e-01,	3.495961e-02
+80	1.000000e+05	3.333244e-01,	-1.04254e-03
+"""
+
 GENERIC_NGSPICE_OUTPUT = """
 	Node                                  Voltage
 	----                                  -------
@@ -80,6 +94,17 @@ def test_reports_unavailable_when_ngspice_missing(tmp_path: Path) -> None:
 
 def test_extracts_dc_and_ac_measurements_from_ngspice_output() -> None:
     measurements = extract_ngspice_measurements(NGSPICE_SAMPLE_OUTPUT)
+
+    assert measurements["op_vin_v"] == 5.0
+    assert measurements["op_div_out_v"] == 2.5
+    assert measurements["op_hp_out_v"] == 2.149611e-24
+    assert measurements["ac_hp_out_10_hz_mag_v"] == pytest.approx(0.03127731766719456)
+    assert measurements["ac_hp_out_1khz_mag_v"] == pytest.approx(0.3314698235082073)
+    assert measurements["ac_hp_out_100khz_mag_v"] == pytest.approx(0.3333260303899174)
+
+
+def test_extracts_kicad_slash_prefixed_node_measurements() -> None:
+    measurements = extract_ngspice_measurements(KICAD_NGSPICE_SAMPLE_OUTPUT)
 
     assert measurements["op_vin_v"] == 5.0
     assert measurements["op_div_out_v"] == 2.5

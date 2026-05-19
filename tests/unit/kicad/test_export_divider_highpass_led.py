@@ -40,21 +40,29 @@ def test_exports_kicad_project_schematic_and_symbol_library(tmp_path: Path) -> N
     assert "PCBSmith:R" in schematic_text
     assert "PCBSmith:C" in schematic_text
     assert "PCBSmith:LED" in schematic_text
+    assert "PCBSmith:VDC" in schematic_text
+    assert "PCBSmith:0" in schematic_text
+    assert "PCBSmith:PWR_FLAG" in schematic_text
     for required_text in (
         "P1",
+        "V1",
         "R1",
         "R2",
         "C1",
         "RLOAD",
         "R3",
         "D1",
-        "GND",
+        "Generic red LED",
+        "#GND01",
+        "#PWR02",
+        "PWR_FLAG",
         "VIN",
         "DIV_OUT",
         "HP_OUT",
+        "LED_A",
         ".op",
         ".ac dec 20 10 100k",
-        ".print ac v(HP_OUT)",
+        ".print ac v(/HP_OUT)",
     ):
         assert required_text in schematic_text
     assert "${KIPRJMOD}/PCBSmith.kicad_sym" in symbol_table_text
@@ -74,9 +82,62 @@ def test_exports_kicad_loadable_schematic_scaffold(tmp_path: Path) -> None:
     assert '(symbol "PCBSmith:R"' in schematic_text
     assert '(symbol "PCBSmith:C"' in schematic_text
     assert '(symbol "PCBSmith:LED"' in schematic_text
+    assert '(symbol "PCBSmith:VDC"' in schematic_text
+    assert '(symbol "PCBSmith:0"' in schematic_text
     assert "(sheet_instances" in schematic_text
-    assert '(text ".op\\n.ac dec 20 10 100k\\n.print ac v(HP_OUT)"' in schematic_text
-    assert '(text ".op\n.ac dec 20 10 100k\n.print ac v(HP_OUT)"' not in schematic_text
+    assert '(text ".op\\n.ac dec 20 10 100k\\n.print ac v(/HP_OUT)"' in schematic_text
+    assert '(text ".op\n.ac dec 20 10 100k\n.print ac v(/HP_OUT)"' not in schematic_text
+
+
+def test_exports_spice_aware_schematic_symbols(tmp_path: Path) -> None:
+    export_divider_highpass_led_to_kicad(
+        _circuit(),
+        tmp_path,
+        project_name="Slice",
+    )
+
+    schematic_text = (tmp_path / "Slice.kicad_sch").read_text(encoding="utf-8")
+    p1_block = _symbol_block_for_reference(schematic_text, "P1")
+    power_flag_block = _symbol_block_for_reference(schematic_text, "#PWR02")
+    v1_block = _symbol_block_for_reference(schematic_text, "V1")
+
+    assert "(exclude_from_sim yes)" in p1_block
+    assert "(exclude_from_sim yes)" in power_flag_block
+    assert "(exclude_from_sim no)" in v1_block
+    assert "(in_bom no)" in v1_block
+    assert "(on_board no)" in v1_block
+    for spice_text in (
+        '(property "Sim.Device" "V"',
+        '(property "Sim.Type" "SIN"',
+        '(property "Sim.Pins" "1=+ 2=-"',
+        '(property "Sim.Params" "dc=5 ampl=0 f=1k ac=1"',
+        '(property "Sim.Device" "D"',
+        '(property "Sim.Pins" "1=A 2=K"',
+        '(property "Sim.Params" "is=1e-14 n=2 rs=10 cjo=2p"',
+        "(power global)",
+        "(pin power_in line",
+        "(pin power_out line",
+        '(property "Value" "0"',
+    ):
+        assert spice_text in schematic_text
+
+
+def test_connects_led_indicator_into_simulation_net(tmp_path: Path) -> None:
+    export_divider_highpass_led_to_kicad(
+        _circuit(),
+        tmp_path,
+        project_name="Slice",
+    )
+
+    schematic_text = (tmp_path / "Slice.kicad_sch").read_text(encoding="utf-8")
+
+    assert "(xy 25.4 50.8)\n      (xy 30.48 50.8)" in schematic_text
+    assert "(xy 30.48 50.8)\n      (xy 35.56 50.8)" in schematic_text
+    assert "(xy 25.4 76.2)\n      (xy 30.48 76.2)" in schematic_text
+    assert "(xy 30.48 76.2)\n      (xy 53.34 76.2)" in schematic_text
+    assert "(xy 104.14 50.8)\n      (xy 106.68 50.8)" in schematic_text
+    assert "(xy 116.84 50.8)\n      (xy 116.84 76.2)" in schematic_text
+    assert "(xy 81.28 76.2)\n      (xy 116.84 76.2)" in schematic_text
 
 
 def test_exports_connection_points_on_kicad_grid(tmp_path: Path) -> None:
@@ -174,3 +235,13 @@ def test_rejects_other_topologies(tmp_path: Path) -> None:
 def _is_on_kicad_grid(value: float) -> bool:
     nearest = round(value / KICAD_CONNECTION_GRID_MM) * KICAD_CONNECTION_GRID_MM
     return math.isclose(value, nearest, rel_tol=0.0, abs_tol=1e-6)
+
+
+def _symbol_block_for_reference(schematic_text: str, reference: str) -> str:
+    match = re.search(
+        rf"\(symbol\s+.*?\(property \"Reference\" \"{re.escape(reference)}\".*?\n  \)",
+        schematic_text,
+        re.DOTALL,
+    )
+    assert match is not None
+    return match.group(0)

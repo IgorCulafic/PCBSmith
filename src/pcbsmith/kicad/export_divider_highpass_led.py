@@ -121,9 +121,16 @@ def _render_library_symbols(*, name_prefix: str) -> str:
                 description="Generic LED",
                 drawing=_led_symbol_drawing(),
                 pin_length_mm="3.81",
+                sim_properties=(
+                    ("Sim.Device", "D"),
+                    ("Sim.Pins", "1=A 2=K"),
+                    ("Sim.Params", "is=1e-14 n=2 rs=10 cjo=2p"),
+                ),
             ),
             _render_connector_01x02_library_symbol(f"{name_prefix}CONN_01X02"),
-            _render_power_library_symbol(f"{name_prefix}GND"),
+            _render_voltage_source_library_symbol(f"{name_prefix}VDC"),
+            _render_spice_ground_library_symbol(f"{name_prefix}0"),
+            _render_power_flag_library_symbol(f"{name_prefix}PWR_FLAG"),
         )
     )
     return symbols
@@ -132,7 +139,31 @@ def _render_library_symbols(*, name_prefix: str) -> str:
 def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
     component_values = _component_values(circuit)
     symbols = (
-        _symbol("PCBSmith:CONN_01X02", "P1", "5V input", 25.4, 50.8, project_name),
+        _symbol(
+            "PCBSmith:CONN_01X02",
+            "P1",
+            "5V input",
+            25.4,
+            50.8,
+            project_name,
+            exclude_from_sim=True,
+        ),
+        _symbol(
+            "PCBSmith:VDC",
+            "V1",
+            "5",
+            30.48,
+            63.5,
+            project_name,
+            in_bom=False,
+            on_board=False,
+            extra_properties=(
+                ("Sim.Device", "V"),
+                ("Sim.Type", "SIN"),
+                ("Sim.Pins", "1=+ 2=-"),
+                ("Sim.Params", "dc=5 ampl=0 f=1k ac=1"),
+            ),
+        ),
         _symbol("PCBSmith:R", "R1", component_values["R1"], 40.64, 50.8, project_name),
         _symbol(
             "PCBSmith:R",
@@ -146,33 +177,61 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
         _symbol("PCBSmith:C", "C1", component_values["C1"], 66.04, 50.8, project_name),
         _symbol("PCBSmith:R", "RLOAD", "10k", 81.28, 55.88, project_name, rotation=90),
         _symbol("PCBSmith:R", "R3", component_values["R3"], 99.06, 50.8, project_name),
-        _symbol("PCBSmith:LED", "D1", component_values["D1"], 109.22, 50.8, project_name),
-        _symbol("PCBSmith:GND", "#PWR01", "GND", 25.4, 76.2, project_name),
+        _symbol(
+            "PCBSmith:LED",
+            "D1",
+            component_values["D1"],
+            111.76,
+            50.8,
+            project_name,
+            extra_properties=(
+                ("Sim.Device", "D"),
+                ("Sim.Pins", "1=A 2=K"),
+                ("Sim.Params", "is=1e-14 n=2 rs=10 cjo=2p"),
+            ),
+        ),
+        _symbol("PCBSmith:0", "#GND01", "0", 25.4, 76.2, project_name, pin_count=1),
+        _symbol(
+            "PCBSmith:PWR_FLAG",
+            "#PWR02",
+            "PWR_FLAG",
+            30.48,
+            76.2,
+            project_name,
+            exclude_from_sim=True,
+            in_bom=False,
+            on_board=False,
+            pin_count=1,
+        ),
     )
     wires = (
-        _wire((25.4, 50.8), (35.56, 50.8)),
+        _wire((25.4, 50.8), (30.48, 50.8)),
+        _wire((30.48, 50.8), (35.56, 50.8)),
         _wire((45.72, 50.8), (53.34, 50.8)),
         _wire((53.34, 50.8), (60.96, 50.8)),
         _wire((53.34, 60.96), (53.34, 76.2)),
         _wire((71.12, 50.8), (81.28, 50.8)),
         _wire((81.28, 50.8), (93.98, 50.8)),
         _wire((81.28, 60.96), (81.28, 76.2)),
-        _wire((114.3, 50.8), (114.3, 76.2)),
+        _wire((104.14, 50.8), (106.68, 50.8)),
+        _wire((116.84, 50.8), (116.84, 76.2)),
         _wire((25.4, 48.26), (20.32, 48.26)),
         _wire((20.32, 48.26), (20.32, 76.2)),
         _wire((20.32, 76.2), (25.4, 76.2)),
-        _wire((25.4, 76.2), (53.34, 76.2)),
+        _wire((25.4, 76.2), (30.48, 76.2)),
+        _wire((30.48, 76.2), (53.34, 76.2)),
         _wire((53.34, 76.2), (81.28, 76.2)),
-        _wire((81.28, 76.2), (114.3, 76.2)),
+        _wire((81.28, 76.2), (116.84, 76.2)),
     )
     labels = (
         _label("VIN", 30.48, 50.8),
         _label("DIV_OUT", 53.34, 50.8),
         _label("HP_OUT", 81.28, 50.8),
-        _label("GND", 25.4, 76.2),
-        _label("GND", 53.34, 76.2),
-        _label("GND", 81.28, 76.2),
-        _label("GND", 114.3, 76.2),
+        _label("LED_A", 104.14, 50.8),
+        _label("0", 25.4, 76.2),
+        _label("0", 53.34, 76.2),
+        _label("0", 81.28, 76.2),
+        _label("0", 116.84, 76.2),
     )
     items = "\n".join((*symbols, *wires, *labels, _spice_directives()))
     return f"""(kicad_sch
@@ -200,31 +259,88 @@ def _symbol(
     project_name: str,
     *,
     rotation: int = 0,
+    exclude_from_sim: bool = False,
+    in_bom: bool = True,
+    on_board: bool = True,
+    extra_properties: tuple[tuple[str, str], ...] = (),
+    pin_count: int = 2,
 ) -> str:
+    if pin_count < 1:
+        raise ValueError("KiCad symbols must have at least one pin")
+    sim_flag = "yes" if exclude_from_sim else "no"
+    bom_flag = "yes" if in_bom else "no"
+    board_flag = "yes" if on_board else "no"
+    rendered_extra_properties = "".join(
+        "\n    " + _property(name, property_value, x_mm, y_mm, hidden=True)
+        for name, property_value in extra_properties
+    )
+    instance_pins = "\n".join(
+        f"""    (pin "{pin_number}"
+      (uuid "{uuid4()}")
+    )"""
+        for pin_number in range(1, pin_count + 1)
+    )
     return f"""  (symbol
     (lib_id "{lib_id}")
     (at {_format_mm(x_mm)} {_format_mm(y_mm)} {rotation})
     (unit 1)
-    (exclude_from_sim no)
-    (in_bom yes)
-    (on_board yes)
+    (exclude_from_sim {sim_flag})
+    (in_bom {bom_flag})
+    (on_board {board_flag})
     (dnp no)
     (uuid "{uuid4()}")
     {_property("Reference", reference, x_mm, y_mm - 2.54, hidden=reference.startswith("#"))}
     {_property("Value", value, x_mm, y_mm + 2.54)}
     {_property("Footprint", "", x_mm, y_mm, hidden=True)}
     {_property("Datasheet", "~", x_mm, y_mm, hidden=True)}
-    (pin "1"
-      (uuid "{uuid4()}")
-    )
-    (pin "2"
-      (uuid "{uuid4()}")
-    )
+    {rendered_extra_properties}
+{instance_pins}
     (instances
       (project "{_escape(project_name)}"
         (path "/"
           (reference "{_escape(reference)}")
           (unit 1)
+        )
+      )
+    )
+  )"""
+
+
+def _render_power_flag_library_symbol(name: str) -> str:
+    return f"""  (symbol "{name}"
+    (power)
+    (pin_numbers
+      (hide yes)
+    )
+    (pin_names
+      (offset 0)
+      (hide yes)
+    )
+    (exclude_from_sim yes)
+    (in_bom no)
+    (on_board no)
+    {_library_property("Reference", "#PWR", 0, -3.81, hidden=True)}
+    {_library_property("Value", "PWR_FLAG", 0, -2.54)}
+    {_library_property("Footprint", "", 0, 0, hidden=True)}
+    {_library_property("Datasheet", "", 0, 0, hidden=True)}
+    {_library_property("Description", "ERC-only power flag", 0, 0, hidden=True)}
+    (symbol "PWR_FLAG_1_1"
+      (pin power_out line
+        (at 0 0 270)
+        (length 0)
+        (name "PWR_FLAG"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
+        )
+        (number "1"
+          (effects
+            (font
+              (size 1.27 1.27)
+            )
+          )
         )
       )
     )
@@ -258,7 +374,7 @@ def _label(name: str, x_mm: float, y_mm: float) -> str:
 
 
 def _spice_directives() -> str:
-    directives = ".op\n.ac dec 20 10 100k\n.print ac v(HP_OUT)"
+    directives = ".op\n.ac dec 20 10 100k\n.print ac v(/HP_OUT)"
     return f"""  (text "{_escape(directives)}"
     (at 20 85 0)
     (effects
@@ -319,7 +435,12 @@ def _render_two_pin_box_library_symbol(
     description: str,
     drawing: str,
     pin_length_mm: str,
+    sim_properties: tuple[tuple[str, str], ...] = (),
 ) -> str:
+    rendered_sim_properties = "".join(
+        "\n    " + _library_property(name, value, 0, 0, hidden=True)
+        for name, value in sim_properties
+    )
     return f"""  (symbol "{name}"
     (pin_numbers
       (hide yes)
@@ -335,10 +456,39 @@ def _render_two_pin_box_library_symbol(
     {_library_property("Footprint", "", 0, 0, hidden=True)}
     {_library_property("Datasheet", "~", 0, 0, hidden=True)}
     {_library_property("Description", description, 0, 0, hidden=True)}
+    {rendered_sim_properties}
 {drawing}
     (symbol "{value}_1_1"
 {_generic_pin("1", "1", -5.08, 0, 0, pin_length_mm)}
 {_generic_pin("2", "2", 5.08, 0, 180, pin_length_mm)}
+    )
+  )"""
+
+
+def _render_voltage_source_library_symbol(name: str) -> str:
+    return f"""  (symbol "{name}"
+    (pin_numbers
+      (hide yes)
+    )
+    (pin_names
+      (offset 0)
+    )
+    (exclude_from_sim no)
+    (in_bom no)
+    (on_board no)
+    {_library_property("Reference", "V", 2.54, -2.54)}
+    {_library_property("Value", "5", 2.54, 0)}
+    {_library_property("Footprint", "", 0, 0, hidden=True)}
+    {_library_property("Datasheet", "~", 0, 0, hidden=True)}
+    {_library_property("Description", "Voltage source for simulation", 0, 0, hidden=True)}
+    {_library_property("Sim.Device", "V", 0, 0, hidden=True)}
+    {_library_property("Sim.Type", "SIN", 0, 0, hidden=True)}
+    {_library_property("Sim.Pins", "1=+ 2=-", 0, 0, hidden=True)}
+    {_library_property("Sim.Params", "dc=5 ampl=0 f=1k ac=1", 0, 0, hidden=True)}
+{_voltage_source_symbol_drawing()}
+    (symbol "VDC_1_1"
+{_generic_pin("1", "+", 0, 12.7, 270, "2.54")}
+{_generic_pin("2", "-", 0, -12.7, 90, "2.54")}
     )
   )"""
 
@@ -379,9 +529,9 @@ def _render_connector_01x02_library_symbol(name: str) -> str:
   )"""
 
 
-def _render_power_library_symbol(name: str) -> str:
+def _render_spice_ground_library_symbol(name: str) -> str:
     return f"""  (symbol "{name}"
-    (power)
+    (power global)
     (pin_numbers
       (hide yes)
     )
@@ -390,29 +540,29 @@ def _render_power_library_symbol(name: str) -> str:
       (hide yes)
     )
     (exclude_from_sim no)
-    (in_bom yes)
-    (on_board yes)
-    {_library_property("Reference", "#PWR", 0, -3.81, hidden=True)}
-    {_library_property("Value", "GND", 0, -2.54)}
+    (in_bom no)
+    (on_board no)
+    {_library_property("Reference", "#GND", 0, -5.08, hidden=True)}
+    {_library_property("Value", "0", 0, -2.54)}
     {_library_property("Footprint", "", 0, 0, hidden=True)}
     {_library_property("Datasheet", "", 0, 0, hidden=True)}
-    {_library_property("Description", "Ground power symbol", 0, 0, hidden=True)}
-{_gnd_symbol_drawing()}
-    (symbol "GND_1_1"
-      (pin power_out line
-        (at 0 0 270)
+    {_library_property("Description", "0 V reference potential for simulation", 0, 0, hidden=True)}
+{_spice_ground_symbol_drawing()}
+    (symbol "0_1_1"
+      (pin power_in line
+        (at 0 0 0)
         (length 0)
-        (name "GND"
+        (name ""
           (effects
             (font
-              (size 1.27 1.27)
+              (size 1.016 1.016)
             )
           )
         )
         (number "1"
           (effects
             (font
-              (size 1.27 1.27)
+              (size 1.016 1.016)
             )
           )
         )
@@ -524,6 +674,62 @@ def _led_symbol_drawing() -> str:
     )"""
 
 
+def _voltage_source_symbol_drawing() -> str:
+    return """    (symbol "VDC_0_1"
+      (circle
+        (center 0 0)
+        (radius 2.54)
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 0 -10.16) (xy 0 -2.54)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 0 2.54) (xy 0 10.16)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (text "+"
+        (at 0 -1.27 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+        )
+      )
+      (text "-"
+        (at 0 1.27 0)
+        (effects
+          (font
+            (size 1.27 1.27)
+          )
+        )
+      )
+    )"""
+
+
 def _diode_symbol_drawing(symbol_name: str) -> str:
     return f"""    (symbol "{symbol_name}"
       (polyline
@@ -553,12 +759,11 @@ def _diode_symbol_drawing(symbol_name: str) -> str:
     )"""
 
 
-def _gnd_symbol_drawing() -> str:
-    return """    (symbol "GND_0_1"
+def _spice_ground_symbol_drawing() -> str:
+    return """    (symbol "0_0_1"
       (polyline
         (pts
-          (xy 0 0) (xy 0 -1.27) (xy 1.27 -1.27)
-          (xy 0 -2.54) (xy -1.27 -1.27) (xy 0 -1.27)
+          (xy -1.27 0) (xy 0 -1.27) (xy 1.27 0) (xy -1.27 0)
         )
         (stroke
           (width 0)

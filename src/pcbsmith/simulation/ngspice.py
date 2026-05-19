@@ -262,9 +262,7 @@ def extract_ngspice_measurements(output: str) -> dict[str, float]:
         ("1khz", 1_000.0),
         ("100khz", 100_000.0),
     ):
-        value = ac_value_at(parsed_output, "v(hp_out)", target_frequency)
-        if value is None:
-            value = ac_value_at(parsed_output, "vm(hp_out)", target_frequency)
+        value = _ac_hp_out_value_at(parsed_output, target_frequency)
         if value is None:
             continue
         if isinstance(value, complex):
@@ -274,6 +272,17 @@ def extract_ngspice_measurements(output: str) -> dict[str, float]:
         else:
             measurements[f"ac_hp_out_{label}_mag_v"] = value
     return measurements
+
+
+def _ac_hp_out_value_at(
+    parsed_output: NgspiceOutput,
+    target_frequency_hz: float,
+) -> float | complex | None:
+    for expression in ("v(hp_out)", "v(/hp_out)", "vm(hp_out)", "vm(/hp_out)"):
+        value = ac_value_at(parsed_output, expression, target_frequency_hz)
+        if value is not None:
+            return value
+    return None
 
 
 def _evaluate_measurements(measurements: dict[str, float]) -> tuple[str, tuple[str, ...]]:
