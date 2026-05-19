@@ -7,6 +7,9 @@ from pcbsmith.circuit.models import CircuitObject
 
 NM_PER_MM = 1_000_000
 SUPPORTED_TOPOLOGY_ID = "divider_highpass_led_indicator"
+KICAD_SCHEMATIC_VERSION = 20250114
+KICAD_SYMBOL_LIBRARY_VERSION = 20250114
+REQUIRED_COMPONENT_REFERENCES = ("R1", "R2", "C1", "R3", "D1")
 
 
 def export_divider_highpass_led_to_kicad(
@@ -86,7 +89,7 @@ def _render_symbol_library() -> str:
         )
     )
     return f"""(kicad_symbol_lib
-  (version 20251024)
+  (version {KICAD_SYMBOL_LIBRARY_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
 {symbols}
@@ -95,7 +98,7 @@ def _render_symbol_library() -> str:
 
 
 def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
-    component_values = {component.reference: component.value for component in circuit.components}
+    component_values = _component_values(circuit)
     symbols = (
         _symbol("PCBSmith:CONN_01X02", "P1", "5V input", 20, 40, project_name),
         _symbol("PCBSmith:R", "R1", component_values["R1"], 45, 40, project_name),
@@ -131,12 +134,17 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
     )
     items = "\n".join((*symbols, *wires, *labels, _spice_directives()))
     return f"""(kicad_sch
-  (version 20251024)
+  (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
-  (uuid "{uuid4()}")
+  (uuid {uuid4()})
   (paper "A4")
+
+  (lib_symbols)
 {items}
+  (sheet_instances
+    (path "/" (page "1"))
+  )
 )
 """
 
@@ -208,9 +216,8 @@ def _label(name: str, x_mm: float, y_mm: float) -> str:
 
 
 def _spice_directives() -> str:
-    return f"""  (text ".op
-.ac dec 20 10 100k
-.print ac v(HP_OUT)"
+    directives = ".op\n.ac dec 20 10 100k\n.print ac v(HP_OUT)"
+    return f"""  (text "{_escape(directives)}"
     (at 20 85 0)
     (effects
       (font
@@ -219,6 +226,18 @@ def _spice_directives() -> str:
     )
     (uuid "{uuid4()}")
   )"""
+
+
+def _component_values(circuit: CircuitObject) -> dict[str, str]:
+    component_values = {component.reference: component.value for component in circuit.components}
+    missing = tuple(
+        reference
+        for reference in REQUIRED_COMPONENT_REFERENCES
+        if reference not in component_values
+    )
+    if missing:
+        raise ValueError(f"KiCad export missing required components: {', '.join(missing)}")
+    return component_values
 
 
 def _property(
@@ -524,4 +543,4 @@ def _format_mm(value: float) -> str:
 
 
 def _escape(value: str) -> str:
-    return value.replace("\\", "\\\\").replace('"', '\\"')
+    return value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", "\\n")

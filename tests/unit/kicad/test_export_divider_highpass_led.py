@@ -56,6 +56,36 @@ def test_exports_kicad_project_schematic_and_symbol_library(tmp_path: Path) -> N
     assert "${KIPRJMOD}/PCBSmith.kicad_sym" in symbol_table_text
 
 
+def test_exports_kicad_loadable_schematic_scaffold(tmp_path: Path) -> None:
+    export_divider_highpass_led_to_kicad(
+        _circuit(),
+        tmp_path,
+        project_name="Slice",
+    )
+
+    schematic_text = (tmp_path / "Slice.kicad_sch").read_text(encoding="utf-8")
+
+    assert "(version 20250114)" in schematic_text
+    assert "(lib_symbols" in schematic_text
+    assert "(sheet_instances" in schematic_text
+    assert '(text ".op\\n.ac dec 20 10 100k\\n.print ac v(HP_OUT)"' in schematic_text
+    assert '(text ".op\n.ac dec 20 10 100k\n.print ac v(HP_OUT)"' not in schematic_text
+
+
+def test_rejects_missing_required_components(tmp_path: Path) -> None:
+    circuit = _circuit()
+    circuit = circuit.model_copy(
+        update={
+            "components": tuple(
+                component for component in circuit.components if component.reference != "R3"
+            )
+        }
+    )
+
+    with pytest.raises(ValueError, match="missing required components: R3"):
+        export_divider_highpass_led_to_kicad(circuit, tmp_path, project_name="Slice")
+
+
 def test_rejects_other_topologies(tmp_path: Path) -> None:
     circuit = _circuit().model_copy(
         update={"topology": _circuit().topology.model_copy(update={"topology_id": "other"})}
