@@ -153,9 +153,11 @@ def test_run_ngspice_from_existing_netlist_file(tmp_path: Path) -> None:
     netlist = tmp_path / "Slice.cir"
     netlist.write_text("* KiCad exported netlist\n.op\n.end\n", encoding="utf-8")
     seen_commands = []
+    seen_kwargs = []
 
-    def fake_runner(command, **_kwargs):
+    def fake_runner(command, **kwargs):
         seen_commands.append(tuple(command))
+        seen_kwargs.append(kwargs)
         return subprocess.CompletedProcess(command, 0, stdout=NGSPICE_SAMPLE_OUTPUT, stderr="")
 
     report = run_ngspice_netlist_file(
@@ -169,6 +171,7 @@ def test_run_ngspice_from_existing_netlist_file(tmp_path: Path) -> None:
     assert report.measurements["op_div_out_v"] == 2.5
     assert report.raw_output_path is not None
     assert seen_commands == [("ngspice_con.exe", "-b", str(netlist))]
+    assert seen_kwargs[0]["cwd"] == netlist.parent
     assert report.command == ("ngspice_con.exe", "-b", str(netlist))
 
 

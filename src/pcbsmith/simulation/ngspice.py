@@ -162,6 +162,7 @@ def run_ngspice_netlist_path(
             text=True,
             capture_output=True,
             check=False,
+            cwd=netlist_path.parent,
         )
     except OSError as exc:
         return NgspiceBatchResult(
