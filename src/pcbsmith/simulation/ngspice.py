@@ -268,6 +268,65 @@ def run_ngspice_simulation(
     )
 
 
+def run_ngspice_netlist_file(
+    netlist_path: Path,
+    output_dir: Path,
+    *,
+    finder: Callable[[], Path | None] = find_ngspice,
+    runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+) -> SimulationReport:
+    try:
+        netlist_text = netlist_path.read_text(encoding="utf-8")
+    except OSError as exc:
+        reason = exc.strerror or str(exc)
+        return SimulationReport(
+            backend="ngspice",
+            status="failed",
+            findings=(
+                f"ngspice netlist file could not be read: {netlist_path} ({reason})",
+            ),
+        )
+    if not netlist_text.strip():
+        return SimulationReport(
+            backend="ngspice",
+            status="failed",
+            findings=(f"ngspice netlist file is empty: {netlist_path}",),
+        )
+
+    result = run_ngspice_batch(
+        netlist_text,
+        output_dir,
+        netlist_filename=netlist_path.name,
+        finder=finder,
+        runner=runner,
+    )
+    if result.status == "unavailable":
+        return SimulationReport(
+            backend="ngspice",
+            status="unavailable",
+            findings=result.findings,
+            raw_output_path=str(result.raw_output_path),
+        )
+    if result.status == "failed":
+        return SimulationReport(
+            backend="ngspice",
+            status="failed",
+            command=result.command,
+            findings=result.findings,
+            raw_output_path=str(result.raw_output_path),
+        )
+    measurements = extract_ngspice_measurements(result.raw_output)
+    status, findings = _evaluate_measurements(measurements)
+    return SimulationReport(
+        backend="ngspice",
+        status=status,
+        command=result.command,
+        measurements=measurements,
+        findings=findings,
+        raw_output_path=str(result.raw_output_path),
+    )
+
+
 def _parse_operating_point_voltages(output: str) -> dict[str, float]:
     voltages: dict[str, float] = {}
     in_node_table = False

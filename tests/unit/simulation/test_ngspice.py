@@ -15,6 +15,7 @@ from pcbsmith.simulation.ngspice import (
     parse_ngspice_output,
     render_ngspice_netlist,
     run_ngspice_batch,
+    run_ngspice_netlist_file,
     run_ngspice_simulation,
 )
 
@@ -146,6 +147,55 @@ def test_run_ngspice_captures_stdout_measurements_and_checks_them(tmp_path: Path
         "ac_hp_out_10_hz_mag_v"
     ]
     assert output_path.read_text(encoding="utf-8") == NGSPICE_SAMPLE_OUTPUT
+
+
+def test_run_ngspice_from_existing_netlist_file(tmp_path: Path) -> None:
+    netlist = tmp_path / "Slice.cir"
+    netlist.write_text("* KiCad exported netlist\n.op\n.end\n", encoding="utf-8")
+
+    def fake_runner(command, **_kwargs):
+        return subprocess.CompletedProcess(command, 0, stdout=NGSPICE_SAMPLE_OUTPUT, stderr="")
+
+    report = run_ngspice_netlist_file(
+        netlist,
+        tmp_path,
+        finder=lambda: Path("ngspice_con.exe"),
+        runner=fake_runner,
+    )
+
+    assert report.status == "passed"
+    assert report.measurements["op_div_out_v"] == 2.5
+    assert report.raw_output_path is not None
+
+
+def test_run_ngspice_from_existing_netlist_fails_for_empty_file(tmp_path: Path) -> None:
+    netlist = tmp_path / "empty.cir"
+    netlist.write_text("  \n", encoding="utf-8")
+
+    report = run_ngspice_netlist_file(
+        netlist,
+        tmp_path,
+        finder=lambda: Path("ngspice_con.exe"),
+    )
+
+    assert report.status == "failed"
+    assert report.findings == ("ngspice netlist file is empty: " + str(netlist),)
+
+
+def test_run_ngspice_from_existing_netlist_fails_for_missing_file(tmp_path: Path) -> None:
+    netlist = tmp_path / "missing.cir"
+
+    report = run_ngspice_netlist_file(
+        netlist,
+        tmp_path,
+        finder=lambda: Path("ngspice_con.exe"),
+    )
+
+    assert report.status == "failed"
+    assert report.findings == (
+        f"ngspice netlist file could not be read: {netlist} "
+        "(No such file or directory)",
+    )
 
 
 def test_run_ngspice_fails_when_successful_process_has_no_measurements(tmp_path: Path) -> None:
