@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import argparse
-import json
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -9,6 +8,7 @@ from pathlib import Path
 from pcbsmith.circuit.intent import classify_circuit_intent
 from pcbsmith.circuit.models import (
     AuthorityStatus,
+    CircuitObject,
     EvidenceReport,
     KiCadReport,
     ReconciliationReport,
@@ -142,10 +142,12 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
 
     erc_report = run_kicad_erc(schematic_file)
     spice_report = export_kicad_spice_netlist(schematic_file)
-    used_kicad_spice = spice_report.status == "passed" and spice_report.spice_netlist
-    if used_kicad_spice:
-        simulation = run_ngspice_netlist_file(Path(spice_report.spice_netlist), output_dir)
+    spice_netlist = spice_report.spice_netlist
+    if spice_report.status == "passed" and spice_netlist is not None:
+        selected_kicad_spice = True
+        simulation = run_ngspice_netlist_file(Path(spice_netlist), output_dir)
     else:
+        selected_kicad_spice = False
         simulation = run_ngspice_simulation(circuit, output_dir)
 
     kicad = _combine_kicad_reports(erc_report, spice_report)
@@ -156,7 +158,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
     reconciliation = _reconcile_authorities(
         kicad=kicad,
         simulation=simulation,
-        used_kicad_spice=bool(used_kicad_spice),
+        selected_kicad_spice=selected_kicad_spice,
     )
     artifacts = _authority_artifacts(
         output_dir=output_dir,
@@ -181,7 +183,13 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         revisions=revisions,
         artifacts=artifacts,
     )
-    status = json.loads(bundle_path.read_text(encoding="utf-8"))["status"]
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+    )
     print(f"Review bundle: {bundle_path}")
     print(f"Status: {status}")
     return 0
@@ -219,26 +227,20 @@ def _reconcile_authorities(
     *,
     kicad: KiCadReport,
     simulation: SimulationReport,
-    used_kicad_spice: bool,
+    selected_kicad_spice: bool,
 ) -> ReconciliationReport:
     checks = (
         "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
         "KiCad ERC and KiCad SPICE export statuses were recorded separately.",
-        (
-            "ngspice was run from the KiCad-exported SPICE netlist."
-            if used_kicad_spice
-            else "ngspice was run from a PCBSmith-rendered fallback netlist."
+        _simulation_input_check(
+            selected_kicad_spice=selected_kicad_spice,
+            simulation=simulation,
         ),
     )
     findings = [
-        (
-            "ngspice used the KiCad-exported SPICE netlist."
-            if used_kicad_spice
-            else (
-                "KiCad SPICE export did not pass, so ngspice used a "
-                "PCBSmith-rendered fallback netlist; this is not KiCad-exported "
-                "SPICE evidence."
-            )
+        _simulation_input_finding(
+            selected_kicad_spice=selected_kicad_spice,
+            simulation=simulation,
         )
     ]
     if kicad.status != "passed":
@@ -249,6 +251,52 @@ def _reconcile_authorities(
         status="warning",
         checks=checks,
         findings=tuple(findings),
+    )
+
+
+def _simulation_input_check(
+    *,
+    selected_kicad_spice: bool,
+    simulation: SimulationReport,
+) -> str:
+    if selected_kicad_spice:
+        if simulation.status in {"passed", "warning"}:
+            return "ngspice completed from the KiCad-exported SPICE netlist."
+        return (
+            "KiCad-exported SPICE netlist was selected for ngspice, but "
+            f"ngspice status is {simulation.status}."
+        )
+    if simulation.status in {"passed", "warning"}:
+        return "ngspice completed from a PCBSmith-rendered fallback netlist."
+    return (
+        "PCBSmith-rendered fallback netlist was selected for ngspice, but "
+        f"ngspice status is {simulation.status}."
+    )
+
+
+def _simulation_input_finding(
+    *,
+    selected_kicad_spice: bool,
+    simulation: SimulationReport,
+) -> str:
+    if selected_kicad_spice:
+        if simulation.status in {"passed", "warning"}:
+            return "ngspice completed from the KiCad-exported SPICE netlist."
+        return (
+            "KiCad-exported SPICE netlist was selected for ngspice, but "
+            f"ngspice status is {simulation.status}; this is not completed "
+            "simulation evidence."
+        )
+    if simulation.status in {"passed", "warning"}:
+        return (
+            "KiCad SPICE export did not pass, so ngspice completed from a "
+            "PCBSmith-rendered fallback netlist; this is not KiCad-exported "
+            "SPICE evidence."
+        )
+    return (
+        "KiCad SPICE export did not pass, so a PCBSmith-rendered fallback "
+        f"netlist was selected for ngspice, but ngspice status is {simulation.status}; "
+        "this is not completed simulation evidence or KiCad-exported SPICE evidence."
     )
 
 
@@ -267,7 +315,7 @@ def _authority_revisions(
         )
     ]
     parent_revision_id = revisions[-1].revision_id
-    if kicad.status in {"failed", "unavailable", "not_run"}:
+    if kicad.status != "passed":
         revisions.append(
             revision_for_authority_failure(
                 revision_id="kicad_failed",
@@ -277,7 +325,7 @@ def _authority_revisions(
             )
         )
         parent_revision_id = revisions[-1].revision_id
-    if simulation.status in {"failed", "unavailable", "not_run"}:
+    if simulation.status != "passed":
         revisions.append(
             revision_for_authority_failure(
                 revision_id="simulation_failed",
@@ -318,6 +366,34 @@ def _add_existing_artifact(
 ) -> None:
     if candidate is not None and Path(candidate).exists():
         artifacts[name] = candidate
+
+
+def _authority_bundle_status(
+    *,
+    circuit: CircuitObject,
+    evidence: EvidenceReport,
+    kicad: KiCadReport,
+    simulation: SimulationReport,
+    reconciliation: ReconciliationReport,
+) -> AuthorityStatus:
+    authority_statuses = (evidence.status, kicad.status, simulation.status, reconciliation.status)
+    if circuit.math.status == "failed" or "failed" in authority_statuses:
+        return "failed"
+    if "unavailable" in authority_statuses:
+        return "unavailable"
+    if "not_run" in authority_statuses:
+        return "not_run"
+
+    if (
+        circuit.math.status != "passed"
+        or evidence.status != "passed"
+        or kicad.status != "passed"
+        or simulation.status != "passed"
+        or reconciliation.status != "passed"
+        or any(component.support_status != "supported" for component in circuit.components)
+    ):
+        return "needs_human_review"
+    return "passed"
 
 
 def build_parser() -> argparse.ArgumentParser:
