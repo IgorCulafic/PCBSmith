@@ -1,21 +1,31 @@
 from pcbsmith.circuit.models import (
+    AuthorityStatus,
     CircuitIntent,
     CircuitObject,
     CircuitReviewBundle,
     ComponentRole,
+    EvidenceReport,
     EvidenceRef,
+    KiCadReport,
     MathReport,
+    ReconciliationReport,
+    RevisionRecord,
     SimulationReport,
     TopologySelection,
 )
 
 __all__ = [
+    "AuthorityStatus",
     "CircuitIntent",
     "CircuitObject",
     "CircuitReviewBundle",
     "ComponentRole",
+    "EvidenceReport",
     "EvidenceRef",
+    "KiCadReport",
     "MathReport",
+    "ReconciliationReport",
+    "RevisionRecord",
     "SimulationReport",
     "TopologySelection",
 ]

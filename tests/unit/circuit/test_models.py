@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import warnings
 
-from pcbsmith.circuit.models import (
+from pcbsmith.circuit import (
+    AuthorityStatus,
     CircuitIntent,
     CircuitReviewBundle,
     ComponentRole,
+    EvidenceReport,
     EvidenceRef,
     KiCadReport,
     ReconciliationReport,
@@ -90,12 +92,18 @@ def test_review_bundle_status_is_not_passed_when_human_review_is_required() -> N
 
 
 def test_authority_models_separate_kicad_and_reconciliation() -> None:
+    status: AuthorityStatus = "not_run"
     kicad = KiCadReport(
         status="passed",
         schematic_file="Slice.kicad_sch",
         erc_report="erc.json",
         spice_netlist="Slice.cir",
         findings=(),
+    )
+    evidence = EvidenceReport(
+        status=status,
+        findings=(),
+        cached_files=("datasheet.pdf",),
     )
     reconciliation = ReconciliationReport(
         status="warning",
@@ -112,5 +120,7 @@ def test_authority_models_separate_kicad_and_reconciliation() -> None:
     )
 
     assert kicad.status == "passed"
+    assert evidence.status == "not_run"
+    assert evidence.cached_files == ("datasheet.pdf",)
     assert reconciliation.status == "warning"
     assert revision.revision_id == "rev-1"
