@@ -1,4 +1,5 @@
 from pcbsmith.circuit.models import (
+    AuthorityReviewBundle,
     AuthorityStatus,
     CircuitIntent,
     CircuitObject,
@@ -15,6 +16,7 @@ from pcbsmith.circuit.models import (
 )
 
 __all__ = [
+    "AuthorityReviewBundle",
     "AuthorityStatus",
     "CircuitIntent",
     "CircuitObject",

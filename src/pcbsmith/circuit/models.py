@@ -58,7 +58,7 @@ class SimulationReport(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     backend: Literal["ngspice"]
-    status: Literal["passed", "warning", "failed", "unavailable"]
+    status: Literal["passed", "warning", "failed", "unavailable", "not_run"]
     command: tuple[str, ...] = ()
     measurements: dict[str, float] = Field(default_factory=dict)
     findings: tuple[str, ...] = ()
@@ -134,4 +134,22 @@ class CircuitReviewBundle(BaseModel):
     status: Literal["passed", "warning", "failed", "unavailable", "needs_human_review"]
     items: tuple[str, ...]
     simulation: SimulationReport
+    artifacts: dict[str, str]
+
+
+class AuthorityReviewBundle(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
+
+    schema_id: Literal["pcbsmith-circuit-review-bundle-v2"] = Field(
+        validation_alias="schema",
+        serialization_alias="schema",
+    )
+    status: AuthorityStatus
+    intent: CircuitIntent
+    pcbs_internal: CircuitObject
+    evidence: EvidenceReport
+    kicad: KiCadReport
+    ngspice: SimulationReport
+    reconciliation: ReconciliationReport
+    revisions: tuple[RevisionRecord, ...] = ()
     artifacts: dict[str, str]
