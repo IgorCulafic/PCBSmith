@@ -10,6 +10,13 @@ SUPPORTED_TOPOLOGY_ID = "divider_highpass_led_indicator"
 KICAD_SCHEMATIC_VERSION = 20250114
 KICAD_SYMBOL_LIBRARY_VERSION = 20250114
 REQUIRED_COMPONENT_REFERENCES = ("R1", "R2", "C1", "R3", "D1")
+EXPECTED_COMPONENTS = {
+    "R1": ("divider_top", "stdlib:R"),
+    "R2": ("divider_bottom", "stdlib:R"),
+    "C1": ("highpass_series_capacitor", "stdlib:C"),
+    "R3": ("led_current_limit", "stdlib:R"),
+    "D1": ("indicator_led", "stdlib:LED"),
+}
 
 
 def export_divider_highpass_led_to_kicad(
@@ -151,7 +158,9 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
         _wire((81.28, 50.8), (93.98, 50.8)),
         _wire((81.28, 60.96), (81.28, 76.2)),
         _wire((114.3, 50.8), (114.3, 76.2)),
-        _wire((25.4, 48.26), (25.4, 76.2)),
+        _wire((25.4, 48.26), (20.32, 48.26)),
+        _wire((20.32, 48.26), (20.32, 76.2)),
+        _wire((20.32, 76.2), (25.4, 76.2)),
         _wire((25.4, 76.2), (53.34, 76.2)),
         _wire((53.34, 76.2), (81.28, 76.2)),
         _wire((81.28, 76.2), (114.3, 76.2)),
@@ -262,15 +271,25 @@ def _spice_directives() -> str:
 
 
 def _component_values(circuit: CircuitObject) -> dict[str, str]:
-    component_values = {component.reference: component.value for component in circuit.components}
+    components = {component.reference: component for component in circuit.components}
     missing = tuple(
         reference
         for reference in REQUIRED_COMPONENT_REFERENCES
-        if reference not in component_values
+        if reference not in components
     )
     if missing:
         raise ValueError(f"KiCad export missing required components: {', '.join(missing)}")
-    return component_values
+    for reference, (expected_role, expected_symbol_id) in EXPECTED_COMPONENTS.items():
+        component = components[reference]
+        if component.role != expected_role or component.symbol_id != expected_symbol_id:
+            raise ValueError(
+                f"{reference} must be role {expected_role} using {expected_symbol_id}"
+            )
+    return {
+        reference: component.value
+        for reference, component in components.items()
+        if reference in REQUIRED_COMPONENT_REFERENCES
+    }
 
 
 def _property(

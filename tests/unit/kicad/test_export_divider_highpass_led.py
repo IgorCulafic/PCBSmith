@@ -107,6 +107,21 @@ def test_exports_connection_points_on_kicad_grid(tmp_path: Path) -> None:
         assert _is_on_kicad_grid(float(y_text)), y_text
 
 
+def test_routes_input_ground_without_crossing_vin_pin(tmp_path: Path) -> None:
+    export_divider_highpass_led_to_kicad(
+        _circuit(),
+        tmp_path,
+        project_name="Slice",
+    )
+
+    schematic_text = (tmp_path / "Slice.kicad_sch").read_text(encoding="utf-8")
+
+    assert "(xy 25.4 48.26)\n      (xy 25.4 76.2)" not in schematic_text
+    assert "(xy 25.4 48.26)\n      (xy 20.32 48.26)" in schematic_text
+    assert "(xy 20.32 48.26)\n      (xy 20.32 76.2)" in schematic_text
+    assert "(xy 20.32 76.2)\n      (xy 25.4 76.2)" in schematic_text
+
+
 def test_rejects_missing_required_components(tmp_path: Path) -> None:
     circuit = _circuit()
     circuit = circuit.model_copy(
@@ -118,6 +133,23 @@ def test_rejects_missing_required_components(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="missing required components: R3"):
+        export_divider_highpass_led_to_kicad(circuit, tmp_path, project_name="Slice")
+
+
+def test_rejects_required_components_with_wrong_roles(tmp_path: Path) -> None:
+    circuit = _circuit()
+    circuit = circuit.model_copy(
+        update={
+            "components": tuple(
+                component.model_copy(update={"symbol_id": "stdlib:R"})
+                if component.reference == "D1"
+                else component
+                for component in circuit.components
+            )
+        }
+    )
+
+    with pytest.raises(ValueError, match="D1 must be role indicator_led using stdlib:LED"):
         export_divider_highpass_led_to_kicad(circuit, tmp_path, project_name="Slice")
 
 
