@@ -121,6 +121,7 @@ def run_ngspice_netlist_path(
     finder: Callable[[], Path | None] = find_ngspice,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
 ) -> NgspiceBatchResult:
+    netlist_path = netlist_path.resolve()
     executable = finder()
     output_path = (
         output_dir
@@ -155,7 +156,7 @@ def run_ngspice_netlist_path(
             ),
         )
 
-    command = (str(executable), "-b", str(netlist_path))
+    command = (_ngspice_command_executable(executable), "-b", str(netlist_path))
     try:
         completed = runner(
             list(command),
@@ -206,6 +207,17 @@ def run_ngspice_netlist_path(
         raw_output=output,
         parsed_output=parse_ngspice_output(output),
     )
+
+
+def _ngspice_command_executable(executable: Path) -> str:
+    executable_text = str(executable)
+    if executable.is_absolute() or _has_directory_component(executable_text):
+        return str(executable.resolve())
+    return executable_text
+
+
+def _has_directory_component(path_text: str) -> bool:
+    return "/" in path_text or "\\" in path_text
 
 
 def parse_ngspice_output(output: str) -> NgspiceOutput:

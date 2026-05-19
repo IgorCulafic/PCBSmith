@@ -175,6 +175,41 @@ def test_run_ngspice_from_existing_netlist_file(tmp_path: Path) -> None:
     assert report.command == ("ngspice_con.exe", "-b", str(netlist))
 
 
+def test_run_ngspice_from_relative_existing_netlist_uses_resolvable_command_path(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    monkeypatch.chdir(tmp_path)
+    netlist = Path("slice") / ".pcbsmith" / "kicad" / "Slice.cir"
+    netlist.parent.mkdir(parents=True)
+    netlist.write_text("* KiCad exported netlist\n.op\n.end\n", encoding="utf-8")
+    output_dir = tmp_path / "out"
+    seen_commands = []
+    seen_kwargs = []
+
+    def fake_runner(command, **kwargs):
+        seen_commands.append(tuple(command))
+        seen_kwargs.append(kwargs)
+        return subprocess.CompletedProcess(command, 0, stdout=NGSPICE_SAMPLE_OUTPUT, stderr="")
+
+    report = run_ngspice_netlist_file(
+        netlist,
+        output_dir,
+        finder=lambda: Path("ngspice_con.exe"),
+        runner=fake_runner,
+    )
+
+    command_netlist = Path(seen_commands[0][-1])
+    assert report.status == "passed"
+    assert command_netlist.is_absolute()
+    assert command_netlist == netlist.resolve()
+    assert seen_kwargs[0]["cwd"] == netlist.parent.resolve()
+    assert report.command == ("ngspice_con.exe", "-b", str(netlist.resolve()))
+    assert report.raw_output_path == str(
+        output_dir / ".pcbsmith" / "simulation" / "Slice-ngspice-output.txt"
+    )
+
+
 def test_run_ngspice_from_existing_netlist_fails_for_empty_file(tmp_path: Path) -> None:
     netlist = tmp_path / "empty.cir"
     netlist.write_text("  \n", encoding="utf-8")
