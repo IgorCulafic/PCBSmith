@@ -65,6 +65,54 @@ class SimulationReport(BaseModel):
     raw_output_path: str | None = None
 
 
+AuthorityStatus = Literal[
+    "passed",
+    "warning",
+    "failed",
+    "unavailable",
+    "not_run",
+    "needs_human_review",
+]
+
+
+class KiCadReport(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: AuthorityStatus
+    command: tuple[str, ...] = ()
+    schematic_file: str | None = None
+    erc_report: str | None = None
+    spice_netlist: str | None = None
+    findings: tuple[str, ...] = ()
+
+
+class EvidenceReport(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: AuthorityStatus
+    findings: tuple[str, ...] = ()
+    cached_files: tuple[str, ...] = ()
+
+
+class ReconciliationReport(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: AuthorityStatus
+    checks: tuple[str, ...] = ()
+    findings: tuple[str, ...] = ()
+
+
+class RevisionRecord(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    revision_id: str
+    parent_revision_id: str | None = None
+    changed_artifacts: tuple[str, ...] = ()
+    authority_checks: tuple[str, ...] = ()
+    findings: tuple[str, ...] = ()
+    next_action: str
+
+
 class CircuitObject(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 

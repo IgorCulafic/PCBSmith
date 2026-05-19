@@ -7,6 +7,9 @@ from pcbsmith.circuit.models import (
     CircuitReviewBundle,
     ComponentRole,
     EvidenceRef,
+    KiCadReport,
+    ReconciliationReport,
+    RevisionRecord,
     SimulationReport,
     TopologySelection,
 )
@@ -84,3 +87,30 @@ def test_review_bundle_status_is_not_passed_when_human_review_is_required() -> N
     assert bundle.status == "needs_human_review"
     assert bundle.model_dump(by_alias=True)["schema"] == "pcbsmith-circuit-review-bundle-v1"
     assert captured == []
+
+
+def test_authority_models_separate_kicad_and_reconciliation() -> None:
+    kicad = KiCadReport(
+        status="passed",
+        schematic_file="Slice.kicad_sch",
+        erc_report="erc.json",
+        spice_netlist="Slice.cir",
+        findings=(),
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=("component references matched KiCad export",),
+        findings=("Generic LED still needs datasheet-backed model.",),
+    )
+    revision = RevisionRecord(
+        revision_id="rev-1",
+        parent_revision_id=None,
+        changed_artifacts=("Slice.kicad_sch",),
+        authority_checks=("kicad_erc", "spice_export"),
+        findings=("KiCad ERC passed.",),
+        next_action="Run ngspice from KiCad-exported SPICE netlist.",
+    )
+
+    assert kicad.status == "passed"
+    assert reconciliation.status == "warning"
+    assert revision.revision_id == "rev-1"
