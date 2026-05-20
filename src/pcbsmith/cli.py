@@ -5,6 +5,8 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from pydantic import ValidationError
+
 from pcbsmith.circuit.intent import classify_circuit_intent
 from pcbsmith.circuit.models import (
     AuthorityStatus,
@@ -18,6 +20,11 @@ from pcbsmith.circuit.models import (
 from pcbsmith.circuit.topologies import select_topology
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.evidence import EvidenceCache
+from pcbsmith.evidence.divider_highpass_led import (
+    apply_component_selection,
+    select_divider_highpass_led_components,
+)
 from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
@@ -131,6 +138,10 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     topology = select_topology(intent)
     circuit = compose_divider_highpass_led(intent, topology)
+    circuit, evidence = _apply_evidence_manifest(
+        circuit,
+        manifest_path=args.evidence_manifest,
+    )
 
     write_divider_highpass_led_project(circuit, output_dir, project_name=args.name)
     kicad_artifacts = export_divider_highpass_led_to_kicad(
@@ -151,10 +162,6 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         simulation = run_ngspice_simulation(circuit, output_dir)
 
     kicad = _combine_kicad_reports(erc_report, spice_report)
-    evidence = EvidenceReport(
-        status="needs_human_review",
-        findings=(GENERIC_EVIDENCE_FINDING,),
-    )
     reconciliation = _reconcile_authorities(
         kicad=kicad,
         simulation=simulation,
@@ -168,9 +175,11 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
     )
     revisions = _authority_revisions(
+        circuit=circuit,
         evidence=evidence,
         kicad=kicad,
         simulation=simulation,
+        reconciliation=reconciliation,
     )
 
     bundle_path = write_authority_review_bundle(
@@ -302,19 +311,35 @@ def _simulation_input_finding(
 
 def _authority_revisions(
     *,
+    circuit: CircuitObject,
     evidence: EvidenceReport,
     kicad: KiCadReport,
     simulation: SimulationReport,
+    reconciliation: ReconciliationReport,
 ) -> tuple[RevisionRecord, ...]:
-    revisions = [
-        revision_for_authority_failure(
-            revision_id="evidence_missing",
-            parent_revision_id=None,
-            failure_code="evidence_missing",
-            findings=evidence.findings,
+    revisions: list[RevisionRecord] = []
+    parent_revision_id: str | None = None
+    if evidence.status != "passed":
+        revisions.append(
+            revision_for_authority_failure(
+                revision_id="evidence_missing",
+                parent_revision_id=None,
+                failure_code="evidence_missing",
+                findings=evidence.findings,
+            )
         )
-    ]
-    parent_revision_id = revisions[-1].revision_id
+        parent_revision_id = revisions[-1].revision_id
+    if circuit.math.status != "passed":
+        revisions.append(
+            revision_for_authority_failure(
+                revision_id="math_mismatch",
+                parent_revision_id=parent_revision_id,
+                failure_code="math_mismatch",
+                findings=circuit.math.findings
+                or (f"PCBSmith deterministic math status is {circuit.math.status}.",),
+            )
+        )
+        parent_revision_id = revisions[-1].revision_id
     if kicad.status != "passed":
         revisions.append(
             revision_for_authority_failure(
@@ -335,7 +360,47 @@ def _authority_revisions(
                 or (f"ngspice authority status is {simulation.status}.",),
             )
         )
+        parent_revision_id = revisions[-1].revision_id
+    if reconciliation.status != "passed":
+        revisions.append(
+            revision_for_authority_failure(
+                revision_id="reconciliation_failed",
+                parent_revision_id=parent_revision_id,
+                failure_code="reconciliation_failed",
+                findings=reconciliation.findings
+                or (f"Reconciliation status is {reconciliation.status}.",),
+            )
+        )
     return tuple(revisions)
+
+
+def _apply_evidence_manifest(
+    circuit: CircuitObject,
+    *,
+    manifest_path: str | None,
+) -> tuple[CircuitObject, EvidenceReport]:
+    if manifest_path is None:
+        return (
+            circuit,
+            EvidenceReport(
+                status="needs_human_review",
+                findings=(GENERIC_EVIDENCE_FINDING,),
+            ),
+        )
+    try:
+        cache = EvidenceCache.from_manifest(Path(manifest_path))
+    except (OSError, ValidationError) as exc:
+        raise ValueError(f"Evidence manifest could not be loaded: {manifest_path} ({exc})") from exc
+
+    selection_report = select_divider_highpass_led_components(circuit, cache)
+    return (
+        apply_component_selection(circuit, selection_report),
+        EvidenceReport(
+            status=selection_report.status,
+            findings=selection_report.findings,
+            cached_files=selection_report.cached_files,
+        ),
+    )
 
 
 def _authority_artifacts(
@@ -437,6 +502,7 @@ def build_parser() -> argparse.ArgumentParser:
     authority_design_parser.add_argument("output")
     authority_design_parser.add_argument("--request", required=True)
     authority_design_parser.add_argument("--name", required=True)
+    authority_design_parser.add_argument("--evidence-manifest")
     authority_design_parser.set_defaults(func=_cmd_design_divider_highpass_led_authority)
 
     return parser

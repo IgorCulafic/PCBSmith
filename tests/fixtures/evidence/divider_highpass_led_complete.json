@@ -1,0 +1,282 @@
+{
+  "schema": "pcbsmith-evidence-manifest-v1",
+  "components": [
+    {
+      "manufacturer": "PCBSmith Fixture",
+      "part_number": "FIX-10K-0603-R1",
+      "role": "divider_top",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "files": [
+        {
+          "local_path": "fixture-passives-led.txt",
+          "sha256": "fixture-not-a-real-datasheet",
+          "source_url": "fixture://passives-led",
+          "retrieved_at": "2026-05-19",
+          "license_status": "test_fixture_only"
+        }
+      ],
+      "facts": [
+        {
+          "name": "resistance_ohms",
+          "value": 10000.0,
+          "unit": "ohm",
+          "conditions": "fixture nominal value",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R1 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "power_rating_w",
+          "value": 0.1,
+          "unit": "W",
+          "conditions": "fixture rating",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R1 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "tolerance_percent",
+          "value": 1.0,
+          "unit": "%",
+          "conditions": "fixture rating",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R1 fixture facts"
+          },
+          "confidence": "fixture"
+        }
+      ]
+    },
+    {
+      "manufacturer": "PCBSmith Fixture",
+      "part_number": "FIX-10K-0603-R2",
+      "role": "divider_bottom",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "files": [
+        {
+          "local_path": "fixture-passives-led.txt",
+          "sha256": "fixture-not-a-real-datasheet",
+          "source_url": "fixture://passives-led",
+          "retrieved_at": "2026-05-19",
+          "license_status": "test_fixture_only"
+        }
+      ],
+      "facts": [
+        {
+          "name": "resistance_ohms",
+          "value": 10000.0,
+          "unit": "ohm",
+          "conditions": "fixture nominal value",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R2 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "power_rating_w",
+          "value": 0.1,
+          "unit": "W",
+          "conditions": "fixture rating",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R2 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "tolerance_percent",
+          "value": 1.0,
+          "unit": "%",
+          "conditions": "fixture rating",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R2 fixture facts"
+          },
+          "confidence": "fixture"
+        }
+      ]
+    },
+    {
+      "manufacturer": "PCBSmith Fixture",
+      "part_number": "FIX-100NF-0603-C1",
+      "role": "highpass_series_capacitor",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "files": [
+        {
+          "local_path": "fixture-passives-led.txt",
+          "sha256": "fixture-not-a-real-datasheet",
+          "source_url": "fixture://passives-led",
+          "retrieved_at": "2026-05-19",
+          "license_status": "test_fixture_only"
+        }
+      ],
+      "facts": [
+        {
+          "name": "capacitance_f",
+          "value": 0.0000001,
+          "unit": "F",
+          "conditions": "fixture nominal value",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "C1 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "voltage_rating_v",
+          "value": 16.0,
+          "unit": "V",
+          "conditions": "fixture rating",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "C1 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "dielectric",
+          "value": "X7R",
+          "conditions": "fixture dielectric",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "C1 fixture facts"
+          },
+          "confidence": "fixture"
+        }
+      ]
+    },
+    {
+      "manufacturer": "PCBSmith Fixture",
+      "part_number": "FIX-680R-0603-R3",
+      "role": "led_current_limit",
+      "symbol_id": "stdlib:R",
+      "value": "680R",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "files": [
+        {
+          "local_path": "fixture-passives-led.txt",
+          "sha256": "fixture-not-a-real-datasheet",
+          "source_url": "fixture://passives-led",
+          "retrieved_at": "2026-05-19",
+          "license_status": "test_fixture_only"
+        }
+      ],
+      "facts": [
+        {
+          "name": "resistance_ohms",
+          "value": 680.0,
+          "unit": "ohm",
+          "conditions": "fixture nominal value",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R3 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "power_rating_w",
+          "value": 0.1,
+          "unit": "W",
+          "conditions": "fixture rating",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R3 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "tolerance_percent",
+          "value": 1.0,
+          "unit": "%",
+          "conditions": "fixture rating",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "R3 fixture facts"
+          },
+          "confidence": "fixture"
+        }
+      ]
+    },
+    {
+      "manufacturer": "PCBSmith Fixture",
+      "part_number": "FIX-RED-LED-0603-D1",
+      "role": "indicator_led",
+      "symbol_id": "stdlib:LED",
+      "value": "Fixture red LED",
+      "footprint": "LED_SMD:LED_0603_1608Metric",
+      "files": [
+        {
+          "local_path": "fixture-passives-led.txt",
+          "sha256": "fixture-not-a-real-datasheet",
+          "source_url": "fixture://passives-led",
+          "retrieved_at": "2026-05-19",
+          "license_status": "test_fixture_only"
+        }
+      ],
+      "facts": [
+        {
+          "name": "forward_voltage_v_typ",
+          "value": 2.0,
+          "unit": "V",
+          "conditions": "IF=5mA fixture condition",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "D1 fixture facts"
+          },
+          "confidence": "fixture"
+        },
+        {
+          "name": "forward_current_ma_max",
+          "value": 20.0,
+          "unit": "mA",
+          "conditions": "fixture continuous current",
+          "locator": {
+            "local_file": "fixture-passives-led.txt",
+            "source_url": "fixture://passives-led",
+            "page": 1,
+            "section": "D1 fixture facts"
+          },
+          "confidence": "fixture"
+        }
+      ]
+    }
+  ]
+}
+

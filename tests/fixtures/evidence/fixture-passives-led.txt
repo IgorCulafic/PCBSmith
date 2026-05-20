@@ -1,0 +1,5 @@
+Fixture evidence source for PCBSmith tests.
+
+This is not a vendor datasheet. It exists only to exercise cache-first evidence
+plumbing, locators, and deterministic component selection.
+
