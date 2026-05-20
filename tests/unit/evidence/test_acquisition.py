@@ -165,6 +165,20 @@ def test_acquisition_downloads_selected_datasheet_and_updates_manifest(
         "https://example.invalid/datasheets/ex-led-0603.pdf"
     )
     assert data["components"][0]["files"][0]["retrieved_at"] == "2026-05-20"
+    assert data["components"][0]["facts"] == []
+    assert data["extraction_jobs"] == [
+        {
+            "status": "pending_extraction",
+            "component_manufacturer": "Example",
+            "component_part_number": "EX-LED-0603",
+            "role": "indicator_led",
+            "local_path": data["components"][0]["files"][0]["local_path"],
+            "sha256": hashlib.sha256(payload).hexdigest(),
+            "source_url": "https://example.invalid/datasheets/ex-led-0603.pdf",
+            "created_at": "2026-05-20",
+            "findings": [],
+        }
+    ]
 
     second_report = service.acquire(
         EvidenceAcquisitionRequest(
@@ -221,4 +235,3 @@ def _write_existing_manifest(tmp_path: Path) -> Path:
         encoding="utf-8",
     )
     return manifest_path
-

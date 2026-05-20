@@ -13,6 +13,7 @@ from pcbsmith.evidence.models import (
     ComponentEvidence,
     EvidenceAcquisitionReport,
     EvidenceAcquisitionRequest,
+    EvidenceExtractionJob,
     EvidenceManifest,
     EvidenceSourceCandidate,
 )
@@ -113,6 +114,23 @@ class EvidenceAcquisitionService:
             EvidenceManifest(
                 schema_id="pcbsmith-evidence-manifest-v1",
                 components=(*_without_exact_component(manifest, component), component),
+                extraction_jobs=(
+                    *_without_same_extraction_job(
+                        manifest,
+                        local_path=cached_file.local_path,
+                        sha256=digest,
+                    ),
+                    EvidenceExtractionJob(
+                        status="pending_extraction",
+                        component_manufacturer=candidate.manufacturer,
+                        component_part_number=candidate.part_number,
+                        role=candidate.role,
+                        local_path=cached_file.local_path,
+                        sha256=digest,
+                        source_url=candidate.datasheet_url,
+                        created_at=self._clock(),
+                    ),
+                ),
             )
         )
         return EvidenceAcquisitionReport(
@@ -196,6 +214,19 @@ def _without_exact_component(
             == _normalize_identity(replacement.part_number)
             and component.role == replacement.role
         )
+    )
+
+
+def _without_same_extraction_job(
+    manifest: EvidenceManifest,
+    *,
+    local_path: str,
+    sha256: str,
+) -> tuple[EvidenceExtractionJob, ...]:
+    return tuple(
+        job
+        for job in manifest.extraction_jobs
+        if not (job.local_path == local_path and job.sha256 == sha256)
     )
 
 

@@ -74,6 +74,20 @@ class ComponentEvidence(BaseModel):
         return None
 
 
+class EvidenceExtractionJob(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: Literal["pending_extraction", "machine_extracted", "human_reviewed", "failed"]
+    component_manufacturer: str
+    component_part_number: str
+    role: str
+    local_path: str
+    sha256: str
+    source_url: str | None = None
+    created_at: str
+    findings: tuple[str, ...] = ()
+
+
 class EvidenceManifest(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
@@ -82,6 +96,7 @@ class EvidenceManifest(BaseModel):
         serialization_alias="schema",
     )
     components: tuple[ComponentEvidence, ...]
+    extraction_jobs: tuple[EvidenceExtractionJob, ...] = ()
 
 
 class ComponentSelection(BaseModel):
