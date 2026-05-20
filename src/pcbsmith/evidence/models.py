@@ -102,3 +102,36 @@ class EvidenceSelectionReport(BaseModel):
     cached_files: tuple[str, ...] = ()
     selections: tuple[ComponentSelection, ...] = ()
 
+
+class EvidenceAcquisitionRequest(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    role: str
+    query: str
+    manufacturer: str | None = None
+    part_number: str | None = None
+
+
+class EvidenceSourceCandidate(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    provider: str
+    manufacturer: str
+    part_number: str
+    role: str
+    source_url: str
+    datasheet_url: str | None = None
+    symbol_id: str | None = None
+    value: str | None = None
+    footprint: str | None = None
+    license_status: str
+
+
+class EvidenceAcquisitionReport(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: Literal["cache_hit", "downloaded", "missing", "failed"]
+    component: ComponentEvidence | None = None
+    findings: tuple[str, ...] = ()
+    cached_files: tuple[str, ...] = ()
+    candidate: EvidenceSourceCandidate | None = None

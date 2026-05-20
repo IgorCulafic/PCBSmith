@@ -1,0 +1,215 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+from collections.abc import Callable
+from pathlib import Path
+from typing import Protocol
+
+from pcbsmith.evidence.cache import EvidenceCache
+from pcbsmith.evidence.models import (
+    CachedEvidenceFile,
+    ComponentEvidence,
+    EvidenceAcquisitionReport,
+    EvidenceAcquisitionRequest,
+    EvidenceManifest,
+    EvidenceSourceCandidate,
+)
+
+
+class EvidenceProvider(Protocol):
+    def search(
+        self,
+        request: EvidenceAcquisitionRequest,
+    ) -> tuple[EvidenceSourceCandidate, ...]:
+        ...
+
+
+class EvidenceDownloader(Protocol):
+    def download(self, url: str) -> bytes:
+        ...
+
+
+class EvidenceAcquisitionService:
+    def __init__(
+        self,
+        *,
+        manifest_path: Path,
+        cache_dir: Path,
+        provider: EvidenceProvider,
+        downloader: EvidenceDownloader,
+        clock: Callable[[], str],
+    ) -> None:
+        self._manifest_path = manifest_path
+        self._cache_dir = cache_dir
+        self._provider = provider
+        self._downloader = downloader
+        self._clock = clock
+
+    def acquire(self, request: EvidenceAcquisitionRequest) -> EvidenceAcquisitionReport:
+        manifest = self._load_manifest()
+        cached_component = _find_exact_component(manifest, request)
+        if cached_component is not None and self._component_files_exist(cached_component):
+            return EvidenceAcquisitionReport(
+                status="cache_hit",
+                component=cached_component,
+                cached_files=tuple(
+                    str(self._resolve_cached_file(cached_file))
+                    for cached_file in cached_component.files
+                ),
+            )
+
+        candidates = self._provider.search(request)
+        if not candidates:
+            return EvidenceAcquisitionReport(
+                status="missing",
+                findings=(f"No provider candidates found for {request.role}.",),
+            )
+
+        candidate = candidates[0]
+        if candidate.datasheet_url is None:
+            return EvidenceAcquisitionReport(
+                status="missing",
+                candidate=candidate,
+                findings=(
+                    f"Provider candidate {candidate.manufacturer} "
+                    f"{candidate.part_number} has no datasheet URL.",
+                ),
+            )
+
+        return self._download_candidate(manifest, candidate)
+
+    def _download_candidate(
+        self,
+        manifest: EvidenceManifest,
+        candidate: EvidenceSourceCandidate,
+    ) -> EvidenceAcquisitionReport:
+        assert candidate.datasheet_url is not None
+        payload = self._downloader.download(candidate.datasheet_url)
+        digest = hashlib.sha256(payload).hexdigest()
+        cached_path = self._cache_path_for(candidate, digest)
+        cached_path.parent.mkdir(parents=True, exist_ok=True)
+        cached_path.write_bytes(payload)
+
+        cached_file = CachedEvidenceFile(
+            local_path=_relative_path(cached_path, self._manifest_path.parent),
+            sha256=digest,
+            source_url=candidate.datasheet_url,
+            retrieved_at=self._clock(),
+            license_status=candidate.license_status,
+        )
+        component = ComponentEvidence(
+            manufacturer=candidate.manufacturer,
+            part_number=candidate.part_number,
+            role=candidate.role,
+            symbol_id=candidate.symbol_id or "",
+            value=candidate.value or candidate.part_number,
+            footprint=candidate.footprint,
+            files=(cached_file,),
+            facts=(),
+        )
+        self._write_manifest(
+            EvidenceManifest(
+                schema_id="pcbsmith-evidence-manifest-v1",
+                components=(*_without_exact_component(manifest, component), component),
+            )
+        )
+        return EvidenceAcquisitionReport(
+            status="downloaded",
+            component=component,
+            candidate=candidate,
+            cached_files=(str(cached_path),),
+        )
+
+    def _load_manifest(self) -> EvidenceManifest:
+        if not self._manifest_path.exists():
+            self._write_manifest(
+                EvidenceManifest(
+                    schema_id="pcbsmith-evidence-manifest-v1",
+                    components=(),
+                )
+            )
+        return EvidenceManifest.model_validate_json(
+            self._manifest_path.read_text(encoding="utf-8")
+        )
+
+    def _write_manifest(self, manifest: EvidenceManifest) -> None:
+        self._manifest_path.parent.mkdir(parents=True, exist_ok=True)
+        self._manifest_path.write_text(
+            json.dumps(manifest.model_dump(by_alias=True), indent=2) + "\n",
+            encoding="utf-8",
+        )
+
+    def _component_files_exist(self, component: ComponentEvidence) -> bool:
+        if not component.files:
+            return False
+        return all(
+            self._resolve_cached_file(cached_file).exists()
+            for cached_file in component.files
+        )
+
+    def _resolve_cached_file(self, cached_file: CachedEvidenceFile) -> Path:
+        return EvidenceCache(
+            manifest_path=self._manifest_path,
+            manifest=self._load_manifest(),
+        ).resolve_cached_file(cached_file)
+
+    def _cache_path_for(self, candidate: EvidenceSourceCandidate, digest: str) -> Path:
+        return (
+            self._cache_dir
+            / "datasheets"
+            / f"{_safe_filename(candidate.manufacturer)}-{_safe_filename(candidate.part_number)}"
+            f"-{digest[:12]}.pdf"
+        ).resolve()
+
+
+def _find_exact_component(
+    manifest: EvidenceManifest,
+    request: EvidenceAcquisitionRequest,
+) -> ComponentEvidence | None:
+    if request.manufacturer is None or request.part_number is None:
+        return None
+    requested_manufacturer = _normalize_identity(request.manufacturer)
+    requested_part = _normalize_identity(request.part_number)
+    for component in manifest.components:
+        if (
+            _normalize_identity(component.manufacturer) == requested_manufacturer
+            and _normalize_identity(component.part_number) == requested_part
+            and component.role == request.role
+        ):
+            return component
+    return None
+
+
+def _without_exact_component(
+    manifest: EvidenceManifest,
+    replacement: ComponentEvidence,
+) -> tuple[ComponentEvidence, ...]:
+    return tuple(
+        component
+        for component in manifest.components
+        if not (
+            _normalize_identity(component.manufacturer)
+            == _normalize_identity(replacement.manufacturer)
+            and _normalize_identity(component.part_number)
+            == _normalize_identity(replacement.part_number)
+            and component.role == replacement.role
+        )
+    )
+
+
+def _normalize_identity(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "", value.lower())
+
+
+def _safe_filename(value: str) -> str:
+    normalized = re.sub(r"[^A-Za-z0-9._-]+", "-", value.strip()).strip("-._")
+    return normalized or "unknown"
+
+
+def _relative_path(path: Path, root: Path) -> str:
+    try:
+        return path.relative_to(root.resolve()).as_posix()
+    except ValueError:
+        return str(path)
