@@ -4,6 +4,12 @@ from pcbsmith.evidence.acquisition import (
     EvidenceProvider,
 )
 from pcbsmith.evidence.cache import EvidenceCache
+from pcbsmith.evidence.extraction import (
+    EvidenceExtractionReport,
+    EvidenceExtractionResult,
+    EvidenceExtractionService,
+    EvidenceExtractor,
+)
 from pcbsmith.evidence.models import (
     CachedEvidenceFile,
     ComponentEvidence,
@@ -34,6 +40,10 @@ __all__ = [
     "EvidenceCache",
     "EvidenceDownloader",
     "EvidenceExtractionJob",
+    "EvidenceExtractionReport",
+    "EvidenceExtractionResult",
+    "EvidenceExtractionService",
+    "EvidenceExtractor",
     "EvidenceFact",
     "EvidenceLocator",
     "EvidenceManifest",
