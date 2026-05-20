@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Callable, Mapping
 from typing import Any, Protocol
+from urllib import parse, request
 
 from pcbsmith.evidence.models import EvidenceAcquisitionRequest, EvidenceSourceCandidate
 
 NEXAR_GRAPHQL_ENDPOINT = "https://api.nexar.com/graphql/"
+NEXAR_TOKEN_ENDPOINT = "https://identity.nexar.com/connect/token"
 _SUP_SEARCH_MPN_QUERY = """
 query PCBSmithSupSearchMpn($q: String!, $limit: Int!) {
   supSearchMpn(q: $q, limit: $limit) {
@@ -40,6 +43,86 @@ class NexarJsonTransport(Protocol):
         payload: dict[str, object],
     ) -> Mapping[str, Any]:
         ...
+
+
+class NexarTokenTransport(Protocol):
+    def post_form(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        data: dict[str, str],
+    ) -> Mapping[str, Any]:
+        ...
+
+
+class UrlLibNexarTransport:
+    def post_json(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        payload: dict[str, object],
+    ) -> Mapping[str, Any]:
+        body = json.dumps(payload).encode("utf-8")
+        return _read_json(
+            request.Request(
+                url,
+                data=body,
+                headers=headers,
+                method="POST",
+            )
+        )
+
+    def post_form(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        data: dict[str, str],
+    ) -> Mapping[str, Any]:
+        body = parse.urlencode(data).encode("utf-8")
+        return _read_json(
+            request.Request(
+                url,
+                data=body,
+                headers=headers,
+                method="POST",
+            )
+        )
+
+
+class NexarClientCredentialsTokenProvider:
+    def __init__(
+        self,
+        *,
+        client_id: str,
+        client_secret: str,
+        transport: NexarTokenTransport,
+        token_endpoint: str = NEXAR_TOKEN_ENDPOINT,
+        scope: str = "supply.domain",
+    ) -> None:
+        self._client_id = client_id
+        self._client_secret = client_secret
+        self._transport = transport
+        self._token_endpoint = token_endpoint
+        self._scope = scope
+
+    def __call__(self) -> str:
+        response = self._transport.post_form(
+            self._token_endpoint,
+            headers={"Content-Type": "application/x-www-form-urlencoded"},
+            data={
+                "grant_type": "client_credentials",
+                "client_id": self._client_id,
+                "client_secret": self._client_secret,
+                "scope": self._scope,
+            },
+        )
+        access_token = response.get("access_token")
+        if not isinstance(access_token, str) or not access_token:
+            raise NexarProviderError("Nexar token response did not include access_token.")
+        return access_token
 
 
 class NexarSupplyProvider:
@@ -174,3 +257,18 @@ def _mapping_or_none(value: object) -> Mapping[str, Any] | None:
 
 def _string_or_none(value: object) -> str | None:
     return value if isinstance(value, str) and value.strip() else None
+
+
+def _read_json(http_request: request.Request) -> Mapping[str, Any]:
+    try:
+        with request.urlopen(http_request, timeout=30) as response:
+            payload = response.read().decode("utf-8")
+    except OSError as exc:
+        raise NexarProviderError(f"Nexar HTTP request failed: {exc}") from exc
+    try:
+        decoded = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise NexarProviderError("Nexar HTTP response was not valid JSON.") from exc
+    if not isinstance(decoded, Mapping):
+        raise NexarProviderError("Nexar HTTP response JSON was not an object.")
+    return decoded

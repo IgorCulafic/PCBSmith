@@ -2,7 +2,12 @@ from __future__ import annotations
 
 import pytest
 
-from pcbsmith.evidence import EvidenceAcquisitionRequest, NexarProviderError, NexarSupplyProvider
+from pcbsmith.evidence import (
+    EvidenceAcquisitionRequest,
+    NexarClientCredentialsTokenProvider,
+    NexarProviderError,
+    NexarSupplyProvider,
+)
 
 
 class RecordingTransport:
@@ -19,6 +24,55 @@ class RecordingTransport:
     ) -> dict:
         self.calls.append((url, headers, payload))
         return self.response
+
+
+class RecordingTokenTransport:
+    def __init__(self, response: dict) -> None:
+        self.response = response
+        self.calls: list[tuple[str, dict[str, str], dict[str, str]]] = []
+
+    def post_form(
+        self,
+        url: str,
+        *,
+        headers: dict[str, str],
+        data: dict[str, str],
+    ) -> dict:
+        self.calls.append((url, headers, data))
+        return self.response
+
+
+def test_nexar_client_credentials_token_provider_posts_supply_scope_form() -> None:
+    transport = RecordingTokenTransport({"access_token": "token-123", "expires_in": 86400})
+    token_provider = NexarClientCredentialsTokenProvider(
+        client_id="client-id",
+        client_secret="client-secret",
+        transport=transport,
+    )
+
+    token = token_provider()
+
+    url, headers, data = transport.calls[0]
+    assert token == "token-123"
+    assert url == "https://identity.nexar.com/connect/token"
+    assert headers["Content-Type"] == "application/x-www-form-urlencoded"
+    assert data == {
+        "grant_type": "client_credentials",
+        "client_id": "client-id",
+        "client_secret": "client-secret",
+        "scope": "supply.domain",
+    }
+
+
+def test_nexar_token_provider_rejects_response_without_access_token() -> None:
+    token_provider = NexarClientCredentialsTokenProvider(
+        client_id="client-id",
+        client_secret="client-secret",
+        transport=RecordingTokenTransport({"error": "invalid_client"}),
+    )
+
+    with pytest.raises(NexarProviderError, match="access_token"):
+        token_provider()
 
 
 def test_nexar_provider_posts_graphql_with_bearer_token_and_part_number_query() -> None:
@@ -122,4 +176,3 @@ def _response_with_part() -> dict:
             }
         }
     }
-

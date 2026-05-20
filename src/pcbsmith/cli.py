@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -20,7 +21,14 @@ from pcbsmith.circuit.models import (
 from pcbsmith.circuit.topologies import select_topology
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
-from pcbsmith.evidence import EvidenceCache
+from pcbsmith.evidence import (
+    EvidenceAcquisitionRequest,
+    EvidenceCache,
+    NexarClientCredentialsTokenProvider,
+    NexarProviderError,
+    NexarSupplyProvider,
+    UrlLibNexarTransport,
+)
 from pcbsmith.evidence.divider_highpass_led import (
     apply_component_selection,
     select_divider_highpass_led_components,
@@ -201,6 +209,40 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
     )
     print(f"Review bundle: {bundle_path}")
     print(f"Status: {status}")
+    return 0
+
+
+def _cmd_evidence_nexar_smoke(args: argparse.Namespace) -> int:
+    client_id = os.environ.get("PCBSMITH_NEXAR_CLIENT_ID")
+    client_secret = os.environ.get("PCBSMITH_NEXAR_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        print(
+            "Skipped Nexar smoke: set PCBSMITH_NEXAR_CLIENT_ID and "
+            "PCBSMITH_NEXAR_CLIENT_SECRET to run the live opt-in check."
+        )
+        return 0
+
+    transport = UrlLibNexarTransport()
+    provider = NexarSupplyProvider(
+        token_provider=NexarClientCredentialsTokenProvider(
+            client_id=client_id,
+            client_secret=client_secret,
+            transport=transport,
+        ),
+        transport=transport,
+        limit=args.limit,
+    )
+    request = EvidenceAcquisitionRequest(
+        role=args.role,
+        query=args.query,
+        manufacturer=args.manufacturer,
+        part_number=args.part_number,
+    )
+    candidates = provider.search(request)
+    print(f"Nexar candidates: {len(candidates)}")
+    for candidate in candidates:
+        datasheet = candidate.datasheet_url or "no datasheet URL"
+        print(f"- {candidate.manufacturer} {candidate.part_number}: {datasheet}")
     return 0
 
 
@@ -505,6 +547,17 @@ def build_parser() -> argparse.ArgumentParser:
     authority_design_parser.add_argument("--evidence-manifest")
     authority_design_parser.set_defaults(func=_cmd_design_divider_highpass_led_authority)
 
+    nexar_smoke_parser = subparsers.add_parser(
+        "evidence-nexar-smoke",
+        help="run an opt-in live Nexar provider smoke when credentials are configured",
+    )
+    nexar_smoke_parser.add_argument("--role", required=True)
+    nexar_smoke_parser.add_argument("--query", required=True)
+    nexar_smoke_parser.add_argument("--manufacturer")
+    nexar_smoke_parser.add_argument("--part-number")
+    nexar_smoke_parser.add_argument("--limit", type=int, default=3)
+    nexar_smoke_parser.set_defaults(func=_cmd_evidence_nexar_smoke)
+
     return parser
 
 
@@ -514,7 +567,7 @@ def main(argv: list[str] | None = None) -> int:
     try:
         command: Callable[[argparse.Namespace], int] = args.func
         return command(args)
-    except (ProjectIOError, KeyError, ValueError) as exc:
+    except (ProjectIOError, KeyError, ValueError, NexarProviderError) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
