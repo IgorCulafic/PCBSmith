@@ -16,6 +16,7 @@ from pcbsmith.evidence.models import (
     EvidenceSelectionReport,
     EvidenceSourceCandidate,
 )
+from pcbsmith.evidence.nexar import NexarProviderError, NexarSupplyProvider
 
 __all__ = [
     "CachedEvidenceFile",
@@ -32,4 +33,6 @@ __all__ = [
     "EvidenceProvider",
     "EvidenceSelectionReport",
     "EvidenceSourceCandidate",
+    "NexarProviderError",
+    "NexarSupplyProvider",
 ]
