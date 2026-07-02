@@ -12,7 +12,6 @@ from typing import Any
 
 from pcbsmith.kicad.board import (
     FOOTPRINT_LIBRARY,
-    PARTS_ROW_Y_MM,
     BoardGenerationError,
     BoardLayout,
     BoardNetlist,
@@ -35,7 +34,11 @@ NET_TEXT = (235, 235, 235)
 LANE_TEXT = (150, 190, 255)
 
 
-def plot_board_review(netlist: BoardNetlist, output: Path) -> Path:
+def plot_board_review(
+    netlist: BoardNetlist,
+    output: Path,
+    power_net_names: frozenset[str] = frozenset(),
+) -> Path:
     try:
         from PIL import Image, ImageDraw
     except ImportError as exc:
@@ -44,7 +47,7 @@ def plot_board_review(netlist: BoardNetlist, output: Path) -> Path:
             "Install the preview extra: pip install 'pcbsmith[preview]'."
         ) from exc
 
-    layout = compute_board_layout(netlist)
+    layout = compute_board_layout(netlist, power_net_names)
     width_px = int(layout.width_mm * SCALE_PX_PER_MM) + 2 * IMAGE_MARGIN_PX
     height_px = int(layout.height_mm * SCALE_PX_PER_MM) + 2 * IMAGE_MARGIN_PX
     image = Image.new("RGB", (width_px, height_px), BACKGROUND)
@@ -64,10 +67,9 @@ def plot_board_review(netlist: BoardNetlist, output: Path) -> Path:
         width=3,
     )
 
-    track_px = max(2, int(0.3 * SCALE_PX_PER_MM))
-    _draw_tracks(draw, layout, "B.Cu", B_CU, track_px, px)
+    _draw_tracks(draw, layout, "B.Cu", B_CU, px)
     _draw_lane_labels(draw, layout, small_font, px)
-    _draw_tracks(draw, layout, "F.Cu", F_CU, track_px, px)
+    _draw_tracks(draw, layout, "F.Cu", F_CU, px)
     _draw_footprints(draw, netlist, layout, font, small_font, px)
     _draw_vias(draw, layout, px)
 
@@ -81,7 +83,6 @@ def _draw_tracks(
     layout: BoardLayout,
     layer: str,
     color: tuple[int, int, int],
-    width_px: int,
     px: Any,
 ) -> None:
     for segment in layout.segments:
@@ -89,7 +90,7 @@ def _draw_tracks(
             draw.line(
                 (*px(segment.x1, segment.y1), *px(segment.x2, segment.y2)),
                 fill=color,
-                width=width_px,
+                width=max(2, int(segment.width_mm * SCALE_PX_PER_MM)),
             )
 
 
@@ -124,21 +125,22 @@ def _draw_footprints(
         for net in netlist.nets
         for reference, pin in net.nodes
     }
+    row_y = layout.parts_row_y_mm
     for component, anchor_x in layout.placements:
         spec = FOOTPRINT_LIBRARY[component.footprint]
-        if spec.silk_rect is not None:
-            x1, y1, x2, y2 = spec.silk_rect
-            draw.rectangle(
-                (
-                    *px(anchor_x + x1, PARTS_ROW_Y_MM + y1),
-                    *px(anchor_x + x2, PARTS_ROW_Y_MM + y2),
-                ),
-                outline=SILK,
-                width=2,
-            )
+        body_rect = spec.silk_rect or spec.fab_rect
+        x1, y1, x2, y2 = body_rect
+        draw.rectangle(
+            (
+                *px(anchor_x + x1, row_y + y1),
+                *px(anchor_x + x2, row_y + y2),
+            ),
+            outline=SILK,
+            width=2,
+        )
         for pad in spec.pads:
             pad_x = anchor_x + pad.x_mm
-            pad_y = PARTS_ROW_Y_MM + pad.y_mm
+            pad_y = row_y + pad.y_mm
             half_w = pad.width_mm / 2
             half_h = pad.height_mm / 2
             if pad.kind == "smd":
@@ -166,7 +168,7 @@ def _draw_footprints(
                     anchor="ma",
                 )
         center_x = anchor_x + (spec.x_min + spec.x_max) / 2
-        ref_x, ref_y = px(center_x, PARTS_ROW_Y_MM + spec.y_min - 1.5)
+        ref_x, ref_y = px(center_x, row_y + spec.y_min - 1.5)
         draw.text(
             (ref_x, ref_y),
             component.reference,

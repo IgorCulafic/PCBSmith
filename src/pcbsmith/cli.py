@@ -325,11 +325,22 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
             "schematic.",
         ),
     )
-    board = BoardReport(
-        status="not_run",
-        findings=(
-            "Board generation is gated for switching converters until "
-            "switching-loop layout rules exist (roadmap buck entry criteria).",
+    board = _board_authority(
+        output_dir=output_dir,
+        project_name=args.name,
+        schematic_file=schematic_file,
+        erc_report=erc_report,
+        simulation=simulation,
+        power_net_names=frozenset({"VIN", "SW", "VOUT", "GND"}),
+        extra_findings=(
+            "Design-rule status (docs/pcb-design-rules.md): power nets routed at "
+            "0.8mm (rule 3.6, machine-enforced); power path kept contiguous by "
+            "row ordering (rules 3.1/3.2, 1-D approximation only); TO-263 tab "
+            "connected to GND via its pin-3 column.",
+            "NOT machine-enforced yet: 2-D switching-loop area minimisation, "
+            "feedback routing distance from the inductor, and the TO-263 "
+            "thermal pour (~2.5 sq in per TI thermal notes) - review these "
+            "before fabrication.",
         ),
     )
     artifacts = _authority_artifacts(
@@ -551,6 +562,8 @@ def _board_authority(
     schematic_file: Path,
     erc_report: KiCadReport,
     simulation: SimulationReport,
+    power_net_names: frozenset[str] = frozenset(),
+    extra_findings: tuple[str, ...] = (),
 ) -> BoardReport:
     if erc_report.status != "passed" or simulation.status != "passed":
         return BoardReport(
@@ -562,7 +575,11 @@ def _board_authority(
         )
     board_file = output_dir / f"{project_name}.kicad_pcb"
     try:
-        board_netlist = generate_board(schematic_file=schematic_file, board_file=board_file)
+        board_netlist = generate_board(
+            schematic_file=schematic_file,
+            board_file=board_file,
+            power_net_names=power_net_names,
+        )
     except BoardGenerationError as exc:
         return BoardReport(
             status="failed",
@@ -572,7 +589,11 @@ def _board_authority(
     report = run_kicad_drc(board_file)
     _, preview_findings = render_board_previews(board_file)
     try:
-        plot_board_review(board_netlist, output_dir / f"{project_name}-review.png")
+        plot_board_review(
+            board_netlist,
+            output_dir / f"{project_name}-review.png",
+            power_net_names,
+        )
     except BoardGenerationError as exc:
         preview_findings = (*preview_findings, str(exc))
     if report.status == "passed":
@@ -582,14 +603,15 @@ def _board_authority(
                 "findings": (
                     *report.findings,
                     *preview_findings,
+                    *extra_findings,
                     "KiCad DRC passed. The generated board layout still requires "
                     "human visual review before fabrication.",
                 ),
             }
         )
-    if preview_findings:
+    if preview_findings or extra_findings:
         return report.model_copy(
-            update={"findings": (*report.findings, *preview_findings)}
+            update={"findings": (*report.findings, *preview_findings, *extra_findings)}
         )
     return report
 

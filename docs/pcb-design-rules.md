@@ -25,10 +25,11 @@ to future, more complex designs.
 - **1.1 Connectors belong at board edges or corners.** Off-board wiring must
   not reach into the interior of the board. (`SESSION` — human review caught
   interior placement; `REF-BC2596` uses four single-pin pads at the corners.)
-  - Machine check: connector footprints are classified (`is_connector`) and
-    placed leading the row at the outline edge. Status: **implemented**
-    (`kicad/board.py`); edge-parallel orientation and multi-edge assignment
-    (power vs signal edges) **pending** (needs escape routing).
+  - Machine check: connector footprints are classified (`is_connector`); the
+    first leads the row at the left edge and any further connectors close the
+    row at the right edge, so power enters one side and exits the other.
+    Status: **implemented** (`kicad/board.py`); edge-parallel orientation
+    **pending** (needs escape routing).
 - **1.2 Single-pin solder pads at corners are a valid connector style for
   modules.** (`REF-BC2596` J1–J4.) Status: **pending** (footprint library has
   no 1-pin pad entry yet).
@@ -62,11 +63,15 @@ grounding."
 
 - **3.1 Minimise the high di/dt loop area.** For a buck this loop is
   input cap → VIN pin → switch → catch diode → ground → input cap. Traces in
-  it are wide and short. Status: **pending** — this is the primary gate on
-  buck board generation.
+  it are wide and short. Status: **partially implemented** — power nets carry
+  a 3x weight in the row-ordering cost, which pulls the power path into
+  adjacent placement (a 1-D loop-length minimisation); true 2-D loop-area
+  minimisation and a ground plane remain **pending** and are flagged in every
+  buck board report.
 - **3.2 All power externals (diode, inductor, in/out capacitors) cluster
   tightly around the IC; ground via a plane or a single point.** (`TI-DS`
-  §9.4.1.) Status: **pending**.
+  §9.4.1.) Status: **partially implemented** (adjacency via weighted
+  ordering); ground plane **pending**.
 - **3.3 Feedback components sit next to the IC, and the feedback trace routes
   away from the inductor.** The FB node is high impedance; coupling from the
   switch node or inductor flux corrupts regulation. (`TI-DS` §9.4.1, §9.1.7.)
@@ -77,10 +82,10 @@ grounding."
 - **3.5 Thermal copper for power tabs.** A TO-263 tab wants its dissipation
   pour: ~2.5 in² of 1 oz copper single-sided (or 3 in² + 16 in² double-sided)
   per `TI-DS` thermal notes. Status: **pending**.
-- **3.6 Net roles drive trace width.** Switching/power nets get wide traces
-  (the archived buck used 1.0 mm power / 0.3 mm signal); width follows
-  current, not aesthetics. (`TI-DS` §9.4.1; archived board builder.)
-  Status: **pending** (needs net role classification from circuit roles).
+- **3.6 Net roles drive trace width.** Switching/power nets get wide traces;
+  width follows current, not aesthetics. (`TI-DS` §9.4.1; archived board
+  builder.) Status: **implemented** — topology names its power nets and the
+  router uses 0.8 mm tracks / 0.8-0.4 vias for them, 0.3 mm for signals.
 
 ## 4. Placement logic
 

@@ -219,6 +219,61 @@ def test_render_board_rejects_unknown_pad_name() -> None:
         render_board(netlist)
 
 
+def test_power_nets_route_wide_and_to263_tab_shares_its_pin_column() -> None:
+    from pcbsmith.kicad.board import (
+        POWER_TRACK_WIDTH_MM,
+        SIGNAL_TRACK_WIDTH_MM,
+        compute_board_layout,
+    )
+
+    netlist = BoardNetlist(
+        components=(
+            BoardComponent(
+                reference="U1",
+                value="LM2596S-ADJ",
+                footprint="Package_TO_SOT_SMD:TO-263-5_TabPin3",
+                uuid_path="u1",
+            ),
+            BoardComponent(
+                reference="D1",
+                value="SS34",
+                footprint="Diode_SMD:D_SMA",
+                uuid_path="d1",
+            ),
+            BoardComponent(
+                reference="RFB1",
+                value="3.74k",
+                footprint="Resistor_SMD:R_0603_1608Metric",
+                uuid_path="rfb1",
+            ),
+        ),
+        nets=(
+            BoardNet(name="/SW", nodes=(("U1", "2"), ("D1", "2"))),
+            BoardNet(name="/GND", nodes=(("U1", "3"), ("D1", "1"))),
+            BoardNet(name="/FB", nodes=(("U1", "4"), ("RFB1", "1"))),
+        ),
+    )
+
+    layout = compute_board_layout(netlist, frozenset({"SW", "GND"}))
+
+    widths = {
+        segment.net_name: segment.width_mm
+        for segment in layout.segments
+    }
+    assert widths["/SW"] == POWER_TRACK_WIDTH_MM
+    assert widths["/GND"] == POWER_TRACK_WIDTH_MM
+    assert widths["/FB"] == SIGNAL_TRACK_WIDTH_MM
+    # The tab (second pad "3") shares its column with pin 3, so GND gets one
+    # drop for that column plus one for the diode anode: two GND vias total.
+    gnd_vias = [via for via in layout.vias if via.net_name == "/GND"]
+    assert len(gnd_vias) == 2
+    # The GND drop in the shared column starts at the tab (topmost pad).
+    spec = layout.placements[0][0]
+    assert spec.reference in {"U1", "D1", "RFB1"}
+    # TO-263 depth pushes the parts row below the minimum.
+    assert layout.parts_row_y_mm > 4.5
+
+
 def test_plot_board_review_writes_png(tmp_path: Path) -> None:
     pytest.importorskip("PIL")
     from pcbsmith.kicad.preview import plot_board_review
