@@ -8,6 +8,7 @@ from pcbsmith.circuit.models import (
     AuthorityStatus,
     BoardReport,
     CircuitObject,
+    DesignReviewReport,
     EvidenceReport,
     KiCadReport,
     ReconciliationReport,
@@ -25,6 +26,7 @@ def write_authority_review_bundle(
     simulation: SimulationReport,
     reconciliation: ReconciliationReport,
     board: BoardReport | None = None,
+    design_review: DesignReviewReport | None = None,
     revisions: tuple[RevisionRecord, ...] = (),
     artifacts: dict[str, str],
 ) -> Path:
@@ -37,6 +39,7 @@ def write_authority_review_bundle(
             simulation=simulation,
             reconciliation=reconciliation,
             board=board,
+            design_review=design_review,
         ),
         intent=circuit.intent,
         pcbs_internal=circuit,
@@ -45,6 +48,7 @@ def write_authority_review_bundle(
         ngspice=simulation,
         reconciliation=reconciliation,
         board=board,
+        design_review=design_review,
         revisions=revisions,
         artifacts=artifacts,
     )
@@ -62,12 +66,14 @@ def _derive_status(
     simulation: SimulationReport,
     reconciliation: ReconciliationReport,
     board: BoardReport | None = None,
+    design_review: DesignReviewReport | None = None,
 ) -> AuthorityStatus:
     authority_statuses = (evidence.status, kicad.status, simulation.status, reconciliation.status)
     board_status = board.status if board is not None else None
+    review_status = design_review.status if design_review is not None else None
     if circuit.math.status == "failed" or "failed" in authority_statuses:
         return "failed"
-    if board_status == "failed":
+    if board_status == "failed" or review_status == "failed":
         return "failed"
     if "unavailable" in authority_statuses or board_status == "unavailable":
         return "unavailable"
@@ -81,6 +87,7 @@ def _derive_status(
         or simulation.status != "passed"
         or reconciliation.status != "passed"
         or (board_status is not None and board_status != "passed")
+        or (review_status is not None and review_status != "passed")
         or any(component.support_status != "supported" for component in circuit.components)
     ):
         return "needs_human_review"

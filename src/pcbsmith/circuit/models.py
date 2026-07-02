@@ -97,6 +97,26 @@ class BoardReport(BaseModel):
     findings: tuple[str, ...] = ()
 
 
+class ReviewFinding(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    rule: str
+    severity: Literal["blocker", "warning", "style"]
+    scope: Literal["component", "net", "region", "global"]
+    where: str
+    evidence: str
+    suggested_action: str
+    source: Literal["check", "model_review", "human"]
+
+
+class DesignReviewReport(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: AuthorityStatus
+    checks_run: tuple[str, ...] = ()
+    findings: tuple[ReviewFinding, ...] = ()
+
+
 class EvidenceReport(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -163,5 +183,6 @@ class AuthorityReviewBundle(BaseModel):
     ngspice: SimulationReport
     reconciliation: ReconciliationReport
     board: BoardReport | None = None
+    design_review: DesignReviewReport | None = None
     revisions: tuple[RevisionRecord, ...] = ()
     artifacts: dict[str, str]

@@ -2,6 +2,12 @@
 
 Date: 2026-07-02
 
+Governance: this file is the authoritative rulebook. AI reviewers currently
+edit it directly with user permission; once rule confinement is enabled they
+must instead propose changes in `docs/ai-rule-suggestions.md` for human
+promotion. Rules with machine checks are enforced by
+`src/pcbsmith/kicad/design_checks.py`; every promoted rule should gain one.
+
 Status: v1 — general rules PCBSmith encodes as circuit composition, placement,
 routing, and review predicates. Every rule cites its source. Rules marked
 `pending` gate features (notably: switching-converter board generation stays

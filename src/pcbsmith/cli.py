@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from collections.abc import Callable
 from pathlib import Path
@@ -14,6 +15,7 @@ from pcbsmith.circuit.models import (
     AuthorityStatus,
     BoardReport,
     CircuitObject,
+    DesignReviewReport,
     EvidenceReport,
     KiCadReport,
     ReconciliationReport,
@@ -60,9 +62,11 @@ from pcbsmith.generation.lm2596_buck import (
 )
 from pcbsmith.kicad.board import (
     BoardGenerationError,
+    compute_board_layout,
     generate_board,
     render_board_previews,
 )
+from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
 from pcbsmith.kicad.preview import plot_board_review
@@ -70,7 +74,11 @@ from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
 from pcbsmith.review.authority_bundle import write_authority_review_bundle
 from pcbsmith.review.circuit_bundle import write_circuit_review_bundle
-from pcbsmith.revision import revision_for_authority_failure
+from pcbsmith.revision import (
+    build_revision_plan,
+    collect_failure_codes,
+    revision_for_authority_failure,
+)
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.project_io import (
@@ -218,7 +226,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         selected_kicad_spice=selected_kicad_spice,
     )
-    board = _board_authority(
+    board, design_review = _board_authority(
         output_dir=output_dir,
         project_name=args.name,
         schematic_file=schematic_file,
@@ -251,6 +259,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         reconciliation=reconciliation,
         board=board,
+        design_review=design_review,
         revisions=revisions,
         artifacts=artifacts,
     )
@@ -261,6 +270,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         reconciliation=reconciliation,
         board=board,
+        design_review=design_review,
     )
     print(f"Review bundle: {bundle_path}")
     print(f"Status: {status}")
@@ -325,13 +335,18 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
             "schematic.",
         ),
     )
-    board = _board_authority(
+    board, design_review = _board_authority(
         output_dir=output_dir,
         project_name=args.name,
         schematic_file=schematic_file,
         erc_report=erc_report,
         simulation=simulation,
         power_net_names=frozenset({"VIN", "SW", "VOUT", "GND"}),
+        design_checks=DesignChecksSpec(
+            switching_cluster_refs=("CIN", "CIN2", "U1", "D1"),
+            sensitive_net_names=("FB",),
+            inductor_references=("L1",),
+        ),
         extra_findings=(
             "Design-rule status (docs/pcb-design-rules.md): power nets routed at "
             "0.8mm (rule 3.6, machine-enforced); power path kept contiguous by "
@@ -368,6 +383,7 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         reconciliation=reconciliation,
         board=board,
+        design_review=design_review,
         revisions=revisions,
         artifacts=artifacts,
     )
@@ -378,10 +394,59 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         reconciliation=reconciliation,
         board=board,
+        design_review=design_review,
     )
     print(f"Review bundle: {bundle_path}")
     print(f"Status: {status}")
     return 0
+
+
+def _cmd_revision_plan(args: argparse.Namespace) -> int:
+    revision_dir = Path(args.output)
+    bundle_path = revision_dir / "review-bundle-v2.json"
+    if not bundle_path.exists():
+        raise ValueError(f"No review bundle found at {bundle_path}")
+    bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
+
+    history = _revision_history_codes(revision_dir)
+    plan = build_revision_plan(bundle, history)
+    plan_path = revision_dir / "revision-plan.json"
+    plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
+
+    print(f"Revision plan: {plan_path}")
+    print(f"Decision: {plan['decision']}")
+    if plan["stage"]:
+        print(f"Re-enter pipeline at stage: {plan['stage']}")
+    for target in plan["targets"]:
+        rule = f"rule {target['rule']}" if target["rule"] else target["where"]
+        print(f"- [{target['severity']}] {rule}: {target['suggested_action']}")
+    for reason in plan["rationale"]:
+        print(f"  ({reason})")
+    return 0
+
+
+def _revision_history_codes(revision_dir: Path) -> list[tuple[str, ...]]:
+    """Failure codes for each sibling revision (same name stem), oldest first,
+    ending with the revision under review."""
+    match = re.fullmatch(r"(?P<stem>.+-r)(?P<number>\d+)", revision_dir.name)
+    if match is None:
+        bundle = json.loads(
+            (revision_dir / "review-bundle-v2.json").read_text(encoding="utf-8")
+        )
+        return [collect_failure_codes(bundle)]
+    stem = match.group("stem")
+    current_number = int(match.group("number"))
+    history: list[tuple[str, ...]] = []
+    for sibling in sorted(revision_dir.parent.glob(f"{stem}*")):
+        sibling_match = re.fullmatch(r".+-r(\d+)", sibling.name)
+        if sibling_match is None or int(sibling_match.group(1)) > current_number:
+            continue
+        sibling_bundle_path = sibling / "review-bundle-v2.json"
+        if not sibling_bundle_path.exists():
+            continue
+        sibling_bundle = json.loads(sibling_bundle_path.read_text(encoding="utf-8"))
+        history.append(collect_failure_codes(sibling_bundle))
+    return history
 
 
 def _cmd_evidence_nexar_smoke(args: argparse.Namespace) -> int:
@@ -564,14 +629,18 @@ def _board_authority(
     simulation: SimulationReport,
     power_net_names: frozenset[str] = frozenset(),
     extra_findings: tuple[str, ...] = (),
-) -> BoardReport:
+    design_checks: DesignChecksSpec | None = None,
+) -> tuple[BoardReport, DesignReviewReport | None]:
     if erc_report.status != "passed" or simulation.status != "passed":
-        return BoardReport(
-            status="not_run",
-            findings=(
-                "Board generation was skipped because KiCad ERC and ngspice "
-                "simulation must pass before a board is generated.",
+        return (
+            BoardReport(
+                status="not_run",
+                findings=(
+                    "Board generation was skipped because KiCad ERC and ngspice "
+                    "simulation must pass before a board is generated.",
+                ),
             ),
+            None,
         )
     board_file = output_dir / f"{project_name}.kicad_pcb"
     try:
@@ -581,11 +650,20 @@ def _board_authority(
             power_net_names=power_net_names,
         )
     except BoardGenerationError as exc:
-        return BoardReport(
-            status="failed",
-            board_file=str(board_file),
-            findings=(str(exc),),
+        return (
+            BoardReport(
+                status="failed",
+                board_file=str(board_file),
+                findings=(str(exc),),
+            ),
+            None,
         )
+    layout = compute_board_layout(board_netlist, power_net_names)
+    design_review = run_design_checks(
+        layout,
+        board_netlist,
+        design_checks or DesignChecksSpec(),
+    )
     report = run_kicad_drc(board_file)
     _, preview_findings = render_board_previews(board_file)
     try:
@@ -597,23 +675,31 @@ def _board_authority(
     except BoardGenerationError as exc:
         preview_findings = (*preview_findings, str(exc))
     if report.status == "passed":
-        return report.model_copy(
-            update={
-                "status": "needs_human_review",
-                "findings": (
-                    *report.findings,
-                    *preview_findings,
-                    *extra_findings,
-                    "KiCad DRC passed. The generated board layout still requires "
-                    "human visual review before fabrication.",
-                ),
-            }
+        return (
+            report.model_copy(
+                update={
+                    "status": "needs_human_review",
+                    "findings": (
+                        *report.findings,
+                        *preview_findings,
+                        *extra_findings,
+                        "KiCad DRC passed. The generated board layout still requires "
+                        "human visual review before fabrication.",
+                    ),
+                }
+            ),
+            design_review,
         )
     if preview_findings or extra_findings:
-        return report.model_copy(
-            update={"findings": (*report.findings, *preview_findings, *extra_findings)}
+        return (
+            report.model_copy(
+                update={
+                    "findings": (*report.findings, *preview_findings, *extra_findings)
+                }
+            ),
+            design_review,
         )
-    return report
+    return report, design_review
 
 
 def _combine_kicad_reports(erc_report: KiCadReport, spice_report: KiCadReport) -> KiCadReport:
@@ -881,12 +967,14 @@ def _authority_bundle_status(
     simulation: SimulationReport,
     reconciliation: ReconciliationReport,
     board: BoardReport | None = None,
+    design_review: DesignReviewReport | None = None,
 ) -> AuthorityStatus:
     authority_statuses = (evidence.status, kicad.status, simulation.status, reconciliation.status)
     board_status = board.status if board is not None else None
+    review_status = design_review.status if design_review is not None else None
     if circuit.math.status == "failed" or "failed" in authority_statuses:
         return "failed"
-    if board_status == "failed":
+    if board_status == "failed" or review_status == "failed":
         return "failed"
     if "unavailable" in authority_statuses or board_status == "unavailable":
         return "unavailable"
@@ -900,6 +988,7 @@ def _authority_bundle_status(
         or simulation.status != "passed"
         or reconciliation.status != "passed"
         or (board_status is not None and board_status != "passed")
+        or (review_status is not None and review_status != "passed")
         or any(component.support_status != "supported" for component in circuit.components)
     ):
         return "needs_human_review"
@@ -962,6 +1051,14 @@ def build_parser() -> argparse.ArgumentParser:
     buck_parser.add_argument("--name", required=True)
     buck_parser.add_argument("--overwrite", action="store_true")
     buck_parser.set_defaults(func=_cmd_design_lm2596_buck_authority)
+
+    revision_plan_parser = subparsers.add_parser(
+        "revision-plan",
+        help="analyse a revision's review bundle and decide patch, redo, or "
+        "escalate for the next iteration",
+    )
+    revision_plan_parser.add_argument("output")
+    revision_plan_parser.set_defaults(func=_cmd_revision_plan)
 
     nexar_smoke_parser = subparsers.add_parser(
         "evidence-nexar-smoke",
