@@ -222,6 +222,16 @@ class BoardLayout:
     width_mm: float
     height_mm: float
     parts_row_y_mm: float = MIN_PARTS_ROW_Y_MM
+    # Per-reference y anchors for layouts that are not a single row (for
+    # example art grids); references absent here sit on the parts row.
+    part_y_mm: tuple[tuple[str, float], ...] = ()
+
+
+def placement_y(layout: BoardLayout, reference: str) -> float:
+    for candidate, y_mm in layout.part_y_mm:
+        if candidate == reference:
+            return y_mm
+    return layout.parts_row_y_mm
 
 
 def export_kicad_netlist_xml(
@@ -458,6 +468,10 @@ def render_board(
     sensitive_net_names: frozenset[str] = frozenset(),
 ) -> str:
     layout = compute_board_layout(netlist, power_net_names, sensitive_net_names)
+    return render_board_from_layout(netlist, layout)
+
+
+def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
     net_numbers = {net.name: index for index, net in enumerate(netlist.nets, start=1)}
     pad_nets = {
         (reference, pin): net.name
@@ -478,7 +492,7 @@ def render_board(
                 anchor_x,
                 pad_nets,
                 net_numbers,
-                parts_row_y=layout.parts_row_y_mm,
+                anchor_y=placement_y(layout, component.reference),
             )
         )
     for segment in layout.segments:
@@ -751,7 +765,7 @@ def _render_footprint(
     pad_nets: dict[tuple[str, str], str],
     net_numbers: dict[str, int],
     *,
-    parts_row_y: float = MIN_PARTS_ROW_Y_MM,
+    anchor_y: float = MIN_PARTS_ROW_Y_MM,
 ) -> str:
     spec = FOOTPRINT_LIBRARY[component.footprint]
     center_x = (spec.x_min + spec.x_max) / 2
@@ -759,7 +773,7 @@ def _render_footprint(
         f"""  (footprint {_q(component.footprint)}
     (layer "F.Cu")
     (uuid {uuid4()})
-    (at {_mm(anchor_x + BOARD_SHEET_ORIGIN_MM)} {_mm(parts_row_y + BOARD_SHEET_ORIGIN_MM)})
+    (at {_mm(anchor_x + BOARD_SHEET_ORIGIN_MM)} {_mm(anchor_y + BOARD_SHEET_ORIGIN_MM)})
     (property "Reference" {_q(component.reference)}
       (at {_mm(center_x)} {_mm(spec.y_min - 1.2)} 0)
       (layer "F.SilkS")

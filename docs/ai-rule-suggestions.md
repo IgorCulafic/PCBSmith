@@ -22,6 +22,25 @@ Entry format:
 
 ---
 
+## 2026-07-02 Series LED polarity check and mandatory net labels
+- status: promoted (applied directly with user permission)
+- proposed_by: claude-fable-5, LED text-matrix slice (outputs/led-art-igorc-r001
+  failure diagnosis)
+- rule: new 7.1 and 7.2
+- suggestion: (7.1) series LED strings must chain anode-to-cathode from supply
+  to ground, enforced by a netlist-level check keyed on the topology's string
+  declarations; (7.2) every schematic net gets an explicit label because
+  kicad-cli 10.0.3 silently drops unlabelled nets from ERC connectivity and
+  netlist export.
+- evidence: r001 failed ERC with 52 "dangling" wires that were geometrically
+  exact; probe bisection (wire variants, grounded sweeps, transplant into the
+  known-good buck schematic) isolated the missing-label cause — adding a label
+  made the identical wire netlist correctly. Rotation probing also showed
+  rotation 90 puts the LED anode at the bottom (reversed); rotation 270 fixed
+  it and the 7.1 check guards it.
+- decision_note: r002 passed end-to-end; the toolchain quirk is recorded as a
+  generation rule so future topologies never hit it.
+
 ## 2026-07-02 Trailing connectors close the row at the right edge
 - status: promoted (applied directly with user permission, commit `05f55a4`)
 - proposed_by: claude-fable-5 visual review of outputs/lm2596-buck-r004

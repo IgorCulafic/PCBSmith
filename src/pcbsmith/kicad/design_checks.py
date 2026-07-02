@@ -30,6 +30,8 @@ class DesignChecksSpec:
     switching_cluster_refs: tuple[str, ...] = ()
     sensitive_net_names: tuple[str, ...] = ()
     inductor_references: tuple[str, ...] = ()
+    # Series LED strings in supply-to-ground order: (resistor, led, led, ...).
+    led_strings: tuple[tuple[str, ...], ...] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -57,6 +59,10 @@ def run_design_checks(
                 spec.inductor_references,
             )
         )
+
+    if spec.led_strings:
+        checks_run.append("series_led_polarity")
+        findings.extend(_check_series_led_polarity(netlist, spec.led_strings))
 
     findings.extend(spec.extra_model_findings)
 
@@ -149,6 +155,46 @@ def _check_switching_cluster(
             source="check",
         ),
     )
+
+
+def _check_series_led_polarity(
+    netlist: BoardNetlist,
+    led_strings: tuple[tuple[str, ...], ...],
+) -> tuple[ReviewFinding, ...]:
+    """Rule 7.1: series LED strings chain anode-to-cathode, supply to ground.
+
+    Our LED symbol and footprint use pin 1 = anode. Along a string, current
+    must leave each element at pin 2 and enter the next LED at pin 1;
+    otherwise an LED is reverse-biased and the string never lights, even
+    though ERC, DRC, and parity all pass.
+    """
+    net_by_node = {
+        (reference, pin): net for net in netlist.nets for reference, pin in net.nodes
+    }
+    findings: list[ReviewFinding] = []
+    for string in led_strings:
+        for upper, lower in zip(string, string[1:], strict=False):
+            net = net_by_node.get((upper, "2"))
+            if net is None or (lower, "1") not in net.nodes:
+                findings.append(
+                    ReviewFinding(
+                        rule="7.1",
+                        severity="blocker",
+                        scope="net",
+                        where=f"{upper} -> {lower}",
+                        evidence=(
+                            f"The series link from {upper} pin 2 does not land "
+                            f"on {lower} pin 1 (anode); the LED would be "
+                            "reverse-biased and the string would stay dark."
+                        ),
+                        suggested_action=(
+                            "Fix the schematic string wiring or symbol "
+                            "rotation so current enters every LED at its anode."
+                        ),
+                        source="check",
+                    )
+                )
+    return tuple(findings)
 
 
 def _check_sensitive_net_under_inductor(

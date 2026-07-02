@@ -16,6 +16,7 @@ from pcbsmith.kicad.board import (
     BoardLayout,
     BoardNetlist,
     compute_board_layout,
+    placement_y,
 )
 
 SCALE_PX_PER_MM = 28
@@ -39,6 +40,7 @@ def plot_board_review(
     output: Path,
     power_net_names: frozenset[str] = frozenset(),
     sensitive_net_names: frozenset[str] = frozenset(),
+    layout: BoardLayout | None = None,
 ) -> Path:
     try:
         from PIL import Image, ImageDraw
@@ -48,7 +50,8 @@ def plot_board_review(
             "Install the preview extra: pip install 'pcbsmith[preview]'."
         ) from exc
 
-    layout = compute_board_layout(netlist, power_net_names, sensitive_net_names)
+    if layout is None:
+        layout = compute_board_layout(netlist, power_net_names, sensitive_net_names)
     width_px = int(layout.width_mm * SCALE_PX_PER_MM) + 2 * IMAGE_MARGIN_PX
     height_px = int(layout.height_mm * SCALE_PX_PER_MM) + 2 * IMAGE_MARGIN_PX
     image = Image.new("RGB", (width_px, height_px), BACKGROUND)
@@ -126,8 +129,8 @@ def _draw_footprints(
         for net in netlist.nets
         for reference, pin in net.nodes
     }
-    row_y = layout.parts_row_y_mm
     for component, anchor_x in layout.placements:
+        row_y = placement_y(layout, component.reference)
         spec = FOOTPRINT_LIBRARY[component.footprint]
         body_rect = spec.silk_rect or spec.fab_rect
         x1, y1, x2, y2 = body_rect

@@ -138,6 +138,84 @@ def _validate_lm2596_buck_inputs(
     return errors
 
 
+_E24_MANTISSAS = (
+    1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0,
+    3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1,
+)
+RESISTOR_0603_POWER_RATING_W = 0.1
+LED_STRING_HEADROOM_WARNING_RATIO = 0.15
+
+
+def nearest_e24_ohms(value_ohms: float) -> float:
+    if value_ohms <= 0:
+        raise ValueError("E24 lookup requires a positive resistance.")
+    candidates: list[float] = []
+    for decade in (1, 10, 100, 1_000, 10_000, 100_000):
+        candidates.extend(mantissa * decade for mantissa in _E24_MANTISSAS)
+    return min(candidates, key=lambda candidate: abs(candidate - value_ohms))
+
+
+def solve_led_series_string(
+    *,
+    supply_voltage_v: float,
+    led_forward_voltage_v: float,
+    target_current_a: float,
+    led_count: int,
+) -> dict[str, Any]:
+    errors: list[str] = []
+    if supply_voltage_v <= 0:
+        errors.append("Supply voltage must be positive.")
+    if led_forward_voltage_v <= 0:
+        errors.append("LED forward voltage must be positive.")
+    if target_current_a <= 0:
+        errors.append("Target current must be positive.")
+    if led_count < 1:
+        errors.append("A string needs at least one LED.")
+    string_drop_v = led_forward_voltage_v * led_count
+    if not errors and string_drop_v >= supply_voltage_v:
+        errors.append(
+            f"{led_count} LEDs drop {string_drop_v:g} V, which the "
+            f"{supply_voltage_v:g} V supply cannot drive; shorten the string."
+        )
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+
+    headroom_v = supply_voltage_v - string_drop_v
+    resistor_ohms = headroom_v / target_current_a
+    selected_ohms = nearest_e24_ohms(resistor_ohms)
+    current_with_selected_a = headroom_v / selected_ohms
+    resistor_power_w = headroom_v * current_with_selected_a
+
+    warnings: list[str] = []
+    if headroom_v < supply_voltage_v * LED_STRING_HEADROOM_WARNING_RATIO:
+        warnings.append(
+            f"A {led_count}-LED string leaves only {headroom_v:g} V across the "
+            "resistor; forward-voltage tolerance will swing the current widely."
+        )
+    if resistor_power_w > RESISTOR_0603_POWER_RATING_W:
+        warnings.append(
+            f"The string resistor dissipates {resistor_power_w * 1000:.0f} mW, above "
+            f"the {RESISTOR_0603_POWER_RATING_W * 1000:.0f} mW 0603 rating; use a "
+            "larger footprint or reduce the current."
+        )
+    return {
+        "status": "warning" if warnings else "ok",
+        "outputs": {
+            "string_drop_v": round(string_drop_v, 6),
+            "resistor_ohms": round(resistor_ohms, 6),
+            "selected_resistor_ohms": selected_ohms,
+            "current_with_selected_a": round(current_with_selected_a, 6),
+            "resistor_power_w": round(resistor_power_w, 6),
+        },
+        "warnings": warnings,
+        "errors": [],
+        "references": [
+            "Series LED string: R = (Vsupply - n*Vf) / I_target; Vf from the "
+            "component datasheet.",
+        ],
+    }
+
+
 def _nearest_standard_value(
     value: float,
     options: tuple[int, ...],

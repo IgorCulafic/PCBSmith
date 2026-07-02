@@ -55,3 +55,46 @@ def test_lm2596_buck_rejects_invalid_ripple_ratio() -> None:
     )
 
     assert result["status"] == "error"
+
+
+def test_led_series_string_selects_e24_resistor() -> None:
+    from pcbsmith.calculators.electronics import solve_led_series_string
+
+    result = solve_led_series_string(
+        supply_voltage_v=12.0,
+        led_forward_voltage_v=1.85,
+        target_current_a=0.010,
+        led_count=4,
+    )
+
+    assert result["status"] == "ok"
+    assert result["outputs"]["resistor_ohms"] == 460.0
+    assert result["outputs"]["selected_resistor_ohms"] == 470.0
+
+
+def test_led_series_string_rejects_overlong_string() -> None:
+    from pcbsmith.calculators.electronics import solve_led_series_string
+
+    result = solve_led_series_string(
+        supply_voltage_v=12.0,
+        led_forward_voltage_v=1.85,
+        target_current_a=0.010,
+        led_count=7,
+    )
+
+    assert result["status"] == "error"
+    assert any("shorten the string" in error for error in result["errors"])
+
+
+def test_led_series_string_warns_on_resistor_power() -> None:
+    from pcbsmith.calculators.electronics import solve_led_series_string
+
+    result = solve_led_series_string(
+        supply_voltage_v=12.0,
+        led_forward_voltage_v=1.85,
+        target_current_a=0.010,
+        led_count=1,
+    )
+
+    assert result["status"] == "warning"
+    assert any("0603 rating" in warning for warning in result["warnings"])

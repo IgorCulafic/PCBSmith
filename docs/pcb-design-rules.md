@@ -131,3 +131,20 @@ grounding."
 6. A DRC/ERC pass is EDA validation, not proof of electrical correctness.
    Boards ship from this tool marked `needs_human_review` until a human
    signs off. (Project reset lesson, 2026-05-18.)
+
+## 7. Electrical composition rules
+
+- **7.1 Series LED strings chain anode-to-cathode from supply to ground.**
+  A reversed LED blocks the whole string while ERC, DRC, and parity all pass;
+  only the pin-level netlist reveals it. (`SESSION` — LED text-matrix slice;
+  symbol rotation determines which pin faces the supply.) Status:
+  **implemented** (`series_led_polarity` check in `design_checks.py`, keyed on
+  the topology's declared strings).
+- **7.2 Every schematic net carries an explicit label.** `kicad-cli` (10.0.3)
+  silently drops UNLABELLED nets from both ERC connectivity and the exported
+  netlist — wires between rotated symbol pins reported "dangling" and their
+  nets vanished until a label was attached. Named nets also make board review
+  plots readable. (`SESSION` — discovered by probe bisection on the LED
+  text-matrix schematic.) Status: **implemented** in both generators (all
+  divider/buck nets were already labelled; LED-art series nets are labelled
+  `S<string>_<link>`).

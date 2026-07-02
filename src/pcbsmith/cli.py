@@ -57,19 +57,28 @@ from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
 )
+from pcbsmith.generation.led_art import (
+    LedArtPlan,
+    compose_led_art,
+    write_led_art_project,
+)
 from pcbsmith.generation.lm2596_buck import (
     compose_lm2596_buck,
     write_lm2596_buck_project,
 )
 from pcbsmith.kicad.board import (
     BoardGenerationError,
+    BoardLayout,
+    BoardNetlist,
     compute_board_layout,
     generate_board,
     render_board_previews,
 )
 from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
+from pcbsmith.kicad.export_led_art import export_led_art_to_kicad
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
+from pcbsmith.kicad.led_art_board import generate_led_art_board
 from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
@@ -91,6 +100,7 @@ from pcbsmith.services.project_io import (
 )
 from pcbsmith.simulation.ngspice import run_ngspice_netlist_file, run_ngspice_simulation
 from pcbsmith.simulation.ngspice_buck import run_lm2596_power_stage_simulation
+from pcbsmith.simulation.ngspice_led_art import run_led_art_simulation
 
 GENERIC_EVIDENCE_FINDING = "Generic passive and LED components are not datasheet-backed yet."
 
@@ -357,6 +367,129 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
             "feedback routing distance from the inductor, and the TO-263 "
             "thermal pour (~2.5 sq in per TI thermal notes) - review these "
             "before fabrication.",
+        ),
+    )
+    artifacts = _authority_artifacts(
+        output_dir=output_dir,
+        kicad_artifacts=kicad_artifacts,
+        erc_report=erc_report,
+        spice_report=KiCadReport(status="not_run"),
+        simulation=simulation,
+        board=board,
+    )
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
+    revisions = _authority_revisions(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
+    bundle_path = write_authority_review_bundle(
+        circuit,
+        output_dir,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+        revisions=revisions,
+        artifacts=artifacts,
+    )
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+    )
+    print(f"Review bundle: {bundle_path}")
+    print(f"Status: {status}")
+    return 0
+
+
+def _cmd_design_led_art_authority(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
+    intent = classify_circuit_intent(args.request)
+    if intent.status != "supported":
+        raise ValueError("; ".join(intent.unsupported_reasons))
+    if intent.intent_id != "led_text_matrix":
+        raise ValueError(
+            "The request classified as a different intent; use the matching "
+            "design command instead."
+        )
+    topology = select_topology(intent)
+    circuit, plan = compose_led_art(intent, topology)
+    evidence = EvidenceReport(
+        status="needs_human_review",
+        findings=(
+            "The LED forward voltage (1.85 V) comes from the extracted "
+            "Kingbright datasheet facts in "
+            "ai_assets/evidence/divider-highpass-led.manifest.json, but the "
+            "manifest is not machine-applied to this topology yet.",
+            "String resistors and the input connector are demo parts without "
+            "datasheet evidence.",
+        ),
+    )
+
+    write_led_art_project(circuit, output_dir, project_name=args.name)
+    kicad_artifacts = export_led_art_to_kicad(
+        circuit,
+        plan,
+        output_dir,
+        project_name=args.name,
+    )
+    schematic_file = Path(kicad_artifacts["schematic_file"])
+
+    erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
+    simulation = run_led_art_simulation(circuit, plan, output_dir)
+
+    kicad = erc_report.model_copy(
+        update={
+            "findings": (
+                *erc_report.findings,
+                "KiCad SPICE export was intentionally skipped: the matrix LEDs "
+                "use a PCBSmith behavioral diode model fitted to the datasheet "
+                "forward voltage.",
+            ),
+        }
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=(
+            "PCBSmith circuit object and KiCad schematic were generated before "
+            "authority checks.",
+            "ngspice ran a PCBSmith behavioral string netlist, not a "
+            "KiCad-exported netlist.",
+        ),
+        findings=(
+            "The simulated netlist is built from the circuit object strings; it "
+            "is not translation-checked against the KiCad schematic.",
+        ),
+    )
+    board, design_review = _art_board_authority(
+        output_dir=output_dir,
+        project_name=args.name,
+        schematic_file=schematic_file,
+        erc_report=erc_report,
+        simulation=simulation,
+        plan=plan,
+        power_net_names=frozenset({"VIN", "GND"}),
+        design_checks=DesignChecksSpec(
+            led_strings=tuple(
+                (string.resistor_ref, *string.led_refs) for string in plan.strings
+            ),
+        ),
+        extra_findings=(
+            "Art-grid placement: LED positions follow the glyph dot grid; every "
+            "series link is confined to its own column and the power rails "
+            "frame the field (top VIN, bottom GND).",
         ),
     )
     artifacts = _authority_artifacts(
@@ -707,14 +840,86 @@ def _board_authority(
         board_netlist,
         design_checks or DesignChecksSpec(),
     )
+    return _finish_board_authority(
+        board_file=board_file,
+        output_dir=output_dir,
+        project_name=project_name,
+        board_netlist=board_netlist,
+        layout=layout,
+        design_review=design_review,
+        extra_findings=extra_findings,
+    )
+
+
+def _art_board_authority(
+    *,
+    output_dir: Path,
+    project_name: str,
+    schematic_file: Path,
+    erc_report: KiCadReport,
+    simulation: SimulationReport,
+    plan: LedArtPlan,
+    power_net_names: frozenset[str],
+    design_checks: DesignChecksSpec,
+    extra_findings: tuple[str, ...] = (),
+) -> tuple[BoardReport, DesignReviewReport | None]:
+    if erc_report.status != "passed" or simulation.status != "passed":
+        return (
+            BoardReport(
+                status="not_run",
+                findings=(
+                    "Board generation was skipped because KiCad ERC and ngspice "
+                    "simulation must pass before a board is generated.",
+                ),
+            ),
+            None,
+        )
+    board_file = output_dir / f"{project_name}.kicad_pcb"
+    try:
+        board_netlist, layout = generate_led_art_board(
+            schematic_file=schematic_file,
+            board_file=board_file,
+            plan=plan,
+            power_net_names=power_net_names,
+        )
+    except BoardGenerationError as exc:
+        return (
+            BoardReport(
+                status="failed",
+                board_file=str(board_file),
+                findings=(str(exc),),
+            ),
+            None,
+        )
+    design_review = run_design_checks(layout, board_netlist, design_checks)
+    return _finish_board_authority(
+        board_file=board_file,
+        output_dir=output_dir,
+        project_name=project_name,
+        board_netlist=board_netlist,
+        layout=layout,
+        design_review=design_review,
+        extra_findings=extra_findings,
+    )
+
+
+def _finish_board_authority(
+    *,
+    board_file: Path,
+    output_dir: Path,
+    project_name: str,
+    board_netlist: BoardNetlist,
+    layout: BoardLayout,
+    design_review: DesignReviewReport,
+    extra_findings: tuple[str, ...],
+) -> tuple[BoardReport, DesignReviewReport | None]:
     report = run_kicad_drc(board_file)
     _, preview_findings = render_board_previews(board_file)
     try:
         plot_board_review(
             board_netlist,
             output_dir / f"{project_name}-review.png",
-            power_net_names,
-            sensitive_net_names,
+            layout=layout,
         )
     except BoardGenerationError as exc:
         preview_findings = (*preview_findings, str(exc))
@@ -1095,6 +1300,17 @@ def build_parser() -> argparse.ArgumentParser:
     buck_parser.add_argument("--name", required=True)
     buck_parser.add_argument("--overwrite", action="store_true")
     buck_parser.set_defaults(func=_cmd_design_lm2596_buck_authority)
+
+    led_art_parser = subparsers.add_parser(
+        "design-led-art-authority",
+        help="generate an LED text-matrix module (glyph dot grid, one series "
+        "string per column) with authority evidence",
+    )
+    led_art_parser.add_argument("output")
+    led_art_parser.add_argument("--request", required=True)
+    led_art_parser.add_argument("--name", required=True)
+    led_art_parser.add_argument("--overwrite", action="store_true")
+    led_art_parser.set_defaults(func=_cmd_design_led_art_authority)
 
     revision_plan_parser = subparsers.add_parser(
         "revision-plan",

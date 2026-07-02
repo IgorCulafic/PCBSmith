@@ -6,6 +6,8 @@ from pcbsmith.circuit.models import CircuitIntent, EvidenceRef, TopologySelectio
 def select_topology(intent: CircuitIntent) -> TopologySelection:
     if intent.intent_id == "lm2596_buck_regulator" and intent.status == "supported":
         return _lm2596_buck_topology()
+    if intent.intent_id == "led_text_matrix" and intent.status == "supported":
+        return _led_text_matrix_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
         return TopologySelection(
             topology_id="unsupported",
@@ -40,6 +42,34 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         ),
         warnings=(
             "LED brightness and conduction after AC coupling require simulation and human review.",
+        ),
+    )
+
+
+def _led_text_matrix_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="led_text_matrix",
+        title="Decorative LED text matrix, one series string per glyph column",
+        status="selected",
+        evidence=(
+            EvidenceRef(
+                kind="textbook_formula",
+                title="Series LED string resistor equation",
+                locator="R = (Vsupply - n*Vf) / I_target",
+            ),
+            EvidenceRef(
+                kind="datasheet_fact",
+                title="Kingbright LED forward voltage, extracted datasheet fact",
+                locator=(
+                    "ai_assets/evidence/divider-highpass-led.manifest.json: "
+                    "VF typ 1.85 V at 20 mA"
+                ),
+            ),
+        ),
+        warnings=(
+            "Brightness matching between strings of different lengths depends on "
+            "forward-voltage tolerance; human review of the current per string is "
+            "required before fabrication.",
         ),
     )
 
