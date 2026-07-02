@@ -43,6 +43,7 @@ class ComponentRole(BaseModel):
     symbol_id: str
     value: str
     support_status: SupportStatus
+    footprint: str | None = None
     evidence: tuple[EvidenceRef, ...] = ()
 
 
@@ -83,6 +84,16 @@ class KiCadReport(BaseModel):
     schematic_file: str | None = None
     erc_report: str | None = None
     spice_netlist: str | None = None
+    findings: tuple[str, ...] = ()
+
+
+class BoardReport(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    status: AuthorityStatus
+    command: tuple[str, ...] = ()
+    board_file: str | None = None
+    drc_report: str | None = None
     findings: tuple[str, ...] = ()
 
 
@@ -151,5 +162,6 @@ class AuthorityReviewBundle(BaseModel):
     kicad: KiCadReport
     ngspice: SimulationReport
     reconciliation: ReconciliationReport
+    board: BoardReport | None = None
     revisions: tuple[RevisionRecord, ...] = ()
     artifacts: dict[str, str]

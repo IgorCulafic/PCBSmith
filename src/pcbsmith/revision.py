@@ -31,6 +31,11 @@ _FAILURE_ROUTES = {
         ("reconciliation",),
         "Patch the mismatched translation layer.",
     ),
+    "board_failed": (
+        ("Board generator placement, routing, or footprint geometry",),
+        ("kicad_drc",),
+        "Patch the generated board layout and rerun KiCad DRC.",
+    ),
 }
 
 

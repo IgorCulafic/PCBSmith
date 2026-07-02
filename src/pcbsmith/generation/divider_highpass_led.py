@@ -57,6 +57,9 @@ def compose_divider_highpass_led(
             locator="0603 R/C/LED are demo bindings until KiCad/library evidence is restored.",
         ),
     )
+    resistor_footprint = "Resistor_SMD:R_0603_1608Metric"
+    capacitor_footprint = "Capacitor_SMD:C_0603_1608Metric"
+    led_footprint = "LED_SMD:LED_0603_1608Metric"
     return CircuitObject(
         intent=intent,
         topology=topology,
@@ -67,6 +70,7 @@ def compose_divider_highpass_led(
                 symbol_id="stdlib:R",
                 value="10k",
                 support_status="demo_only",
+                footprint=resistor_footprint,
                 evidence=demo_evidence,
             ),
             ComponentRole(
@@ -75,6 +79,7 @@ def compose_divider_highpass_led(
                 symbol_id="stdlib:R",
                 value="10k",
                 support_status="demo_only",
+                footprint=resistor_footprint,
                 evidence=demo_evidence,
             ),
             ComponentRole(
@@ -83,6 +88,7 @@ def compose_divider_highpass_led(
                 symbol_id="stdlib:C",
                 value="100nF",
                 support_status="demo_only",
+                footprint=capacitor_footprint,
                 evidence=demo_evidence,
             ),
             ComponentRole(
@@ -91,6 +97,7 @@ def compose_divider_highpass_led(
                 symbol_id="stdlib:R",
                 value="680R",
                 support_status="demo_only",
+                footprint=resistor_footprint,
                 evidence=demo_evidence,
             ),
             ComponentRole(
@@ -99,6 +106,7 @@ def compose_divider_highpass_led(
                 symbol_id="stdlib:LED",
                 value="Generic red LED",
                 support_status="demo_only",
+                footprint=led_footprint,
                 evidence=demo_evidence,
             ),
         ),

@@ -86,6 +86,7 @@ def apply_component_selection(
                         "symbol_id": selection.component.symbol_id,
                         "value": selection.component.value,
                         "support_status": "supported",
+                        "footprint": selection.component.footprint or component.footprint,
                         "evidence": _component_evidence_refs(selection.component),
                     }
                 )

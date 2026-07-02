@@ -6,6 +6,7 @@ from pathlib import Path
 from pcbsmith.circuit.models import (
     AuthorityReviewBundle,
     AuthorityStatus,
+    BoardReport,
     CircuitObject,
     EvidenceReport,
     KiCadReport,
@@ -23,6 +24,7 @@ def write_authority_review_bundle(
     kicad: KiCadReport,
     simulation: SimulationReport,
     reconciliation: ReconciliationReport,
+    board: BoardReport | None = None,
     revisions: tuple[RevisionRecord, ...] = (),
     artifacts: dict[str, str],
 ) -> Path:
@@ -34,6 +36,7 @@ def write_authority_review_bundle(
             kicad=kicad,
             simulation=simulation,
             reconciliation=reconciliation,
+            board=board,
         ),
         intent=circuit.intent,
         pcbs_internal=circuit,
@@ -41,6 +44,7 @@ def write_authority_review_bundle(
         kicad=kicad,
         ngspice=simulation,
         reconciliation=reconciliation,
+        board=board,
         revisions=revisions,
         artifacts=artifacts,
     )
@@ -57,11 +61,15 @@ def _derive_status(
     kicad: KiCadReport,
     simulation: SimulationReport,
     reconciliation: ReconciliationReport,
+    board: BoardReport | None = None,
 ) -> AuthorityStatus:
     authority_statuses = (evidence.status, kicad.status, simulation.status, reconciliation.status)
+    board_status = board.status if board is not None else None
     if circuit.math.status == "failed" or "failed" in authority_statuses:
         return "failed"
-    if "unavailable" in authority_statuses:
+    if board_status == "failed":
+        return "failed"
+    if "unavailable" in authority_statuses or board_status == "unavailable":
         return "unavailable"
     if "not_run" in authority_statuses:
         return "not_run"
@@ -72,6 +80,7 @@ def _derive_status(
         or kicad.status != "passed"
         or simulation.status != "passed"
         or reconciliation.status != "passed"
+        or (board_status is not None and board_status != "passed")
         or any(component.support_status != "supported" for component in circuit.components)
     ):
         return "needs_human_review"

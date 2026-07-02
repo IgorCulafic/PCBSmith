@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from pcbsmith.circuit.intent import classify_circuit_intent
 from pcbsmith.circuit.models import (
     AuthorityStatus,
+    BoardReport,
     CircuitObject,
     EvidenceReport,
     KiCadReport,
@@ -53,9 +54,10 @@ from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
 )
+from pcbsmith.kicad.board import BoardGenerationError, generate_board
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
-from pcbsmith.kicad.validate import run_kicad_erc
+from pcbsmith.kicad.validate import run_kicad_drc, run_kicad_erc
 from pcbsmith.review.authority_bundle import write_authority_review_bundle
 from pcbsmith.review.circuit_bundle import write_circuit_review_bundle
 from pcbsmith.revision import revision_for_authority_failure
@@ -191,12 +193,20 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         selected_kicad_spice=selected_kicad_spice,
     )
+    board = _board_authority(
+        output_dir=output_dir,
+        project_name=args.name,
+        schematic_file=schematic_file,
+        erc_report=erc_report,
+        simulation=simulation,
+    )
     artifacts = _authority_artifacts(
         output_dir=output_dir,
         kicad_artifacts=kicad_artifacts,
         erc_report=erc_report,
         spice_report=spice_report,
         simulation=simulation,
+        board=board,
     )
     revisions = _authority_revisions(
         circuit=circuit,
@@ -204,6 +214,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         kicad=kicad,
         simulation=simulation,
         reconciliation=reconciliation,
+        board=board,
     )
 
     bundle_path = write_authority_review_bundle(
@@ -213,6 +224,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         kicad=kicad,
         simulation=simulation,
         reconciliation=reconciliation,
+        board=board,
         revisions=revisions,
         artifacts=artifacts,
     )
@@ -222,6 +234,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         kicad=kicad,
         simulation=simulation,
         reconciliation=reconciliation,
+        board=board,
     )
     print(f"Review bundle: {bundle_path}")
     print(f"Status: {status}")
@@ -399,6 +412,46 @@ def _add_datasheet_provider_arguments(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--base-url")
 
 
+def _board_authority(
+    *,
+    output_dir: Path,
+    project_name: str,
+    schematic_file: Path,
+    erc_report: KiCadReport,
+    simulation: SimulationReport,
+) -> BoardReport:
+    if erc_report.status != "passed" or simulation.status != "passed":
+        return BoardReport(
+            status="not_run",
+            findings=(
+                "Board generation was skipped because KiCad ERC and ngspice "
+                "simulation must pass before a board is generated.",
+            ),
+        )
+    board_file = output_dir / f"{project_name}.kicad_pcb"
+    try:
+        generate_board(schematic_file=schematic_file, board_file=board_file)
+    except BoardGenerationError as exc:
+        return BoardReport(
+            status="failed",
+            board_file=str(board_file),
+            findings=(str(exc),),
+        )
+    report = run_kicad_drc(board_file)
+    if report.status == "passed":
+        return report.model_copy(
+            update={
+                "status": "needs_human_review",
+                "findings": (
+                    *report.findings,
+                    "KiCad DRC passed. The generated board layout still requires "
+                    "human visual review before fabrication.",
+                ),
+            }
+        )
+    return report
+
+
 def _combine_kicad_reports(erc_report: KiCadReport, spice_report: KiCadReport) -> KiCadReport:
     findings = _prefixed_findings("KiCad ERC", erc_report.findings) + _prefixed_findings(
         "KiCad SPICE export",
@@ -511,6 +564,7 @@ def _authority_revisions(
     kicad: KiCadReport,
     simulation: SimulationReport,
     reconciliation: ReconciliationReport,
+    board: BoardReport | None = None,
 ) -> tuple[RevisionRecord, ...]:
     revisions: list[RevisionRecord] = []
     parent_revision_id: str | None = None
@@ -566,6 +620,16 @@ def _authority_revisions(
                 or (f"Reconciliation status is {reconciliation.status}.",),
             )
         )
+        parent_revision_id = revisions[-1].revision_id
+    if board is not None and board.status == "failed":
+        revisions.append(
+            revision_for_authority_failure(
+                revision_id="board_failed",
+                parent_revision_id=parent_revision_id,
+                failure_code="board_failed",
+                findings=board.findings or ("Board authority status is failed.",),
+            )
+        )
     return tuple(revisions)
 
 
@@ -605,6 +669,7 @@ def _authority_artifacts(
     erc_report: KiCadReport,
     spice_report: KiCadReport,
     simulation: SimulationReport,
+    board: BoardReport | None = None,
 ) -> dict[str, str]:
     artifacts = {
         "pcbs_project": str(output_dir / "project.pcbsmith.json"),
@@ -616,6 +681,9 @@ def _authority_artifacts(
     if spice_report.status == "passed":
         _add_existing_artifact(artifacts, "kicad_spice_netlist", spice_report.spice_netlist)
     _add_existing_artifact(artifacts, "ngspice_output", simulation.raw_output_path)
+    if board is not None:
+        _add_existing_artifact(artifacts, "kicad_board", board.board_file)
+        _add_existing_artifact(artifacts, "kicad_drc_report", board.drc_report)
     return artifacts
 
 
@@ -635,11 +703,15 @@ def _authority_bundle_status(
     kicad: KiCadReport,
     simulation: SimulationReport,
     reconciliation: ReconciliationReport,
+    board: BoardReport | None = None,
 ) -> AuthorityStatus:
     authority_statuses = (evidence.status, kicad.status, simulation.status, reconciliation.status)
+    board_status = board.status if board is not None else None
     if circuit.math.status == "failed" or "failed" in authority_statuses:
         return "failed"
-    if "unavailable" in authority_statuses:
+    if board_status == "failed":
+        return "failed"
+    if "unavailable" in authority_statuses or board_status == "unavailable":
         return "unavailable"
     if "not_run" in authority_statuses:
         return "not_run"
@@ -650,6 +722,7 @@ def _authority_bundle_status(
         or kicad.status != "passed"
         or simulation.status != "passed"
         or reconciliation.status != "passed"
+        or (board_status is not None and board_status != "passed")
         or any(component.support_status != "supported" for component in circuit.components)
     ):
         return "needs_human_review"

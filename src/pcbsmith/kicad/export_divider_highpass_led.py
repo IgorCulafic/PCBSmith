@@ -61,7 +61,17 @@ def _validate_project_name(project_name: str) -> str:
 
 
 def _render_project() -> str:
-    return '{\n  "meta": {"version": 1}\n}\n'
+    return """{
+  "board": {
+    "design_settings": {
+      "rule_severities": {
+        "lib_footprint_mismatch": "ignore"
+      }
+    }
+  },
+  "meta": {"version": 1}
+}
+"""
 
 
 def _render_symbol_table() -> str:
@@ -136,8 +146,12 @@ def _render_library_symbols(*, name_prefix: str) -> str:
     return symbols
 
 
+CONNECTOR_FOOTPRINT = "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+
+
 def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
     component_values = _component_values(circuit)
+    component_footprints = _component_footprints(circuit)
     symbols = (
         _symbol(
             "PCBSmith:CONN_01X02",
@@ -147,6 +161,7 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
             50.8,
             project_name,
             exclude_from_sim=True,
+            footprint=CONNECTOR_FOOTPRINT,
         ),
         _symbol(
             "PCBSmith:VDC",
@@ -164,7 +179,15 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
                 ("Sim.Params", "dc=5 ampl=0 f=1k ac=1"),
             ),
         ),
-        _symbol("PCBSmith:R", "R1", component_values["R1"], 40.64, 50.8, project_name),
+        _symbol(
+            "PCBSmith:R",
+            "R1",
+            component_values["R1"],
+            40.64,
+            50.8,
+            project_name,
+            footprint=component_footprints["R1"],
+        ),
         _symbol(
             "PCBSmith:R",
             "R2",
@@ -173,10 +196,37 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
             55.88,
             project_name,
             rotation=90,
+            footprint=component_footprints["R2"],
         ),
-        _symbol("PCBSmith:C", "C1", component_values["C1"], 66.04, 50.8, project_name),
-        _symbol("PCBSmith:R", "RLOAD", "10k", 81.28, 55.88, project_name, rotation=90),
-        _symbol("PCBSmith:R", "R3", component_values["R3"], 99.06, 50.8, project_name),
+        _symbol(
+            "PCBSmith:C",
+            "C1",
+            component_values["C1"],
+            66.04,
+            50.8,
+            project_name,
+            footprint=component_footprints["C1"],
+        ),
+        _symbol(
+            "PCBSmith:R",
+            "RLOAD",
+            "10k",
+            81.28,
+            55.88,
+            project_name,
+            rotation=90,
+            in_bom=False,
+            on_board=False,
+        ),
+        _symbol(
+            "PCBSmith:R",
+            "R3",
+            component_values["R3"],
+            99.06,
+            50.8,
+            project_name,
+            footprint=component_footprints["R3"],
+        ),
         _symbol(
             "PCBSmith:LED",
             "D1",
@@ -184,6 +234,7 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
             111.76,
             50.8,
             project_name,
+            footprint=component_footprints["D1"],
             extra_properties=(
                 ("Sim.Device", "D"),
                 ("Sim.Pins", "1=A 2=K"),
@@ -264,6 +315,7 @@ def _symbol(
     on_board: bool = True,
     extra_properties: tuple[tuple[str, str], ...] = (),
     pin_count: int = 2,
+    footprint: str = "",
 ) -> str:
     if pin_count < 1:
         raise ValueError("KiCad symbols must have at least one pin")
@@ -291,7 +343,7 @@ def _symbol(
     (uuid "{uuid4()}")
     {_property("Reference", reference, x_mm, y_mm - 2.54, hidden=reference.startswith("#"))}
     {_property("Value", value, x_mm, y_mm + 2.54)}
-    {_property("Footprint", "", x_mm, y_mm, hidden=True)}
+    {_property("Footprint", footprint, x_mm, y_mm, hidden=True)}
     {_property("Datasheet", "~", x_mm, y_mm, hidden=True)}
     {rendered_extra_properties}
 {instance_pins}
@@ -405,6 +457,14 @@ def _component_values(circuit: CircuitObject) -> dict[str, str]:
         reference: component.value
         for reference, component in components.items()
         if reference in REQUIRED_COMPONENT_REFERENCES
+    }
+
+
+def _component_footprints(circuit: CircuitObject) -> dict[str, str]:
+    components = {component.reference: component for component in circuit.components}
+    return {
+        reference: components[reference].footprint or ""
+        for reference in REQUIRED_COMPONENT_REFERENCES
     }
 
 
