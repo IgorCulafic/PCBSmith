@@ -55,6 +55,16 @@ def compose_lm2596_buck(
             locator="ai_assets/datasheets/ti-lm2596.pdf design example",
         ),
     )
+    reference_design_evidence = (
+        EvidenceRef(
+            kind="reference_design",
+            title="PCBWay community BC-LM2596-ADJ module schematic",
+            locator=(
+                "BC-LM2596-ADJ.kicad_sch (Ampnics): 100nF ceramics beside both "
+                "bulk capacitors and a power-on LED indicator"
+            ),
+        ),
+    )
     inductance_uh = outputs["selected_inductance_uH"]
     feedback_upper = outputs["selected_feedback_upper_ohms"]
     feedback_lower = outputs["feedback_lower_ohms"]
@@ -104,6 +114,15 @@ def compose_lm2596_buck(
                 evidence=datasheet_example_evidence,
             ),
             ComponentRole(
+                reference="CIN2",
+                role="input_hf_capacitor",
+                symbol_id="stdlib:C",
+                value="100nF",
+                support_status="demo_only",
+                footprint="Capacitor_SMD:C_0603_1608Metric",
+                evidence=reference_design_evidence,
+            ),
+            ComponentRole(
                 reference="U1",
                 role="buck_regulator",
                 symbol_id="stdlib:LM2596",
@@ -140,6 +159,15 @@ def compose_lm2596_buck(
                 evidence=datasheet_example_evidence,
             ),
             ComponentRole(
+                reference="COUT2",
+                role="output_hf_capacitor",
+                symbol_id="stdlib:C",
+                value="100nF",
+                support_status="demo_only",
+                footprint="Capacitor_SMD:C_0603_1608Metric",
+                evidence=reference_design_evidence,
+            ),
+            ComponentRole(
                 reference="RFB1",
                 role="feedback_upper",
                 symbol_id="stdlib:R",
@@ -156,6 +184,24 @@ def compose_lm2596_buck(
                 support_status="demo_only",
                 footprint="Resistor_SMD:R_0603_1608Metric",
                 evidence=datasheet_evidence,
+            ),
+            ComponentRole(
+                reference="RLED",
+                role="indicator_resistor",
+                symbol_id="stdlib:R",
+                value="1k",
+                support_status="demo_only",
+                footprint="Resistor_SMD:R_0603_1608Metric",
+                evidence=reference_design_evidence,
+            ),
+            ComponentRole(
+                reference="D2",
+                role="indicator_led",
+                symbol_id="stdlib:LED",
+                value="Power LED",
+                support_status="demo_only",
+                footprint="LED_SMD:LED_0603_1608Metric",
+                evidence=reference_design_evidence,
             ),
             ComponentRole(
                 reference="P2",

@@ -67,7 +67,7 @@ from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_l
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
 from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
-from pcbsmith.kicad.validate import run_kicad_drc, run_kicad_erc
+from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
 from pcbsmith.review.authority_bundle import write_authority_review_bundle
 from pcbsmith.review.circuit_bundle import write_circuit_review_bundle
 from pcbsmith.revision import revision_for_authority_failure
@@ -202,6 +202,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
     schematic_file = Path(kicad_artifacts["schematic_file"])
 
     erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
     spice_report = export_kicad_spice_netlist(schematic_file)
     spice_netlist = spice_report.spice_netlist
     if spice_report.status == "passed" and spice_netlist is not None:
@@ -232,6 +233,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         board=board,
     )
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
     revisions = _authority_revisions(
         circuit=circuit,
         evidence=evidence,
@@ -296,6 +298,7 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
     schematic_file = Path(kicad_artifacts["schematic_file"])
 
     erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
     simulation = run_lm2596_power_stage_simulation(circuit, output_dir)
 
     kicad = erc_report.model_copy(
@@ -337,6 +340,7 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         board=board,
     )
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
     revisions = _authority_revisions(
         circuit=circuit,
         evidence=evidence,

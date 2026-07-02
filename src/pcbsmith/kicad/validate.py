@@ -158,6 +158,36 @@ def _drc_findings(report_file: Path) -> tuple[str, ...]:
     return tuple(findings)
 
 
+def export_schematic_svg(
+    schematic_file: Path,
+    *,
+    finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
+    runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
+) -> tuple[str | None, tuple[str, ...]]:
+    """Export a schematic SVG for visual review. Best-effort."""
+    install = finder()
+    if install is None:
+        return None, ("KiCad CLI was not found; the schematic SVG was not exported.",)
+    svg_file = schematic_file.parent / f"{schematic_file.stem}.svg"
+    command = (
+        str(install.path),
+        "sch",
+        "export",
+        "svg",
+        "--output",
+        str(schematic_file.parent),
+        str(schematic_file),
+    )
+    try:
+        process = run_kicad_process(command) if runner is None else runner(command)
+    except OSError as exc:
+        return None, (f"Schematic SVG export could not run: {exc}",)
+    if process.returncode != 0 or not svg_file.exists():
+        detail = process.stderr.strip() or process.stdout.strip() or "unknown error"
+        return None, (f"Schematic SVG export failed: {detail}",)
+    return str(svg_file), ()
+
+
 def _process_failure_finding(process: KiCadProcessResult) -> str:
     return process.stderr.strip() or process.stdout.strip() or "KiCad ERC failed."
 
