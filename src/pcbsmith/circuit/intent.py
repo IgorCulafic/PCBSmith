@@ -22,11 +22,38 @@ def classify_circuit_intent(raw_request: str) -> CircuitIntent:
                 "led_target_current_ma": 5.0,
             },
         )
+    has_buck = (
+        "buck" in normalized or "step-down" in normalized or "step down" in normalized
+    )
+    if "lm2596" in normalized and has_buck:
+        return CircuitIntent(
+            raw_request=raw_request,
+            intent_id="lm2596_buck_regulator",
+            status="supported",
+            assumptions={
+                "input_voltage_min_v": 7.0,
+                "input_voltage_nominal_v": 12.0,
+                "input_voltage_max_v": 24.0,
+                "output_voltage_v": 5.0,
+                "load_current_a": 1.0,
+            },
+        )
+    if has_buck:
+        return CircuitIntent(
+            raw_request=raw_request,
+            intent_id="unsupported",
+            status="unsupported",
+            unsupported_reasons=(
+                "Generic buck converter requests are unsupported: name a specific "
+                "regulator with an evidence pack. LM2596 is currently supported.",
+            ),
+        )
     return CircuitIntent(
         raw_request=raw_request,
         intent_id="unsupported",
         status="unsupported",
         unsupported_reasons=(
-            "Only divider/high-pass/LED indicator is supported in this vertical slice.",
+            "Supported intents are divider/high-pass/LED indicator and the "
+            "LM2596 buck regulator module.",
         ),
     )

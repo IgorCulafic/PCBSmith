@@ -4,6 +4,8 @@ from pcbsmith.circuit.models import CircuitIntent, EvidenceRef, TopologySelectio
 
 
 def select_topology(intent: CircuitIntent) -> TopologySelection:
+    if intent.intent_id == "lm2596_buck_regulator" and intent.status == "supported":
+        return _lm2596_buck_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
         return TopologySelection(
             topology_id="unsupported",
@@ -38,5 +40,39 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         ),
         warnings=(
             "LED brightness and conduction after AC coupling require simulation and human review.",
+        ),
+    )
+
+
+def _lm2596_buck_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="lm2596_buck_regulator",
+        title="LM2596 step-down (buck) regulator module, adjustable output",
+        status="selected",
+        evidence=(
+            EvidenceRef(
+                kind="datasheet_procedure",
+                title="TI LM2596 adjustable output design procedure",
+                locator=(
+                    "ai_assets/datasheets/ti-lm2596.pdf: Vout = Vref*(1+R2/R1), "
+                    "inductor and capacitor selection per design procedure"
+                ),
+            ),
+            EvidenceRef(
+                kind="textbook_formula",
+                title="Buck inductor ripple equation",
+                locator="L_min = Vout*(Vin_max-Vout)/(Vin_max*f_sw*dI)",
+            ),
+            EvidenceRef(
+                kind="textbook_formula",
+                title="Buck output capacitor ripple equation",
+                locator="C_min = dI/(8*f_sw*dV)",
+            ),
+        ),
+        warnings=(
+            "Switching-loop layout area is safety-relevant for this topology; "
+            "board generation is gated until switching-loop layout rules exist.",
+            "The LM2596 control loop has no public SPICE model; simulation covers "
+            "the open-loop averaged power stage only.",
         ),
     )

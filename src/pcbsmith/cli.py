@@ -54,12 +54,17 @@ from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
 )
+from pcbsmith.generation.lm2596_buck import (
+    compose_lm2596_buck,
+    write_lm2596_buck_project,
+)
 from pcbsmith.kicad.board import (
     BoardGenerationError,
     generate_board,
     render_board_previews,
 )
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
+from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
 from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import run_kicad_drc, run_kicad_erc
@@ -76,6 +81,7 @@ from pcbsmith.services.project_io import (
     load_schematic,
 )
 from pcbsmith.simulation.ngspice import run_ngspice_netlist_file, run_ngspice_simulation
+from pcbsmith.simulation.ngspice_buck import run_lm2596_power_stage_simulation
 
 GENERIC_EVIDENCE_FINDING = "Generic passive and LED components are not datasheet-backed yet."
 
@@ -235,6 +241,110 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         board=board,
     )
 
+    bundle_path = write_authority_review_bundle(
+        circuit,
+        output_dir,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        revisions=revisions,
+        artifacts=artifacts,
+    )
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
+    print(f"Review bundle: {bundle_path}")
+    print(f"Status: {status}")
+    return 0
+
+
+def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
+    intent = classify_circuit_intent(args.request)
+    if intent.status != "supported":
+        raise ValueError("; ".join(intent.unsupported_reasons))
+    if intent.intent_id != "lm2596_buck_regulator":
+        raise ValueError(
+            "The request classified as a different intent; use the matching "
+            "design command instead."
+        )
+    topology = select_topology(intent)
+    circuit = compose_lm2596_buck(intent, topology)
+    evidence = EvidenceReport(
+        status="needs_human_review",
+        findings=(
+            "LM2596 buck component evidence validation is not implemented yet; "
+            "component support statuses reflect datasheet-review requirements.",
+            "The TI LM2596 datasheet is cached under ai_assets/datasheets for review.",
+        ),
+    )
+
+    write_lm2596_buck_project(circuit, output_dir, project_name=args.name)
+    kicad_artifacts = export_lm2596_buck_to_kicad(
+        circuit,
+        output_dir,
+        project_name=args.name,
+    )
+    schematic_file = Path(kicad_artifacts["schematic_file"])
+
+    erc_report = run_kicad_erc(schematic_file)
+    simulation = run_lm2596_power_stage_simulation(circuit, output_dir)
+
+    kicad = erc_report.model_copy(
+        update={
+            "findings": (
+                *erc_report.findings,
+                "KiCad SPICE export was intentionally skipped: the LM2596 has no "
+                "public SPICE model, so a PCBSmith behavioral power-stage netlist "
+                "was simulated instead.",
+            ),
+        }
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=(
+            "PCBSmith circuit object and KiCad schematic were generated before "
+            "authority checks.",
+            "ngspice ran a PCBSmith behavioral power-stage netlist, not a "
+            "KiCad-exported netlist.",
+        ),
+        findings=(
+            "The simulated netlist is a behavioral power stage derived from the "
+            "circuit object; it is not translation-checked against the KiCad "
+            "schematic.",
+        ),
+    )
+    board = BoardReport(
+        status="not_run",
+        findings=(
+            "Board generation is gated for switching converters until "
+            "switching-loop layout rules exist (roadmap buck entry criteria).",
+        ),
+    )
+    artifacts = _authority_artifacts(
+        output_dir=output_dir,
+        kicad_artifacts=kicad_artifacts,
+        erc_report=erc_report,
+        spice_report=KiCadReport(status="not_run"),
+        simulation=simulation,
+        board=board,
+    )
+    revisions = _authority_revisions(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
     bundle_path = write_authority_review_bundle(
         circuit,
         output_dir,
@@ -815,6 +925,17 @@ def build_parser() -> argparse.ArgumentParser:
     authority_design_parser.add_argument("--evidence-manifest")
     authority_design_parser.add_argument("--overwrite", action="store_true")
     authority_design_parser.set_defaults(func=_cmd_design_divider_highpass_led_authority)
+
+    buck_parser = subparsers.add_parser(
+        "design-lm2596-buck-authority",
+        help="generate the LM2596 buck regulator slice with authority evidence "
+        "(board generation gated pending switching-loop layout rules)",
+    )
+    buck_parser.add_argument("output")
+    buck_parser.add_argument("--request", required=True)
+    buck_parser.add_argument("--name", required=True)
+    buck_parser.add_argument("--overwrite", action="store_true")
+    buck_parser.set_defaults(func=_cmd_design_lm2596_buck_authority)
 
     nexar_smoke_parser = subparsers.add_parser(
         "evidence-nexar-smoke",

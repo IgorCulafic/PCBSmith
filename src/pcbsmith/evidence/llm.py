@@ -28,6 +28,26 @@ FACT_DEFINITIONS: dict[str, str] = {
     "forward_current_ma_max": (
         "Maximum continuous DC forward current in milliamps as a number."
     ),
+    "feedback_reference_v_typ": (
+        "Typical feedback reference voltage in volts as a number."
+    ),
+    "switching_frequency_khz_typ": (
+        "Typical oscillator/switching frequency in kilohertz as a number."
+    ),
+    "output_current_a_max": (
+        "Guaranteed maximum output/load current in amps as a number."
+    ),
+    "input_voltage_v_max": (
+        "Maximum operating input voltage in volts as a number."
+    ),
+    "inductance_uh": "Nominal inductance in microhenries as a number.",
+    "saturation_current_a": "Inductor saturation current in amps as a number.",
+    "average_current_a_max": (
+        "Maximum average rectified forward current in amps as a number."
+    ),
+    "reverse_voltage_v_max": (
+        "Maximum repetitive peak reverse voltage in volts as a number."
+    ),
 }
 
 ROLE_FACT_REQUIREMENTS: dict[str, tuple[str, ...]] = {
@@ -36,6 +56,20 @@ ROLE_FACT_REQUIREMENTS: dict[str, tuple[str, ...]] = {
     "led_current_limit": ("resistance_ohms", "power_rating_w", "tolerance_percent"),
     "highpass_series_capacitor": ("capacitance_f", "voltage_rating_v", "dielectric"),
     "indicator_led": ("forward_voltage_v_typ", "forward_current_ma_max"),
+    "buck_regulator": (
+        "feedback_reference_v_typ",
+        "switching_frequency_khz_typ",
+        "output_current_a_max",
+        "input_voltage_v_max",
+    ),
+    "power_inductor": ("inductance_uh", "saturation_current_a"),
+    "catch_diode": (
+        "forward_voltage_v_typ",
+        "average_current_a_max",
+        "reverse_voltage_v_max",
+    ),
+    "input_capacitor": ("capacitance_f", "voltage_rating_v"),
+    "output_capacitor": ("capacitance_f", "voltage_rating_v"),
 }
 
 FACTS_RESPONSE_SCHEMA: dict[str, Any] = {
