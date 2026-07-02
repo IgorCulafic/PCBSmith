@@ -30,6 +30,7 @@ from pcbsmith.kicad.board import (
     net_name_in,
     parse_board_netlist,
     render_board_from_layout,
+    rotate_offset,
 )
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
 
@@ -41,6 +42,9 @@ TOP_RAIL_Y_MM = 3.5
 BOTTOM_RAIL_Y_MM = 39.0
 CONNECTOR_ANCHOR_X_MM = 2.0
 CONNECTOR_ANCHOR_Y_MM = 20.0
+# Edge-parallel connector: pins stack along the left board edge (rotation
+# -90 puts pin 1 / "+" on top, matching the user's hand-edited reference).
+CONNECTOR_ROTATION_DEG = 270.0
 JOG_CLEARANCE_MM = 1.5
 BOARD_MARGIN_MM = 3.0
 
@@ -57,6 +61,7 @@ def compute_led_art_board_layout(
         for led_ref, row in zip(string.led_refs, string.rows, strict=True):
             positions[led_ref] = (x, ART_Y0_MM + row * ART_PITCH_MM)
 
+    rotations: dict[str, float] = {}
     components_by_reference: dict[str, BoardComponent] = {}
     for component in netlist.components:
         components_by_reference[component.reference] = component
@@ -70,6 +75,7 @@ def compute_led_art_board_layout(
                 CONNECTOR_ANCHOR_X_MM,
                 CONNECTOR_ANCHOR_Y_MM,
             )
+            rotations[component.reference] = CONNECTOR_ROTATION_DEG
         if component.reference not in positions:
             raise BoardGenerationError(
                 f"The art plan has no grid position for {component.reference}."
@@ -91,7 +97,8 @@ def compute_led_art_board_layout(
         spec = FOOTPRINT_LIBRARY[component.footprint]
         pad = spec.pads_named(pin)[0]
         x, y = positions[reference]
-        return (x + pad.x_mm, y + pad.y_mm)
+        dx, dy = rotate_offset(pad.x_mm, pad.y_mm, rotations.get(reference, 0.0))
+        return (x + dx, y + dy)
 
     segments: list[TrackSegment] = []
     for net in netlist.nets:
@@ -122,6 +129,7 @@ def compute_led_art_board_layout(
         height_mm=height_mm,
         parts_row_y_mm=RESISTOR_ROW_Y_MM,
         part_y_mm=tuple(part_y),
+        part_rotation=tuple(sorted(rotations.items())),
     )
 
 

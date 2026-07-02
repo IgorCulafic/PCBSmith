@@ -15,8 +15,11 @@ from pcbsmith.kicad.board import (
     BoardGenerationError,
     BoardLayout,
     BoardNetlist,
+    SilkLine,
     compute_board_layout,
+    placement_rotation,
     placement_y,
+    rotate_offset,
 )
 
 SCALE_PX_PER_MM = 28
@@ -131,9 +134,13 @@ def _draw_footprints(
     }
     for component, anchor_x in layout.placements:
         row_y = placement_y(layout, component.reference)
+        rotation = placement_rotation(layout, component.reference)
         spec = FOOTPRINT_LIBRARY[component.footprint]
         body_rect = spec.silk_rect or spec.fab_rect
-        x1, y1, x2, y2 = body_rect
+        bx1, by1 = rotate_offset(body_rect[0], body_rect[1], rotation)
+        bx2, by2 = rotate_offset(body_rect[2], body_rect[3], rotation)
+        x1, x2 = sorted((bx1, bx2))
+        y1, y2 = sorted((by1, by2))
         draw.rectangle(
             (
                 *px(anchor_x + x1, row_y + y1),
@@ -142,11 +149,30 @@ def _draw_footprints(
             outline=SILK,
             width=2,
         )
+        for mark in spec.silk_marks:
+            if isinstance(mark, SilkLine):
+                mx1, my1 = rotate_offset(mark.x1, mark.y1, rotation)
+                mx2, my2 = rotate_offset(mark.x2, mark.y2, rotation)
+                draw.line(
+                    (
+                        *px(anchor_x + mx1, row_y + my1),
+                        *px(anchor_x + mx2, row_y + my2),
+                    ),
+                    fill=SILK,
+                    width=3,
+                )
+            else:
+                mx, my = rotate_offset(mark.x, mark.y, rotation)
+                tx, ty = px(anchor_x + mx, row_y + my)
+                draw.text((tx, ty), mark.text, fill=SILK, font=font, anchor="mm")
         for pad in spec.pads:
-            pad_x = anchor_x + pad.x_mm
-            pad_y = row_y + pad.y_mm
+            pad_dx, pad_dy = rotate_offset(pad.x_mm, pad.y_mm, rotation)
+            pad_x = anchor_x + pad_dx
+            pad_y = row_y + pad_dy
             half_w = pad.width_mm / 2
             half_h = pad.height_mm / 2
+            if rotation % 180:
+                half_w, half_h = half_h, half_w
             if pad.kind == "smd":
                 draw.rectangle(
                     (

@@ -49,6 +49,25 @@ class PadSpec:
 
 
 @dataclass(frozen=True)
+class SilkLine:
+    """A polarity/orientation mark line on F.SilkS, footprint-local mm."""
+
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+
+
+@dataclass(frozen=True)
+class SilkText:
+    """A small mark text (for example "+" / "-") on F.SilkS, local mm."""
+
+    text: str
+    x: float
+    y: float
+
+
+@dataclass(frozen=True)
 class FootprintSpec:
     pads: tuple[PadSpec, ...]
     fab_rect: tuple[float, float, float, float]
@@ -59,12 +78,36 @@ class FootprintSpec:
     y_max: float
     attr: str
     is_connector: bool = False
+    # Polarity marks per docs/pcb-design-rules.md section 8; glyph geometry
+    # follows the official KiCad footprint library (cathode bar, "+" cross).
+    silk_marks: tuple[SilkLine | SilkText, ...] = ()
 
     def pads_named(self, name: str) -> tuple[PadSpec, ...]:
         matches = tuple(pad for pad in self.pads if pad.name == name)
         if not matches:
             raise KeyError(name)
         return matches
+
+
+def rotate_offset(dx: float, dy: float, rotation: float) -> tuple[float, float]:
+    """Rotate a footprint-local offset by the KiCad footprint rotation.
+
+    KiCad rotations are counter-clockwise on screen; board coordinates have
+    y pointing down, so +90 maps (right, down) to (up, right). Verified live
+    against KiCad DRC parity (a wrong transform strands every rotated pad).
+    """
+    normalized = rotation % 360
+    if normalized == 0:
+        return (dx, dy)
+    if normalized == 90:
+        return (dy, -dx)
+    if normalized == 180:
+        return (-dx, -dy)
+    if normalized == 270:
+        return (-dy, dx)
+    raise BoardGenerationError(
+        f"Only right-angle footprint rotations are supported, not {rotation}."
+    )
 
 
 _SMD_0603 = FootprintSpec(
@@ -81,6 +124,23 @@ _SMD_0603 = FootprintSpec(
     attr="smd",
 )
 
+# LED variant of the 0603 body: same pads, plus the standard cathode bar
+# (KiCad's LED_0603_1608Metric draws this bar at its cathode pad; our LED
+# symbol/footprint pair puts the cathode on pad 2, so the bar sits there).
+_LED_0603 = FootprintSpec(
+    pads=_SMD_0603.pads,
+    fab_rect=_SMD_0603.fab_rect,
+    silk_rect=_SMD_0603.silk_rect,
+    x_min=-1.75,
+    x_max=2.15,
+    y_min=-1.0,
+    y_max=1.0,
+    attr="smd",
+    silk_marks=(SilkLine(x1=1.9, y1=-0.9, x2=1.9, y2=0.9),),
+)
+
+# Power connector: "+" / "-" beside the pins so off-board wiring polarity is
+# obvious. PCBSmith topologies always put the positive rail on pin 1.
 _PIN_HEADER_1X02 = FootprintSpec(
     pads=(
         PadSpec(
@@ -94,10 +154,14 @@ _PIN_HEADER_1X02 = FootprintSpec(
     silk_rect=None,
     x_min=-1.4,
     x_max=3.94,
-    y_min=-1.4,
+    y_min=-2.9,
     y_max=1.4,
     attr="through_hole",
     is_connector=True,
+    silk_marks=(
+        SilkText(text="+", x=0.0, y=-2.2),
+        SilkText(text="-", x=2.54, y=-2.2),
+    ),
 )
 
 # LM2596S: pins 1-5 left to right at 1.7 mm pitch, tab carries pin 3 (GND).
@@ -119,20 +183,25 @@ _TO_263_5_TABPIN3 = FootprintSpec(
     attr="smd",
 )
 
+# Schottky diode: cathode bar on silk (our diode symbol/footprint pair puts
+# the cathode on pad 2).
 _D_SMA = FootprintSpec(
     pads=(
         PadSpec(name="1", x_mm=-2.15, y_mm=0.0, kind="smd", width_mm=2.4, height_mm=1.7),
         PadSpec(name="2", x_mm=2.15, y_mm=0.0, kind="smd", width_mm=2.4, height_mm=1.7),
     ),
     fab_rect=(-2.3, -1.45, 2.3, 1.45),
-    silk_rect=None,
+    silk_rect=(-2.45, -1.6, 2.45, 1.6),
     x_min=-3.6,
-    x_max=3.6,
-    y_min=-1.7,
-    y_max=1.7,
+    x_max=3.9,
+    y_min=-1.8,
+    y_max=1.8,
     attr="smd",
+    silk_marks=(SilkLine(x1=3.7, y1=-1.6, x2=3.7, y2=1.6),),
 )
 
+# Polarized electrolytic: "+" cross beside the positive pad (KiCad's
+# CP_Elec_8x10 draws the same cross; our capacitor pair puts + on pad 2).
 _CP_ELEC_8X10 = FootprintSpec(
     pads=(
         PadSpec(name="1", x_mm=-3.05, y_mm=0.0, kind="smd", width_mm=3.2, height_mm=1.6),
@@ -142,9 +211,13 @@ _CP_ELEC_8X10 = FootprintSpec(
     silk_rect=None,
     x_min=-4.9,
     x_max=4.9,
-    y_min=-4.3,
+    y_min=-5.4,
     y_max=4.3,
     attr="smd",
+    silk_marks=(
+        SilkLine(x1=2.55, y1=-4.75, x2=3.55, y2=-4.75),
+        SilkLine(x1=3.05, y1=-5.25, x2=3.05, y2=-4.25),
+    ),
 )
 
 _L_12X12 = FootprintSpec(
@@ -164,7 +237,7 @@ _L_12X12 = FootprintSpec(
 FOOTPRINT_LIBRARY: dict[str, FootprintSpec] = {
     "Resistor_SMD:R_0603_1608Metric": _SMD_0603,
     "Capacitor_SMD:C_0603_1608Metric": _SMD_0603,
-    "LED_SMD:LED_0603_1608Metric": _SMD_0603,
+    "LED_SMD:LED_0603_1608Metric": _LED_0603,
     "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical": _PIN_HEADER_1X02,
     "Package_TO_SOT_SMD:TO-263-5_TabPin3": _TO_263_5_TABPIN3,
     "Diode_SMD:D_SMA": _D_SMA,
@@ -225,6 +298,8 @@ class BoardLayout:
     # Per-reference y anchors for layouts that are not a single row (for
     # example art grids); references absent here sit on the parts row.
     part_y_mm: tuple[tuple[str, float], ...] = ()
+    # Per-reference right-angle rotations (KiCad degrees, CCW); absent = 0.
+    part_rotation: tuple[tuple[str, float], ...] = ()
 
 
 def placement_y(layout: BoardLayout, reference: str) -> float:
@@ -232,6 +307,13 @@ def placement_y(layout: BoardLayout, reference: str) -> float:
         if candidate == reference:
             return y_mm
     return layout.parts_row_y_mm
+
+
+def placement_rotation(layout: BoardLayout, reference: str) -> float:
+    for candidate, rotation in layout.part_rotation:
+        if candidate == reference:
+            return rotation
+    return 0.0
 
 
 def export_kicad_netlist_xml(
@@ -493,6 +575,7 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
                 pad_nets,
                 net_numbers,
                 anchor_y=placement_y(layout, component.reference),
+                rotation=placement_rotation(layout, component.reference),
             )
         )
     for segment in layout.segments:
@@ -766,14 +849,20 @@ def _render_footprint(
     net_numbers: dict[str, int],
     *,
     anchor_y: float = MIN_PARTS_ROW_Y_MM,
+    rotation: float = 0.0,
 ) -> str:
     spec = FOOTPRINT_LIBRARY[component.footprint]
     center_x = (spec.x_min + spec.x_max) / 2
+    rotation_clause = f" {_mm(rotation)}" if rotation else ""
+    at_clause = (
+        f"{_mm(anchor_x + BOARD_SHEET_ORIGIN_MM)} "
+        f"{_mm(anchor_y + BOARD_SHEET_ORIGIN_MM)}{rotation_clause}"
+    )
     parts: list[str] = [
         f"""  (footprint {_q(component.footprint)}
     (layer "F.Cu")
     (uuid {uuid4()})
-    (at {_mm(anchor_x + BOARD_SHEET_ORIGIN_MM)} {_mm(anchor_y + BOARD_SHEET_ORIGIN_MM)})
+    (at {at_clause})
     (property "Reference" {_q(component.reference)}
       (at {_mm(center_x)} {_mm(spec.y_min - 1.2)} 0)
       (layer "F.SilkS")
@@ -817,6 +906,33 @@ def _render_footprint(
     parts.append(_fp_rect(spec.fab_rect, "F.Fab", 0.08))
     if spec.silk_rect is not None:
         parts.append(_fp_rect(spec.silk_rect, "F.SilkS", 0.1))
+    for mark in spec.silk_marks:
+        if isinstance(mark, SilkLine):
+            parts.append(
+                f"""    (fp_line
+      (start {_mm(mark.x1)} {_mm(mark.y1)})
+      (end {_mm(mark.x2)} {_mm(mark.y2)})
+      (stroke (width 0.15) (type solid))
+      (layer "F.SilkS")
+      (uuid {uuid4()})
+    )"""
+            )
+        else:
+            # Counter-rotate mark text so "+" / "-" stay upright on rotated
+            # footprints (KiCad adds the footprint angle to text angles).
+            parts.append(
+                f"""    (fp_text user {_q(mark.text)}
+      (at {_mm(mark.x)} {_mm(mark.y)} {_mm((360 - rotation) % 360)})
+      (layer "F.SilkS")
+      (uuid {uuid4()})
+      (effects
+        (font
+          (size 1 1)
+          (thickness 0.15)
+        )
+      )
+    )"""
+            )
     for pad in spec.pads:
         net_name = pad_nets.get((component.reference, pad.name))
         net_clause = (

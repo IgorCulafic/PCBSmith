@@ -22,6 +22,25 @@ Entry format:
 
 ---
 
+## 2026-07-02 Polarity silkscreen, +/- connector labels, edge-parallel connectors
+- status: promoted (user-requested)
+- proposed_by: user review of outputs/led-art-igorc-r002 (hand edit rotated P1
+  vertical at the left edge and asked for +/- marks and standard polarity
+  silkscreen)
+- rule: new 8.1-8.4
+- suggestion: polarized parts mark polarity on silk with the standard glyphs
+  (cathode bar for diodes/LEDs, "+" cross for polarized caps, per the official
+  KiCad footprint library); power connectors get "+"/"-" text; connectors sit
+  edge-parallel (pins stacked along the edge).
+- evidence: KiCad's LED_0603_1608Metric closes its silk outline with a bar at
+  the cathode pad; CP_Elec_8x10 draws a 1 mm "+" cross and chamfered corner;
+  the user's hand edit placed P1 at (at 22 40 -90). Reading the library also
+  exposed that our pad-numbering deviates from the KiCad convention
+  (diode pad1=cathode, CP pad1=positive) — documented as rule 8.4 hazard with
+  a queued alignment fix.
+- decision_note: implemented via FootprintSpec.silk_marks + right-angle
+  rotation support (rotate_offset), verified by DRC parity on r003.
+
 ## 2026-07-02 Series LED polarity check and mandatory net labels
 - status: promoted (applied directly with user permission)
 - proposed_by: claude-fable-5, LED text-matrix slice (outputs/led-art-igorc-r001

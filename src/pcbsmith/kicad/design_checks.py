@@ -16,6 +16,8 @@ from pcbsmith.kicad.board import (
     PART_GAP_MM,
     BoardLayout,
     BoardNetlist,
+    placement_rotation,
+    rotate_offset,
 )
 
 CONNECTOR_EDGE_ZONE_MM = 6.0
@@ -85,7 +87,11 @@ def _check_connector_edges(layout: BoardLayout) -> tuple[ReviewFinding, ...]:
         spec = FOOTPRINT_LIBRARY[component.footprint]
         if not spec.is_connector:
             continue
-        pad_xs = [anchor_x + pad.x_mm for pad in spec.pads]
+        rotation = placement_rotation(layout, component.reference)
+        pad_xs = [
+            anchor_x + rotate_offset(pad.x_mm, pad.y_mm, rotation)[0]
+            for pad in spec.pads
+        ]
         near_left = min(pad_xs) <= CONNECTOR_EDGE_ZONE_MM
         near_right = max(pad_xs) >= layout.width_mm - CONNECTOR_EDGE_ZONE_MM
         if not (near_left or near_right):

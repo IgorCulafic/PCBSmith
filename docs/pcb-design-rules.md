@@ -35,7 +35,8 @@ to future, more complex designs.
     first leads the row at the left edge and any further connectors close the
     row at the right edge, so power enters one side and exits the other.
     Status: **implemented** (`kicad/board.py`); edge-parallel orientation
-    **pending** (needs escape routing).
+    **implemented** in the art-grid layout (rule 8.3), still **pending** for
+    the row-channel layout (needs escape routing).
 - **1.2 Single-pin solder pads at corners are a valid connector style for
   modules.** (`REF-BC2596` J1–J4.) Status: **pending** (footprint library has
   no 1-pin pad entry yet).
@@ -148,3 +149,40 @@ grounding."
   text-matrix schematic.) Status: **implemented** in both generators (all
   divider/buck nets were already labelled; LED-art series nets are labelled
   `S<string>_<link>`).
+
+## 8. Silkscreen and assembly marks
+
+Source `KICAD-LIB`: the official KiCad footprint library installed at
+`C:\Program Files\KiCad\10.0\share\kicad\footprints` — the reference
+implementation of polarity silkscreen (KiCad Library Conventions, klc
+rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
+
+- **8.1 Polarized two-terminal parts mark polarity on silkscreen.** Diodes
+  and LEDs get a CATHODE BAR (a silk line beside the cathode terminal —
+  `KICAD-LIB` `LED_0603_1608Metric` closes its silk outline with a bar at the
+  cathode pad); polarized capacitors get a "+" cross beside the positive pad
+  (`KICAD-LIB` `CP_Elec_8x10` draws a 1 mm cross plus a chamfered body
+  corner). Status: **implemented** — `FootprintSpec.silk_marks` renders the
+  bar/cross into both the board file and the review plot.
+- **8.2 Off-board power connectors are labelled "+" and "-" on silkscreen**
+  so the user knows the wiring polarity without the schematic. (`SESSION` —
+  user request on the LED matrix; `REF-BC2596` labels its corner pads.)
+  PCBSmith topologies always put the positive rail on connector pin 1.
+  Status: **implemented** (pin-header spec carries the marks; text
+  counter-rotates so it stays upright on rotated connectors).
+- **8.3 Power connectors sit edge-parallel: pins stack along the board
+  edge.** (`SESSION` — user's hand edit of the LED matrix moved P1 to
+  vertical on the left edge, `(at 22 40 -90)`.) Status: **implemented** in
+  the art-grid layout (rotation 270, "+" pin up); the row-channel layout
+  still places headers edge-perpendicular pending escape routing.
+- **8.4 Pin-numbering conventions (deviation, documented hazard).** Official
+  KiCad libraries put the diode/LED CATHODE on pad 1 (the bar marks it) and
+  the polarized-capacitor POSITIVE on pad 1. **PCBSmith's generated
+  symbol/footprint pairs currently deviate: LED/diode pad 1 = anode, CP
+  pad 1 = negative.** The pairs are internally consistent and the silk marks
+  are placed by electrical truth, so fabrication is correct — but swapping a
+  PCBSmith footprint for the same-named KiCad library footprint would flip
+  polarity. This is also why `lib_footprint_mismatch` stays suppressed in
+  generated projects. Status: deviation **documented**; queued fix is to
+  adopt the KiCad conventions or import official `.kicad_mod` geometry
+  outright (which would bring the real silk art with it).
