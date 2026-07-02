@@ -140,6 +140,51 @@ def test_connector_is_placed_first_even_when_listed_last() -> None:
     assert anchors["P1"] < anchors["R1"]
 
 
+def test_row_order_minimises_net_span() -> None:
+    from pcbsmith.kicad.board import _place_components
+
+    def _smd(reference: str) -> BoardComponent:
+        return BoardComponent(
+            reference=reference,
+            value=reference,
+            footprint="Resistor_SMD:R_0603_1608Metric",
+            uuid_path=reference.lower(),
+        )
+
+    connector = BoardComponent(
+        reference="P1",
+        value="in",
+        footprint="Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+        uuid_path="p1",
+    )
+    # Signal chain P1 -> RB -> RA, listed alphabetically (RA before RB).
+    nets = (
+        BoardNet(name="/IN", nodes=(("P1", "1"), ("RB", "1"))),
+        BoardNet(name="/MID", nodes=(("RB", "2"), ("RA", "1"))),
+    )
+
+    placements = _place_components((_smd("RA"), _smd("RB"), connector), nets)
+
+    references = [component.reference for component, _ in placements]
+    assert references == ["P1", "RB", "RA"]
+
+
+def test_connector_pads_hug_the_board_corner() -> None:
+    from pcbsmith.kicad.board import CONNECTOR_EDGE_PAD_OFFSET_MM, _place_components
+
+    connector = BoardComponent(
+        reference="P1",
+        value="in",
+        footprint="Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical",
+        uuid_path="p1",
+    )
+
+    placements = _place_components((connector,), ())
+
+    _, anchor_x = placements[0]
+    assert anchor_x == CONNECTOR_EDGE_PAD_OFFSET_MM
+
+
 def test_render_board_rejects_unknown_footprint() -> None:
     netlist = BoardNetlist(
         components=(

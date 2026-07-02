@@ -3,6 +3,7 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
+from itertools import permutations
 from pathlib import Path
 from uuid import uuid4
 
@@ -17,12 +18,15 @@ KICAD_BOARD_VERSION = 20241229
 TRACK_WIDTH_MM = 0.3
 VIA_SIZE_MM = 0.6
 VIA_DRILL_MM = 0.3
-PARTS_ROW_Y_MM = 6.0
+PARTS_ROW_Y_MM = 4.5
 LANE_START_OFFSET_MM = 8.0
 LANE_PITCH_MM = 1.2
 PART_GAP_MM = 2.5
-BOARD_MARGIN_MM = 5.0
+BOARD_MARGIN_MM = 3.0
+CONNECTOR_EDGE_PAD_OFFSET_MM = 2.0
+BOARD_SHEET_ORIGIN_MM = 20.0
 EDGE_STROKE_MM = 0.1
+MAX_EXHAUSTIVE_ORDER_PARTS = 8
 
 
 class BoardGenerationError(RuntimeError):
@@ -224,6 +228,56 @@ def generate_board(
     return board_file
 
 
+RENDER_VIEWS: tuple[tuple[str, tuple[str, ...]], ...] = (
+    ("top", ("--side", "top")),
+    ("bottom", ("--side", "bottom")),
+    ("perspective", ("--perspective", "--rotate", "-30,0,-20", "--zoom", "0.9")),
+)
+
+
+def render_board_previews(
+    board_file: Path,
+    *,
+    finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
+    runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
+) -> tuple[dict[str, str], tuple[str, ...]]:
+    """Render PNG previews of a board. Best-effort: failures become findings."""
+    install = finder()
+    if install is None:
+        return {}, ("KiCad CLI was not found; board previews were not rendered.",)
+
+    previews: dict[str, str] = {}
+    findings: list[str] = []
+    for view, view_args in RENDER_VIEWS:
+        output = board_file.parent / f"{board_file.stem}-{view}.png"
+        command = (
+            str(install.path),
+            "pcb",
+            "render",
+            "--output",
+            str(output),
+            "--width",
+            "1600",
+            "--height",
+            "1000",
+            "--quality",
+            "high",
+            *view_args,
+            str(board_file),
+        )
+        try:
+            process = run_kicad_process(command) if runner is None else runner(command)
+        except OSError as exc:
+            findings.append(f"Board {view} preview could not be rendered: {exc}")
+            continue
+        if process.returncode != 0 or not output.exists():
+            detail = process.stderr.strip() or process.stdout.strip() or "unknown error"
+            findings.append(f"Board {view} preview render failed: {detail}")
+            continue
+        previews[view] = str(output)
+    return previews, tuple(findings)
+
+
 def render_board(netlist: BoardNetlist) -> str:
     unknown = sorted(
         {
@@ -237,7 +291,7 @@ def render_board(netlist: BoardNetlist) -> str:
             "No board footprint geometry is defined for: " + ", ".join(unknown)
         )
 
-    placements = _place_components(netlist.components)
+    placements = _place_components(netlist.components, netlist.nets)
     net_numbers = {net.name: index for index, net in enumerate(netlist.nets, start=1)}
     pad_nets = {
         (reference, pin): net.name
@@ -259,10 +313,11 @@ def render_board(netlist: BoardNetlist) -> str:
     for component, anchor_x in placements:
         sections.append(_render_footprint(component, anchor_x, pad_nets, net_numbers))
     sections.extend(tracks)
+    origin = BOARD_SHEET_ORIGIN_MM
     sections.append(
         f"""  (gr_rect
-    (start 0 0)
-    (end {_mm(board_width)} {_mm(board_height)})
+    (start {_mm(origin)} {_mm(origin)})
+    (end {_mm(origin + board_width)} {_mm(origin + board_height)})
     (stroke (width {_mm(EDGE_STROKE_MM)}) (type default))
     (fill none)
     (layer "Edge.Cuts")
@@ -274,21 +329,76 @@ def render_board(netlist: BoardNetlist) -> str:
 
 def _place_components(
     components: tuple[BoardComponent, ...],
+    nets: tuple[BoardNet, ...] = (),
 ) -> tuple[tuple[BoardComponent, float], ...]:
-    # Connectors carry off-board wiring, so they belong at the board edge:
-    # they lead the row, which starts at the top-left corner of the outline.
-    ordered = sorted(
-        components,
-        key=lambda component: 0 if FOOTPRINT_LIBRARY[component.footprint].is_connector else 1,
-    )
+    ordered = _order_components(components, nets)
     placements: list[tuple[BoardComponent, float]] = []
-    cursor = BOARD_MARGIN_MM
-    for component in ordered:
+    cursor = 0.0
+    for index, component in enumerate(ordered):
         spec = FOOTPRINT_LIBRARY[component.footprint]
-        anchor_x = cursor - spec.x_min
+        if index == 0 and spec.is_connector:
+            # Connector pads hug the board corner so off-board wiring lands
+            # at the edge, matching hand-layout convention.
+            anchor_x = CONNECTOR_EDGE_PAD_OFFSET_MM - spec.pads[0].x_mm
+        else:
+            anchor_x = max(cursor, BOARD_MARGIN_MM) - spec.x_min
         placements.append((component, anchor_x))
         cursor = anchor_x + spec.x_max + PART_GAP_MM
     return tuple(placements)
+
+
+def _order_components(
+    components: tuple[BoardComponent, ...],
+    nets: tuple[BoardNet, ...],
+) -> tuple[BoardComponent, ...]:
+    # Connectors carry off-board wiring, so they lead the row at the board
+    # edge. The remaining parts take the row order that minimises the total
+    # horizontal span of all nets, which recovers signal-flow ordering.
+    connectors = tuple(
+        component
+        for component in components
+        if FOOTPRINT_LIBRARY[component.footprint].is_connector
+    )
+    others = tuple(
+        component
+        for component in components
+        if not FOOTPRINT_LIBRARY[component.footprint].is_connector
+    )
+    if not nets or not others or len(others) > MAX_EXHAUSTIVE_ORDER_PARTS:
+        return (*connectors, *others)
+
+    best_order = others
+    best_cost = _row_net_span(connectors, others, nets)
+    for candidate in permutations(others):
+        cost = _row_net_span(connectors, candidate, nets)
+        if cost < best_cost:
+            best_cost = cost
+            best_order = candidate
+    return (*connectors, *best_order)
+
+
+def _row_net_span(
+    connectors: tuple[BoardComponent, ...],
+    others: tuple[BoardComponent, ...],
+    nets: tuple[BoardNet, ...],
+) -> float:
+    positions: dict[str, float] = {}
+    cursor = 0.0
+    for index, component in enumerate((*connectors, *others)):
+        spec = FOOTPRINT_LIBRARY[component.footprint]
+        if index == 0 and spec.is_connector:
+            anchor_x = CONNECTOR_EDGE_PAD_OFFSET_MM - spec.pads[0].x_mm
+        else:
+            anchor_x = max(cursor, BOARD_MARGIN_MM) - spec.x_min
+        positions[component.reference] = anchor_x
+        cursor = anchor_x + spec.x_max + PART_GAP_MM
+
+    total = 0.0
+    for net in nets:
+        xs = [positions[reference] for reference, _ in net.nodes if reference in positions]
+        if len(xs) > 1:
+            total += max(xs) - min(xs)
+    return total
 
 
 def _route_channel(
@@ -329,15 +439,18 @@ def _route_channel(
 
 
 def _segment(x1: float, y1: float, x2: float, y2: float, layer: str, net: int) -> str:
+    origin = BOARD_SHEET_ORIGIN_MM
     return (
-        f"  (segment (start {_mm(x1)} {_mm(y1)}) (end {_mm(x2)} {_mm(y2)}) "
+        f"  (segment (start {_mm(x1 + origin)} {_mm(y1 + origin)}) "
+        f"(end {_mm(x2 + origin)} {_mm(y2 + origin)}) "
         f'(width {_mm(TRACK_WIDTH_MM)}) (layer "{layer}") (net {net}) (uuid {uuid4()}))'
     )
 
 
 def _via(x: float, y: float, net: int) -> str:
+    origin = BOARD_SHEET_ORIGIN_MM
     return (
-        f"  (via (at {_mm(x)} {_mm(y)}) (size {_mm(VIA_SIZE_MM)}) "
+        f"  (via (at {_mm(x + origin)} {_mm(y + origin)}) (size {_mm(VIA_SIZE_MM)}) "
         f'(drill {_mm(VIA_DRILL_MM)}) (layers "F.Cu" "B.Cu") (net {net}) (uuid {uuid4()}))'
     )
 
@@ -380,7 +493,7 @@ def _render_footprint(
         f"""  (footprint {_q(component.footprint)}
     (layer "F.Cu")
     (uuid {uuid4()})
-    (at {_mm(anchor_x)} {_mm(PARTS_ROW_Y_MM)})
+    (at {_mm(anchor_x + BOARD_SHEET_ORIGIN_MM)} {_mm(PARTS_ROW_Y_MM + BOARD_SHEET_ORIGIN_MM)})
     (property "Reference" {_q(component.reference)}
       (at {_mm(center_x)} {_mm(spec.y_min - 1.2)} 0)
       (layer "F.SilkS")

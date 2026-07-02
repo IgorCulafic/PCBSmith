@@ -54,7 +54,11 @@ from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
 )
-from pcbsmith.kicad.board import BoardGenerationError, generate_board
+from pcbsmith.kicad.board import (
+    BoardGenerationError,
+    generate_board,
+    render_board_previews,
+)
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import run_kicad_drc, run_kicad_erc
@@ -438,16 +442,22 @@ def _board_authority(
             findings=(str(exc),),
         )
     report = run_kicad_drc(board_file)
+    _, preview_findings = render_board_previews(board_file)
     if report.status == "passed":
         return report.model_copy(
             update={
                 "status": "needs_human_review",
                 "findings": (
                     *report.findings,
+                    *preview_findings,
                     "KiCad DRC passed. The generated board layout still requires "
                     "human visual review before fabrication.",
                 ),
             }
+        )
+    if preview_findings:
+        return report.model_copy(
+            update={"findings": (*report.findings, *preview_findings)}
         )
     return report
 
@@ -684,6 +694,14 @@ def _authority_artifacts(
     if board is not None:
         _add_existing_artifact(artifacts, "kicad_board", board.board_file)
         _add_existing_artifact(artifacts, "kicad_drc_report", board.drc_report)
+        if board.board_file is not None:
+            board_path = Path(board.board_file)
+            for view in ("top", "bottom", "perspective"):
+                _add_existing_artifact(
+                    artifacts,
+                    f"board_render_{view}",
+                    str(board_path.parent / f"{board_path.stem}-{view}.png"),
+                )
     return artifacts
 
 
