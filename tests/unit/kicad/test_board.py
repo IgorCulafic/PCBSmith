@@ -219,6 +219,19 @@ def test_render_board_rejects_unknown_pad_name() -> None:
         render_board(netlist)
 
 
+def test_plot_board_review_writes_png(tmp_path: Path) -> None:
+    pytest.importorskip("PIL")
+    from pcbsmith.kicad.preview import plot_board_review
+
+    netlist = parse_board_netlist(SAMPLE_NETLIST_XML)
+    output = tmp_path / "review.png"
+
+    plot_board_review(netlist, output)
+
+    assert output.exists()
+    assert output.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"
+
+
 def _drc_report_file(command: Sequence[str]) -> Path:
     return Path(command[command.index("--output") + 1])
 

@@ -125,6 +125,32 @@ class BoardNetlist:
     nets: tuple[BoardNet, ...]
 
 
+@dataclass(frozen=True)
+class TrackSegment:
+    x1: float
+    y1: float
+    x2: float
+    y2: float
+    layer: str
+    net_name: str
+
+
+@dataclass(frozen=True)
+class ViaSpec:
+    x: float
+    y: float
+    net_name: str
+
+
+@dataclass(frozen=True)
+class BoardLayout:
+    placements: tuple[tuple[BoardComponent, float], ...]
+    segments: tuple[TrackSegment, ...]
+    vias: tuple[ViaSpec, ...]
+    width_mm: float
+    height_mm: float
+
+
 def export_kicad_netlist_xml(
     schematic_file: Path,
     *,
@@ -221,11 +247,11 @@ def generate_board(
     board_file: Path,
     finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
     runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
-) -> Path:
+) -> BoardNetlist:
     netlist_file = export_kicad_netlist_xml(schematic_file, finder=finder, runner=runner)
     netlist = parse_board_netlist(netlist_file.read_text(encoding="utf-8"))
     board_file.write_text(render_board(netlist), encoding="utf-8")
-    return board_file
+    return netlist
 
 
 RENDER_VIEWS: tuple[tuple[str, tuple[str, ...]], ...] = (
@@ -278,7 +304,7 @@ def render_board_previews(
     return previews, tuple(findings)
 
 
-def render_board(netlist: BoardNetlist) -> str:
+def compute_board_layout(netlist: BoardNetlist) -> BoardLayout:
     unknown = sorted(
         {
             component.footprint
@@ -292,27 +318,42 @@ def render_board(netlist: BoardNetlist) -> str:
         )
 
     placements = _place_components(netlist.components, netlist.nets)
+    segments, vias, lane_bottom_y = _route_channel(netlist, placements)
+    board_width = max(
+        anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_max
+        for component, anchor_x in placements
+    ) + BOARD_MARGIN_MM
+    board_height = lane_bottom_y + BOARD_MARGIN_MM
+    return BoardLayout(
+        placements=placements,
+        segments=segments,
+        vias=vias,
+        width_mm=board_width,
+        height_mm=board_height,
+    )
+
+
+def render_board(netlist: BoardNetlist) -> str:
+    layout = compute_board_layout(netlist)
     net_numbers = {net.name: index for index, net in enumerate(netlist.nets, start=1)}
     pad_nets = {
         (reference, pin): net.name
         for net in netlist.nets
         for reference, pin in net.nodes
     }
-
-    tracks, lane_bottom_y = _route_channel(netlist, placements, net_numbers)
-    board_width = max(
-        anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_max
-        for component, anchor_x in placements
-    ) + BOARD_MARGIN_MM
-    board_height = lane_bottom_y + BOARD_MARGIN_MM
+    board_width = layout.width_mm
+    board_height = layout.height_mm
 
     sections: list[str] = [_render_header()]
     sections.append('  (net 0 "")')
     for net in netlist.nets:
         sections.append(f'  (net {net_numbers[net.name]} {_q(net.name)})')
-    for component, anchor_x in placements:
+    for component, anchor_x in layout.placements:
         sections.append(_render_footprint(component, anchor_x, pad_nets, net_numbers))
-    sections.extend(tracks)
+    for segment in layout.segments:
+        sections.append(_segment(segment, net_numbers))
+    for via in layout.vias:
+        sections.append(_via(via, net_numbers))
     origin = BOARD_SHEET_ORIGIN_MM
     sections.append(
         f"""  (gr_rect
@@ -404,13 +445,13 @@ def _row_net_span(
 def _route_channel(
     netlist: BoardNetlist,
     placements: tuple[tuple[BoardComponent, float], ...],
-    net_numbers: dict[str, int],
-) -> tuple[list[str], float]:
+) -> tuple[tuple[TrackSegment, ...], tuple[ViaSpec, ...], float]:
     anchor_by_reference = {
         component.reference: (anchor_x, FOOTPRINT_LIBRARY[component.footprint])
         for component, anchor_x in placements
     }
-    tracks: list[str] = []
+    segments: list[TrackSegment] = []
+    vias: list[ViaSpec] = []
     lane_index = 0
     lane_bottom_y = PARTS_ROW_Y_MM + LANE_START_OFFSET_MM
     for net in netlist.nets:
@@ -429,29 +470,38 @@ def _route_channel(
         lane_y = PARTS_ROW_Y_MM + LANE_START_OFFSET_MM + lane_index * LANE_PITCH_MM
         lane_bottom_y = max(lane_bottom_y, lane_y)
         lane_index += 1
-        number = net_numbers[net.name]
         for pad_x, pad_y in pad_positions:
-            tracks.append(_segment(pad_x, pad_y, pad_x, lane_y, "F.Cu", number))
-            tracks.append(_via(pad_x, lane_y, number))
+            segments.append(
+                TrackSegment(
+                    x1=pad_x, y1=pad_y, x2=pad_x, y2=lane_y, layer="F.Cu", net_name=net.name
+                )
+            )
+            vias.append(ViaSpec(x=pad_x, y=lane_y, net_name=net.name))
         xs = sorted(x for x, _ in pad_positions)
-        tracks.append(_segment(xs[0], lane_y, xs[-1], lane_y, "B.Cu", number))
-    return tracks, lane_bottom_y
+        segments.append(
+            TrackSegment(
+                x1=xs[0], y1=lane_y, x2=xs[-1], y2=lane_y, layer="B.Cu", net_name=net.name
+            )
+        )
+    return tuple(segments), tuple(vias), lane_bottom_y
 
 
-def _segment(x1: float, y1: float, x2: float, y2: float, layer: str, net: int) -> str:
+def _segment(segment: TrackSegment, net_numbers: dict[str, int]) -> str:
     origin = BOARD_SHEET_ORIGIN_MM
     return (
-        f"  (segment (start {_mm(x1 + origin)} {_mm(y1 + origin)}) "
-        f"(end {_mm(x2 + origin)} {_mm(y2 + origin)}) "
-        f'(width {_mm(TRACK_WIDTH_MM)}) (layer "{layer}") (net {net}) (uuid {uuid4()}))'
+        f"  (segment (start {_mm(segment.x1 + origin)} {_mm(segment.y1 + origin)}) "
+        f"(end {_mm(segment.x2 + origin)} {_mm(segment.y2 + origin)}) "
+        f'(width {_mm(TRACK_WIDTH_MM)}) (layer "{segment.layer}") '
+        f"(net {net_numbers[segment.net_name]}) (uuid {uuid4()}))"
     )
 
 
-def _via(x: float, y: float, net: int) -> str:
+def _via(via: ViaSpec, net_numbers: dict[str, int]) -> str:
     origin = BOARD_SHEET_ORIGIN_MM
     return (
-        f"  (via (at {_mm(x + origin)} {_mm(y + origin)}) (size {_mm(VIA_SIZE_MM)}) "
-        f'(drill {_mm(VIA_DRILL_MM)}) (layers "F.Cu" "B.Cu") (net {net}) (uuid {uuid4()}))'
+        f"  (via (at {_mm(via.x + origin)} {_mm(via.y + origin)}) (size {_mm(VIA_SIZE_MM)}) "
+        f'(drill {_mm(VIA_DRILL_MM)}) (layers "F.Cu" "B.Cu") '
+        f"(net {net_numbers[via.net_name]}) (uuid {uuid4()}))"
     )
 
 

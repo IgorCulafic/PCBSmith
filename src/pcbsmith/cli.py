@@ -60,6 +60,7 @@ from pcbsmith.kicad.board import (
     render_board_previews,
 )
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
+from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import run_kicad_drc, run_kicad_erc
 from pcbsmith.review.authority_bundle import write_authority_review_bundle
@@ -137,8 +138,20 @@ def _cmd_erc(args: argparse.Namespace) -> int:
     return 1 if issues else 0
 
 
+def _prepare_output_dir(output_dir: Path, *, overwrite: bool) -> None:
+    if overwrite or not output_dir.exists():
+        return
+    if any(output_dir.iterdir()):
+        raise ValueError(
+            f"Output directory {output_dir} already contains files. Use a fresh "
+            "directory per design revision so runs stay comparable, or pass "
+            "--overwrite to replace it."
+        )
+
+
 def _cmd_design_divider_highpass_led(args: argparse.Namespace) -> int:
     output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
     intent = classify_circuit_intent(args.request)
     if intent.status != "supported":
         raise ValueError("; ".join(intent.unsupported_reasons))
@@ -163,6 +176,7 @@ def _cmd_design_divider_highpass_led(args: argparse.Namespace) -> int:
 
 def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
     output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
     intent = classify_circuit_intent(args.request)
     if intent.status != "supported":
         raise ValueError("; ".join(intent.unsupported_reasons))
@@ -434,7 +448,7 @@ def _board_authority(
         )
     board_file = output_dir / f"{project_name}.kicad_pcb"
     try:
-        generate_board(schematic_file=schematic_file, board_file=board_file)
+        board_netlist = generate_board(schematic_file=schematic_file, board_file=board_file)
     except BoardGenerationError as exc:
         return BoardReport(
             status="failed",
@@ -443,6 +457,10 @@ def _board_authority(
         )
     report = run_kicad_drc(board_file)
     _, preview_findings = render_board_previews(board_file)
+    try:
+        plot_board_review(board_netlist, output_dir / f"{project_name}-review.png")
+    except BoardGenerationError as exc:
+        preview_findings = (*preview_findings, str(exc))
     if report.status == "passed":
         return report.model_copy(
             update={
@@ -702,6 +720,11 @@ def _authority_artifacts(
                     f"board_render_{view}",
                     str(board_path.parent / f"{board_path.stem}-{view}.png"),
                 )
+            _add_existing_artifact(
+                artifacts,
+                "board_review_plot",
+                str(board_path.parent / f"{board_path.stem}-review.png"),
+            )
     return artifacts
 
 
@@ -779,6 +802,7 @@ def build_parser() -> argparse.ArgumentParser:
     design_parser.add_argument("output")
     design_parser.add_argument("--request", required=True)
     design_parser.add_argument("--name", required=True)
+    design_parser.add_argument("--overwrite", action="store_true")
     design_parser.set_defaults(func=_cmd_design_divider_highpass_led)
 
     authority_design_parser = subparsers.add_parser(
@@ -789,6 +813,7 @@ def build_parser() -> argparse.ArgumentParser:
     authority_design_parser.add_argument("--request", required=True)
     authority_design_parser.add_argument("--name", required=True)
     authority_design_parser.add_argument("--evidence-manifest")
+    authority_design_parser.add_argument("--overwrite", action="store_true")
     authority_design_parser.set_defaults(func=_cmd_design_divider_highpass_led_authority)
 
     nexar_smoke_parser = subparsers.add_parser(
