@@ -31,7 +31,11 @@ class EvidenceExtractionReport(BaseModel):
 
 
 class EvidenceExtractor(Protocol):
-    def extract(self, path: Path) -> EvidenceExtractionResult:
+    def extract(
+        self,
+        path: Path,
+        job: EvidenceExtractionJob,
+    ) -> EvidenceExtractionResult:
         ...
 
 
@@ -58,7 +62,7 @@ class EvidenceExtractionService:
                 continue
             processed += 1
             source_path = self._resolve_job_path(job)
-            result = self._extractor.extract(source_path)
+            result = self._extractor.extract(source_path, job)
             if result.status == "machine_extracted":
                 components = _merge_facts_into_component(components, job, result.facts)
                 jobs.append(job.model_copy(update={"status": "machine_extracted"}))

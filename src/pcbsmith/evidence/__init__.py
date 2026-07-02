@@ -10,6 +10,20 @@ from pcbsmith.evidence.extraction import (
     EvidenceExtractionService,
     EvidenceExtractor,
 )
+from pcbsmith.evidence.llm import (
+    ANTHROPIC_DEFAULT_MODEL,
+    LOCAL_DEFAULT_BASE_URL,
+    LOCAL_DEFAULT_MODEL,
+    ROLE_FACT_REQUIREMENTS,
+    AnthropicDatasheetClient,
+    DatasheetChatClient,
+    DatasheetExtractionError,
+    LlmDatasheetExtractor,
+    OpenAICompatibleDatasheetClient,
+    UrlLibChatTransport,
+    build_extraction_prompt,
+    parse_facts_payload,
+)
 from pcbsmith.evidence.models import (
     CachedEvidenceFile,
     ComponentEvidence,
@@ -31,7 +45,19 @@ from pcbsmith.evidence.nexar import (
 )
 
 __all__ = [
+    "ANTHROPIC_DEFAULT_MODEL",
+    "LOCAL_DEFAULT_BASE_URL",
+    "LOCAL_DEFAULT_MODEL",
+    "ROLE_FACT_REQUIREMENTS",
+    "AnthropicDatasheetClient",
     "CachedEvidenceFile",
+    "DatasheetChatClient",
+    "DatasheetExtractionError",
+    "LlmDatasheetExtractor",
+    "OpenAICompatibleDatasheetClient",
+    "UrlLibChatTransport",
+    "build_extraction_prompt",
+    "parse_facts_payload",
     "ComponentEvidence",
     "ComponentSelection",
     "EvidenceAcquisitionReport",

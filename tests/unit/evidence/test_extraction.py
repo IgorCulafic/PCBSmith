@@ -4,16 +4,22 @@ import json
 from pathlib import Path
 
 from pcbsmith.evidence import EvidenceExtractionResult, EvidenceExtractionService
-from pcbsmith.evidence.models import EvidenceFact, EvidenceLocator
+from pcbsmith.evidence.models import EvidenceExtractionJob, EvidenceFact, EvidenceLocator
 
 
 class RecordingExtractor:
     def __init__(self, result: EvidenceExtractionResult) -> None:
         self.result = result
         self.paths: list[Path] = []
+        self.jobs: list[EvidenceExtractionJob] = []
 
-    def extract(self, path: Path) -> EvidenceExtractionResult:
+    def extract(
+        self,
+        path: Path,
+        job: EvidenceExtractionJob,
+    ) -> EvidenceExtractionResult:
         self.paths.append(path)
+        self.jobs.append(job)
         return self.result
 
 

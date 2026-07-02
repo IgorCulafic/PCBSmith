@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import json
 import os
 import sys
 from collections.abc import Callable
@@ -22,11 +23,22 @@ from pcbsmith.circuit.topologies import select_topology
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
 from pcbsmith.evidence import (
+    ANTHROPIC_DEFAULT_MODEL,
+    LOCAL_DEFAULT_BASE_URL,
+    LOCAL_DEFAULT_MODEL,
+    AnthropicDatasheetClient,
+    DatasheetChatClient,
+    DatasheetExtractionError,
     EvidenceAcquisitionRequest,
     EvidenceCache,
+    EvidenceExtractionJob,
+    EvidenceExtractionService,
+    LlmDatasheetExtractor,
     NexarClientCredentialsTokenProvider,
     NexarProviderError,
     NexarSupplyProvider,
+    OpenAICompatibleDatasheetClient,
+    UrlLibChatTransport,
     UrlLibNexarTransport,
 )
 from pcbsmith.evidence.divider_highpass_led import (
@@ -244,6 +256,67 @@ def _cmd_evidence_nexar_smoke(args: argparse.Namespace) -> int:
         datasheet = candidate.datasheet_url or "no datasheet URL"
         print(f"- {candidate.manufacturer} {candidate.part_number}: {datasheet}")
     return 0
+
+
+def _build_datasheet_client(args: argparse.Namespace) -> DatasheetChatClient:
+    if args.provider == "anthropic":
+        return AnthropicDatasheetClient(model=args.model or ANTHROPIC_DEFAULT_MODEL)
+    base_url = (
+        args.base_url
+        or os.environ.get("PCBSMITH_LOCAL_AI_BASE_URL")
+        or LOCAL_DEFAULT_BASE_URL
+    )
+    model = args.model or os.environ.get("PCBSMITH_LOCAL_AI_MODEL") or LOCAL_DEFAULT_MODEL
+    return OpenAICompatibleDatasheetClient(
+        transport=UrlLibChatTransport(),
+        base_url=base_url,
+        model=model,
+        api_key=os.environ.get("PCBSMITH_LOCAL_AI_API_KEY"),
+    )
+
+
+def _cmd_evidence_extract(args: argparse.Namespace) -> int:
+    extractor = LlmDatasheetExtractor(_build_datasheet_client(args))
+    service = EvidenceExtractionService(
+        manifest_path=Path(args.manifest),
+        extractor=extractor,
+    )
+    report = service.process_pending()
+    print(f"Processed extraction jobs: {report.processed_jobs}")
+    for finding in report.findings:
+        print(f"- {finding}")
+    return 0
+
+
+def _cmd_datasheet_facts(args: argparse.Namespace) -> int:
+    pdf_path = Path(args.pdf)
+    if not pdf_path.exists():
+        raise ValueError(f"Datasheet PDF not found: {pdf_path}")
+    job = EvidenceExtractionJob(
+        status="pending_extraction",
+        component_manufacturer=args.manufacturer,
+        component_part_number=args.part_number,
+        role=args.role,
+        local_path=str(pdf_path),
+        sha256="unverified",
+        created_at="unspecified",
+    )
+    extractor = LlmDatasheetExtractor(_build_datasheet_client(args))
+    result = extractor.extract(pdf_path, job)
+    print(json.dumps(result.model_dump(), indent=2))
+    return 1 if result.status == "failed" else 0
+
+
+def _add_datasheet_provider_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--provider",
+        choices=("anthropic", "local"),
+        default="anthropic",
+        help="anthropic uses the Claude API with native PDF input; "
+        "local uses an OpenAI-compatible endpoint with pypdf text extraction",
+    )
+    parser.add_argument("--model")
+    parser.add_argument("--base-url")
 
 
 def _combine_kicad_reports(erc_report: KiCadReport, spice_report: KiCadReport) -> KiCadReport:
@@ -558,6 +631,25 @@ def build_parser() -> argparse.ArgumentParser:
     nexar_smoke_parser.add_argument("--limit", type=int, default=3)
     nexar_smoke_parser.set_defaults(func=_cmd_evidence_nexar_smoke)
 
+    extract_parser = subparsers.add_parser(
+        "evidence-extract",
+        help="run LLM datasheet fact extraction for pending manifest jobs",
+    )
+    extract_parser.add_argument("manifest")
+    _add_datasheet_provider_arguments(extract_parser)
+    extract_parser.set_defaults(func=_cmd_evidence_extract)
+
+    facts_parser = subparsers.add_parser(
+        "datasheet-facts",
+        help="extract facts from a single datasheet PDF and print them as JSON",
+    )
+    facts_parser.add_argument("pdf")
+    facts_parser.add_argument("--role", required=True)
+    facts_parser.add_argument("--manufacturer", default="Unknown manufacturer")
+    facts_parser.add_argument("--part-number", required=True)
+    _add_datasheet_provider_arguments(facts_parser)
+    facts_parser.set_defaults(func=_cmd_datasheet_facts)
+
     return parser
 
 
@@ -567,7 +659,13 @@ def main(argv: list[str] | None = None) -> int:
     try:
         command: Callable[[argparse.Namespace], int] = args.func
         return command(args)
-    except (ProjectIOError, KeyError, ValueError, NexarProviderError) as exc:
+    except (
+        ProjectIOError,
+        KeyError,
+        ValueError,
+        NexarProviderError,
+        DatasheetExtractionError,
+    ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
