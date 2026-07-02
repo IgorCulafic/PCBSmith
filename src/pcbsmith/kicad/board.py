@@ -17,7 +17,7 @@ KICAD_BOARD_VERSION = 20241229
 TRACK_WIDTH_MM = 0.3
 VIA_SIZE_MM = 0.6
 VIA_DRILL_MM = 0.3
-PARTS_ROW_Y_MM = 15.0
+PARTS_ROW_Y_MM = 6.0
 LANE_START_OFFSET_MM = 8.0
 LANE_PITCH_MM = 1.2
 PART_GAP_MM = 2.5
@@ -50,6 +50,7 @@ class FootprintSpec:
     y_min: float
     y_max: float
     attr: str
+    is_connector: bool = False
 
     def pad(self, name: str) -> PadSpec:
         for pad in self.pads:
@@ -88,6 +89,7 @@ _PIN_HEADER_1X02 = FootprintSpec(
     y_min=-1.4,
     y_max=1.4,
     attr="through_hole",
+    is_connector=True,
 )
 
 FOOTPRINT_LIBRARY: dict[str, FootprintSpec] = {
@@ -273,9 +275,15 @@ def render_board(netlist: BoardNetlist) -> str:
 def _place_components(
     components: tuple[BoardComponent, ...],
 ) -> tuple[tuple[BoardComponent, float], ...]:
+    # Connectors carry off-board wiring, so they belong at the board edge:
+    # they lead the row, which starts at the top-left corner of the outline.
+    ordered = sorted(
+        components,
+        key=lambda component: 0 if FOOTPRINT_LIBRARY[component.footprint].is_connector else 1,
+    )
     placements: list[tuple[BoardComponent, float]] = []
     cursor = BOARD_MARGIN_MM
-    for component in components:
+    for component in ordered:
         spec = FOOTPRINT_LIBRARY[component.footprint]
         anchor_x = cursor - spec.x_min
         placements.append((component, anchor_x))

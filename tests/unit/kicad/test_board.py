@@ -109,6 +109,37 @@ def test_render_board_produces_footprints_tracks_and_outline() -> None:
     assert text.count('(layer "B.Cu")') == 3
 
 
+def test_connector_is_placed_first_even_when_listed_last() -> None:
+    from pcbsmith.kicad.board import _place_components
+
+    netlist = BoardNetlist(
+        components=(
+            BoardComponent(
+                reference="R1",
+                value="10k",
+                footprint="Resistor_SMD:R_0603_1608Metric",
+                uuid_path="r1",
+            ),
+            BoardComponent(
+                reference="P1",
+                value="5V input",
+                footprint=(
+                    "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+                ),
+                uuid_path="p1",
+            ),
+        ),
+        nets=(),
+    )
+
+    placements = _place_components(netlist.components)
+
+    references = [component.reference for component, _ in placements]
+    assert references == ["P1", "R1"]
+    anchors = {component.reference: anchor for component, anchor in placements}
+    assert anchors["P1"] < anchors["R1"]
+
+
 def test_render_board_rejects_unknown_footprint() -> None:
     netlist = BoardNetlist(
         components=(
