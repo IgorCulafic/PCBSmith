@@ -1,7 +1,10 @@
 from pcbsmith.evidence.acquisition import (
     EvidenceAcquisitionService,
     EvidenceDownloader,
+    EvidenceDownloadError,
     EvidenceProvider,
+    UrlLibEvidenceDownloader,
+    register_local_evidence,
 )
 from pcbsmith.evidence.cache import EvidenceCache
 from pcbsmith.evidence.extraction import (
@@ -56,14 +59,17 @@ __all__ = [
     "LlmDatasheetExtractor",
     "OpenAICompatibleDatasheetClient",
     "UrlLibChatTransport",
+    "UrlLibEvidenceDownloader",
     "build_extraction_prompt",
     "parse_facts_payload",
+    "register_local_evidence",
     "ComponentEvidence",
     "ComponentSelection",
     "EvidenceAcquisitionReport",
     "EvidenceAcquisitionRequest",
     "EvidenceAcquisitionService",
     "EvidenceCache",
+    "EvidenceDownloadError",
     "EvidenceDownloader",
     "EvidenceExtractionJob",
     "EvidenceExtractionReport",

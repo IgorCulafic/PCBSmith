@@ -49,15 +49,16 @@ class EvidenceExtractionService:
         self._manifest_path = manifest_path
         self._extractor = extractor
 
-    def process_pending(self) -> EvidenceExtractionReport:
+    def process_pending(self, *, retry_failed: bool = False) -> EvidenceExtractionReport:
         manifest = self._load_manifest()
         components = list(manifest.components)
         jobs: list[EvidenceExtractionJob] = []
         processed = 0
         findings: list[str] = []
+        processable = {"pending_extraction", "failed"} if retry_failed else {"pending_extraction"}
 
         for job in manifest.extraction_jobs:
-            if job.status != "pending_extraction":
+            if job.status not in processable:
                 jobs.append(job)
                 continue
             processed += 1
@@ -65,7 +66,9 @@ class EvidenceExtractionService:
             result = self._extractor.extract(source_path, job)
             if result.status == "machine_extracted":
                 components = _merge_facts_into_component(components, job, result.facts)
-                jobs.append(job.model_copy(update={"status": "machine_extracted"}))
+                jobs.append(
+                    job.model_copy(update={"status": "machine_extracted", "findings": ()})
+                )
                 continue
             jobs.append(
                 job.model_copy(

@@ -30,7 +30,9 @@ from pcbsmith.evidence import (
     DatasheetChatClient,
     DatasheetExtractionError,
     EvidenceAcquisitionRequest,
+    EvidenceAcquisitionService,
     EvidenceCache,
+    EvidenceDownloadError,
     EvidenceExtractionJob,
     EvidenceExtractionService,
     LlmDatasheetExtractor,
@@ -39,7 +41,9 @@ from pcbsmith.evidence import (
     NexarSupplyProvider,
     OpenAICompatibleDatasheetClient,
     UrlLibChatTransport,
+    UrlLibEvidenceDownloader,
     UrlLibNexarTransport,
+    register_local_evidence,
 )
 from pcbsmith.evidence.divider_highpass_led import (
     apply_component_selection,
@@ -281,11 +285,87 @@ def _cmd_evidence_extract(args: argparse.Namespace) -> int:
         manifest_path=Path(args.manifest),
         extractor=extractor,
     )
-    report = service.process_pending()
+    report = service.process_pending(retry_failed=args.retry_failed)
     print(f"Processed extraction jobs: {report.processed_jobs}")
     for finding in report.findings:
         print(f"- {finding}")
     return 0
+
+
+def _utc_date() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).date().isoformat()
+
+
+def _cmd_evidence_add_local(args: argparse.Namespace) -> int:
+    source_file = Path(args.pdf)
+    if not source_file.exists():
+        raise ValueError(f"Datasheet PDF not found: {source_file}")
+    component = register_local_evidence(
+        manifest_path=Path(args.manifest),
+        source_file=source_file,
+        manufacturer=args.manufacturer,
+        part_number=args.part_number,
+        role=args.role,
+        symbol_id=args.symbol_id,
+        value=args.value or args.part_number,
+        footprint=args.footprint,
+        source_url=args.source_url,
+        clock=_utc_date,
+    )
+    print(
+        f"Registered {component.manufacturer} {component.part_number} "
+        f"for role {component.role} with a pending extraction job."
+    )
+    print(f"Manifest: {args.manifest}")
+    return 0
+
+
+def _cmd_evidence_acquire(args: argparse.Namespace) -> int:
+    client_id = os.environ.get("PCBSMITH_NEXAR_CLIENT_ID")
+    client_secret = os.environ.get("PCBSMITH_NEXAR_CLIENT_SECRET")
+    if not client_id or not client_secret:
+        print(
+            "error: set PCBSMITH_NEXAR_CLIENT_ID and PCBSMITH_NEXAR_CLIENT_SECRET "
+            "to acquire evidence from Nexar, or use evidence-add-local with a "
+            "manually downloaded datasheet.",
+            file=sys.stderr,
+        )
+        return 2
+
+    transport = UrlLibNexarTransport()
+    manifest_path = Path(args.manifest)
+    service = EvidenceAcquisitionService(
+        manifest_path=manifest_path,
+        cache_dir=Path(args.cache_dir) if args.cache_dir else manifest_path.parent,
+        provider=NexarSupplyProvider(
+            token_provider=NexarClientCredentialsTokenProvider(
+                client_id=client_id,
+                client_secret=client_secret,
+                transport=transport,
+            ),
+            transport=transport,
+        ),
+        downloader=UrlLibEvidenceDownloader(),
+        clock=_utc_date,
+    )
+    report = service.acquire(
+        EvidenceAcquisitionRequest(
+            role=args.role,
+            query=args.query,
+            manufacturer=args.manufacturer,
+            part_number=args.part_number,
+        )
+    )
+    print(f"Acquisition status: {report.status}")
+    if report.component is not None:
+        print(f"Component: {report.component.manufacturer} {report.component.part_number}")
+    for cached_file in report.cached_files:
+        print(f"Cached: {cached_file}")
+    for finding in report.findings:
+        print(f"- {finding}")
+    return 0 if report.status in {"cache_hit", "downloaded"} else 1
 
 
 def _cmd_datasheet_facts(args: argparse.Namespace) -> int:
@@ -636,8 +716,50 @@ def build_parser() -> argparse.ArgumentParser:
         help="run LLM datasheet fact extraction for pending manifest jobs",
     )
     extract_parser.add_argument("manifest")
+    extract_parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="also re-run extraction jobs that previously failed",
+    )
     _add_datasheet_provider_arguments(extract_parser)
     extract_parser.set_defaults(func=_cmd_evidence_extract)
+
+    add_local_parser = subparsers.add_parser(
+        "evidence-add-local",
+        help="register a locally downloaded datasheet PDF in an evidence manifest",
+    )
+    add_local_parser.add_argument("manifest")
+    add_local_parser.add_argument("--pdf", required=True)
+    add_local_parser.add_argument("--role", required=True)
+    add_local_parser.add_argument("--manufacturer", required=True)
+    add_local_parser.add_argument("--part-number", required=True)
+    add_local_parser.add_argument(
+        "--symbol-id",
+        required=True,
+        help="builtin symbol binding, for example stdlib:LED or stdlib:R",
+    )
+    add_local_parser.add_argument("--value")
+    add_local_parser.add_argument(
+        "--footprint",
+        help="KiCad footprint, for example LED_SMD:LED_0603_1608Metric",
+    )
+    add_local_parser.add_argument("--source-url")
+    add_local_parser.set_defaults(func=_cmd_evidence_add_local)
+
+    acquire_parser = subparsers.add_parser(
+        "evidence-acquire",
+        help="search Nexar, download the best datasheet, and register it in a manifest",
+    )
+    acquire_parser.add_argument("manifest")
+    acquire_parser.add_argument("--role", required=True)
+    acquire_parser.add_argument("--query", required=True)
+    acquire_parser.add_argument("--manufacturer")
+    acquire_parser.add_argument("--part-number")
+    acquire_parser.add_argument(
+        "--cache-dir",
+        help="directory for downloaded datasheets; defaults to the manifest directory",
+    )
+    acquire_parser.set_defaults(func=_cmd_evidence_acquire)
 
     facts_parser = subparsers.add_parser(
         "datasheet-facts",
@@ -665,6 +787,7 @@ def main(argv: list[str] | None = None) -> int:
         ValueError,
         NexarProviderError,
         DatasheetExtractionError,
+        EvidenceDownloadError,
     ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

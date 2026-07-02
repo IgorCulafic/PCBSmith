@@ -6,6 +6,7 @@ import re
 from collections.abc import Callable
 from pathlib import Path
 from typing import Protocol
+from urllib import request
 
 from pcbsmith.evidence.cache import EvidenceCache
 from pcbsmith.evidence.models import (
@@ -30,6 +31,111 @@ class EvidenceProvider(Protocol):
 class EvidenceDownloader(Protocol):
     def download(self, url: str) -> bytes:
         ...
+
+
+class EvidenceDownloadError(RuntimeError):
+    pass
+
+
+class UrlLibEvidenceDownloader:
+    def __init__(self, *, timeout_seconds: float = 60.0) -> None:
+        self._timeout_seconds = timeout_seconds
+
+    def download(self, url: str) -> bytes:
+        http_request = request.Request(
+            url,
+            headers={"User-Agent": "pcbsmith-evidence/0.1"},
+        )
+        try:
+            with request.urlopen(http_request, timeout=self._timeout_seconds) as response:
+                payload = response.read()
+        except OSError as exc:
+            raise EvidenceDownloadError(f"Datasheet download failed: {exc}") from exc
+        if not isinstance(payload, bytes) or not payload:
+            raise EvidenceDownloadError("Datasheet download returned no data.")
+        return payload
+
+
+def register_local_evidence(
+    *,
+    manifest_path: Path,
+    source_file: Path,
+    manufacturer: str,
+    part_number: str,
+    role: str,
+    symbol_id: str,
+    value: str,
+    footprint: str | None,
+    source_url: str | None,
+    clock: Callable[[], str],
+) -> ComponentEvidence:
+    payload = source_file.read_bytes()
+    digest = hashlib.sha256(payload).hexdigest()
+    manifest = _load_or_init_manifest(manifest_path)
+    local_path = _relative_path(source_file.resolve(), manifest_path.parent)
+
+    cached_file = CachedEvidenceFile(
+        local_path=local_path,
+        sha256=digest,
+        source_url=source_url,
+        retrieved_at=clock(),
+        license_status="local_cache_only",
+    )
+    component = ComponentEvidence(
+        manufacturer=manufacturer,
+        part_number=part_number,
+        role=role,
+        symbol_id=symbol_id,
+        value=value,
+        footprint=footprint,
+        files=(cached_file,),
+        facts=(),
+    )
+    _write_manifest_file(
+        manifest_path,
+        EvidenceManifest(
+            schema_id="pcbsmith-evidence-manifest-v1",
+            components=(*_without_exact_component(manifest, component), component),
+            extraction_jobs=(
+                *_without_same_extraction_job(
+                    manifest,
+                    local_path=local_path,
+                    sha256=digest,
+                ),
+                EvidenceExtractionJob(
+                    status="pending_extraction",
+                    component_manufacturer=manufacturer,
+                    component_part_number=part_number,
+                    role=role,
+                    local_path=local_path,
+                    sha256=digest,
+                    source_url=source_url,
+                    created_at=clock(),
+                ),
+            ),
+        ),
+    )
+    return component
+
+
+def _load_or_init_manifest(manifest_path: Path) -> EvidenceManifest:
+    if not manifest_path.exists():
+        _write_manifest_file(
+            manifest_path,
+            EvidenceManifest(
+                schema_id="pcbsmith-evidence-manifest-v1",
+                components=(),
+            ),
+        )
+    return EvidenceManifest.model_validate_json(manifest_path.read_text(encoding="utf-8"))
+
+
+def _write_manifest_file(manifest_path: Path, manifest: EvidenceManifest) -> None:
+    manifest_path.parent.mkdir(parents=True, exist_ok=True)
+    manifest_path.write_text(
+        json.dumps(manifest.model_dump(by_alias=True), indent=2) + "\n",
+        encoding="utf-8",
+    )
 
 
 class EvidenceAcquisitionService:
@@ -141,23 +247,10 @@ class EvidenceAcquisitionService:
         )
 
     def _load_manifest(self) -> EvidenceManifest:
-        if not self._manifest_path.exists():
-            self._write_manifest(
-                EvidenceManifest(
-                    schema_id="pcbsmith-evidence-manifest-v1",
-                    components=(),
-                )
-            )
-        return EvidenceManifest.model_validate_json(
-            self._manifest_path.read_text(encoding="utf-8")
-        )
+        return _load_or_init_manifest(self._manifest_path)
 
     def _write_manifest(self, manifest: EvidenceManifest) -> None:
-        self._manifest_path.parent.mkdir(parents=True, exist_ok=True)
-        self._manifest_path.write_text(
-            json.dumps(manifest.model_dump(by_alias=True), indent=2) + "\n",
-            encoding="utf-8",
-        )
+        _write_manifest_file(self._manifest_path, manifest)
 
     def _component_files_exist(self, component: ComponentEvidence) -> bool:
         if not component.files:
