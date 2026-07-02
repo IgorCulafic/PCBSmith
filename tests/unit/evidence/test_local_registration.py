@@ -65,6 +65,39 @@ def test_register_local_evidence_replaces_existing_identity(tmp_path: Path) -> N
     assert len(data["extraction_jobs"]) == 1
 
 
+def test_register_local_evidence_keeps_jobs_for_shared_datasheet(tmp_path: Path) -> None:
+    pdf = tmp_path / "resistor-series.pdf"
+    pdf.write_bytes(b"%PDF series datasheet")
+    manifest_path = tmp_path / "manifest.json"
+
+    for role, part in (
+        ("divider_top", "CRCW060310K0FKEA"),
+        ("divider_bottom", "CRCW060310K0FKEA"),
+        ("led_current_limit", "CRCW0603680RFKEA"),
+    ):
+        register_local_evidence(
+            manifest_path=manifest_path,
+            source_file=pdf,
+            manufacturer="Vishay",
+            part_number=part,
+            role=role,
+            symbol_id="stdlib:R",
+            value=part,
+            footprint="Resistor_SMD:R_0603_1608Metric",
+            source_url=None,
+            clock=_clock,
+        )
+    data = json.loads(manifest_path.read_text(encoding="utf-8"))
+
+    assert len(data["components"]) == 3
+    assert len(data["extraction_jobs"]) == 3
+    assert {job["role"] for job in data["extraction_jobs"]} == {
+        "divider_top",
+        "divider_bottom",
+        "led_current_limit",
+    }
+
+
 class ScriptedExtractor:
     def __init__(self, result: EvidenceExtractionResult) -> None:
         self.result = result

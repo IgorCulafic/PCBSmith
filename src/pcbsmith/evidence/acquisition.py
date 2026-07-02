@@ -99,8 +99,9 @@ def register_local_evidence(
             extraction_jobs=(
                 *_without_same_extraction_job(
                     manifest,
-                    local_path=local_path,
-                    sha256=digest,
+                    manufacturer=manufacturer,
+                    part_number=part_number,
+                    role=role,
                 ),
                 EvidenceExtractionJob(
                     status="pending_extraction",
@@ -223,8 +224,9 @@ class EvidenceAcquisitionService:
                 extraction_jobs=(
                     *_without_same_extraction_job(
                         manifest,
-                        local_path=cached_file.local_path,
-                        sha256=digest,
+                        manufacturer=candidate.manufacturer,
+                        part_number=candidate.part_number,
+                        role=candidate.role,
                     ),
                     EvidenceExtractionJob(
                         status="pending_extraction",
@@ -313,13 +315,19 @@ def _without_exact_component(
 def _without_same_extraction_job(
     manifest: EvidenceManifest,
     *,
-    local_path: str,
-    sha256: str,
+    manufacturer: str,
+    part_number: str,
+    role: str,
 ) -> tuple[EvidenceExtractionJob, ...]:
     return tuple(
         job
         for job in manifest.extraction_jobs
-        if not (job.local_path == local_path and job.sha256 == sha256)
+        if not (
+            _normalize_identity(job.component_manufacturer) == _normalize_identity(manufacturer)
+            and _normalize_identity(job.component_part_number)
+            == _normalize_identity(part_number)
+            and job.role == role
+        )
     )
 
 
