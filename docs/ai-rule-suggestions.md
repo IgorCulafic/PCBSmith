@@ -34,6 +34,19 @@ Entry format:
 - decision_note: user-approved direct edit; promoted into rule 1.1 and the
   placer.
 
+## 2026-07-02 Sensitive nets take the deepest lanes; rule 3.3 measures clearance
+- status: promoted (applied directly with user permission)
+- proposed_by: revision loop — outputs/lm2596-buck-r006 revision-plan (patch,
+  rule 3.3) originating from the rule-3.3 geometric check
+- rule: 3.3
+- suggestion: Route sensitive (high-impedance) nets on the deepest channel
+  lanes, and evaluate rule 3.3 as a 2-D clearance measurement (>= 8 mm from
+  the inductor body) instead of a binary x-overlap test.
+- evidence: r006's FB lane sat on the shallowest lane, 3.1 mm from the L1
+  body; deepest-lane assignment yields 11+ mm and resolves the finding
+  (r007 revision-plan: clean).
+- decision_note: first patch plan executed end-to-end by the revision loop.
+
 ## 2026-07-02 Power nets weight the placement ordering cost
 - status: promoted (applied directly with user permission, commit `05f55a4`)
 - proposed_by: claude-fable-5 visual review of outputs/lm2596-buck-r004

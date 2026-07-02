@@ -107,14 +107,16 @@ def build_revision_plan(
     bundle: Mapping[str, Any],
     history_failure_codes: Sequence[tuple[str, ...]],
     *,
+    additional_findings: Sequence[Mapping[str, Any]] = (),
     loop_limit: int = 3,
 ) -> dict[str, Any]:
     """Decide patch vs redo vs escalate from one bundle plus prior revisions.
 
     ``history_failure_codes`` is oldest-to-newest and must include the codes
-    for the bundle under review as its last entry.
+    for the bundle under review as its last entry. ``additional_findings``
+    carries findings from outside the bundle, such as human review comments.
     """
-    findings = _design_findings(bundle)
+    findings = [*_design_findings(bundle), *additional_findings]
     blockers = [f for f in findings if f.get("severity") == "blocker"]
     warnings = [f for f in findings if f.get("severity") != "blocker"]
     current_codes = collect_failure_codes(bundle)
@@ -145,7 +147,7 @@ def build_revision_plan(
         decision = "escalate"
     elif redo:
         decision = "redo"
-    elif current_codes or warnings:
+    elif current_codes or blockers or warnings:
         decision = "patch"
     else:
         decision = "clean"

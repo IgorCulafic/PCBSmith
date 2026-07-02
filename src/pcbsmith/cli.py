@@ -19,6 +19,7 @@ from pcbsmith.circuit.models import (
     EvidenceReport,
     KiCadReport,
     ReconciliationReport,
+    ReviewFinding,
     RevisionRecord,
     SimulationReport,
 )
@@ -401,6 +402,40 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_review_comment(args: argparse.Namespace) -> int:
+    revision_dir = Path(args.output)
+    if not (revision_dir / "review-bundle-v2.json").exists():
+        raise ValueError(f"No review bundle found in {revision_dir}")
+    finding = ReviewFinding(
+        rule=args.rule or "human",
+        severity=args.severity,
+        scope=args.scope,
+        where=args.where,
+        evidence=args.comment,
+        suggested_action=args.action or "Address the reviewer's comment.",
+        source="human",
+    )
+    comments_path = revision_dir / "human-review.json"
+    existing: list[dict[str, object]] = []
+    if comments_path.exists():
+        existing = json.loads(comments_path.read_text(encoding="utf-8"))
+    existing.append(finding.model_dump())
+    comments_path.write_text(json.dumps(existing, indent=2) + "\n", encoding="utf-8")
+    print(f"Recorded human finding #{len(existing)} in {comments_path}")
+    print(f"[{finding.severity}/{finding.scope}] {finding.where}: {finding.evidence}")
+    return 0
+
+
+def _load_human_findings(revision_dir: Path) -> tuple[dict[str, object], ...]:
+    comments_path = revision_dir / "human-review.json"
+    if not comments_path.exists():
+        return ()
+    data = json.loads(comments_path.read_text(encoding="utf-8"))
+    if not isinstance(data, list):
+        raise ValueError(f"{comments_path} must contain a JSON list of findings.")
+    return tuple(entry for entry in data if isinstance(entry, dict))
+
+
 def _cmd_revision_plan(args: argparse.Namespace) -> int:
     revision_dir = Path(args.output)
     bundle_path = revision_dir / "review-bundle-v2.json"
@@ -409,7 +444,11 @@ def _cmd_revision_plan(args: argparse.Namespace) -> int:
     bundle = json.loads(bundle_path.read_text(encoding="utf-8"))
 
     history = _revision_history_codes(revision_dir)
-    plan = build_revision_plan(bundle, history)
+    plan = build_revision_plan(
+        bundle,
+        history,
+        additional_findings=_load_human_findings(revision_dir),
+    )
     plan_path = revision_dir / "revision-plan.json"
     plan_path.write_text(json.dumps(plan, indent=2) + "\n", encoding="utf-8")
 
@@ -643,11 +682,15 @@ def _board_authority(
             None,
         )
     board_file = output_dir / f"{project_name}.kicad_pcb"
+    sensitive_net_names = frozenset(
+        design_checks.sensitive_net_names if design_checks is not None else ()
+    )
     try:
         board_netlist = generate_board(
             schematic_file=schematic_file,
             board_file=board_file,
             power_net_names=power_net_names,
+            sensitive_net_names=sensitive_net_names,
         )
     except BoardGenerationError as exc:
         return (
@@ -658,7 +701,7 @@ def _board_authority(
             ),
             None,
         )
-    layout = compute_board_layout(board_netlist, power_net_names)
+    layout = compute_board_layout(board_netlist, power_net_names, sensitive_net_names)
     design_review = run_design_checks(
         layout,
         board_netlist,
@@ -671,6 +714,7 @@ def _board_authority(
             board_netlist,
             output_dir / f"{project_name}-review.png",
             power_net_names,
+            sensitive_net_names,
         )
     except BoardGenerationError as exc:
         preview_findings = (*preview_findings, str(exc))
@@ -1059,6 +1103,32 @@ def build_parser() -> argparse.ArgumentParser:
     )
     revision_plan_parser.add_argument("output")
     revision_plan_parser.set_defaults(func=_cmd_revision_plan)
+
+    review_comment_parser = subparsers.add_parser(
+        "review-comment",
+        help="record a human review comment on a revision as a structured "
+        "finding that revision-plan takes into account",
+    )
+    review_comment_parser.add_argument("output")
+    review_comment_parser.add_argument(
+        "--where",
+        required=True,
+        help="what the comment is about: a reference (D1), net (/FB), or region",
+    )
+    review_comment_parser.add_argument("--comment", required=True)
+    review_comment_parser.add_argument(
+        "--severity",
+        choices=("blocker", "warning", "style"),
+        default="warning",
+    )
+    review_comment_parser.add_argument(
+        "--scope",
+        choices=("component", "net", "region", "global"),
+        default="component",
+    )
+    review_comment_parser.add_argument("--rule")
+    review_comment_parser.add_argument("--action")
+    review_comment_parser.set_defaults(func=_cmd_review_comment)
 
     nexar_smoke_parser = subparsers.add_parser(
         "evidence-nexar-smoke",

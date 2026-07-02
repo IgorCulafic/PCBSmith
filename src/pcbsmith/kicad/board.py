@@ -319,12 +319,16 @@ def generate_board(
     schematic_file: Path,
     board_file: Path,
     power_net_names: frozenset[str] = frozenset(),
+    sensitive_net_names: frozenset[str] = frozenset(),
     finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
     runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
 ) -> BoardNetlist:
     netlist_file = export_kicad_netlist_xml(schematic_file, finder=finder, runner=runner)
     netlist = parse_board_netlist(netlist_file.read_text(encoding="utf-8"))
-    board_file.write_text(render_board(netlist, power_net_names), encoding="utf-8")
+    board_file.write_text(
+        render_board(netlist, power_net_names, sensitive_net_names),
+        encoding="utf-8",
+    )
     return netlist
 
 
@@ -381,6 +385,7 @@ def render_board_previews(
 def compute_board_layout(
     netlist: BoardNetlist,
     power_net_names: frozenset[str] = frozenset(),
+    sensitive_net_names: frozenset[str] = frozenset(),
 ) -> BoardLayout:
     unknown = sorted(
         {
@@ -408,6 +413,7 @@ def compute_board_layout(
         placements,
         parts_row_y=parts_row_y,
         power_net_names=power_net_names,
+        sensitive_net_names=sensitive_net_names,
     )
     last_component, last_anchor = placements[-1]
     last_spec = FOOTPRINT_LIBRARY[last_component.footprint]
@@ -438,15 +444,20 @@ def compute_board_layout(
     )
 
 
+def net_name_in(net_name: str, names: frozenset[str]) -> bool:
+    return net_name.lstrip("/").upper() in {name.upper() for name in names}
+
+
 def is_power_net(net_name: str, power_net_names: frozenset[str]) -> bool:
-    return net_name.lstrip("/").upper() in {name.upper() for name in power_net_names}
+    return net_name_in(net_name, power_net_names)
 
 
 def render_board(
     netlist: BoardNetlist,
     power_net_names: frozenset[str] = frozenset(),
+    sensitive_net_names: frozenset[str] = frozenset(),
 ) -> str:
-    layout = compute_board_layout(netlist, power_net_names)
+    layout = compute_board_layout(netlist, power_net_names, sensitive_net_names)
     net_numbers = {net.name: index for index, net in enumerate(netlist.nets, start=1)}
     pad_nets = {
         (reference, pin): net.name
@@ -609,6 +620,7 @@ def _route_channel(
     *,
     parts_row_y: float = MIN_PARTS_ROW_Y_MM,
     power_net_names: frozenset[str] = frozenset(),
+    sensitive_net_names: frozenset[str] = frozenset(),
 ) -> tuple[tuple[TrackSegment, ...], tuple[ViaSpec, ...], float]:
     anchor_by_reference = {
         component.reference: (anchor_x, FOOTPRINT_LIBRARY[component.footprint])
@@ -618,7 +630,13 @@ def _route_channel(
     vias: list[ViaSpec] = []
     lane_index = 0
     lane_bottom_y = parts_row_y + LANE_START_OFFSET_MM
-    for net in netlist.nets:
+    # Sensitive (high impedance) nets take the deepest lanes, maximising the
+    # clearance between them and component bodies such as inductors.
+    routed_nets = (
+        *(net for net in netlist.nets if not net_name_in(net.name, sensitive_net_names)),
+        *(net for net in netlist.nets if net_name_in(net.name, sensitive_net_names)),
+    )
+    for net in routed_nets:
         power = is_power_net(net.name, power_net_names)
         track_width = POWER_TRACK_WIDTH_MM if power else SIGNAL_TRACK_WIDTH_MM
         via_size = POWER_VIA_SIZE_MM if power else SIGNAL_VIA_SIZE_MM

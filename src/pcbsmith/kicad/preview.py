@@ -38,6 +38,7 @@ def plot_board_review(
     netlist: BoardNetlist,
     output: Path,
     power_net_names: frozenset[str] = frozenset(),
+    sensitive_net_names: frozenset[str] = frozenset(),
 ) -> Path:
     try:
         from PIL import Image, ImageDraw
@@ -47,7 +48,7 @@ def plot_board_review(
             "Install the preview extra: pip install 'pcbsmith[preview]'."
         ) from exc
 
-    layout = compute_board_layout(netlist, power_net_names)
+    layout = compute_board_layout(netlist, power_net_names, sensitive_net_names)
     width_px = int(layout.width_mm * SCALE_PX_PER_MM) + 2 * IMAGE_MARGIN_PX
     height_px = int(layout.height_mm * SCALE_PX_PER_MM) + 2 * IMAGE_MARGIN_PX
     image = Image.new("RGB", (width_px, height_px), BACKGROUND)

@@ -85,3 +85,46 @@ def test_clean_bundle_produces_clean_decision() -> None:
 
     assert plan["decision"] == "clean"
     assert plan["failure_codes"] == []
+
+
+def test_human_blocker_comment_produces_patch() -> None:
+    bundle = _bundle()
+    human = [
+        {
+            "rule": "human",
+            "severity": "blocker",
+            "scope": "component",
+            "where": "D2",
+            "suggested_action": "Move the LED to the board edge.",
+        }
+    ]
+
+    plan = build_revision_plan(
+        bundle,
+        [collect_failure_codes(bundle)],
+        additional_findings=human,
+    )
+
+    assert plan["decision"] == "patch"
+    assert any(target["where"] == "D2" for target in plan["targets"])
+
+
+def test_human_global_comment_forces_redo() -> None:
+    bundle = _bundle()
+    human = [
+        {
+            "rule": "human",
+            "severity": "blocker",
+            "scope": "global",
+            "where": "layout",
+            "suggested_action": "Start over; the layout concept is wrong.",
+        }
+    ]
+
+    plan = build_revision_plan(
+        bundle,
+        [collect_failure_codes(bundle)],
+        additional_findings=human,
+    )
+
+    assert plan["decision"] == "redo"

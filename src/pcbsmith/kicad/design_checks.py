@@ -20,6 +20,7 @@ from pcbsmith.kicad.board import (
 
 CONNECTOR_EDGE_ZONE_MM = 6.0
 SWITCHING_CLUSTER_SLACK_MM = 6.0
+SENSITIVE_INDUCTOR_CLEARANCE_MM = 8.0
 
 
 @dataclass(frozen=True)
@@ -156,11 +157,12 @@ def _check_sensitive_net_under_inductor(
     inductor_references: tuple[str, ...],
 ) -> tuple[ReviewFinding, ...]:
     sensitive = {name.lstrip("/").upper() for name in sensitive_net_names}
-    inductor_extents = [
+    inductor_bodies = [
         (
             component.reference,
             anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_min,
             anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_max,
+            layout.parts_row_y_mm + FOOTPRINT_LIBRARY[component.footprint].y_max,
         )
         for component, anchor_x in layout.placements
         if component.reference in inductor_references
@@ -172,26 +174,31 @@ def _check_sensitive_net_under_inductor(
         if segment.net_name.lstrip("/").upper() not in sensitive:
             continue
         seg_left, seg_right = sorted((segment.x1, segment.x2))
-        for reference, left, right in inductor_extents:
-            if seg_left < right and seg_right > left:
-                findings.append(
-                    ReviewFinding(
-                        rule="3.3",
-                        severity="warning",
-                        scope="net",
-                        where=f"{segment.net_name} under {reference}",
-                        evidence=(
-                            f"The {segment.net_name} lane on B.Cu spans "
-                            f"{seg_left:.1f}-{seg_right:.1f}mm and passes under "
-                            f"{reference} ({left:.1f}-{right:.1f}mm); inductor "
-                            "flux can couple into the high-impedance node."
-                        ),
-                        suggested_action=(
-                            "Route the sensitive net clear of the inductor "
-                            "body, or specify a shielded inductor and record "
-                            "that evidence."
-                        ),
-                        source="check",
-                    )
+        for reference, left, right, body_bottom in inductor_bodies:
+            if not (seg_left < right and seg_right > left):
+                continue
+            clearance = segment.y1 - body_bottom
+            if clearance >= SENSITIVE_INDUCTOR_CLEARANCE_MM:
+                continue
+            findings.append(
+                ReviewFinding(
+                    rule="3.3",
+                    severity="warning",
+                    scope="net",
+                    where=f"{segment.net_name} under {reference}",
+                    evidence=(
+                        f"The {segment.net_name} lane on B.Cu passes under "
+                        f"{reference} with only {clearance:.1f}mm clearance to "
+                        f"the inductor body (rule requires "
+                        f"{SENSITIVE_INDUCTOR_CLEARANCE_MM:g}mm); inductor flux "
+                        "can couple into the high-impedance node."
+                    ),
+                    suggested_action=(
+                        "Route the sensitive net on a deeper lane or clear of "
+                        "the inductor body, or specify a shielded inductor and "
+                        "record that evidence."
+                    ),
+                    source="check",
                 )
+            )
     return tuple(findings)

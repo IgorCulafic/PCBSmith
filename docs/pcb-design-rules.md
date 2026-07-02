@@ -81,7 +81,10 @@ grounding."
 - **3.3 Feedback components sit next to the IC, and the feedback trace routes
   away from the inductor.** The FB node is high impedance; coupling from the
   switch node or inductor flux corrupts regulation. (`TI-DS` §9.4.1, §9.1.7.)
-  Status: **pending**.
+  Status: **partially implemented** — topologies name their sensitive nets;
+  the router assigns them the deepest lanes and the geometric check enforces
+  >= 8 mm clearance from inductor bodies. Component proximity to the IC and
+  full keepout routing remain **pending**.
 - **3.4 Open-core inductors need a flux keepout** over feedback, IC ground
   path, and output-capacitor wiring; prefer shielded inductors. (`TI-DS`
   §9.4.1.) Status: **pending** (evidence fact: inductor core type).
