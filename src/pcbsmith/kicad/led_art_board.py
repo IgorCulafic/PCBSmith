@@ -27,6 +27,7 @@ from pcbsmith.kicad.board import (
     BoardNetlist,
     TrackSegment,
     export_kicad_netlist_xml,
+    mounting_hole_placements,
     net_name_in,
     parse_board_netlist,
     render_board_from_layout,
@@ -36,12 +37,13 @@ from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
 
 ART_PITCH_MM = 5.0
 ART_X0_MM = 12.0
-ART_Y0_MM = 15.0
-RESISTOR_ROW_Y_MM = 8.0
-TOP_RAIL_Y_MM = 3.5
-BOTTOM_RAIL_Y_MM = 39.0
+ART_Y0_MM = 20.0
+RESISTOR_ROW_Y_MM = 13.0
+TOP_RAIL_Y_MM = 8.5
+BOTTOM_RAIL_Y_MM = 44.0
+BOTTOM_BAND_MM = 8.0
 CONNECTOR_ANCHOR_X_MM = 2.0
-CONNECTOR_ANCHOR_Y_MM = 20.0
+CONNECTOR_ANCHOR_Y_MM = 25.0
 # Edge-parallel connector: the official 1x02 vertical header already stacks
 # its pads in y (pin 1 / "+" on top), matching the user's hand-edited
 # reference without any rotation.
@@ -121,7 +123,10 @@ def compute_led_art_board_layout(
     xs = [segment.x1 for segment in segments] + [segment.x2 for segment in segments]
     xs.extend(x for x, _ in positions.values())
     width_mm = max(xs) + BOARD_MARGIN_MM
-    height_mm = BOTTOM_RAIL_Y_MM + BOARD_MARGIN_MM
+    height_mm = BOTTOM_RAIL_Y_MM + BOTTOM_BAND_MM
+    for component, x, y in mounting_hole_placements(width_mm, height_mm):
+        placements.append((component, x))
+        part_y.append((component.reference, y))
     return BoardLayout(
         placements=tuple(placements),
         segments=tuple(segments),

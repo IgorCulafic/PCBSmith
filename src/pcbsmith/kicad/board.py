@@ -82,6 +82,39 @@ FOOTPRINT_LIBRARY: dict[str, FootprintSpec] = build_footprint_library()
 # Official KiCad footprints are drawn in their datasheet orientation; the row
 # layout needs pins spread along x facing the routing channel below, so some
 # packages take a default rotation (KiCad degrees, CCW on screen).
+MOUNTING_HOLE_FOOTPRINT = "MountingHole:MountingHole_3.2mm_M3"
+MOUNTING_HOLE_INSET_MM = 4.0
+# With corner holes the parts row moves below the top hole band and the
+# board gains a bottom band below the routing lanes (rule 5.1).
+MOUNTING_HOLE_ROW_MIN_Y_MM = 10.0
+MOUNTING_HOLE_BAND_MM = 8.0
+MOUNTING_HOLE_WIDTH_EXTRA_MM = 3.0
+
+
+def mounting_hole_placements(
+    board_width: float, board_height: float
+) -> tuple[tuple[BoardComponent, float, float], ...]:
+    corners = (
+        (MOUNTING_HOLE_INSET_MM, MOUNTING_HOLE_INSET_MM),
+        (board_width - MOUNTING_HOLE_INSET_MM, MOUNTING_HOLE_INSET_MM),
+        (MOUNTING_HOLE_INSET_MM, board_height - MOUNTING_HOLE_INSET_MM),
+        (board_width - MOUNTING_HOLE_INSET_MM, board_height - MOUNTING_HOLE_INSET_MM),
+    )
+    return tuple(
+        (
+            BoardComponent(
+                reference=f"H{index}",
+                value="M3",
+                footprint=MOUNTING_HOLE_FOOTPRINT,
+                uuid_path=str(uuid4()),
+            ),
+            x,
+            y,
+        )
+        for index, (x, y) in enumerate(corners, start=1)
+    )
+
+
 ROW_DEFAULT_ROTATIONS: dict[str, float] = {
     # TO-263-5 is drawn pins-left; rotation 90 turns pins 1-5 to face down
     # (left to right) into the routing channel, with the tab above the row.
@@ -352,6 +385,7 @@ def compute_board_layout(
     *,
     ground_pour: bool = False,
     thermal_pour_references: tuple[str, ...] = (),
+    mounting_holes: bool = True,
 ) -> BoardLayout:
     unknown = sorted(
         {
@@ -372,7 +406,7 @@ def compute_board_layout(
     }
     placements = _place_components(netlist.components, netlist.nets, power_net_names)
     parts_row_y = max(
-        MIN_PARTS_ROW_Y_MM,
+        MOUNTING_HOLE_ROW_MIN_Y_MM if mounting_holes else MIN_PARTS_ROW_Y_MM,
         PARTS_ROW_TOP_MARGIN_MM
         + max(
             -_bounds_for(component, rotations)[2]
@@ -398,8 +432,14 @@ def compute_board_layout(
             for pad in last_spec.pads
         ]
         board_width = last_anchor + max(pad_xs) + CONNECTOR_EDGE_PAD_OFFSET_MM
+        if mounting_holes:
+            # Push the right edge out so the corner holes clear the last
+            # interior part's courtyard (live DRC caught H2 vs COUT).
+            board_width += MOUNTING_HOLE_WIDTH_EXTRA_MM
     else:
         board_width = last_anchor + last_bounds[1] + BOARD_MARGIN_MM
+        if mounting_holes:
+            board_width += MOUNTING_HOLE_WIDTH_EXTRA_MM
     board_width = max(
         board_width,
         max(
@@ -407,7 +447,14 @@ def compute_board_layout(
             for component, anchor_x in placements
         ),
     )
-    board_height = lane_bottom_y + BOARD_MARGIN_MM
+    board_height = lane_bottom_y + (
+        MOUNTING_HOLE_BAND_MM if mounting_holes else BOARD_MARGIN_MM
+    )
+    part_y: list[tuple[str, float]] = []
+    if mounting_holes:
+        holes = mounting_hole_placements(board_width, board_height)
+        placements = (*placements, *((component, x) for component, x, _ in holes))
+        part_y.extend((component.reference, y) for component, _, y in holes)
     zones = _pour_zones(
         netlist,
         placements,
@@ -425,6 +472,7 @@ def compute_board_layout(
         width_mm=board_width,
         height_mm=board_height,
         parts_row_y_mm=parts_row_y,
+        part_y_mm=tuple(part_y),
         part_rotation=tuple(sorted(rotations.items())),
         zones=zones,
     )
@@ -483,10 +531,22 @@ def _pour_zones(
                 ground,
                 "F.Cu",
                 (
-                    max(ZONE_EDGE_INSET_MM, anchor_x + bounds[0] - THERMAL_POUR_MARGIN_MM),
-                    max(ZONE_EDGE_INSET_MM, parts_row_y + bounds[2] - THERMAL_POUR_MARGIN_MM),
-                    min(board_width - ZONE_EDGE_INSET_MM, anchor_x + bounds[1] + THERMAL_POUR_MARGIN_MM),
-                    min(board_height - ZONE_EDGE_INSET_MM, parts_row_y + bounds[3] + THERMAL_POUR_MARGIN_MM),
+                    max(
+                        ZONE_EDGE_INSET_MM,
+                        anchor_x + bounds[0] - THERMAL_POUR_MARGIN_MM,
+                    ),
+                    max(
+                        ZONE_EDGE_INSET_MM,
+                        parts_row_y + bounds[2] - THERMAL_POUR_MARGIN_MM,
+                    ),
+                    min(
+                        board_width - ZONE_EDGE_INSET_MM,
+                        anchor_x + bounds[1] + THERMAL_POUR_MARGIN_MM,
+                    ),
+                    min(
+                        board_height - ZONE_EDGE_INSET_MM,
+                        parts_row_y + bounds[3] + THERMAL_POUR_MARGIN_MM,
+                    ),
                 ),
             )
         )

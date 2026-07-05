@@ -435,6 +435,10 @@ def render_embedded_footprint(
             prop_name = _atom(child[1])
             if prop_name == "Reference":
                 child[2] = QuotedString(reference)
+                if force_board_only:
+                    # Mounting holes need no visible label; the library text
+                    # sits above the hole and crossed the board edge.
+                    child.append(["hide", "yes"])
             elif prop_name == "Value":
                 child[2] = QuotedString(value)
         if isinstance(child, list) and _safe_head(child) == "attr" and force_board_only:

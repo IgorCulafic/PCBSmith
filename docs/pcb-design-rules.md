@@ -114,7 +114,9 @@ grounding."
 
 - **5.1 Mounting holes at board corners** for enclosure or standoff mounting.
   (`SESSION` — user reference photos; ubiquitous on real modules.) Status:
-  **pending** (needs parity-exempt `board_only` footprints).
+  **implemented** — four official `MountingHole_3.2mm_M3` footprints at the
+  corners of both layouts, embedded with a `board_only` attr so schematic
+  parity ignores them; the parts row and board bands reserve hole clearance.
 - **5.2 The board outline sits inside the drawing-sheet frame** and wraps the
   design with a small uniform margin. (`SESSION`.) Status: **implemented**.
 

@@ -99,7 +99,9 @@ def test_render_board_produces_footprints_tracks_and_outline() -> None:
     assert text.startswith("(kicad_pcb")
     assert '(net 0 "")' in text
     assert '(net 2 "/VIN")' in text
-    assert text.count("(footprint ") == 3
+    # Three netlist parts plus four corner mounting holes (rule 5.1).
+    assert text.count("(footprint ") == 7
+    assert text.count("MountingHole") >= 4
     assert '(path "/bbbbbbbb-1111-2222-3333-444444444444")' in text
     assert '(property "Sim.Device" "D"' in text
     assert '(layer "Edge.Cuts")' in text
