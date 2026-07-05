@@ -358,14 +358,15 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
             sensitive_net_names=("FB",),
             inductor_references=("L1",),
         ),
+        ground_pour=True,
+        thermal_pour_references=("U1",),
         extra_findings=(
             "Design-rule status (docs/pcb-design-rules.md): power nets routed at "
             "0.8mm (rule 3.6, machine-enforced); power path kept contiguous by "
-            "row ordering (rules 3.1/3.2, 1-D approximation only); TO-263 tab "
-            "connected to GND via its pin-3 column.",
-            "NOT machine-enforced yet: 2-D switching-loop area minimisation, "
-            "feedback routing distance from the inductor, and the TO-263 "
-            "thermal pour (~2.5 sq in per TI thermal notes) - review these "
+            "row ordering (rule 3.1, 1-D approximation only); B.Cu ground plane "
+            "poured (rule 3.2); TO-263 thermal pour around the tab (rule 3.5).",
+            "NOT machine-enforced yet: 2-D switching-loop area minimisation and "
+            "the thermal pour AREA vs the TI ~2.5 sq in guidance - review "
             "before fabrication.",
         ),
     )
@@ -802,6 +803,8 @@ def _board_authority(
     power_net_names: frozenset[str] = frozenset(),
     extra_findings: tuple[str, ...] = (),
     design_checks: DesignChecksSpec | None = None,
+    ground_pour: bool = False,
+    thermal_pour_references: tuple[str, ...] = (),
 ) -> tuple[BoardReport, DesignReviewReport | None]:
     if erc_report.status != "passed" or simulation.status != "passed":
         return (
@@ -824,6 +827,8 @@ def _board_authority(
             board_file=board_file,
             power_net_names=power_net_names,
             sensitive_net_names=sensitive_net_names,
+            ground_pour=ground_pour,
+            thermal_pour_references=thermal_pour_references,
         )
     except BoardGenerationError as exc:
         return (
@@ -834,7 +839,13 @@ def _board_authority(
             ),
             None,
         )
-    layout = compute_board_layout(board_netlist, power_net_names, sensitive_net_names)
+    layout = compute_board_layout(
+        board_netlist,
+        power_net_names,
+        sensitive_net_names,
+        ground_pour=ground_pour,
+        thermal_pour_references=thermal_pour_references,
+    )
     design_review = run_design_checks(
         layout,
         board_netlist,

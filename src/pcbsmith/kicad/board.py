@@ -273,15 +273,21 @@ def generate_board(
     board_file: Path,
     power_net_names: frozenset[str] = frozenset(),
     sensitive_net_names: frozenset[str] = frozenset(),
+    ground_pour: bool = False,
+    thermal_pour_references: tuple[str, ...] = (),
     finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
     runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
 ) -> BoardNetlist:
     netlist_file = export_kicad_netlist_xml(schematic_file, finder=finder, runner=runner)
     netlist = parse_board_netlist(netlist_file.read_text(encoding="utf-8"))
-    board_file.write_text(
-        render_board(netlist, power_net_names, sensitive_net_names),
-        encoding="utf-8",
+    layout = compute_board_layout(
+        netlist,
+        power_net_names,
+        sensitive_net_names,
+        ground_pour=ground_pour,
+        thermal_pour_references=thermal_pour_references,
     )
+    board_file.write_text(render_board_from_layout(netlist, layout), encoding="utf-8")
     return netlist
 
 
@@ -335,10 +341,17 @@ def render_board_previews(
     return previews, tuple(findings)
 
 
+ZONE_EDGE_INSET_MM = 0.75
+THERMAL_POUR_MARGIN_MM = 2.5
+
+
 def compute_board_layout(
     netlist: BoardNetlist,
     power_net_names: frozenset[str] = frozenset(),
     sensitive_net_names: frozenset[str] = frozenset(),
+    *,
+    ground_pour: bool = False,
+    thermal_pour_references: tuple[str, ...] = (),
 ) -> BoardLayout:
     unknown = sorted(
         {
@@ -395,6 +408,16 @@ def compute_board_layout(
         ),
     )
     board_height = lane_bottom_y + BOARD_MARGIN_MM
+    zones = _pour_zones(
+        netlist,
+        placements,
+        rotations,
+        parts_row_y=parts_row_y,
+        board_width=board_width,
+        board_height=board_height,
+        ground_pour=ground_pour,
+        thermal_pour_references=thermal_pour_references,
+    )
     return BoardLayout(
         placements=placements,
         segments=segments,
@@ -403,7 +426,71 @@ def compute_board_layout(
         height_mm=board_height,
         parts_row_y_mm=parts_row_y,
         part_rotation=tuple(sorted(rotations.items())),
+        zones=zones,
     )
+
+
+def _pour_zones(
+    netlist: BoardNetlist,
+    placements: tuple[tuple[BoardComponent, float], ...],
+    rotations: dict[str, float],
+    *,
+    parts_row_y: float,
+    board_width: float,
+    board_height: float,
+    ground_pour: bool,
+    thermal_pour_references: tuple[str, ...],
+) -> tuple[tuple[str, str, tuple[float, float, float, float]], ...]:
+    if not ground_pour and not thermal_pour_references:
+        return ()
+    ground_nets = [
+        net.name for net in netlist.nets if net_name_in(net.name, frozenset({"GND"}))
+    ]
+    if not ground_nets:
+        raise BoardGenerationError(
+            "A ground pour was requested but the netlist has no GND net."
+        )
+    ground = ground_nets[0]
+    zones: list[tuple[str, str, tuple[float, float, float, float]]] = []
+    if ground_pour:
+        # Full-board ground plane on the back copper (rule 3.2).
+        zones.append(
+            (
+                ground,
+                "B.Cu",
+                (
+                    ZONE_EDGE_INSET_MM,
+                    ZONE_EDGE_INSET_MM,
+                    board_width - ZONE_EDGE_INSET_MM,
+                    board_height - ZONE_EDGE_INSET_MM,
+                ),
+            )
+        )
+    anchors = {component.reference: anchor for component, anchor in placements}
+    specs = {component.reference: component.footprint for component, _ in placements}
+    for reference in thermal_pour_references:
+        if reference not in anchors:
+            raise BoardGenerationError(
+                f"Thermal pour requested for {reference}, which is not placed."
+            )
+        bounds = rotated_bounds(
+            FOOTPRINT_LIBRARY[specs[reference]], rotations.get(reference, 0.0)
+        )
+        anchor_x = anchors[reference]
+        # Dissipation copper around the power tab (rule 3.5).
+        zones.append(
+            (
+                ground,
+                "F.Cu",
+                (
+                    max(ZONE_EDGE_INSET_MM, anchor_x + bounds[0] - THERMAL_POUR_MARGIN_MM),
+                    max(ZONE_EDGE_INSET_MM, parts_row_y + bounds[2] - THERMAL_POUR_MARGIN_MM),
+                    min(board_width - ZONE_EDGE_INSET_MM, anchor_x + bounds[1] + THERMAL_POUR_MARGIN_MM),
+                    min(board_height - ZONE_EDGE_INSET_MM, parts_row_y + bounds[3] + THERMAL_POUR_MARGIN_MM),
+                ),
+            )
+        )
+    return tuple(zones)
 
 
 def _row_rotation(component: BoardComponent) -> float:

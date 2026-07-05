@@ -77,8 +77,9 @@ grounding."
   buck board report.
 - **3.2 All power externals (diode, inductor, in/out capacitors) cluster
   tightly around the IC; ground via a plane or a single point.** (`TI-DS`
-  §9.4.1.) Status: **partially implemented** (adjacency via weighted
-  ordering); ground plane **pending**.
+  §9.4.1.) Status: **implemented** — adjacency via weighted ordering plus a
+  full-board B.Cu ground plane (`ground_pour`), zone-filled and DRC-checked
+  by KiCad (`--refill-zones`).
 - **3.3 Feedback components sit next to the IC, and the feedback trace routes
   away from the inductor.** The FB node is high impedance; coupling from the
   switch node or inductor flux corrupts regulation. (`TI-DS` §9.4.1, §9.1.7.)
@@ -91,7 +92,9 @@ grounding."
   §9.4.1.) Status: **pending** (evidence fact: inductor core type).
 - **3.5 Thermal copper for power tabs.** A TO-263 tab wants its dissipation
   pour: ~2.5 in² of 1 oz copper single-sided (or 3 in² + 16 in² double-sided)
-  per `TI-DS` thermal notes. Status: **pending**.
+  per `TI-DS` thermal notes. Status: **partially implemented** — a GND F.Cu
+  pour surrounds the tab (`thermal_pour_references`); the pour AREA is not
+  yet checked against the datasheet figure.
 - **3.6 Net roles drive trace width.** Switching/power nets get wide traces;
   width follows current, not aesthetics. (`TI-DS` §9.4.1; archived board
   builder.) Status: **implemented** — topology names its power nets and the

@@ -98,6 +98,10 @@ def run_kicad_drc(
         "--output",
         str(report_file),
         *parity,
+        # Zones are generated unfilled; KiCad computes the fill before DRC
+        # and saves it back so renders show the real copper pours.
+        "--refill-zones",
+        "--save-board",
         str(board_file),
     )
     report_file.parent.mkdir(parents=True, exist_ok=True)
