@@ -558,6 +558,8 @@ LIBRARY_FOOTPRINT_IDS = (
     "Diode_SMD:D_SMA",
     "Inductor_SMD:L_12x12mm_H8mm",
     "MountingHole:MountingHole_3.2mm_M3",
+    "Sensor_Motion:InvenSense_QFN-24_4x4mm_P0.5mm",
+    "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
 )
 
 # The pin header doubles as the off-board power connector; PCBSmith wires the
@@ -568,6 +570,9 @@ _CONNECTOR_EXTRA_MARKS: dict[str, tuple[SilkLine | SilkText, ...]] = {
     "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical": (
         SilkText(text="+", x=0.0, y=-3.9),
         SilkText(text="-", x=0.0, y=4.94),
+    ),
+    "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical": (
+        SilkText(text="+", x=0.0, y=-3.9),
     ),
 }
 

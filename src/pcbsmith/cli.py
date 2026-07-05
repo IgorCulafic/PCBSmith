@@ -54,6 +54,7 @@ from pcbsmith.evidence.divider_highpass_led import (
     select_divider_highpass_led_components,
 )
 from pcbsmith.evidence.lm2596_buck import select_lm2596_buck_components
+from pcbsmith.evidence.mpu6050 import select_mpu6050_components
 from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
@@ -67,6 +68,7 @@ from pcbsmith.generation.lm2596_buck import (
     compose_lm2596_buck,
     write_lm2596_buck_project,
 )
+from pcbsmith.generation.mpu6050 import compose_mpu6050, write_mpu6050_project
 from pcbsmith.kicad.board import (
     BoardGenerationError,
     BoardLayout,
@@ -79,6 +81,7 @@ from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
 from pcbsmith.kicad.export_led_art import export_led_art_to_kicad
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
+from pcbsmith.kicad.export_mpu6050 import export_mpu6050_to_kicad
 from pcbsmith.kicad.led_art_board import generate_led_art_board
 from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
@@ -102,6 +105,7 @@ from pcbsmith.services.project_io import (
 from pcbsmith.simulation.ngspice import run_ngspice_netlist_file, run_ngspice_simulation
 from pcbsmith.simulation.ngspice_buck import run_lm2596_power_stage_simulation
 from pcbsmith.simulation.ngspice_led_art import run_led_art_simulation
+from pcbsmith.simulation.ngspice_mpu6050 import run_mpu6050_simulation
 
 GENERIC_EVIDENCE_FINDING = "Generic passive and LED components are not datasheet-backed yet."
 
@@ -507,6 +511,138 @@ def _cmd_design_led_art_authority(args: argparse.Namespace) -> int:
             "Art-grid placement: LED positions follow the glyph dot grid; every "
             "series link is confined to its own column and the power rails "
             "frame the field (top VIN, bottom GND).",
+        ),
+    )
+    artifacts = _authority_artifacts(
+        output_dir=output_dir,
+        kicad_artifacts=kicad_artifacts,
+        erc_report=erc_report,
+        spice_report=KiCadReport(status="not_run"),
+        simulation=simulation,
+        board=board,
+    )
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
+    revisions = _authority_revisions(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
+    bundle_path = write_authority_review_bundle(
+        circuit,
+        output_dir,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+        revisions=revisions,
+        artifacts=artifacts,
+    )
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+    )
+    print(f"Review bundle: {bundle_path}")
+    print(f"Status: {status}")
+    return 0
+
+
+def _cmd_design_mpu6050_authority(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
+    intent = classify_circuit_intent(args.request)
+    if intent.status != "supported":
+        raise ValueError("; ".join(intent.unsupported_reasons))
+    if intent.intent_id != "mpu6050_imu":
+        raise ValueError(
+            "The request classified as a different intent; use the matching "
+            "design command instead."
+        )
+    topology = select_topology(intent)
+    circuit = compose_mpu6050(intent, topology)
+    if args.evidence_manifest is not None:
+        try:
+            cache = EvidenceCache.from_manifest(Path(args.evidence_manifest))
+        except (OSError, ValidationError) as exc:
+            raise ValueError(
+                f"Evidence manifest could not be loaded: {args.evidence_manifest} ({exc})"
+            ) from exc
+        selection_report = select_mpu6050_components(circuit, cache)
+        circuit = apply_component_selection(circuit, selection_report)
+        evidence = EvidenceReport(
+            status=selection_report.status,
+            findings=selection_report.findings,
+            cached_files=selection_report.cached_files,
+        )
+    else:
+        evidence = EvidenceReport(
+            status="needs_human_review",
+            findings=(
+                "No evidence manifest was supplied; pass --evidence-manifest "
+                "ai_assets/evidence/mpu6050.manifest.json to validate the "
+                "sensor against the extracted datasheet facts.",
+            ),
+        )
+
+    write_mpu6050_project(circuit, output_dir, project_name=args.name)
+    kicad_artifacts = export_mpu6050_to_kicad(
+        circuit,
+        output_dir,
+        project_name=args.name,
+    )
+    schematic_file = Path(kicad_artifacts["schematic_file"])
+
+    erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
+    simulation = run_mpu6050_simulation(circuit, output_dir)
+
+    kicad = erc_report.model_copy(
+        update={
+            "findings": (
+                *erc_report.findings,
+                "KiCad SPICE export was intentionally skipped: the MPU-6050 "
+                "has no SPICE model, so only the passive I2C bus network is "
+                "simulated from a PCBSmith netlist.",
+            ),
+        }
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=(
+            "PCBSmith circuit object and KiCad schematic were generated before "
+            "authority checks.",
+            "ngspice ran a PCBSmith idle-bus netlist, not a KiCad-exported "
+            "netlist.",
+        ),
+        findings=(
+            "The simulated netlist covers the passive bus conditioning only; "
+            "it is not translation-checked against the KiCad schematic.",
+        ),
+    )
+    board, design_review = _board_authority(
+        output_dir=output_dir,
+        project_name=args.name,
+        schematic_file=schematic_file,
+        erc_report=erc_report,
+        simulation=simulation,
+        power_net_names=frozenset({"VDD", "GND"}),
+        design_checks=DesignChecksSpec(),
+        ground_pour=True,
+        extra_findings=(
+            "First multi-side package board: QFN north pads route through the "
+            "mirrored top channel; east/west pads fan out through per-pad "
+            "escape columns (see docs/pcb-design-rules.md rule 1.1/8 notes).",
+            "Decoupling-capacitor proximity to the QFN supply pins (rule 2.1) "
+            "is not machine-checked yet - review before fabrication.",
         ),
     )
     artifacts = _authority_artifacts(
@@ -1339,6 +1475,18 @@ def build_parser() -> argparse.ArgumentParser:
     led_art_parser.add_argument("--name", required=True)
     led_art_parser.add_argument("--overwrite", action="store_true")
     led_art_parser.set_defaults(func=_cmd_design_led_art_authority)
+
+    mpu_parser = subparsers.add_parser(
+        "design-mpu6050-authority",
+        help="generate an MPU-6050 IMU breakout (QFN-24, I2C) with authority "
+        "evidence",
+    )
+    mpu_parser.add_argument("output")
+    mpu_parser.add_argument("--request", required=True)
+    mpu_parser.add_argument("--name", required=True)
+    mpu_parser.add_argument("--evidence-manifest")
+    mpu_parser.add_argument("--overwrite", action="store_true")
+    mpu_parser.set_defaults(func=_cmd_design_mpu6050_authority)
 
     revision_plan_parser = subparsers.add_parser(
         "revision-plan",

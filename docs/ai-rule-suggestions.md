@@ -22,6 +22,21 @@ Entry format:
 
 ---
 
+## 2026-07-05 QFN fanout rules (MPU-6050 slice)
+- status: promoted (user-requested topology)
+- proposed_by: claude-fable-5, MPU-6050 slice live-DRC iteration
+- rule: new 4.3
+- suggestion: route multi-side packages with per-side fanout (nested-elbow
+  south spread, mirrored top channel for north pins, lateral escapes east
+  and west, row-pad cross-channel joins); clamp fanout track width to the
+  pad's short dimension so power nets never bridge fine-pitch pins.
+- evidence: five DRC iterations on outputs/mpu6050-r001 — 0.8 mm power
+  stubs shorting 0.5 mm pitch pins, 45-degree diagonals clipping neighbour
+  pads, joins slicing through stacked connector pads, and a dangling via on
+  a single-pad bottom lane; each failure is now a structural rule.
+- decision_note: r001 passes DRC+parity clean; the idle-I2C-bus op check
+  measures SDA/SCL at 3.2999 V and 66 nA static draw.
+
 ## 2026-07-05 Official KiCad footprints imported; overnight batch
 - status: promoted (user-directed: "do all 6 tonight")
 - proposed_by: claude-fable-5 overnight backend session

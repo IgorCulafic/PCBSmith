@@ -216,6 +216,69 @@ def solve_led_series_string(
     }
 
 
+I2C_FAST_MODE_RISE_TIME_NS = 300.0
+I2C_LOW_LEVEL_SINK_MA = 3.0
+I2C_LOW_LEVEL_VOLTAGE_V = 0.4
+I2C_RC_RISE_FACTOR = 0.8473  # ln(0.7/0.3): 30%->70% rise on an RC bus
+
+
+def solve_i2c_pullup(
+    *,
+    supply_voltage_v: float,
+    bus_capacitance_pf: float,
+    rise_time_ns: float = I2C_FAST_MODE_RISE_TIME_NS,
+) -> dict[str, Any]:
+    errors: list[str] = []
+    if supply_voltage_v <= I2C_LOW_LEVEL_VOLTAGE_V:
+        errors.append("Supply voltage must exceed the I2C low-level voltage.")
+    if bus_capacitance_pf <= 0:
+        errors.append("Bus capacitance must be positive.")
+    if rise_time_ns <= 0:
+        errors.append("Rise time must be positive.")
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+
+    maximum_ohms = (rise_time_ns * 1e-9) / (
+        I2C_RC_RISE_FACTOR * bus_capacitance_pf * 1e-12
+    )
+    minimum_ohms = (supply_voltage_v - I2C_LOW_LEVEL_VOLTAGE_V) / (
+        I2C_LOW_LEVEL_SINK_MA / 1000.0
+    )
+    if minimum_ohms >= maximum_ohms:
+        return {
+            "status": "error",
+            "outputs": {},
+            "warnings": [],
+            "errors": [
+                f"No pullup satisfies both limits: minimum {minimum_ohms:.0f} ohm "
+                f"exceeds maximum {maximum_ohms:.0f} ohm at "
+                f"{bus_capacitance_pf:g} pF."
+            ],
+        }
+    target = (minimum_ohms * maximum_ohms) ** 0.5
+    selected = nearest_e24_ohms(target)
+    if selected < minimum_ohms or selected > maximum_ohms:
+        selected = nearest_e24_ohms((minimum_ohms + maximum_ohms) / 2)
+    warnings = [
+        f"Bus capacitance {bus_capacitance_pf:g} pF is an assumption; measure "
+        "the real bus before finalizing the pullup value.",
+    ]
+    return {
+        "status": "warning",
+        "outputs": {
+            "minimum_ohms": round(minimum_ohms, 3),
+            "maximum_ohms": round(maximum_ohms, 3),
+            "selected_ohms": selected,
+        },
+        "warnings": warnings,
+        "errors": [],
+        "references": [
+            "I2C-bus specification: Rmax = tr / (0.8473*Cb); "
+            "Rmin = (VDD - VOL) / IOL with IOL = 3 mA, VOL = 0.4 V.",
+        ],
+    }
+
+
 def _nearest_standard_value(
     value: float,
     options: tuple[int, ...],

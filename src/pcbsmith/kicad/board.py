@@ -68,6 +68,14 @@ PART_GAP_MM = 2.5
 BOARD_MARGIN_MM = 3.0
 CONNECTOR_EDGE_PAD_OFFSET_MM = 2.0
 CONNECTOR_ESCAPE_PITCH_MM = 1.9
+SIDE_ESCAPE_PITCH_MM = 0.7
+FANOUT_SPREAD_PITCH_MM = 1.0
+FANOUT_JOG_CLEAR_MM = 0.45
+FANOUT_JOG_PITCH_MM = 0.55
+SIDE_ESCAPE_START_MM = 0.7
+TOP_LANE_GAP_MM = 2.0
+TOP_CHANNEL_FLOOR_MM = 8.3  # below the mounting-hole band
+PAD_SIDE_EPSILON_MM = 0.01
 BOARD_SHEET_ORIGIN_MM = 20.0
 EDGE_STROKE_MM = 0.1
 MAX_EXHAUSTIVE_ORDER_PARTS = 8
@@ -405,14 +413,26 @@ def compute_board_layout(
         if _row_rotation(component)
     }
     placements = _place_components(netlist.components, netlist.nets, power_net_names)
+    top_extent = max(
+        -_bounds_for(component, rotations)[2] for component, _ in placements
+    )
     parts_row_y = max(
         MOUNTING_HOLE_ROW_MIN_Y_MM if mounting_holes else MIN_PARTS_ROW_Y_MM,
-        PARTS_ROW_TOP_MARGIN_MM
-        + max(
-            -_bounds_for(component, rotations)[2]
-            for component, _ in placements
-        ),
+        PARTS_ROW_TOP_MARGIN_MM + top_extent,
     )
+    north_nets = _north_net_count(netlist, placements, rotations)
+    if north_nets:
+        # Multi-side packages route their north pads into a mirrored channel
+        # above the parts row; the row moves down to make space for it.
+        floor = TOP_CHANNEL_FLOOR_MM if mounting_holes else 1.5
+        parts_row_y = max(
+            parts_row_y,
+            floor
+            + 0.8
+            + TOP_LANE_GAP_MM
+            + (north_nets - 1) * LANE_PITCH_MM
+            + top_extent,
+        )
     segments, vias, lane_bottom_y = _route_channel(
         netlist,
         placements,
@@ -443,7 +463,12 @@ def compute_board_layout(
     board_width = max(
         board_width,
         max(
-            anchor_x + _bounds_for(component, rotations)[1]
+            anchor_x
+            + _bounds_for(component, rotations)[1]
+            + _escape_reserve(
+                FOOTPRINT_LIBRARY[component.footprint],
+                rotations.get(component.reference, 0.0),
+            )[1]
             for component, anchor_x in placements
         ),
     )
@@ -695,6 +720,19 @@ def _anchor_row(
         spec = FOOTPRINT_LIBRARY[component.footprint]
         rotation = _row_rotation(component)
         x_min, x_max, _, _ = rotated_bounds(spec, rotation)
+        left_reserve, right_reserve = _escape_reserve(spec, rotation)
+        if spec.is_connector:
+            stacked = max(
+                len(column)
+                for column in _connector_pad_columns(spec, rotation).values()
+            )
+            connector_reserve = (
+                CONNECTOR_ESCAPE_PITCH_MM * (stacked - 1) + 0.6 if stacked > 1 else 0.0
+            )
+            if index == 0:
+                right_reserve = max(right_reserve, connector_reserve)
+            else:
+                left_reserve = max(left_reserve, connector_reserve)
         if index == 0 and spec.is_connector:
             # The leading connector hugs the board corner so off-board wiring
             # lands at the edge, matching hand-layout convention.
@@ -703,9 +741,9 @@ def _anchor_row(
             )
             anchor_x = CONNECTOR_EDGE_PAD_OFFSET_MM - first_pad[0]
         else:
-            anchor_x = max(cursor, BOARD_MARGIN_MM) - x_min
+            anchor_x = max(cursor, BOARD_MARGIN_MM) - x_min + left_reserve
         placements.append((component, anchor_x))
-        cursor = anchor_x + x_max + PART_GAP_MM
+        cursor = anchor_x + x_max + right_reserve + PART_GAP_MM
     return tuple(placements)
 
 
@@ -794,6 +832,123 @@ def _row_net_span(
     return total
 
 
+def _pad_side(dx: float, dy: float) -> str:
+    """Which footprint side a pad sits on, in rotated offsets (y down)."""
+    if abs(dy) >= abs(dx) and dy < -PAD_SIDE_EPSILON_MM:
+        return "north"
+    if abs(dx) > abs(dy) and dx < -PAD_SIDE_EPSILON_MM:
+        return "west"
+    if abs(dx) > abs(dy) and dx > PAD_SIDE_EPSILON_MM:
+        return "east"
+    return "south"
+
+
+def _side_escapes(
+    spec: FootprintSpec, rotation: float
+) -> dict[str, tuple[str, float, int]]:
+    """East/west pads of a multi-side package (QFN) share an x column, so
+    each detours outward into its own drop column: pad name -> (side, offset
+    from the anchor). Connectors keep their dedicated escape scheme."""
+    if spec.is_connector:
+        return {}
+    all_sides: set[str] = set()
+    sides: dict[str, list[tuple[str, float]]] = {"west": [], "east": []}
+    for pad in spec.pads:
+        if not pad.name:
+            continue
+        dx, dy = rotate_offset(pad.x_mm, pad.y_mm, rotation)
+        side = _pad_side(dx, dy)
+        all_sides.add(side)
+        if side in sides:
+            sides[side].append((pad.name, dy))
+    if len(all_sides) < 3:
+        # Two-pin parts and tabbed packages are not multi-side fanouts.
+        return {}
+    escapes: dict[str, tuple[str, float, int]] = {}
+    bounds = rotated_bounds(spec, rotation)
+    for side, pads in sides.items():
+        # Bottom-most pad first: it takes the closest escape column, so the
+        # longer stubs of pads above it cross only columns whose verticals
+        # start below their own y (no F.Cu crossings by construction).
+        pads.sort(key=lambda item: item[1], reverse=True)
+        for rank, (name, _) in enumerate(pads):
+            offset = SIDE_ESCAPE_START_MM + rank * SIDE_ESCAPE_PITCH_MM
+            if side == "west":
+                escapes[name] = (side, bounds[0] - offset, 0)
+            else:
+                escapes[name] = (side, bounds[1] + offset, 0)
+    # North/south pads of a fine-pitch package spread onto a wider column
+    # grid (45-degree jogs at the pad exit) so lane vias clear neighbouring
+    # drops; without this a 0.6 mm via sits 0.5 mm from the next pin's track.
+    for vertical_side in ("north", "south"):
+        group = [
+            (pad.name, rotate_offset(pad.x_mm, pad.y_mm, rotation)[0])
+            for pad in spec.pads
+            if pad.name
+            and _pad_side(*rotate_offset(pad.x_mm, pad.y_mm, rotation))
+            == vertical_side
+        ]
+        if len(group) < 2:
+            continue
+        group.sort(key=lambda item: item[1])
+        center = sum(dx for _, dx in group) / len(group)
+        half = (len(group) - 1) / 2
+        for index, (name, _dx) in enumerate(group):
+            spread_x = center + (index - half) * FANOUT_SPREAD_PITCH_MM
+            # Nested elbows: the outermost pad of each half takes the
+            # shallowest jog; ranks increase towards the centre.
+            jog_rank = round(half - abs(index - half))
+            escapes[name] = (vertical_side, spread_x, jog_rank)
+    return escapes
+
+
+def _escape_reserve(spec: FootprintSpec, rotation: float) -> tuple[float, float]:
+    """Extra row width a part needs for its side-escape drop columns."""
+    escapes = _side_escapes(spec, rotation)
+    bounds = rotated_bounds(spec, rotation)
+    left = 0.0
+    right = 0.0
+    for side, escape_x, _rank in escapes.values():
+        if side == "west":
+            left = max(left, bounds[0] - escape_x + 0.4)
+        elif side == "east":
+            right = max(right, escape_x - bounds[1] + 0.4)
+        else:
+            left = max(left, bounds[0] - escape_x + 0.4)
+            right = max(right, escape_x - bounds[1] + 0.4)
+    return (left, right)
+
+
+def _north_net_count(
+    netlist: BoardNetlist,
+    placements: tuple[tuple[BoardComponent, float], ...],
+    rotations: dict[str, float],
+) -> int:
+    """How many nets need a top-channel lane (any pad on a north side)."""
+    spec_by_reference = {
+        component.reference: FOOTPRINT_LIBRARY[component.footprint]
+        for component, _ in placements
+    }
+    count = 0
+    for net in netlist.nets:
+        for reference, pin in net.nodes:
+            spec = spec_by_reference[reference]
+            rotation = rotations.get(reference, 0.0)
+            if not _side_escapes(spec, rotation):
+                continue
+            try:
+                pads = spec.pads_named(pin)
+            except KeyError:
+                continue
+            if any(
+                _pad_side(*rotate_offset(pad.x_mm, pad.y_mm, rotation)) == "north"
+                for pad in pads
+            ):
+                count += 1
+                break
+    return count
+
+
 def _route_channel(
     netlist: BoardNetlist,
     placements: tuple[tuple[BoardComponent, float], ...],
@@ -808,9 +963,25 @@ def _route_channel(
         for component, anchor_x in placements
     }
     escape_x = _connector_escapes(placements, rotations)
+    side_escape_by_reference = {
+        component.reference: _side_escapes(
+            FOOTPRINT_LIBRARY[component.footprint],
+            rotations.get(component.reference, 0.0),
+        )
+        for component, _ in placements
+    }
+    top_extent = max(
+        -rotated_bounds(
+            FOOTPRINT_LIBRARY[component.footprint],
+            rotations.get(component.reference, 0.0),
+        )[2]
+        for component, _ in placements
+    )
+    top_lane_base = parts_row_y - top_extent - TOP_LANE_GAP_MM
     segments: list[TrackSegment] = []
     vias: list[ViaSpec] = []
     lane_index = 0
+    top_lane_index = 0
     lane_bottom_y = parts_row_y + LANE_START_OFFSET_MM
     # Sensitive (high impedance) nets take the deepest lanes, maximising the
     # clearance between them and component bodies such as inductors.
@@ -826,8 +997,10 @@ def _route_channel(
 
         # One drop per distinct pad column; when several same-net pads share a
         # column (for example a TO-263 tab over its GND pin), the drop from the
-        # topmost pad passes through the others and connects them.
-        pads_by_column: dict[float, float] = {}
+        # topmost pad passes through the others and connects them. North-side
+        # pads of multi-side packages drop UP into the mirrored top channel.
+        down_columns: dict[float, float] = {}
+        up_columns: dict[float, float] = {}
         for reference, pin in net.nodes:
             anchor_x, spec = anchor_by_reference[reference]
             rotation = rotations.get(reference, 0.0)
@@ -837,15 +1010,65 @@ def _route_channel(
                 raise BoardGenerationError(
                     f"Footprint for {reference} has no pad named {pin!r}."
                 ) from exc
+            side_escapes = side_escape_by_reference[reference]
             for pad in matching_pads:
                 dx, dy = rotate_offset(pad.x_mm, pad.y_mm, rotation)
                 pad_x = round(anchor_x + dx, 6)
                 pad_y = parts_row_y + dy
+                pad_track_width = min(
+                    track_width, min(pad.width_mm, pad.height_mm)
+                )
                 stub_x = escape_x.get((reference, pin))
+                side_escape = side_escapes.get(pin)
+                if side_escape is not None and side_escape[0] in ("north", "south"):
+                    # Fine-pitch fanout, nested elbows: straight out of the
+                    # pad, a ranked horizontal jog, then the spread column.
+                    spread_x = round(anchor_x + side_escape[1], 6)
+                    pad_half = (
+                        max(pad.width_mm, pad.height_mm) / 2
+                        if abs(dy) >= abs(dx)
+                        else min(pad.width_mm, pad.height_mm) / 2
+                    )
+                    reach = (
+                        pad_half + FANOUT_JOG_CLEAR_MM
+                        + side_escape[2] * FANOUT_JOG_PITCH_MM
+                    )
+                    jog_y = pad_y - reach if side_escape[0] == "north" else pad_y + reach
+                    segments.append(
+                        TrackSegment(
+                            x1=pad_x,
+                            y1=pad_y,
+                            x2=pad_x,
+                            y2=jog_y,
+                            layer="F.Cu",
+                            net_name=net.name,
+                            width_mm=pad_track_width,
+                        )
+                    )
+                    if abs(spread_x - pad_x) > PAD_SIDE_EPSILON_MM:
+                        segments.append(
+                            TrackSegment(
+                                x1=pad_x,
+                                y1=jog_y,
+                                x2=spread_x,
+                                y2=jog_y,
+                                layer="F.Cu",
+                                net_name=net.name,
+                                width_mm=pad_track_width,
+                            )
+                        )
+                    if side_escape[0] == "north":
+                        if spread_x not in up_columns or jog_y > up_columns[spread_x]:
+                            up_columns[spread_x] = jog_y
+                    elif spread_x not in down_columns or jog_y < down_columns[spread_x]:
+                        down_columns[spread_x] = jog_y
+                    continue
+                if stub_x is None and side_escape is not None:
+                    stub_x = anchor_x + side_escape[1]
                 if stub_x is not None:
-                    # Escape stub: the pad leaves its stacked column
+                    # Escape stub: the pad leaves its shared column
                     # horizontally before dropping, so the drop does not
-                    # pass through the pad below it.
+                    # pass through a neighbouring pad.
                     segments.append(
                         TrackSegment(
                             x1=pad_x,
@@ -854,51 +1077,146 @@ def _route_channel(
                             y2=pad_y,
                             layer="F.Cu",
                             net_name=net.name,
-                            width_mm=track_width,
+                            width_mm=pad_track_width,
                         )
                     )
                     pad_x = round(stub_x, 6)
-                if pad_x not in pads_by_column or pad_y < pads_by_column[pad_x]:
-                    pads_by_column[pad_x] = pad_y
-        if len(pads_by_column) < 2:
+                    if pad_x not in down_columns or pad_y < down_columns[pad_x]:
+                        down_columns[pad_x] = pad_y
+                    continue
+                if (
+                    side_escapes
+                    and side_escape is None
+                    and _pad_side(dx, dy) == "north"
+                ):
+                    if pad_x not in up_columns or pad_y > up_columns[pad_x]:
+                        up_columns[pad_x] = pad_y
+                elif pad_x not in down_columns or pad_y < down_columns[pad_x]:
+                    down_columns[pad_x] = pad_y
+        if len(down_columns) + len(up_columns) < 2:
             continue
-        lane_y = parts_row_y + LANE_START_OFFSET_MM + lane_index * LANE_PITCH_MM
-        lane_bottom_y = max(lane_bottom_y, lane_y)
-        lane_index += 1
-        for pad_x, pad_y in sorted(pads_by_column.items()):
-            segments.append(
-                TrackSegment(
-                    x1=pad_x,
-                    y1=pad_y,
-                    x2=pad_x,
-                    y2=lane_y,
-                    layer="F.Cu",
-                    net_name=net.name,
-                    width_mm=track_width,
+
+        # A single bottom pad on a net that also has a top lane needs no
+        # bottom lane of its own: the cross-channel join carries it (a lone
+        # via on an unused lane reports as dangling).
+        if down_columns and (len(down_columns) >= 2 or not up_columns):
+            lane_y = parts_row_y + LANE_START_OFFSET_MM + lane_index * LANE_PITCH_MM
+            lane_bottom_y = max(lane_bottom_y, lane_y)
+            lane_index += 1
+            for pad_x, pad_y in sorted(down_columns.items()):
+                segments.append(
+                    TrackSegment(
+                        x1=pad_x,
+                        y1=pad_y,
+                        x2=pad_x,
+                        y2=lane_y,
+                        layer="F.Cu",
+                        net_name=net.name,
+                        width_mm=track_width,
+                    )
                 )
-            )
-            vias.append(
-                ViaSpec(
-                    x=pad_x,
-                    y=lane_y,
-                    net_name=net.name,
-                    size_mm=via_size,
-                    drill_mm=via_drill,
+                vias.append(
+                    ViaSpec(
+                        x=pad_x,
+                        y=lane_y,
+                        net_name=net.name,
+                        size_mm=via_size,
+                        drill_mm=via_drill,
+                    )
                 )
-            )
-        xs = sorted(pads_by_column)
-        segments.append(
-            TrackSegment(
-                x1=xs[0],
-                y1=lane_y,
-                x2=xs[-1],
-                y2=lane_y,
-                layer="B.Cu",
-                net_name=net.name,
-                width_mm=track_width,
-            )
-        )
+            xs = sorted(down_columns)
+            if len(xs) > 1:
+                segments.append(
+                    TrackSegment(
+                        x1=xs[0],
+                        y1=lane_y,
+                        x2=xs[-1],
+                        y2=lane_y,
+                        layer="B.Cu",
+                        net_name=net.name,
+                        width_mm=track_width,
+                    )
+                )
+
+        if up_columns:
+            top_lane_y = top_lane_base - top_lane_index * LANE_PITCH_MM
+            top_lane_index += 1
+            top_xs = list(up_columns)
+            for pad_x, pad_y in sorted(up_columns.items()):
+                segments.append(
+                    TrackSegment(
+                        x1=pad_x,
+                        y1=pad_y,
+                        x2=pad_x,
+                        y2=top_lane_y,
+                        layer="F.Cu",
+                        net_name=net.name,
+                        width_mm=min(track_width, SIGNAL_TRACK_WIDTH_MM),
+                    )
+                )
+                vias.append(
+                    ViaSpec(
+                        x=pad_x,
+                        y=top_lane_y,
+                        net_name=net.name,
+                        size_mm=via_size,
+                        drill_mm=via_drill,
+                    )
+                )
+            if down_columns:
+                # Cross-channel join: extend one bottom drop upward through
+                # its own pad to the top lane. Pick the column whose drop
+                # starts HIGHEST (a row-level pad): joining from a deep pad,
+                # such as a stacked connector pin, would cross every pad and
+                # stub above it (live DRC caught SDA slicing through P1).
+                join_x = min(
+                    down_columns, key=lambda x: (down_columns[x], x)
+                )
+                segments.append(
+                    TrackSegment(
+                        x1=join_x,
+                        y1=down_columns[join_x],
+                        x2=join_x,
+                        y2=top_lane_y,
+                        layer="F.Cu",
+                        net_name=net.name,
+                        width_mm=track_width,
+                    )
+                )
+                vias.append(
+                    ViaSpec(
+                        x=join_x,
+                        y=top_lane_y,
+                        net_name=net.name,
+                        size_mm=via_size,
+                        drill_mm=via_drill,
+                    )
+                )
+                top_xs.append(join_x)
+            top_xs.sort()
+            if len(top_xs) > 1:
+                segments.append(
+                    TrackSegment(
+                        x1=top_xs[0],
+                        y1=top_lane_y,
+                        x2=top_xs[-1],
+                        y2=top_lane_y,
+                        layer="B.Cu",
+                        net_name=net.name,
+                        width_mm=track_width,
+                    )
+                )
     return tuple(segments), tuple(vias), lane_bottom_y
+
+
+def _connector_pad_columns(
+    spec: FootprintSpec, rotation: float
+) -> dict[float, list[tuple[PadSpec, float]]]:
+    columns: dict[float, list[tuple[PadSpec, float]]] = {}
+    for pad in spec.pads:
+        dx, dy = rotate_offset(pad.x_mm, pad.y_mm, rotation)
+        columns.setdefault(round(dx, 6), []).append((pad, dy))
+    return columns
 
 
 def _connector_escapes(
@@ -921,12 +1239,10 @@ def _connector_escapes(
         if not spec.is_connector:
             continue
         rotation = rotations.get(component.reference, 0.0)
-        placed = [
-            (pad, rotate_offset(pad.x_mm, pad.y_mm, rotation)) for pad in spec.pads
-        ]
-        columns: dict[float, list[tuple[PadSpec, float]]] = {}
-        for pad, (dx, dy) in placed:
-            columns.setdefault(round(anchor_x + dx, 6), []).append((pad, dy))
+        columns = {
+            round(anchor_x + column_x, 6): pads
+            for column_x, pads in _connector_pad_columns(spec, rotation).items()
+        }
         # Trailing (right-edge) connectors escape leftwards into the board.
         direction = (
             -1.0

@@ -111,6 +111,14 @@ grounding."
 - **4.2 Feedback/adjustment parts group with their IC** (special case of 3.3
   that applies to any regulator, ADC reference, or bias network). Status:
   **pending**.
+- **4.3 Multi-side packages (QFN and friends) fan out per side.** South pins
+  spread through nested elbows onto a wider via grid (outermost pin jogs
+  shallowest); north pins rise into a mirrored top routing channel; east and
+  west pins escape outward into per-pad drop columns; nets spanning both
+  channels join through a row-level pad column. Vias never sit closer to a
+  neighbouring drop than the clearance rule allows. (`SESSION` — MPU-6050
+  slice, five live-DRC iterations.) Status: **implemented**
+  (`_side_escapes`/`_route_channel` in `kicad/board.py`).
 
 ## 5. Mechanical
 

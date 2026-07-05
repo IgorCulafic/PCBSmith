@@ -8,6 +8,8 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         return _lm2596_buck_topology()
     if intent.intent_id == "led_text_matrix" and intent.status == "supported":
         return _led_text_matrix_topology()
+    if intent.intent_id == "mpu6050_imu" and intent.status == "supported":
+        return _mpu6050_imu_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
         return TopologySelection(
             topology_id="unsupported",
@@ -42,6 +44,42 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         ),
         warnings=(
             "LED brightness and conduction after AC coupling require simulation and human review.",
+        ),
+    )
+
+
+def _mpu6050_imu_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="mpu6050_imu",
+        title="MPU-6050 6-axis IMU breakout, I2C, 3.3 V supply",
+        status="selected",
+        evidence=(
+            EvidenceRef(
+                kind="datasheet_procedure",
+                title="InvenSense MPU-6050 typical operating circuit",
+                locator=(
+                    "ai_assets/datasheets/mpu6050.pdf p22 section 7.2: REGOUT "
+                    "0.1uF, VDD bypass 0.1uF, CPOUT 2.2nF, VLOGIC 10nF"
+                ),
+            ),
+            EvidenceRef(
+                kind="datasheet_fact",
+                title="MPU-6050 pin out and unused-pin handling",
+                locator=(
+                    "ai_assets/datasheets/mpu6050.pdf p21 section 7.1: CLKIN "
+                    "and FSYNC to GND if unused; RESV 19/21/22 do not connect"
+                ),
+            ),
+            EvidenceRef(
+                kind="textbook_formula",
+                title="I2C pullup sizing",
+                locator="Rmax = tr/(0.8473*Cb); Rmin = (VDD-VOL)/IOL",
+            ),
+        ),
+        warnings=(
+            "The MEMS sensor core and digital interface have no SPICE model; "
+            "only the passive I2C bus conditions are simulated.",
+            "INT, AUX_DA, and AUX_CL are not broken out on the 4-pin header.",
         ),
     )
 

@@ -1,0 +1,97 @@
+{
+  "schema": "pcbsmith-evidence-manifest-v1",
+  "components": [
+    {
+      "manufacturer": "Texas Instruments",
+      "part_number": "LM2596S-ADJ",
+      "role": "buck_regulator",
+      "symbol_id": "stdlib:LM2596",
+      "value": "LM2596S-ADJ",
+      "footprint": "Package_TO_SOT_SMD:TO-263-5_TabPin3",
+      "files": [
+        {
+          "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\ti-lm2596.pdf",
+          "sha256": "c4cd25b7f4de7b1c98f117c47de28ae5e596a84fc54b1f6d24f9f5adde6fe8ae",
+          "source_url": "https://www.ti.com/lit/ds/symlink/lm2596.pdf",
+          "retrieved_at": "2026-07-02",
+          "license_status": "local_cache_only"
+        }
+      ],
+      "facts": [
+        {
+          "name": "feedback_reference_v_typ",
+          "value": 1.23,
+          "unit": "V",
+          "conditions": "4.5V<=VIN<=40V, 0.2A<=ILOAD<=3A; 1.193-1.267V limits at TJ=25C",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\ti-lm2596.pdf",
+            "source_url": null,
+            "page": 6,
+            "section": null,
+            "table": "Electrical Characteristics - Adjustable Voltage Version",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "switching_frequency_khz_typ",
+          "value": 150.0,
+          "unit": "kHz",
+          "conditions": "TJ=25C; 127 kHz min, 173 kHz max",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\ti-lm2596.pdf",
+            "source_url": null,
+            "page": 7,
+            "section": null,
+            "table": "7.9 Electrical Characteristics - All Output Voltage Versions",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "output_current_a_max",
+          "value": 3.0,
+          "unit": "A",
+          "conditions": "Guaranteed system-parameter load range 0.2A<=ILOAD<=3A",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\ti-lm2596.pdf",
+            "source_url": null,
+            "page": 6,
+            "section": null,
+            "table": "Electrical Characteristics - Adjustable Voltage Version",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "input_voltage_v_max",
+          "value": 40.0,
+          "unit": "V",
+          "conditions": "Specified operating range 4.5-40V; absolute maximum 45V on page 5",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\ti-lm2596.pdf",
+            "source_url": null,
+            "page": 6,
+            "section": null,
+            "table": "Electrical Characteristics - Adjustable Voltage Version",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        }
+      ]
+    }
+  ],
+  "extraction_jobs": [
+    {
+      "status": "machine_extracted",
+      "component_manufacturer": "Texas Instruments",
+      "component_part_number": "LM2596S-ADJ",
+      "role": "buck_regulator",
+      "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\ti-lm2596.pdf",
+      "sha256": "c4cd25b7f4de7b1c98f117c47de28ae5e596a84fc54b1f6d24f9f5adde6fe8ae",
+      "source_url": "https://www.ti.com/lit/ds/symlink/lm2596.pdf",
+      "created_at": "2026-07-02",
+      "findings": []
+    }
+  ]
+}

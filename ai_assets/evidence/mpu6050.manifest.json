@@ -1,0 +1,157 @@
+{
+  "schema": "pcbsmith-evidence-manifest-v1",
+  "components": [
+    {
+      "manufacturer": "TDK InvenSense",
+      "part_number": "MPU-6050",
+      "role": "imu_sensor",
+      "symbol_id": "stdlib:MPU6050",
+      "value": "MPU-6050",
+      "footprint": "Sensor_Motion:InvenSense_QFN-24_4x4mm_P0.5mm",
+      "files": [
+        {
+          "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+          "sha256": "9d3b698699d6d907790607223deb7d7e604d2597bd1fc97f586e18ce5dc9ef9f",
+          "source_url": "https://www.cdiweb.com/datasheets/invensense/MPU-6050_DataSheet_V3%204.pdf",
+          "retrieved_at": "2026-07-05",
+          "license_status": "local_cache_only"
+        }
+      ],
+      "facts": [
+        {
+          "name": "vdd_v_min",
+          "value": 2.375,
+          "unit": "V",
+          "conditions": "Operating supply range",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+            "source_url": null,
+            "page": 12,
+            "section": null,
+            "table": "6.4 Electrical Specifications header",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "vdd_v_max",
+          "value": 3.46,
+          "unit": "V",
+          "conditions": "Operating supply range",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+            "source_url": null,
+            "page": 12,
+            "section": null,
+            "table": "6.4 Electrical Specifications header",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "vlogic_v_max",
+          "value": 3.46,
+          "unit": "V",
+          "conditions": "VLOGIC = 1.8V +/-5% or VDD (MPU-6050 only)",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+            "source_url": null,
+            "page": 12,
+            "section": null,
+            "table": "6.4 Electrical Specifications header",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "gyro_operating_current_ma",
+          "value": 3.6,
+          "unit": "mA",
+          "conditions": "Gyroscope operating current",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+            "source_url": null,
+            "page": 10,
+            "section": null,
+            "table": "5.1 Gyroscope Features",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "regout_capacitor_f",
+          "value": 1e-07,
+          "unit": "F",
+          "conditions": "Regulator filter capacitor, ceramic X7R 0.1uF +/-10% 2V, pin 10",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+            "source_url": null,
+            "page": 22,
+            "section": null,
+            "table": "7.2 Typical Operating Circuit bill of materials",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "vdd_bypass_capacitor_f",
+          "value": 1e-07,
+          "unit": "F",
+          "conditions": "VDD bypass capacitor, ceramic X7R 0.1uF +/-10% 4V, pin 13",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+            "source_url": null,
+            "page": 22,
+            "section": null,
+            "table": "7.2 Typical Operating Circuit bill of materials",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "charge_pump_capacitor_f",
+          "value": 2.2e-09,
+          "unit": "F",
+          "conditions": "Charge pump capacitor, ceramic X7R 2.2nF +/-10% 50V, pin 20",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+            "source_url": null,
+            "page": 22,
+            "section": null,
+            "table": "7.2 Typical Operating Circuit bill of materials",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "vlogic_bypass_capacitor_f",
+          "value": 1e-08,
+          "unit": "F",
+          "conditions": "VLOGIC bypass capacitor, ceramic X7R 10nF +/-10% 4V, pin 8",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+            "source_url": null,
+            "page": 22,
+            "section": null,
+            "table": "7.2 Typical Operating Circuit bill of materials",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        }
+      ]
+    }
+  ],
+  "extraction_jobs": [
+    {
+      "status": "machine_extracted",
+      "component_manufacturer": "TDK InvenSense",
+      "component_part_number": "MPU-6050",
+      "role": "imu_sensor",
+      "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\mpu6050.pdf",
+      "sha256": "9d3b698699d6d907790607223deb7d7e604d2597bd1fc97f586e18ce5dc9ef9f",
+      "source_url": "https://www.cdiweb.com/datasheets/invensense/MPU-6050_DataSheet_V3%204.pdf",
+      "created_at": "2026-07-05",
+      "findings": []
+    }
+  ]
+}
