@@ -69,6 +69,20 @@ def classify_circuit_intent(raw_request: str) -> CircuitIntent:
                 "led_target_current_ma": 5.0,
             },
         )
+    if "clover" in normalized:
+        return CircuitIntent(
+            raw_request=raw_request,
+            intent_id="clover_tilt_indicator",
+            status="supported",
+            assumptions={
+                "supply_voltage_v": 3.3,
+                "led_forward_voltage_v": 2.2,
+                "led_target_current_a": 0.005,
+                "i2c_bus_capacitance_pf": 50.0,
+                "i2c_rise_time_ns": 300.0,
+                "motto": "Luck be with 'ye",
+            },
+        )
     if "mpu6050" in normalized or "mpu-6050" in normalized:
         supply_match = _SUPPLY_PATTERN.search(raw_request)
         supply_v = float(supply_match.group("volts")) if supply_match else 3.3

@@ -1,0 +1,97 @@
+{
+  "schema": "pcbsmith-evidence-manifest-v1",
+  "components": [
+    {
+      "manufacturer": "Microchip (Atmel)",
+      "part_number": "ATtiny84A",
+      "role": "mcu",
+      "symbol_id": "stdlib:ATTINY84",
+      "value": "ATtiny84A",
+      "footprint": "Package_SO:SOIC-14_3.9x8.7mm_P1.27mm",
+      "files": [
+        {
+          "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\attiny84a.pdf",
+          "sha256": "304cec529f98f09c38f0dd70c7db169c76579ce214bd41f098ca0e3d62095be7",
+          "source_url": "https://ww1.microchip.com/downloads/en/DeviceDoc/doc8006.pdf",
+          "retrieved_at": "2026-07-05",
+          "license_status": "local_cache_only"
+        }
+      ],
+      "facts": [
+        {
+          "name": "vcc_v_min",
+          "value": 1.8,
+          "unit": "V",
+          "conditions": "Operating voltage ATtiny84V grade",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\attiny84a.pdf",
+            "source_url": null,
+            "page": 1,
+            "section": null,
+            "table": "Features - Operating Voltage",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "vcc_v_max",
+          "value": 5.5,
+          "unit": "V",
+          "conditions": "Operating voltage",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\attiny84a.pdf",
+            "source_url": null,
+            "page": 1,
+            "section": null,
+            "table": "Features - Operating Voltage",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "io_current_abs_max_ma",
+          "value": 40.0,
+          "unit": "mA",
+          "conditions": "Absolute maximum DC current per I/O pin",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\attiny84a.pdf",
+            "source_url": null,
+            "page": 174,
+            "section": null,
+            "table": "Absolute Maximum Ratings",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        },
+        {
+          "name": "io_sink_characterized_ma",
+          "value": 5.0,
+          "unit": "mA",
+          "conditions": "IOL = 5 mA at VCC = 3V characterized output-low condition",
+          "locator": {
+            "local_file": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\attiny84a.pdf",
+            "source_url": null,
+            "page": 174,
+            "section": null,
+            "table": "DC Characteristics",
+            "figure": null
+          },
+          "confidence": "machine_extracted"
+        }
+      ]
+    }
+  ],
+  "extraction_jobs": [
+    {
+      "status": "machine_extracted",
+      "component_manufacturer": "Microchip (Atmel)",
+      "component_part_number": "ATtiny84A",
+      "role": "mcu",
+      "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\attiny84a.pdf",
+      "sha256": "304cec529f98f09c38f0dd70c7db169c76579ce214bd41f098ca0e3d62095be7",
+      "source_url": "https://ww1.microchip.com/downloads/en/DeviceDoc/doc8006.pdf",
+      "created_at": "2026-07-05",
+      "findings": []
+    }
+  ]
+}

@@ -187,6 +187,14 @@ class BoardLayout:
     # Copper zones (net_name, layer, rect in board mm) appended by layouts
     # that pour planes; rendered as filled zones.
     zones: tuple[tuple[str, str, tuple[float, float, float, float]], ...] = ()
+    # Custom board outline polygon (board mm); None keeps the rectangle.
+    outline: tuple[tuple[float, float], ...] | None = None
+    # Raw board-level graphic items (silkscreen art, text), pre-rendered.
+    graphics: tuple[str, ...] = ()
+    # References of footprints mounted on the BACK of the board.
+    part_flip: tuple[str, ...] = ()
+    # References whose silkscreen reference text is hidden (art faces).
+    hide_references: tuple[str, ...] = ()
 
 
 def placement_y(layout: BoardLayout, reference: str) -> float:
@@ -652,6 +660,8 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
                     extra_fields=component.fields,
                     extra_silk_texts=marks,
                     force_board_only=spec.board_only,
+                    flip=component.reference in layout.part_flip,
+                    hide_reference=component.reference in layout.hide_references,
                 )
             )
         except FootprintLibraryError as exc:
@@ -660,13 +670,30 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
         sections.append(_segment(segment, net_numbers))
     for via in layout.vias:
         sections.append(_via(via, net_numbers))
-    for zone_net, zone_layer, zone_rect in layout.zones:
+    for zone_index, (zone_net, zone_layer, zone_rect) in enumerate(layout.zones):
         sections.append(
-            _zone(zone_net, zone_layer, zone_rect, net_numbers)
+            _zone(zone_net, zone_layer, zone_rect, net_numbers, zone_index)
         )
     origin = BOARD_SHEET_ORIGIN_MM
-    sections.append(
-        f"""  (gr_rect
+    sections.extend(layout.graphics)
+    if layout.outline is not None:
+        points = "\n          ".join(
+            f"(xy {_mm(x + origin)} {_mm(y + origin)})" for x, y in layout.outline
+        )
+        sections.append(
+            f"""  (gr_poly
+    (pts
+          {points}
+    )
+    (stroke (width {_mm(EDGE_STROKE_MM)}) (type default))
+    (fill none)
+    (layer "Edge.Cuts")
+    (uuid {uuid4()})
+  )"""
+        )
+    else:
+        sections.append(
+            f"""  (gr_rect
     (start {_mm(origin)} {_mm(origin)})
     (end {_mm(origin + board_width)} {_mm(origin + board_height)})
     (stroke (width {_mm(EDGE_STROKE_MM)}) (type default))
@@ -674,7 +701,7 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
     (layer "Edge.Cuts")
     (uuid {uuid4()})
   )"""
-    )
+        )
     return "\n".join(("\n".join(sections), ")", ""))
 
 
@@ -1307,6 +1334,7 @@ def _zone(
     layer: str,
     rect: tuple[float, float, float, float],
     net_numbers: dict[str, int],
+    priority: int = 0,
 ) -> str:
     origin = BOARD_SHEET_ORIGIN_MM
     x1, y1, x2, y2 = rect
@@ -1319,8 +1347,10 @@ def _zone(
     (net_name {_q(net_name)})
     (layer "{layer}")
     (uuid {uuid4()})
+    (priority {priority})
     (hatch edge 0.5)
-    (connect_pads (clearance 0.5))
+    (connect_pads yes
+      (clearance 0.5))
     (min_thickness 0.25)
     (filled_areas_thickness no)
     (fill yes

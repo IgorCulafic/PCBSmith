@@ -17,7 +17,7 @@ from pcbsmith.evidence.models import (
     EvidenceSelectionReport,
 )
 
-SUPPORTED_TOPOLOGY_ID = "mpu6050_imu"
+SUPPORTED_TOPOLOGY_IDS = ("mpu6050_imu", "clover_tilt_indicator")
 SENSOR_REFERENCE = "U1"
 SENSOR_ROLE = "imu_sensor"
 
@@ -39,7 +39,7 @@ def select_mpu6050_components(
     circuit: CircuitObject,
     cache: EvidenceCache,
 ) -> EvidenceSelectionReport:
-    if circuit.topology.topology_id != SUPPORTED_TOPOLOGY_ID:
+    if circuit.topology.topology_id not in SUPPORTED_TOPOLOGY_IDS:
         raise ValueError("Unsupported circuit for MPU-6050 evidence selection")
 
     candidates = cache.components_for_role(SENSOR_ROLE)

@@ -55,6 +55,7 @@ from pcbsmith.evidence.divider_highpass_led import (
 )
 from pcbsmith.evidence.lm2596_buck import select_lm2596_buck_components
 from pcbsmith.evidence.mpu6050 import select_mpu6050_components
+from pcbsmith.generation.clover import compose_clover, write_clover_project
 from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
@@ -77,7 +78,9 @@ from pcbsmith.kicad.board import (
     generate_board,
     render_board_previews,
 )
+from pcbsmith.kicad.clover_board import generate_clover_board
 from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
+from pcbsmith.kicad.export_clover import export_clover_to_kicad
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
 from pcbsmith.kicad.export_led_art import export_led_art_to_kicad
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
@@ -104,6 +107,7 @@ from pcbsmith.services.project_io import (
 )
 from pcbsmith.simulation.ngspice import run_ngspice_netlist_file, run_ngspice_simulation
 from pcbsmith.simulation.ngspice_buck import run_lm2596_power_stage_simulation
+from pcbsmith.simulation.ngspice_clover import run_clover_simulation
 from pcbsmith.simulation.ngspice_led_art import run_led_art_simulation
 from pcbsmith.simulation.ngspice_mpu6050 import run_mpu6050_simulation
 
@@ -645,6 +649,171 @@ def _cmd_design_mpu6050_authority(args: argparse.Namespace) -> int:
             "is not machine-checked yet - review before fabrication.",
         ),
     )
+    artifacts = _authority_artifacts(
+        output_dir=output_dir,
+        kicad_artifacts=kicad_artifacts,
+        erc_report=erc_report,
+        spice_report=KiCadReport(status="not_run"),
+        simulation=simulation,
+        board=board,
+    )
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
+    revisions = _authority_revisions(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
+    bundle_path = write_authority_review_bundle(
+        circuit,
+        output_dir,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+        revisions=revisions,
+        artifacts=artifacts,
+    )
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+    )
+    print(f"Review bundle: {bundle_path}")
+    print(f"Status: {status}")
+    return 0
+
+
+def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
+    intent = classify_circuit_intent(args.request)
+    if intent.status != "supported":
+        raise ValueError("; ".join(intent.unsupported_reasons))
+    if intent.intent_id != "clover_tilt_indicator":
+        raise ValueError(
+            "The request classified as a different intent; use the matching "
+            "design command instead."
+        )
+    topology = select_topology(intent)
+    circuit = compose_clover(intent, topology)
+    if args.evidence_manifest is not None:
+        try:
+            cache = EvidenceCache.from_manifest(Path(args.evidence_manifest))
+        except (OSError, ValidationError) as exc:
+            raise ValueError(
+                f"Evidence manifest could not be loaded: {args.evidence_manifest} ({exc})"
+            ) from exc
+        selection_report = select_mpu6050_components(circuit, cache)
+        circuit = apply_component_selection(circuit, selection_report)
+        evidence = EvidenceReport(
+            status=selection_report.status,
+            findings=selection_report.findings,
+            cached_files=selection_report.cached_files,
+        )
+    else:
+        evidence = EvidenceReport(
+            status="needs_human_review",
+            findings=(
+                "No evidence manifest was supplied; pass --evidence-manifest "
+                "ai_assets/evidence/mpu6050.manifest.json to validate the "
+                "sensor against the extracted datasheet facts.",
+            ),
+        )
+
+    write_clover_project(circuit, output_dir, project_name=args.name)
+    kicad_artifacts = export_clover_to_kicad(
+        circuit,
+        output_dir,
+        project_name=args.name,
+    )
+    schematic_file = Path(kicad_artifacts["schematic_file"])
+
+    erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
+    simulation = run_clover_simulation(circuit, output_dir)
+
+    kicad = erc_report.model_copy(
+        update={
+            "findings": (
+                *erc_report.findings,
+                "KiCad SPICE export was intentionally skipped: the MCU and "
+                "MEMS sensor have no SPICE models; the passive network is "
+                "simulated from a PCBSmith netlist.",
+            ),
+        }
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=(
+            "PCBSmith circuit object and KiCad schematic were generated before "
+            "authority checks.",
+            "ngspice ran a PCBSmith passive-network netlist, not a "
+            "KiCad-exported netlist.",
+        ),
+        findings=(
+            "The simulated netlist covers bus conditioning and LED bias only; "
+            "it is not translation-checked against the KiCad schematic.",
+        ),
+    )
+
+    board: BoardReport
+    design_review: DesignReviewReport | None
+    if erc_report.status != "passed" or simulation.status != "passed":
+        board = BoardReport(
+            status="not_run",
+            findings=(
+                "Board generation was skipped because KiCad ERC and ngspice "
+                "simulation must pass before a board is generated.",
+            ),
+        )
+        design_review = None
+    else:
+        board_file = output_dir / f"{args.name}.kicad_pcb"
+        try:
+            board_netlist, layout = generate_clover_board(
+                schematic_file=schematic_file,
+                board_file=board_file,
+                motto=str(intent.assumptions["motto"]),
+            )
+        except BoardGenerationError as exc:
+            board = BoardReport(
+                status="failed",
+                board_file=str(board_file),
+                findings=(str(exc),),
+            )
+            design_review = None
+        else:
+            design_review = run_design_checks(
+                layout,
+                board_netlist,
+                DesignChecksSpec(
+                    led_strings=(
+                        ("R3", "D1"), ("R4", "D2"), ("R5", "D3"), ("R6", "D4"),
+                    ),
+                ),
+            )
+            board, design_review = _finish_board_authority(
+                board_file=board_file,
+                output_dir=output_dir,
+                project_name=args.name,
+                board_netlist=board_netlist,
+                layout=layout,
+                design_review=design_review,
+                extra_findings=(
+                    "Shaped clover outline, front silkscreen art, and a "
+                    "back-side sensor/MCU cluster; the tilt behaviour is a "
+                    "firmware contract recorded in the math findings.",
+                ),
+            )
     artifacts = _authority_artifacts(
         output_dir=output_dir,
         kicad_artifacts=kicad_artifacts,
@@ -1487,6 +1656,18 @@ def build_parser() -> argparse.ArgumentParser:
     mpu_parser.add_argument("--evidence-manifest")
     mpu_parser.add_argument("--overwrite", action="store_true")
     mpu_parser.set_defaults(func=_cmd_design_mpu6050_authority)
+
+    clover_parser = subparsers.add_parser(
+        "design-clover-authority",
+        help="generate the four-leaf-clover tilt indicator (shaped outline, "
+        "silkscreen art, two-sided assembly) with authority evidence",
+    )
+    clover_parser.add_argument("output")
+    clover_parser.add_argument("--request", required=True)
+    clover_parser.add_argument("--name", required=True)
+    clover_parser.add_argument("--evidence-manifest")
+    clover_parser.add_argument("--overwrite", action="store_true")
+    clover_parser.set_defaults(func=_cmd_design_clover_authority)
 
     revision_plan_parser = subparsers.add_parser(
         "revision-plan",

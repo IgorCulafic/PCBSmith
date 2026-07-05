@@ -45,10 +45,8 @@ def test_clean_layout_passes_all_checks() -> None:
 
 
 def test_interior_connector_is_a_blocker() -> None:
-    # Force an interior connector by making it non-leading and non-trailing:
-    # three connectors means the middle ones trail, but a wide middle part
-    # pushes the second connector far from both edges only if it is not in
-    # the tail group - so build the layout by hand instead.
+    # A connector counts as reachable near ANY board edge (rule 1.1), so an
+    # interior one must sit far from all four: centre it on a large board.
     from pcbsmith.kicad.board import BoardLayout, _anchor_row
 
     components = (_connector("P1"), _smd("R1"), _connector("P2"), _smd("R2"))
@@ -59,7 +57,8 @@ def test_interior_connector_is_a_blocker() -> None:
         segments=(),
         vias=(),
         width_mm=width,
-        height_mm=20,
+        height_mm=40,
+        part_y_mm=(("P2", 20.0),),
     )
     netlist = BoardNetlist(components=components, nets=())
 

@@ -413,9 +413,13 @@ def render_embedded_footprint(
     extra_fields: tuple[tuple[str, str], ...] = (),
     extra_silk_texts: tuple[tuple[str, float, float, float], ...] = (),
     force_board_only: bool = False,
+    flip: bool = False,
+    hide_reference: bool = False,
 ) -> str:
     tree = _as_list(_deep_copy(imported.tree))
     tree[1] = QuotedString(imported.library_id)
+    if flip:
+        _flip_tree(tree)
     body = [
         child
         for child in tree[2:]
@@ -435,7 +439,9 @@ def render_embedded_footprint(
             prop_name = _atom(child[1])
             if prop_name == "Reference":
                 child[2] = QuotedString(reference)
-                if force_board_only:
+                if hide_reference:
+                    child.append(["hide", "yes"])
+                elif force_board_only:
                     # Mounting holes need no visible label; the library text
                     # sits above the hole and crossed the board edge.
                     child.append(["hide", "yes"])
@@ -485,6 +491,47 @@ def _add_rotation(node: SList, rotation: float) -> None:
         while len(at) < 4:
             at.append("0")
         at[3] = _fmt((float(_atom(at[3])) + rotation) % 360)
+
+
+_COORD_HEADS = ("at", "start", "end", "center", "mid", "xy")
+
+
+def _flip_tree(tree: SList) -> None:
+    """Mirror a footprint tree onto the back side, KiCad-file style: negate
+    x coordinates and angles, swap F./B. layer names, and mark text mirrored.
+    Board files store BACK footprints in this flipped representation."""
+    head = _safe_head(tree)
+    if head == "layer" and len(tree) >= 2:
+        tree[1] = QuotedString(_swap_layer(_atom(tree[1])))
+        return
+    if head == "layers":
+        for index in range(1, len(tree)):
+            if not isinstance(tree[index], list):
+                tree[index] = QuotedString(_swap_layer(_atom(tree[index])))
+        return
+    if head in _COORD_HEADS and len(tree) >= 3:
+        x_atom = tree[1]
+        if not isinstance(x_atom, list):
+            tree[1] = _fmt(-float(_atom(x_atom)))
+        if head == "at" and len(tree) >= 4 and not isinstance(tree[3], list):
+            tree[3] = _fmt((-float(_atom(tree[3]))) % 360)
+        return
+    if head in ("property", "fp_text"):
+        for child in tree:
+            if isinstance(child, list) and _safe_head(child) == "effects":
+                child.append(["justify", "mirror"])
+                break
+    for child in tree:
+        if isinstance(child, list):
+            _flip_tree(child)
+
+
+def _swap_layer(name: str) -> str:
+    if name.startswith("F."):
+        return "B." + name[2:]
+    if name.startswith("B."):
+        return "F." + name[2:]
+    return name
 
 
 def _children_named(nodes: SList, name: str) -> list[SList]:

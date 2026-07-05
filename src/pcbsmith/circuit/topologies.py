@@ -10,6 +10,8 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         return _led_text_matrix_topology()
     if intent.intent_id == "mpu6050_imu" and intent.status == "supported":
         return _mpu6050_imu_topology()
+    if intent.intent_id == "clover_tilt_indicator" and intent.status == "supported":
+        return _clover_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
         return TopologySelection(
             topology_id="unsupported",
@@ -44,6 +46,37 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         ),
         warnings=(
             "LED brightness and conduction after AC coupling require simulation and human review.",
+        ),
+    )
+
+
+def _clover_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="clover_tilt_indicator",
+        title="Four-leaf-clover tilt indicator: MPU-6050 + ATtiny84A + leaf LEDs",
+        status="selected",
+        evidence=(
+            EvidenceRef(
+                kind="datasheet_procedure",
+                title="MPU-6050 typical operating circuit",
+                locator="ai_assets/datasheets/mpu6050.pdf p22 section 7.2",
+            ),
+            EvidenceRef(
+                kind="datasheet_fact",
+                title="ATtiny84A supply range and I/O drive",
+                locator="ai_assets/datasheets/attiny84a.pdf p1, p174",
+            ),
+            EvidenceRef(
+                kind="textbook_formula",
+                title="LED series resistor and I2C pullup sizing",
+                locator="R = (VDD-Vf)/I; Rmax = tr/(0.8473*Cb)",
+            ),
+        ),
+        warnings=(
+            "Tilt-to-LED behaviour is firmware on the ATtiny84A; this "
+            "pipeline verifies the hardware only.",
+            "The green LED forward voltage (2.2 V) is an engineering "
+            "assumption pending a datasheet-backed part.",
         ),
     )
 
