@@ -22,6 +22,25 @@ Entry format:
 
 ---
 
+## 2026-07-05 Official KiCad footprints imported; overnight batch
+- status: promoted (user-directed: "do all 6 tonight")
+- proposed_by: claude-fable-5 overnight backend session
+- rule: 8.4 resolution + 3.2/3.5/5.1/1.1 statuses
+- suggestion: replace hand-drawn footprint geometry with the official KiCad
+  `.kicad_mod` files (vendored under ai_assets/kicad_footprints), embedded
+  verbatim into boards with injected nets/position/parity clauses; flip our
+  polarized symbols to the KiCad pin convention (diode/LED pin1=cathode,
+  CP pin1=positive); pour a B.Cu ground plane and a TO-263 thermal zone on
+  the buck; add corner mounting holes (board_only); validate the buck
+  regulator against the extracted datasheet facts.
+- evidence: live DRC caught that pad angles in board files are TOTAL angles
+  (rotated TO-263 shorted every pin until the embed added the footprint
+  rotation to each pad); r010/r011 buck, r005 LED art, and r003 divider all
+  pass DRC+parity with real silk, courtyards, 3D models, pours, and holes.
+- decision_note: lib_footprint_mismatch stays suppressed because PCBSmith
+  decorates footprints (+/- marks, parity fields); geometry itself is now
+  the library's.
+
 ## 2026-07-02 Polarity silkscreen, +/- connector labels, edge-parallel connectors
 - status: promoted (user-requested)
 - proposed_by: user review of outputs/led-art-igorc-r002 (hand edit rotated P1

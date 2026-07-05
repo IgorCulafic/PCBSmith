@@ -53,6 +53,7 @@ from pcbsmith.evidence.divider_highpass_led import (
     apply_component_selection,
     select_divider_highpass_led_components,
 )
+from pcbsmith.evidence.lm2596_buck import select_lm2596_buck_components
 from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
@@ -301,14 +302,29 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
         )
     topology = select_topology(intent)
     circuit = compose_lm2596_buck(intent, topology)
-    evidence = EvidenceReport(
-        status="needs_human_review",
-        findings=(
-            "LM2596 buck component evidence validation is not implemented yet; "
-            "component support statuses reflect datasheet-review requirements.",
-            "The TI LM2596 datasheet is cached under ai_assets/datasheets for review.",
-        ),
-    )
+    if args.evidence_manifest is not None:
+        try:
+            cache = EvidenceCache.from_manifest(Path(args.evidence_manifest))
+        except (OSError, ValidationError) as exc:
+            raise ValueError(
+                f"Evidence manifest could not be loaded: {args.evidence_manifest} ({exc})"
+            ) from exc
+        selection_report = select_lm2596_buck_components(circuit, cache)
+        circuit = apply_component_selection(circuit, selection_report)
+        evidence = EvidenceReport(
+            status=selection_report.status,
+            findings=selection_report.findings,
+            cached_files=selection_report.cached_files,
+        )
+    else:
+        evidence = EvidenceReport(
+            status="needs_human_review",
+            findings=(
+                "No evidence manifest was supplied; pass --evidence-manifest "
+                "ai_assets/evidence/lm2596-buck.manifest.json to validate the "
+                "regulator against the extracted TI datasheet facts.",
+            ),
+        )
 
     write_lm2596_buck_project(circuit, output_dir, project_name=args.name)
     kicad_artifacts = export_lm2596_buck_to_kicad(
@@ -1309,6 +1325,7 @@ def build_parser() -> argparse.ArgumentParser:
     buck_parser.add_argument("output")
     buck_parser.add_argument("--request", required=True)
     buck_parser.add_argument("--name", required=True)
+    buck_parser.add_argument("--evidence-manifest")
     buck_parser.add_argument("--overwrite", action="store_true")
     buck_parser.set_defaults(func=_cmd_design_lm2596_buck_authority)
 

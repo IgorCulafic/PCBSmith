@@ -35,8 +35,10 @@ to future, more complex designs.
     first leads the row at the left edge and any further connectors close the
     row at the right edge, so power enters one side and exits the other.
     Status: **implemented** (`kicad/board.py`); edge-parallel orientation
-    **implemented** in the art-grid layout (rule 8.3), still **pending** for
-    the row-channel layout (needs escape routing).
+    **implemented** in both layouts — the official 1x02 vertical header
+    stacks its pins along the edge, and the row channel gives each stacked
+    pad its own escape column (`_connector_escapes`) so drops never pass
+    through a neighbouring pad.
 - **1.2 Single-pin solder pads at corners are a valid connector style for
   modules.** (`REF-BC2596` J1–J4.) Status: **pending** (footprint library has
   no 1-pin pad entry yet).
