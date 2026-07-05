@@ -112,7 +112,7 @@ def test_exports_spice_aware_schematic_symbols(tmp_path: Path) -> None:
         '(property "Sim.Pins" "1=+ 2=-"',
         '(property "Sim.Params" "dc=5 ampl=0 f=1k ac=1"',
         '(property "Sim.Device" "D"',
-        '(property "Sim.Pins" "1=A 2=K"',
+        '(property "Sim.Pins" "1=K 2=A"',
         '(property "Sim.Params" "is=1e-14 n=2 rs=10 cjo=2p"',
         "(power global)",
         "(pin power_in line",

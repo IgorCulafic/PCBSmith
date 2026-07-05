@@ -49,10 +49,12 @@ def _fixture() -> tuple[BoardNetlist, LedArtPlan]:
             _component("D2", LED_FOOTPRINT),
         ),
         nets=(
+            # KiCad pin convention (rule 8.4): LED pin 1 = cathode. Current
+            # enters each LED at pin 2 (anode) and leaves at pin 1.
             BoardNet(name="/VIN", nodes=(("P1", "1"), ("R1", "1"))),
-            BoardNet(name="/GND", nodes=(("P1", "2"), ("D2", "2"))),
-            BoardNet(name="Net-(R1-Pad2)", nodes=(("R1", "2"), ("D1", "1"))),
-            BoardNet(name="Net-(D1-Pad2)", nodes=(("D1", "2"), ("D2", "1"))),
+            BoardNet(name="/GND", nodes=(("P1", "2"), ("D2", "1"))),
+            BoardNet(name="/S1_1", nodes=(("R1", "2"), ("D1", "2"))),
+            BoardNet(name="/S1_2", nodes=(("D1", "1"), ("D2", "2"))),
         ),
     )
     return netlist, plan
@@ -78,7 +80,7 @@ def test_art_routing_keeps_series_links_in_column_and_rails_outside() -> None:
 
     for segment in layout.segments:
         assert segment.layer == "F.Cu"
-        if segment.net_name.startswith("Net-"):
+        if segment.net_name.startswith("/S"):
             for x in (segment.x1, segment.x2):
                 assert abs(x - ART_X0_MM) <= ART_PITCH_MM / 2
     rail_ys = {
@@ -103,9 +105,10 @@ def test_series_polarity_check_passes_and_flags_reversal() -> None:
         components=netlist.components,
         nets=(
             netlist.nets[0],
-            BoardNet(name="/GND", nodes=(("P1", "2"), ("D2", "1"))),
-            BoardNet(name="Net-(R1-Pad2)", nodes=(("R1", "2"), ("D1", "2"))),
-            BoardNet(name="Net-(D1-Pad2)", nodes=(("D1", "1"), ("D2", "2"))),
+            # Reversed: current would enter the LEDs at pin 1 (cathode).
+            BoardNet(name="/GND", nodes=(("P1", "2"), ("D2", "2"))),
+            BoardNet(name="/S1_1", nodes=(("R1", "2"), ("D1", "1"))),
+            BoardNet(name="/S1_2", nodes=(("D1", "2"), ("D2", "1"))),
         ),
     )
     report = run_design_checks(layout, reversed_netlist, spec)

@@ -241,8 +241,9 @@ def _render_library_symbols(*, name_prefix: str) -> str:
                 reference="C",
                 value="CP",
                 description="Polarized capacitor",
-                drawing=_capacitor_symbol_drawing().replace('"C_0_1"', '"CP_0_1"'),
+                drawing=_polarized_capacitor_symbol_drawing(),
                 pin_length_mm="4.318",
+                pin_one_at="right",
             ),
             _render_two_pin_box_library_symbol(
                 f"{name_prefix}LED",
@@ -251,6 +252,7 @@ def _render_library_symbols(*, name_prefix: str) -> str:
                 description="Indicator LED",
                 drawing=_led_symbol_drawing(),
                 pin_length_mm="3.81",
+                pin_one_at="right",
             ),
             _render_two_pin_box_library_symbol(
                 f"{name_prefix}L",
@@ -267,11 +269,47 @@ def _render_library_symbols(*, name_prefix: str) -> str:
                 description="Schottky catch diode",
                 drawing=_diode_symbol_drawing("D_SCHOTTKY_0_1"),
                 pin_length_mm="3.81",
+                pin_one_at="right",
             ),
             _render_lm2596_library_symbol(f"{name_prefix}LM2596"),
             _render_connector_01x02_library_symbol(f"{name_prefix}CONN_01X02"),
         )
     )
+
+
+_CP_PLUS_MARK = """      (polyline
+        (pts
+          (xy 3.175 1.905) (xy 4.445 1.905)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )
+      (polyline
+        (pts
+          (xy 3.81 1.27) (xy 3.81 2.54)
+        )
+        (stroke
+          (width 0.254)
+          (type default)
+        )
+        (fill
+          (type none)
+        )
+      )"""
+
+
+def _polarized_capacitor_symbol_drawing() -> str:
+    """Capacitor plates plus a "+" on the pin-1 side (KiCad C_Polarized)."""
+    base = _capacitor_symbol_drawing().replace('"C_0_1"', '"CP_0_1"')
+    body, separator, tail = base.rpartition("\n    )")
+    if not separator or tail:
+        raise ValueError("Capacitor symbol drawing changed shape unexpectedly.")
+    return body + "\n" + _CP_PLUS_MARK + "\n    )"
 
 
 def _inductor_symbol_drawing() -> str:

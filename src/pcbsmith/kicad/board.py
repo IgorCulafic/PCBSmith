@@ -13,6 +13,45 @@ from pcbsmith.kicad.cli import (
     find_kicad_cli,
     run_kicad_process,
 )
+from pcbsmith.kicad.library import (
+    FootprintLibraryError,
+    FootprintSpec,
+    PadSpec,
+    SilkLine,
+    SilkText,
+    build_footprint_library,
+    load_footprint,
+    render_embedded_footprint,
+    rotate_offset,
+)
+
+__all__ = [
+    "PadSpec",
+    "FootprintSpec",
+    "SilkLine",
+    "SilkText",
+    "rotate_offset",
+    "FOOTPRINT_LIBRARY",
+    "BoardGenerationError",
+    "BoardComponent",
+    "BoardNet",
+    "BoardNetlist",
+    "TrackSegment",
+    "ViaSpec",
+    "BoardLayout",
+    "placement_y",
+    "placement_rotation",
+    "rotated_bounds",
+    "net_name_in",
+    "is_power_net",
+    "export_kicad_netlist_xml",
+    "parse_board_netlist",
+    "generate_board",
+    "render_board",
+    "render_board_from_layout",
+    "render_board_previews",
+    "compute_board_layout",
+]
 
 KICAD_BOARD_VERSION = 20241229
 SIGNAL_TRACK_WIDTH_MM = 0.3
@@ -28,6 +67,7 @@ LANE_PITCH_MM = 1.6
 PART_GAP_MM = 2.5
 BOARD_MARGIN_MM = 3.0
 CONNECTOR_EDGE_PAD_OFFSET_MM = 2.0
+CONNECTOR_ESCAPE_PITCH_MM = 1.9
 BOARD_SHEET_ORIGIN_MM = 20.0
 EDGE_STROKE_MM = 0.1
 MAX_EXHAUSTIVE_ORDER_PARTS = 8
@@ -37,212 +77,15 @@ class BoardGenerationError(RuntimeError):
     pass
 
 
-@dataclass(frozen=True)
-class PadSpec:
-    name: str
-    x_mm: float
-    y_mm: float
-    kind: str
-    width_mm: float
-    height_mm: float
-    drill_mm: float = 0.0
+FOOTPRINT_LIBRARY: dict[str, FootprintSpec] = build_footprint_library()
 
-
-@dataclass(frozen=True)
-class SilkLine:
-    """A polarity/orientation mark line on F.SilkS, footprint-local mm."""
-
-    x1: float
-    y1: float
-    x2: float
-    y2: float
-
-
-@dataclass(frozen=True)
-class SilkText:
-    """A small mark text (for example "+" / "-") on F.SilkS, local mm."""
-
-    text: str
-    x: float
-    y: float
-
-
-@dataclass(frozen=True)
-class FootprintSpec:
-    pads: tuple[PadSpec, ...]
-    fab_rect: tuple[float, float, float, float]
-    silk_rect: tuple[float, float, float, float] | None
-    x_min: float
-    x_max: float
-    y_min: float
-    y_max: float
-    attr: str
-    is_connector: bool = False
-    # Polarity marks per docs/pcb-design-rules.md section 8; glyph geometry
-    # follows the official KiCad footprint library (cathode bar, "+" cross).
-    silk_marks: tuple[SilkLine | SilkText, ...] = ()
-
-    def pads_named(self, name: str) -> tuple[PadSpec, ...]:
-        matches = tuple(pad for pad in self.pads if pad.name == name)
-        if not matches:
-            raise KeyError(name)
-        return matches
-
-
-def rotate_offset(dx: float, dy: float, rotation: float) -> tuple[float, float]:
-    """Rotate a footprint-local offset by the KiCad footprint rotation.
-
-    KiCad rotations are counter-clockwise on screen; board coordinates have
-    y pointing down, so +90 maps (right, down) to (up, right). Verified live
-    against KiCad DRC parity (a wrong transform strands every rotated pad).
-    """
-    normalized = rotation % 360
-    if normalized == 0:
-        return (dx, dy)
-    if normalized == 90:
-        return (dy, -dx)
-    if normalized == 180:
-        return (-dx, -dy)
-    if normalized == 270:
-        return (-dy, dx)
-    raise BoardGenerationError(
-        f"Only right-angle footprint rotations are supported, not {rotation}."
-    )
-
-
-_SMD_0603 = FootprintSpec(
-    pads=(
-        PadSpec(name="1", x_mm=-0.75, y_mm=0.0, kind="smd", width_mm=0.75, height_mm=0.95),
-        PadSpec(name="2", x_mm=0.75, y_mm=0.0, kind="smd", width_mm=0.75, height_mm=0.95),
-    ),
-    fab_rect=(-0.8, -0.4, 0.8, 0.4),
-    silk_rect=(-1.65, -0.9, 1.65, 0.9),
-    x_min=-1.75,
-    x_max=1.75,
-    y_min=-1.0,
-    y_max=1.0,
-    attr="smd",
-)
-
-# LED variant of the 0603 body: same pads, plus the standard cathode bar
-# (KiCad's LED_0603_1608Metric draws this bar at its cathode pad; our LED
-# symbol/footprint pair puts the cathode on pad 2, so the bar sits there).
-_LED_0603 = FootprintSpec(
-    pads=_SMD_0603.pads,
-    fab_rect=_SMD_0603.fab_rect,
-    silk_rect=_SMD_0603.silk_rect,
-    x_min=-1.75,
-    x_max=2.15,
-    y_min=-1.0,
-    y_max=1.0,
-    attr="smd",
-    silk_marks=(SilkLine(x1=1.9, y1=-0.9, x2=1.9, y2=0.9),),
-)
-
-# Power connector: "+" / "-" beside the pins so off-board wiring polarity is
-# obvious. PCBSmith topologies always put the positive rail on pin 1.
-_PIN_HEADER_1X02 = FootprintSpec(
-    pads=(
-        PadSpec(
-            name="1", x_mm=0.0, y_mm=0.0, kind="tht", width_mm=1.7, height_mm=1.7, drill_mm=1.0
-        ),
-        PadSpec(
-            name="2", x_mm=2.54, y_mm=0.0, kind="tht", width_mm=1.7, height_mm=1.7, drill_mm=1.0
-        ),
-    ),
-    fab_rect=(-1.27, -1.27, 3.81, 1.27),
-    silk_rect=None,
-    x_min=-1.4,
-    x_max=3.94,
-    y_min=-2.9,
-    y_max=1.4,
-    attr="through_hole",
-    is_connector=True,
-    silk_marks=(
-        SilkText(text="+", x=0.0, y=-2.2),
-        SilkText(text="-", x=2.54, y=-2.2),
-    ),
-)
-
-# LM2596S: pins 1-5 left to right at 1.7 mm pitch, tab carries pin 3 (GND).
-_TO_263_5_TABPIN3 = FootprintSpec(
-    pads=(
-        PadSpec(name="1", x_mm=-3.4, y_mm=6.3, kind="smd", width_mm=1.0, height_mm=2.2),
-        PadSpec(name="2", x_mm=-1.7, y_mm=6.3, kind="smd", width_mm=1.0, height_mm=2.2),
-        PadSpec(name="3", x_mm=0.0, y_mm=6.3, kind="smd", width_mm=1.0, height_mm=2.2),
-        PadSpec(name="4", x_mm=1.7, y_mm=6.3, kind="smd", width_mm=1.0, height_mm=2.2),
-        PadSpec(name="5", x_mm=3.4, y_mm=6.3, kind="smd", width_mm=1.0, height_mm=2.2),
-        PadSpec(name="3", x_mm=0.0, y_mm=-1.6, kind="smd", width_mm=10.8, height_mm=10.6),
-    ),
-    fab_rect=(-5.2, -7.0, 5.2, 5.0),
-    silk_rect=None,
-    x_min=-5.6,
-    x_max=5.6,
-    y_min=-7.2,
-    y_max=7.6,
-    attr="smd",
-)
-
-# Schottky diode: cathode bar on silk (our diode symbol/footprint pair puts
-# the cathode on pad 2).
-_D_SMA = FootprintSpec(
-    pads=(
-        PadSpec(name="1", x_mm=-2.15, y_mm=0.0, kind="smd", width_mm=2.4, height_mm=1.7),
-        PadSpec(name="2", x_mm=2.15, y_mm=0.0, kind="smd", width_mm=2.4, height_mm=1.7),
-    ),
-    fab_rect=(-2.3, -1.45, 2.3, 1.45),
-    silk_rect=(-2.45, -1.6, 2.45, 1.6),
-    x_min=-3.6,
-    x_max=3.9,
-    y_min=-1.8,
-    y_max=1.8,
-    attr="smd",
-    silk_marks=(SilkLine(x1=3.7, y1=-1.6, x2=3.7, y2=1.6),),
-)
-
-# Polarized electrolytic: "+" cross beside the positive pad (KiCad's
-# CP_Elec_8x10 draws the same cross; our capacitor pair puts + on pad 2).
-_CP_ELEC_8X10 = FootprintSpec(
-    pads=(
-        PadSpec(name="1", x_mm=-3.05, y_mm=0.0, kind="smd", width_mm=3.2, height_mm=1.6),
-        PadSpec(name="2", x_mm=3.05, y_mm=0.0, kind="smd", width_mm=3.2, height_mm=1.6),
-    ),
-    fab_rect=(-4.15, -4.15, 4.15, 4.15),
-    silk_rect=None,
-    x_min=-4.9,
-    x_max=4.9,
-    y_min=-5.4,
-    y_max=4.3,
-    attr="smd",
-    silk_marks=(
-        SilkLine(x1=2.55, y1=-4.75, x2=3.55, y2=-4.75),
-        SilkLine(x1=3.05, y1=-5.25, x2=3.05, y2=-4.25),
-    ),
-)
-
-_L_12X12 = FootprintSpec(
-    pads=(
-        PadSpec(name="1", x_mm=-4.35, y_mm=0.0, kind="smd", width_mm=4.4, height_mm=5.0),
-        PadSpec(name="2", x_mm=4.35, y_mm=0.0, kind="smd", width_mm=4.4, height_mm=5.0),
-    ),
-    fab_rect=(-6.25, -6.25, 6.25, 6.25),
-    silk_rect=None,
-    x_min=-6.8,
-    x_max=6.8,
-    y_min=-6.4,
-    y_max=6.4,
-    attr="smd",
-)
-
-FOOTPRINT_LIBRARY: dict[str, FootprintSpec] = {
-    "Resistor_SMD:R_0603_1608Metric": _SMD_0603,
-    "Capacitor_SMD:C_0603_1608Metric": _SMD_0603,
-    "LED_SMD:LED_0603_1608Metric": _LED_0603,
-    "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical": _PIN_HEADER_1X02,
-    "Package_TO_SOT_SMD:TO-263-5_TabPin3": _TO_263_5_TABPIN3,
-    "Diode_SMD:D_SMA": _D_SMA,
-    "Capacitor_SMD:CP_Elec_8x10": _CP_ELEC_8X10,
-    "Inductor_SMD:L_12x12mm_H8mm": _L_12X12,
+# Official KiCad footprints are drawn in their datasheet orientation; the row
+# layout needs pins spread along x facing the routing channel below, so some
+# packages take a default rotation (KiCad degrees, CCW on screen).
+ROW_DEFAULT_ROTATIONS: dict[str, float] = {
+    # TO-263-5 is drawn pins-left; rotation 90 turns pins 1-5 to face down
+    # (left to right) into the routing channel, with the tab above the row.
+    "Package_TO_SOT_SMD:TO-263-5_TabPin3": 90.0,
 }
 
 
@@ -300,6 +143,9 @@ class BoardLayout:
     part_y_mm: tuple[tuple[str, float], ...] = ()
     # Per-reference right-angle rotations (KiCad degrees, CCW); absent = 0.
     part_rotation: tuple[tuple[str, float], ...] = ()
+    # Copper zones (net_name, layer, rect in board mm) appended by layouts
+    # that pour planes; rendered as filled zones.
+    zones: tuple[tuple[str, str, tuple[float, float, float, float]], ...] = ()
 
 
 def placement_y(layout: BoardLayout, reference: str) -> float:
@@ -314,6 +160,21 @@ def placement_rotation(layout: BoardLayout, reference: str) -> float:
         if candidate == reference:
             return rotation
     return 0.0
+
+
+def rotated_bounds(
+    spec: FootprintSpec, rotation: float
+) -> tuple[float, float, float, float]:
+    """Footprint bounds (x_min, x_max, y_min, y_max) after rotation."""
+    corners = (
+        rotate_offset(spec.x_min, spec.y_min, rotation),
+        rotate_offset(spec.x_min, spec.y_max, rotation),
+        rotate_offset(spec.x_max, spec.y_min, rotation),
+        rotate_offset(spec.x_max, spec.y_max, rotation),
+    )
+    xs = [x for x, _ in corners]
+    ys = [y for _, y in corners]
+    return (min(xs), max(xs), min(ys), max(ys))
 
 
 def export_kicad_netlist_xml(
@@ -491,37 +352,45 @@ def compute_board_layout(
             "No board footprint geometry is defined for: " + ", ".join(unknown)
         )
 
+    rotations = {
+        component.reference: _row_rotation(component)
+        for component in netlist.components
+        if _row_rotation(component)
+    }
     placements = _place_components(netlist.components, netlist.nets, power_net_names)
     parts_row_y = max(
         MIN_PARTS_ROW_Y_MM,
         PARTS_ROW_TOP_MARGIN_MM
         + max(
-            -FOOTPRINT_LIBRARY[component.footprint].y_min
+            -_bounds_for(component, rotations)[2]
             for component, _ in placements
         ),
     )
     segments, vias, lane_bottom_y = _route_channel(
         netlist,
         placements,
+        rotations,
         parts_row_y=parts_row_y,
         power_net_names=power_net_names,
         sensitive_net_names=sensitive_net_names,
     )
     last_component, last_anchor = placements[-1]
     last_spec = FOOTPRINT_LIBRARY[last_component.footprint]
+    last_bounds = _bounds_for(last_component, rotations)
     if last_spec.is_connector and len(placements) > 1:
         # A trailing connector hugs the right board edge, mirroring the lead.
-        board_width = (
-            last_anchor
-            + max(pad.x_mm for pad in last_spec.pads)
-            + CONNECTOR_EDGE_PAD_OFFSET_MM
-        )
+        last_rotation = rotations.get(last_component.reference, 0.0)
+        pad_xs = [
+            rotate_offset(pad.x_mm, pad.y_mm, last_rotation)[0]
+            for pad in last_spec.pads
+        ]
+        board_width = last_anchor + max(pad_xs) + CONNECTOR_EDGE_PAD_OFFSET_MM
     else:
-        board_width = last_anchor + last_spec.x_max + BOARD_MARGIN_MM
+        board_width = last_anchor + last_bounds[1] + BOARD_MARGIN_MM
     board_width = max(
         board_width,
         max(
-            anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_max
+            anchor_x + _bounds_for(component, rotations)[1]
             for component, anchor_x in placements
         ),
     )
@@ -533,7 +402,20 @@ def compute_board_layout(
         width_mm=board_width,
         height_mm=board_height,
         parts_row_y_mm=parts_row_y,
+        part_rotation=tuple(sorted(rotations.items())),
     )
+
+
+def _row_rotation(component: BoardComponent) -> float:
+    return ROW_DEFAULT_ROTATIONS.get(component.footprint, 0.0)
+
+
+def _bounds_for(
+    component: BoardComponent,
+    rotations: dict[str, float],
+) -> tuple[float, float, float, float]:
+    spec = FOOTPRINT_LIBRARY[component.footprint]
+    return rotated_bounds(spec, rotations.get(component.reference, 0.0))
 
 
 def net_name_in(net_name: str, names: frozenset[str]) -> bool:
@@ -568,20 +450,48 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
     for net in netlist.nets:
         sections.append(f'  (net {net_numbers[net.name]} {_q(net.name)})')
     for component, anchor_x in layout.placements:
-        sections.append(
-            _render_footprint(
-                component,
-                anchor_x,
-                pad_nets,
-                net_numbers,
-                anchor_y=placement_y(layout, component.reference),
-                rotation=placement_rotation(layout, component.reference),
-            )
+        spec = FOOTPRINT_LIBRARY[component.footprint]
+        rotation = placement_rotation(layout, component.reference)
+        bindings: dict[str, tuple[int, str]] = {}
+        for pad in spec.pads:
+            net_name = pad_nets.get((component.reference, pad.name))
+            if net_name is not None:
+                bindings[pad.name] = (net_numbers[net_name], net_name)
+        # Text angles in board files are TOTAL angles, so 0 keeps the
+        # marks upright regardless of the footprint rotation.
+        marks = tuple(
+            (mark.text, mark.x, mark.y, 0.0)
+            for mark in spec.silk_marks
+            if isinstance(mark, SilkText)
         )
+        _bind_unnamed_pads(spec, bindings)
+        try:
+            sections.append(
+                render_embedded_footprint(
+                    load_footprint(component.footprint),
+                    reference=component.reference,
+                    value=component.value,
+                    x_mm=anchor_x + BOARD_SHEET_ORIGIN_MM,
+                    y_mm=placement_y(layout, component.reference)
+                    + BOARD_SHEET_ORIGIN_MM,
+                    rotation=rotation,
+                    uuid_path=component.uuid_path,
+                    pad_nets=bindings,
+                    extra_fields=component.fields,
+                    extra_silk_texts=marks,
+                    force_board_only=spec.board_only,
+                )
+            )
+        except FootprintLibraryError as exc:
+            raise BoardGenerationError(str(exc)) from exc
     for segment in layout.segments:
         sections.append(_segment(segment, net_numbers))
     for via in layout.vias:
         sections.append(_via(via, net_numbers))
+    for zone_net, zone_layer, zone_rect in layout.zones:
+        sections.append(
+            _zone(zone_net, zone_layer, zone_rect, net_numbers)
+        )
     origin = BOARD_SHEET_ORIGIN_MM
     sections.append(
         f"""  (gr_rect
@@ -594,6 +504,27 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
   )"""
     )
     return "\n".join(("\n".join(sections), ")", ""))
+
+
+def _bind_unnamed_pads(
+    spec: FootprintSpec,
+    bindings: dict[str, tuple[int, str]],
+) -> None:
+    """Give unnamed pads (thermal-tab paste splits) the net of the named pad
+    they overlap, so DRC does not flag mask bridges to a no-net pad."""
+    unnamed = [pad for pad in spec.pads if not pad.name]
+    if not unnamed or "" in bindings:
+        return
+    for pad in unnamed:
+        for named in spec.pads:
+            if not named.name or named.name not in bindings:
+                continue
+            if (
+                abs(pad.x_mm - named.x_mm) * 2 < pad.width_mm + named.width_mm
+                and abs(pad.y_mm - named.y_mm) * 2 < pad.height_mm + named.height_mm
+            ):
+                bindings[""] = bindings[named.name]
+                return
 
 
 POWER_NET_SPAN_WEIGHT = 3.0
@@ -615,14 +546,19 @@ def _anchor_row(
     cursor = 0.0
     for index, component in enumerate(ordered):
         spec = FOOTPRINT_LIBRARY[component.footprint]
+        rotation = _row_rotation(component)
+        x_min, x_max, _, _ = rotated_bounds(spec, rotation)
         if index == 0 and spec.is_connector:
             # The leading connector hugs the board corner so off-board wiring
             # lands at the edge, matching hand-layout convention.
-            anchor_x = CONNECTOR_EDGE_PAD_OFFSET_MM - spec.pads[0].x_mm
+            first_pad = rotate_offset(
+                spec.pads[0].x_mm, spec.pads[0].y_mm, rotation
+            )
+            anchor_x = CONNECTOR_EDGE_PAD_OFFSET_MM - first_pad[0]
         else:
-            anchor_x = max(cursor, BOARD_MARGIN_MM) - spec.x_min
+            anchor_x = max(cursor, BOARD_MARGIN_MM) - x_min
         placements.append((component, anchor_x))
-        cursor = anchor_x + spec.x_max + PART_GAP_MM
+        cursor = anchor_x + x_max + PART_GAP_MM
     return tuple(placements)
 
 
@@ -714,6 +650,7 @@ def _row_net_span(
 def _route_channel(
     netlist: BoardNetlist,
     placements: tuple[tuple[BoardComponent, float], ...],
+    rotations: dict[str, float],
     *,
     parts_row_y: float = MIN_PARTS_ROW_Y_MM,
     power_net_names: frozenset[str] = frozenset(),
@@ -723,6 +660,7 @@ def _route_channel(
         component.reference: (anchor_x, FOOTPRINT_LIBRARY[component.footprint])
         for component, anchor_x in placements
     }
+    escape_x = _connector_escapes(placements, rotations)
     segments: list[TrackSegment] = []
     vias: list[ViaSpec] = []
     lane_index = 0
@@ -745,6 +683,7 @@ def _route_channel(
         pads_by_column: dict[float, float] = {}
         for reference, pin in net.nodes:
             anchor_x, spec = anchor_by_reference[reference]
+            rotation = rotations.get(reference, 0.0)
             try:
                 matching_pads = spec.pads_named(pin)
             except KeyError as exc:
@@ -752,8 +691,26 @@ def _route_channel(
                     f"Footprint for {reference} has no pad named {pin!r}."
                 ) from exc
             for pad in matching_pads:
-                pad_x = round(anchor_x + pad.x_mm, 6)
-                pad_y = parts_row_y + pad.y_mm
+                dx, dy = rotate_offset(pad.x_mm, pad.y_mm, rotation)
+                pad_x = round(anchor_x + dx, 6)
+                pad_y = parts_row_y + dy
+                stub_x = escape_x.get((reference, pin))
+                if stub_x is not None:
+                    # Escape stub: the pad leaves its stacked column
+                    # horizontally before dropping, so the drop does not
+                    # pass through the pad below it.
+                    segments.append(
+                        TrackSegment(
+                            x1=pad_x,
+                            y1=pad_y,
+                            x2=stub_x,
+                            y2=pad_y,
+                            layer="F.Cu",
+                            net_name=net.name,
+                            width_mm=track_width,
+                        )
+                    )
+                    pad_x = round(stub_x, 6)
                 if pad_x not in pads_by_column or pad_y < pads_by_column[pad_x]:
                     pads_by_column[pad_x] = pad_y
         if len(pads_by_column) < 2:
@@ -797,6 +754,49 @@ def _route_channel(
     return tuple(segments), tuple(vias), lane_bottom_y
 
 
+def _connector_escapes(
+    placements: tuple[tuple[BoardComponent, float], ...],
+    rotations: dict[str, float],
+) -> dict[tuple[str, str], float]:
+    """Escape drop columns for connector pads stacked along a board edge.
+
+    The official vertical pin header stacks its pads in y, so all pads share
+    one x column. The lowest pad (closest to the routing channel) drops
+    straight; each pad above it detours horizontally into its own column —
+    towards the board interior — before dropping past its neighbours.
+    """
+    escapes: dict[tuple[str, str], float] = {}
+    if not placements:
+        return escapes
+    last_reference = placements[-1][0].reference
+    for index, (component, anchor_x) in enumerate(placements):
+        spec = FOOTPRINT_LIBRARY[component.footprint]
+        if not spec.is_connector:
+            continue
+        rotation = rotations.get(component.reference, 0.0)
+        placed = [
+            (pad, rotate_offset(pad.x_mm, pad.y_mm, rotation)) for pad in spec.pads
+        ]
+        columns: dict[float, list[tuple[PadSpec, float]]] = {}
+        for pad, (dx, dy) in placed:
+            columns.setdefault(round(anchor_x + dx, 6), []).append((pad, dy))
+        # Trailing (right-edge) connectors escape leftwards into the board.
+        direction = (
+            -1.0
+            if (component.reference == last_reference and index > 0)
+            else 1.0
+        )
+        for column_x, pads in columns.items():
+            if len(pads) < 2:
+                continue
+            pads.sort(key=lambda item: item[1], reverse=True)  # lowest first
+            for rank, (pad, _) in enumerate(pads[1:], start=1):
+                escapes[(component.reference, pad.name)] = (
+                    column_x + direction * CONNECTOR_ESCAPE_PITCH_MM * rank
+                )
+    return escapes
+
+
 def _segment(segment: TrackSegment, net_numbers: dict[str, int]) -> str:
     origin = BOARD_SHEET_ORIGIN_MM
     return (
@@ -814,6 +814,39 @@ def _via(via: ViaSpec, net_numbers: dict[str, int]) -> str:
         f'(drill {_mm(via.drill_mm)}) (layers "F.Cu" "B.Cu") '
         f"(net {net_numbers[via.net_name]}) (uuid {uuid4()}))"
     )
+
+
+def _zone(
+    net_name: str,
+    layer: str,
+    rect: tuple[float, float, float, float],
+    net_numbers: dict[str, int],
+) -> str:
+    origin = BOARD_SHEET_ORIGIN_MM
+    x1, y1, x2, y2 = rect
+    points = "\n          ".join(
+        f"(xy {_mm(x + origin)} {_mm(y + origin)})"
+        for x, y in ((x1, y1), (x2, y1), (x2, y2), (x1, y2))
+    )
+    return f"""  (zone
+    (net {net_numbers[net_name]})
+    (net_name {_q(net_name)})
+    (layer "{layer}")
+    (uuid {uuid4()})
+    (hatch edge 0.5)
+    (connect_pads (clearance 0.5))
+    (min_thickness 0.25)
+    (filled_areas_thickness no)
+    (fill yes
+      (thermal_gap 0.5)
+      (thermal_bridge_width 0.5)
+    )
+    (polygon
+      (pts
+          {points}
+      )
+    )
+  )"""
 
 
 def _render_header() -> str:
@@ -840,142 +873,6 @@ def _render_header() -> str:
     (39 "F.Mask" user)
     (44 "Edge.Cuts" user)
   )"""
-
-
-def _render_footprint(
-    component: BoardComponent,
-    anchor_x: float,
-    pad_nets: dict[tuple[str, str], str],
-    net_numbers: dict[str, int],
-    *,
-    anchor_y: float = MIN_PARTS_ROW_Y_MM,
-    rotation: float = 0.0,
-) -> str:
-    spec = FOOTPRINT_LIBRARY[component.footprint]
-    center_x = (spec.x_min + spec.x_max) / 2
-    rotation_clause = f" {_mm(rotation)}" if rotation else ""
-    at_clause = (
-        f"{_mm(anchor_x + BOARD_SHEET_ORIGIN_MM)} "
-        f"{_mm(anchor_y + BOARD_SHEET_ORIGIN_MM)}{rotation_clause}"
-    )
-    parts: list[str] = [
-        f"""  (footprint {_q(component.footprint)}
-    (layer "F.Cu")
-    (uuid {uuid4()})
-    (at {at_clause})
-    (property "Reference" {_q(component.reference)}
-      (at {_mm(center_x)} {_mm(spec.y_min - 1.2)} 0)
-      (layer "F.SilkS")
-      (uuid {uuid4()})
-      (effects
-        (font
-          (size 0.8 0.8)
-          (thickness 0.12)
-        )
-      )
-    )
-    (property "Value" {_q(component.value)}
-      (at {_mm(center_x)} 0 0)
-      (layer "F.Fab")
-      (uuid {uuid4()})
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.06)
-        )
-      )
-    )
-    (path "/{component.uuid_path.strip('/')}")
-    (attr {spec.attr})"""
-    ]
-    for field_name, field_value in component.fields:
-        parts.append(
-            f"""    (property {_q(field_name)} {_q(field_value)}
-      (at 0 0 0)
-      (layer "F.Fab")
-      (hide yes)
-      (uuid {uuid4()})
-      (effects
-        (font
-          (size 0.5 0.5)
-          (thickness 0.06)
-        )
-      )
-    )"""
-        )
-    parts.append(_fp_rect(spec.fab_rect, "F.Fab", 0.08))
-    if spec.silk_rect is not None:
-        parts.append(_fp_rect(spec.silk_rect, "F.SilkS", 0.1))
-    for mark in spec.silk_marks:
-        if isinstance(mark, SilkLine):
-            parts.append(
-                f"""    (fp_line
-      (start {_mm(mark.x1)} {_mm(mark.y1)})
-      (end {_mm(mark.x2)} {_mm(mark.y2)})
-      (stroke (width 0.15) (type solid))
-      (layer "F.SilkS")
-      (uuid {uuid4()})
-    )"""
-            )
-        else:
-            # Counter-rotate mark text so "+" / "-" stay upright on rotated
-            # footprints (KiCad adds the footprint angle to text angles).
-            parts.append(
-                f"""    (fp_text user {_q(mark.text)}
-      (at {_mm(mark.x)} {_mm(mark.y)} {_mm((360 - rotation) % 360)})
-      (layer "F.SilkS")
-      (uuid {uuid4()})
-      (effects
-        (font
-          (size 1 1)
-          (thickness 0.15)
-        )
-      )
-    )"""
-            )
-    for pad in spec.pads:
-        net_name = pad_nets.get((component.reference, pad.name))
-        net_clause = (
-            f"      (net {net_numbers[net_name]} {_q(net_name)})\n"
-            if net_name is not None
-            else ""
-        )
-        if pad.kind == "smd":
-            parts.append(
-                f"""    (pad {_q(pad.name)} smd roundrect
-      (at {_mm(pad.x_mm)} {_mm(pad.y_mm)})
-      (size {_mm(pad.width_mm)} {_mm(pad.height_mm)})
-      (layers "F.Cu" "F.Paste" "F.Mask")
-      (roundrect_rratio 0.25)
-{net_clause}      (pintype "passive")
-      (uuid {uuid4()})
-    )"""
-            )
-        else:
-            parts.append(
-                f"""    (pad {_q(pad.name)} thru_hole circle
-      (at {_mm(pad.x_mm)} {_mm(pad.y_mm)})
-      (size {_mm(pad.width_mm)} {_mm(pad.height_mm)})
-      (drill {_mm(pad.drill_mm)})
-      (layers "*.Cu" "*.Mask")
-{net_clause}      (pintype "passive")
-      (uuid {uuid4()})
-    )"""
-            )
-    parts.append("  )")
-    return "\n".join(parts)
-
-
-def _fp_rect(rect: tuple[float, float, float, float], layer: str, stroke: float) -> str:
-    x1, y1, x2, y2 = rect
-    return f"""    (fp_rect
-      (start {_mm(x1)} {_mm(y1)})
-      (end {_mm(x2)} {_mm(y2)})
-      (stroke (width {_mm(stroke)}) (type solid))
-      (fill none)
-      (layer "{layer}")
-      (uuid {uuid4()})
-    )"""
 
 
 def _element_text(parent: ET.Element, tag: str) -> str | None:

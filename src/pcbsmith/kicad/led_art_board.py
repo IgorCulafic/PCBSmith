@@ -42,9 +42,10 @@ TOP_RAIL_Y_MM = 3.5
 BOTTOM_RAIL_Y_MM = 39.0
 CONNECTOR_ANCHOR_X_MM = 2.0
 CONNECTOR_ANCHOR_Y_MM = 20.0
-# Edge-parallel connector: pins stack along the left board edge (rotation
-# -90 puts pin 1 / "+" on top, matching the user's hand-edited reference).
-CONNECTOR_ROTATION_DEG = 270.0
+# Edge-parallel connector: the official 1x02 vertical header already stacks
+# its pads in y (pin 1 / "+" on top), matching the user's hand-edited
+# reference without any rotation.
+CONNECTOR_ROTATION_DEG = 0.0
 JOG_CLEARANCE_MM = 1.5
 BOARD_MARGIN_MM = 3.0
 

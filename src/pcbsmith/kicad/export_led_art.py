@@ -41,9 +41,9 @@ CONNECTOR_X_MM = 15.24
 CONNECTOR_Y_MM = 50.8
 CONNECTOR_VIN_STUB_X_MM = 17.78
 CONNECTOR_GND_STUB_X_MM = 12.7
-# Probing the exported netlist showed rotation 90 puts pin 1 (the LED anode)
-# at the BOTTOM; rotation 270 puts it at the TOP so current flows
-# rail -> pin 1 -> pin 2 -> next element and every anode faces supply.
+# Rotation 270 puts the LEFT symbol pin at the TOP. With KiCad pin numbering
+# (rule 8.4: LED pin 1 = cathode, drawn on the right), the top pin is the
+# ANODE (pin 2), so current flows rail -> anode -> cathode down every string.
 ELEMENT_ROTATION = 270
 
 
@@ -235,6 +235,7 @@ def _render_library_symbols(*, name_prefix: str) -> str:
                 description="Matrix LED",
                 drawing=_led_symbol_drawing(),
                 pin_length_mm="3.81",
+                pin_one_at="right",
             ),
             _render_connector_01x02_library_symbol(f"{name_prefix}CONN_01X02"),
         )

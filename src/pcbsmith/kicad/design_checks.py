@@ -18,6 +18,7 @@ from pcbsmith.kicad.board import (
     BoardNetlist,
     placement_rotation,
     rotate_offset,
+    rotated_bounds,
 )
 
 CONNECTOR_EDGE_ZONE_MM = 6.0
@@ -128,13 +129,13 @@ def _check_switching_cluster(
     ]
     if len(members) < 2:
         return ()
-    extents = [
-        (
-            anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_min,
-            anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_max,
+    extents = []
+    for component, anchor_x in members:
+        bounds = rotated_bounds(
+            FOOTPRINT_LIBRARY[component.footprint],
+            placement_rotation(layout, component.reference),
         )
-        for component, anchor_x in members
-    ]
+        extents.append((anchor_x + bounds[0], anchor_x + bounds[1]))
     span = max(right for _, right in extents) - min(left for left, _ in extents)
     budget = (
         sum(right - left for left, right in extents)
@@ -169,10 +170,10 @@ def _check_series_led_polarity(
 ) -> tuple[ReviewFinding, ...]:
     """Rule 7.1: series LED strings chain anode-to-cathode, supply to ground.
 
-    Our LED symbol and footprint use pin 1 = anode. Along a string, current
-    must leave each element at pin 2 and enter the next LED at pin 1;
-    otherwise an LED is reverse-biased and the string never lights, even
-    though ERC, DRC, and parity all pass.
+    Per the KiCad library convention (rule 8.4), LED pin 1 is the CATHODE.
+    Current must enter every LED at its anode (pin 2) from the element above
+    it in the string; otherwise an LED is reverse-biased and the string never
+    lights, even though ERC, DRC, and parity all pass.
     """
     net_by_node = {
         (reference, pin): net for net in netlist.nets for reference, pin in net.nodes
@@ -180,8 +181,9 @@ def _check_series_led_polarity(
     findings: list[ReviewFinding] = []
     for string in led_strings:
         for upper, lower in zip(string, string[1:], strict=False):
-            net = net_by_node.get((upper, "2"))
-            if net is None or (lower, "1") not in net.nodes:
+            net = net_by_node.get((lower, "2"))
+            upstream = {reference for reference, _ in net.nodes} if net else set()
+            if net is None or upper not in upstream:
                 findings.append(
                     ReviewFinding(
                         rule="7.1",
@@ -189,8 +191,8 @@ def _check_series_led_polarity(
                         scope="net",
                         where=f"{upper} -> {lower}",
                         evidence=(
-                            f"The series link from {upper} pin 2 does not land "
-                            f"on {lower} pin 1 (anode); the LED would be "
+                            f"The series link from {upper} does not land on "
+                            f"{lower} pin 2 (anode); the LED would be "
                             "reverse-biased and the string would stay dark."
                         ),
                         suggested_action=(
@@ -209,16 +211,22 @@ def _check_sensitive_net_under_inductor(
     inductor_references: tuple[str, ...],
 ) -> tuple[ReviewFinding, ...]:
     sensitive = {name.lstrip("/").upper() for name in sensitive_net_names}
-    inductor_bodies = [
-        (
-            component.reference,
-            anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_min,
-            anchor_x + FOOTPRINT_LIBRARY[component.footprint].x_max,
-            layout.parts_row_y_mm + FOOTPRINT_LIBRARY[component.footprint].y_max,
+    inductor_bodies = []
+    for component, anchor_x in layout.placements:
+        if component.reference not in inductor_references:
+            continue
+        bounds = rotated_bounds(
+            FOOTPRINT_LIBRARY[component.footprint],
+            placement_rotation(layout, component.reference),
         )
-        for component, anchor_x in layout.placements
-        if component.reference in inductor_references
-    ]
+        inductor_bodies.append(
+            (
+                component.reference,
+                anchor_x + bounds[0],
+                anchor_x + bounds[1],
+                layout.parts_row_y_mm + bounds[3],
+            )
+        )
     findings: list[ReviewFinding] = []
     for segment in layout.segments:
         if segment.layer != "B.Cu":

@@ -133,9 +133,10 @@ def _render_library_symbols(*, name_prefix: str) -> str:
                 pin_length_mm="3.81",
                 sim_properties=(
                     ("Sim.Device", "D"),
-                    ("Sim.Pins", "1=A 2=K"),
+                    ("Sim.Pins", "1=K 2=A"),
                     ("Sim.Params", "is=1e-14 n=2 rs=10 cjo=2p"),
                 ),
+                pin_one_at="right",
             ),
             _render_connector_01x02_library_symbol(f"{name_prefix}CONN_01X02"),
             _render_voltage_source_library_symbol(f"{name_prefix}VDC"),
@@ -237,7 +238,7 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
             footprint=component_footprints["D1"],
             extra_properties=(
                 ("Sim.Device", "D"),
-                ("Sim.Pins", "1=A 2=K"),
+                ("Sim.Pins", "1=K 2=A"),
                 ("Sim.Params", "is=1e-14 n=2 rs=10 cjo=2p"),
             ),
         ),
@@ -496,11 +497,18 @@ def _render_two_pin_box_library_symbol(
     drawing: str,
     pin_length_mm: str,
     sim_properties: tuple[tuple[str, str], ...] = (),
+    pin_one_at: str = "left",
 ) -> str:
     rendered_sim_properties = "".join(
         "\n    " + _library_property(name, value, 0, 0, hidden=True)
         for name, value in sim_properties
     )
+    # KiCad library convention (docs/pcb-design-rules.md rule 8.4): polarized
+    # parts put pin 1 on the marked terminal — diode/LED cathode, capacitor
+    # positive. Our diode drawings put the cathode bar on the RIGHT, so those
+    # symbols pass pin_one_at="right"; the pairing then matches the official
+    # KiCad footprints, whose pad 1 is the marked pad.
+    left_number, right_number = ("1", "2") if pin_one_at == "left" else ("2", "1")
     return f"""  (symbol "{name}"
     (pin_numbers
       (hide yes)
@@ -519,8 +527,8 @@ def _render_two_pin_box_library_symbol(
     {rendered_sim_properties}
 {drawing}
     (symbol "{value}_1_1"
-{_generic_pin("1", "1", -5.08, 0, 0, pin_length_mm)}
-{_generic_pin("2", "2", 5.08, 0, 180, pin_length_mm)}
+{_generic_pin(left_number, left_number, -5.08, 0, 0, pin_length_mm)}
+{_generic_pin(right_number, right_number, 5.08, 0, 180, pin_length_mm)}
     )
   )"""
 
