@@ -1,0 +1,17 @@
+{
+  "schema": "pcbsmith-local-model-config-v1",
+  "provider": "openai-compatible",
+  "base_url": "http://127.0.0.1:5001",
+  "model": "local-model",
+  "api_key": null,
+  "timeout_seconds": 120.0,
+  "use_json_mode": false,
+  "supports_multimodal": false,
+  "model_path": null,
+  "context_window_tokens": null,
+  "notes": [
+    "Run KoboldCPP, llama.cpp server, LM Studio, or another local runtime that exposes OpenAI-compatible /v1/chat/completions.",
+    "GGUF model files remain local assets and are not committed.",
+    "PCBSmith validates model output through the planner approval loop."
+  ]
+}

@@ -978,11 +978,22 @@ def _route_channel(
         for component, _ in placements
     )
     top_lane_base = parts_row_y - top_extent - TOP_LANE_GAP_MM
+    # The lane zone starts below the DEEPEST pad on the board; a tall
+    # stacked connector (1x08 header) reaches far below the anchor row and
+    # lanes must never fall inside its pad column (live DRC: via on pad 6).
+    bottom_extent = max(
+        rotated_bounds(
+            FOOTPRINT_LIBRARY[component.footprint],
+            rotations.get(component.reference, 0.0),
+        )[3]
+        for component, _ in placements
+    )
+    lane_start = max(LANE_START_OFFSET_MM, bottom_extent + TOP_LANE_GAP_MM)
     segments: list[TrackSegment] = []
     vias: list[ViaSpec] = []
     lane_index = 0
     top_lane_index = 0
-    lane_bottom_y = parts_row_y + LANE_START_OFFSET_MM
+    lane_bottom_y = parts_row_y + lane_start
     # Sensitive (high impedance) nets take the deepest lanes, maximising the
     # clearance between them and component bodies such as inductors.
     routed_nets = (
@@ -1001,6 +1012,10 @@ def _route_channel(
         # pads of multi-side packages drop UP into the mirrored top channel.
         down_columns: dict[float, float] = {}
         up_columns: dict[float, float] = {}
+        # Per-column drop width: columns fed through a fine-pitch fanout keep
+        # the clamped width all the way to the lane (a 0.8 mm power drop's
+        # round end cap grazed the neighbouring jog, live DRC).
+        column_widths: dict[float, float] = {}
         for reference, pin in net.nodes:
             anchor_x, spec = anchor_by_reference[reference]
             rotation = rotations.get(reference, 0.0)
@@ -1057,6 +1072,9 @@ def _route_channel(
                                 width_mm=pad_track_width,
                             )
                         )
+                    column_widths[spread_x] = min(
+                        column_widths.get(spread_x, track_width), pad_track_width
+                    )
                     if side_escape[0] == "north":
                         if spread_x not in up_columns or jog_y > up_columns[spread_x]:
                             up_columns[spread_x] = jog_y
@@ -1081,6 +1099,9 @@ def _route_channel(
                         )
                     )
                     pad_x = round(stub_x, 6)
+                    column_widths[pad_x] = min(
+                        column_widths.get(pad_x, track_width), pad_track_width
+                    )
                     if pad_x not in down_columns or pad_y < down_columns[pad_x]:
                         down_columns[pad_x] = pad_y
                     continue
@@ -1100,7 +1121,7 @@ def _route_channel(
         # bottom lane of its own: the cross-channel join carries it (a lone
         # via on an unused lane reports as dangling).
         if down_columns and (len(down_columns) >= 2 or not up_columns):
-            lane_y = parts_row_y + LANE_START_OFFSET_MM + lane_index * LANE_PITCH_MM
+            lane_y = parts_row_y + lane_start + lane_index * LANE_PITCH_MM
             lane_bottom_y = max(lane_bottom_y, lane_y)
             lane_index += 1
             for pad_x, pad_y in sorted(down_columns.items()):
@@ -1112,7 +1133,7 @@ def _route_channel(
                         y2=lane_y,
                         layer="F.Cu",
                         net_name=net.name,
-                        width_mm=track_width,
+                        width_mm=column_widths.get(pad_x, track_width),
                     )
                 )
                 vias.append(
@@ -1151,7 +1172,9 @@ def _route_channel(
                         y2=top_lane_y,
                         layer="F.Cu",
                         net_name=net.name,
-                        width_mm=min(track_width, SIGNAL_TRACK_WIDTH_MM),
+                        width_mm=column_widths.get(
+                            pad_x, min(track_width, SIGNAL_TRACK_WIDTH_MM)
+                        ),
                     )
                 )
                 vias.append(

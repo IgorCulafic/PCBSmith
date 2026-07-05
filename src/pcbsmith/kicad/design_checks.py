@@ -17,6 +17,7 @@ from pcbsmith.kicad.board import (
     BoardLayout,
     BoardNetlist,
     placement_rotation,
+    placement_y,
     rotate_offset,
     rotated_bounds,
 )
@@ -83,19 +84,25 @@ def run_design_checks(
 
 
 def _check_connector_edges(layout: BoardLayout) -> tuple[ReviewFinding, ...]:
+    # Rule 1.1: connectors belong at ANY board edge (user: they just need to
+    # be reachable for soldering and wiring), so all four edges qualify.
     findings: list[ReviewFinding] = []
     for component, anchor_x in layout.placements:
         spec = FOOTPRINT_LIBRARY[component.footprint]
         if not spec.is_connector:
             continue
         rotation = placement_rotation(layout, component.reference)
-        pad_xs = [
-            anchor_x + rotate_offset(pad.x_mm, pad.y_mm, rotation)[0]
-            for pad in spec.pads
+        anchor_y = placement_y(layout, component.reference)
+        pad_positions = [
+            rotate_offset(pad.x_mm, pad.y_mm, rotation) for pad in spec.pads
         ]
+        pad_xs = [anchor_x + dx for dx, _ in pad_positions]
+        pad_ys = [anchor_y + dy for _, dy in pad_positions]
         near_left = min(pad_xs) <= CONNECTOR_EDGE_ZONE_MM
         near_right = max(pad_xs) >= layout.width_mm - CONNECTOR_EDGE_ZONE_MM
-        if not (near_left or near_right):
+        near_top = min(pad_ys) <= CONNECTOR_EDGE_ZONE_MM
+        near_bottom = max(pad_ys) >= layout.height_mm - CONNECTOR_EDGE_ZONE_MM
+        if not (near_left or near_right or near_top or near_bottom):
             findings.append(
                 ReviewFinding(
                     rule="1.1",
@@ -104,13 +111,14 @@ def _check_connector_edges(layout: BoardLayout) -> tuple[ReviewFinding, ...]:
                     where=component.reference,
                     evidence=(
                         f"{component.reference} pads sit at x="
-                        f"{min(pad_xs):.1f}-{max(pad_xs):.1f}mm on a "
-                        f"{layout.width_mm:.1f}mm wide board, more than "
-                        f"{CONNECTOR_EDGE_ZONE_MM:g}mm from both edges."
+                        f"{min(pad_xs):.1f}-{max(pad_xs):.1f}mm, y="
+                        f"{min(pad_ys):.1f}-{max(pad_ys):.1f}mm on a "
+                        f"{layout.width_mm:.1f}x{layout.height_mm:.1f}mm board, "
+                        f"more than {CONNECTOR_EDGE_ZONE_MM:g}mm from every edge."
                     ),
                     suggested_action=(
-                        "Assign the connector to the leading (left) or trailing "
-                        "(right) edge group in the placer."
+                        "Move the connector to any board edge where it can be "
+                        "reached for soldering and wiring."
                     ),
                     source="check",
                 )

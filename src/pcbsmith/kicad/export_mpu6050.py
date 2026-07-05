@@ -52,16 +52,21 @@ MPU6050_PIN_NAMES = {
 # Net bound to each used pin; everything else gets a no-connect marker.
 MPU6050_PIN_NETS = {
     1: "GND",     # CLKIN: connect to GND if unused (p21)
+    6: "XDA",     # auxiliary I2C master data, broken out (GY-521 style)
+    7: "XCL",     # auxiliary I2C master clock, broken out
     8: "VDD",     # VLOGIC tied to VDD (p12: 1.8V+/-5% or VDD)
     9: "AD0",
     10: "REGOUT",
     11: "GND",    # FSYNC: connect to GND if unused (p21)
+    12: "INT",    # interrupt output, broken out
     13: "VDD",
     18: "GND",
     20: "CPOUT",
     23: "SCL",
     24: "SDA",
 }
+# Breakout header order matches the ubiquitous GY-521 module.
+HEADER_NETS = ("VDD", "GND", "SCL", "SDA", "XDA", "XCL", "AD0", "INT")
 
 U1_X = 88.9
 U1_Y = 63.5
@@ -124,7 +129,7 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
         )
 
     symbols = [
-        sym("PCBSmith:CONN_01X04", "P1", 30.48, 71.12),
+        sym("PCBSmith:CONN_01X08", "P1", 30.48, 76.2),
         sym("PCBSmith:MPU6050", "U1", U1_X, U1_Y),
     ]
     wires: list[str] = []
@@ -132,9 +137,8 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
     no_connects: list[str] = []
 
     # Connector pins stack upward from the anchor: pin 1 (VDD) lowest.
-    connector_nets = ("VDD", "GND", "SCL", "SDA")
-    for index, connector_net in enumerate(connector_nets):
-        y = 71.12 - index * 2.54
+    for index, connector_net in enumerate(HEADER_NETS):
+        y = 76.2 - index * 2.54
         wires.append(_wire((30.48, y), (30.48 + STUB_MM, y)))
         labels.append(_label(connector_net, 30.48 + STUB_MM, y))
 
@@ -225,7 +229,7 @@ def _render_library_symbols(*, name_prefix: str) -> str:
                 pin_length_mm="4.318",
             ),
             _render_mpu6050_library_symbol(f"{name_prefix}MPU6050"),
-            _render_connector_01x04_library_symbol(f"{name_prefix}CONN_01X04"),
+            render_connector_library_symbol(f"{name_prefix}CONN_01X08", pin_count=8),
         )
     )
 
@@ -279,11 +283,14 @@ def _render_mpu6050_library_symbol(name: str) -> str:
   )"""
 
 
-def _render_connector_01x04_library_symbol(name: str) -> str:
+def render_connector_library_symbol(name: str, *, pin_count: int) -> str:
+    """Generic 1xN pin-header symbol: pin 1 at the anchor, pins stack up."""
+    bare = name.split(":")[-1]
     pins = "\n".join(
         _generic_pin(str(pin), f"Pin_{pin}", 0, (pin - 1) * 2.54, 0, "2.54")
-        for pin in range(1, 5)
+        for pin in range(1, pin_count + 1)
     )
+    top = (pin_count - 1) * 2.54 + 1.27
     return f"""  (symbol "{name}"
     (pin_numbers
       (hide no)
@@ -295,14 +302,14 @@ def _render_connector_01x04_library_symbol(name: str) -> str:
     (in_bom yes)
     (on_board yes)
     {_library_property("Reference", "J", 3.81, -2.54)}
-    {_library_property("Value", "Conn_01x04", 3.81, 10.16)}
+    {_library_property("Value", bare, 3.81, top + 1.27)}
     {_library_property("Footprint", "", 0, 0, hidden=True)}
     {_library_property("Datasheet", "~", 0, 0, hidden=True)}
-    {_library_property("Description", "Generic four-pin connector", 0, 0, hidden=True)}
-    (symbol "CONN_01X04_0_1"
+    {_library_property("Description", "Generic pin header", 0, 0, hidden=True)}
+    (symbol "{bare}_0_1"
       (rectangle
         (start 1.27 -1.27)
-        (end 5.08 8.89)
+        (end 5.08 {top:g})
         (stroke
           (width 0.254)
           (type default)
@@ -312,7 +319,7 @@ def _render_connector_01x04_library_symbol(name: str) -> str:
         )
       )
     )
-    (symbol "CONN_01X04_1_1"
+    (symbol "{bare}_1_1"
 {pins}
     )
   )"""

@@ -28,9 +28,11 @@ to future, more complex designs.
 
 ## 1. Connectors and off-board interfaces
 
-- **1.1 Connectors belong at board edges or corners.** Off-board wiring must
-  not reach into the interior of the board. (`SESSION` — human review caught
-  interior placement; `REF-BC2596` uses four single-pin pads at the corners.)
+- **1.1 Connectors belong at board edges or corners — ANY edge.** Off-board
+  wiring must not reach into the interior of the board; which edge is a
+  layout choice, what matters is solder and wiring access. (`SESSION` — human
+  review caught interior placement and later clarified that all four edges
+  qualify; `REF-BC2596` uses four single-pin pads at the corners.)
   - Machine check: connector footprints are classified (`is_connector`); the
     first leads the row at the left edge and any further connectors close the
     row at the right edge, so power enters one side and exits the other.

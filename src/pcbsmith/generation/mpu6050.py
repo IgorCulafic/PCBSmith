@@ -109,11 +109,11 @@ def compose_mpu6050(
             ComponentRole(
                 reference="P1",
                 role="io_connector",
-                symbol_id="stdlib:CONN_01X04",
+                symbol_id="stdlib:CONN_01X08",
                 value=f"{supply_v:g}V I2C",
                 support_status="demo_only",
                 footprint=(
-                    "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
+                    "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical"
                 ),
                 evidence=pin_evidence,
             ),
@@ -134,7 +134,8 @@ def compose_mpu6050(
             resistor("R2", "i2c_scl_pullup"),
             resistor("R3", "address_select_pulldown"),
         ),
-        nets=("VDD", "GND", "SDA", "SCL", "AD0", "REGOUT", "CPOUT"),
+        nets=("VDD", "GND", "SDA", "SCL", "XDA", "XCL", "AD0", "INT",
+              "REGOUT", "CPOUT"),
         math=MathReport(
             status="warning",
             calculations=calculations,
