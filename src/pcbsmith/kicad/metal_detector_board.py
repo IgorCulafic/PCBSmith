@@ -20,11 +20,9 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.kicad.board import (
     BOARD_SHEET_ORIGIN_MM,
-    FOOTPRINT_LIBRARY,
     BoardComponent,
     BoardGenerationError,
     BoardLayout,
@@ -32,11 +30,16 @@ from pcbsmith.kicad.board import (
     export_kicad_netlist_xml,
     parse_board_netlist,
     render_board_from_layout,
-    rotate_offset,
 )
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
-from pcbsmith.kicad.clover_board import _Router
-from pcbsmith.kicad.pear_board import _silk_text
+from pcbsmith.kicad.shaped_board import (
+    NetLookup,
+    mask_opening_disc,
+    placed_pad,
+    splice_rect_tab,
+)
+from pcbsmith.kicad.shaped_board import Router as _Router
+from pcbsmith.kicad.shaped_board import silk_text as _silk_text
 
 # Coil head and handle (board coords, y down).
 COIL_CENTER = (40.0, 50.0)
@@ -98,31 +101,14 @@ def detector_outline() -> tuple[tuple[float, float], ...]:
                 round(cy + HEAD_RADIUS * math.sin(theta), 3),
             )
         )
-    spliced: list[tuple[float, float]] = []
-    handle_done = False
-    for point in points:
-        in_zone = abs(point[0] - cx) < HANDLE_HALF_WIDTH and point[1] < join_y + 2.0
-        if in_zone:
-            if not handle_done:
-                spliced.extend(
-                    (
-                        (cx - HANDLE_HALF_WIDTH, join_y),
-                        (cx - HANDLE_HALF_WIDTH, HANDLE_END_Y),
-                        (cx + HANDLE_HALF_WIDTH, HANDLE_END_Y),
-                        (cx + HANDLE_HALF_WIDTH, join_y),
-                    )
-                )
-                handle_done = True
-            continue
-        spliced.append(point)
-    deduped: list[tuple[float, float]] = []
-    for point in spliced:
-        rounded = (round(point[0], 3), round(point[1], 3))
-        if not deduped or rounded != deduped[-1]:
-            deduped.append(rounded)
-    if deduped[0] == deduped[-1]:
-        deduped.pop()
-    return tuple(deduped)
+    return splice_rect_tab(
+        points,
+        center_x=cx,
+        half_width=HANDLE_HALF_WIDTH,
+        end_y=HANDLE_END_Y,
+        join_y=join_y,
+        outward_up=True,
+    )
 
 
 def spiral_points(step_deg: float = 2.0) -> list[tuple[float, float]]:
@@ -151,22 +137,8 @@ def spiral_inner_radius() -> float:
 def detector_graphics(origin: float) -> tuple[str, ...]:
     graphics: list[str] = []
     # Soldermask opening: the exposed-detector disc over the spiral.
-    cx, cy = COIL_CENTER
-    rendered = "\n          ".join(
-        f"(xy {cx + MASK_OPENING_RADIUS * math.cos(a) + origin:.3f} "
-        f"{cy + MASK_OPENING_RADIUS * math.sin(a) + origin:.3f})"
-        for a in (2 * math.pi * s / 96 for s in range(96))
-    )
     graphics.append(
-        f"""  (gr_poly
-    (pts
-          {rendered}
-    )
-    (stroke (width 0) (type solid))
-    (fill yes)
-    (layer "F.Mask")
-    (uuid {uuid4()})
-  )"""
+        mask_opening_disc(COIL_CENTER, MASK_OPENING_RADIUS, origin)
     )
     # Connector pin labels on the handle.
     for index, label in enumerate(("V", "G", "F")):
@@ -178,24 +150,8 @@ def detector_graphics(origin: float) -> tuple[str, ...]:
 
 def compute_detector_board_layout(netlist: BoardNetlist) -> BoardLayout:
     by_ref = {component.reference: component for component in netlist.components}
-    net_of = {
-        (reference, pin): net.name
-        for net in netlist.nets
-        for reference, pin in net.nodes
-    }
-
-    def net(reference: str, pin: str) -> str:
-        name = net_of.get((reference, pin))
-        if name is None:
-            raise BoardGenerationError(f"{reference}.{pin} has no net.")
-        return name
-
-    def expect(reference: str, pin: str, expected: str) -> None:
-        actual = net(reference, pin)
-        if actual != expected:
-            raise BoardGenerationError(
-                f"{reference}.{pin} is on {actual}, expected {expected}."
-            )
+    nets = NetLookup(netlist)
+    expect = nets.expect
 
     placements: list[tuple[BoardComponent, float]] = []
     part_y: list[tuple[str, float]] = []
@@ -217,20 +173,14 @@ def compute_detector_board_layout(netlist: BoardNetlist) -> BoardLayout:
     expect("L1", "1", "/VCC")
     expect("L1", "2", "/COL")
 
-    rotations = {ref: rot for ref, (_x, _y, rot) in PLACEMENTS.items()}
-
     def pad(reference: str, pin: str) -> tuple[float, float]:
-        x, y, _rot = PLACEMENTS[reference]
-        spec = FOOTPRINT_LIBRARY[by_ref[reference].footprint]
-        pad_spec = spec.pads_named(pin)[0]
-        dx, dy = rotate_offset(pad_spec.x_mm, pad_spec.y_mm, rotations[reference])
-        return (round(x + dx, 4), round(y + dy, 4))
+        x, y, rotation = PLACEMENTS[reference]
+        return placed_pad(
+            by_ref[reference].footprint, pin, anchor=(x, y), rotation=rotation
+        )
 
     def pad_for(reference: str, net_name: str) -> tuple[float, float]:
-        for pin in ("1", "2"):
-            if net(reference, pin) == net_name:
-                return pad(reference, pin)
-        raise BoardGenerationError(f"{reference} has no pin on {net_name}.")
+        return pad(reference, nets.pin_on(reference, net_name))
 
     router = _Router()
 

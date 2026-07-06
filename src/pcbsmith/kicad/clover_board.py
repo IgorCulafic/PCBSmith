@@ -29,8 +29,6 @@ from pcbsmith.kicad.board import (
     BoardGenerationError,
     BoardLayout,
     BoardNetlist,
-    TrackSegment,
-    ViaSpec,
     _side_escapes,
     export_kicad_netlist_xml,
     parse_board_netlist,
@@ -38,6 +36,9 @@ from pcbsmith.kicad.board import (
     rotate_offset,
 )
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
+from pcbsmith.kicad.shaped_board import Router as _Router
+from pcbsmith.kicad.shaped_board import circle_points as _circle_points
+from pcbsmith.kicad.shaped_board import silk_poly as _silk_poly
 
 CX = 21.0
 CY = 19.5
@@ -196,33 +197,6 @@ def clover_outline() -> tuple[tuple[float, float], ...]:
 # Silkscreen art: a little clover of four filled hearts plus the motto.
 
 
-def _circle_points(
-    center: tuple[float, float], radius: float, steps: int = 24
-) -> list[tuple[float, float]]:
-    return [
-        (
-            center[0] + radius * math.cos(2 * math.pi * step / steps),
-            center[1] + radius * math.sin(2 * math.pi * step / steps),
-        )
-        for step in range(steps)
-    ]
-
-
-def _silk_poly(points: Sequence[tuple[float, float]], origin: float) -> str:
-    rendered = "\n          ".join(
-        f"(xy {x + origin:.3f} {y + origin:.3f})" for x, y in points
-    )
-    return f"""  (gr_poly
-    (pts
-          {rendered}
-    )
-    (stroke (width 0.12) (type solid))
-    (fill yes)
-    (layer "F.SilkS")
-    (uuid {uuid4()})
-  )"""
-
-
 def clover_silk_graphics(origin: float, motto: str) -> tuple[str, ...]:
     graphics: list[str] = []
     art_center = (CX, CY - 0.3)
@@ -345,32 +319,6 @@ def _bezier_toward(
         candidates,
         key=lambda pts: math.dist(pts[len(pts) // 2], center),
     )
-
-
-class _Router:
-    def __init__(self) -> None:
-        self.segments: list[TrackSegment] = []
-        self.vias: list[ViaSpec] = []
-
-    def path(
-        self,
-        net: str,
-        points: Sequence[tuple[float, float]],
-        *,
-        layer: str,
-        width: float = SIGNAL_W,
-    ) -> None:
-        for (x1, y1), (x2, y2) in zip(points, points[1:], strict=False):
-            self.segments.append(
-                TrackSegment(
-                    x1=round(x1, 4), y1=round(y1, 4),
-                    x2=round(x2, 4), y2=round(y2, 4),
-                    layer=layer, net_name=net, width_mm=width,
-                )
-            )
-
-    def via(self, net: str, x: float, y: float) -> None:
-        self.vias.append(ViaSpec(x=round(x, 4), y=round(y, 4), net_name=net))
 
 
 def compute_clover_board_layout(netlist: BoardNetlist, motto: str) -> BoardLayout:

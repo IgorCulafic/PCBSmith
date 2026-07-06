@@ -34,7 +34,18 @@ from pcbsmith.kicad.board import (
     rotate_offset,
 )
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
-from pcbsmith.kicad.clover_board import _circle_points, _Router, _silk_poly
+from pcbsmith.kicad.shaped_board import (
+    Piece as _Piece,
+)
+from pcbsmith.kicad.shaped_board import Router as _Router
+from pcbsmith.kicad.shaped_board import circle_points as _circle_points
+from pcbsmith.kicad.shaped_board import (
+    pitched_sites,
+    polyline_from_pieces,
+    splice_rect_tab,
+)
+from pcbsmith.kicad.shaped_board import silk_poly as _silk_poly
+from pcbsmith.kicad.shaped_board import silk_text as _silk_text
 
 # Pear body: two circles joined by external tangents (board coords, y down).
 TOP_CENTER = (28.0, 28.0)
@@ -77,40 +88,6 @@ def _tangent_angle() -> float:
     delta = BOTTOM_RADIUS - TOP_RADIUS
     distance = math.dist(TOP_CENTER, BOTTOM_CENTER)
     return math.acos(delta / distance)
-
-
-@dataclass(frozen=True)
-class _Piece:
-    """One stretch of a ring path: an arc or a straight tangent segment."""
-
-    kind: str  # "arc" | "line"
-    length: float
-    radius: float  # local curvature radius (inf for lines)
-    # Arc: (center, theta0, sweep). Line: (start, direction, outward).
-    center: tuple[float, float] = (0.0, 0.0)
-    theta0: float = 0.0
-    sweep: float = 0.0
-    start: tuple[float, float] = (0.0, 0.0)
-    direction: tuple[float, float] = (0.0, 0.0)
-    outward: tuple[float, float] = (0.0, 0.0)
-
-    def at(self, s: float) -> tuple[
-        tuple[float, float], tuple[float, float], tuple[float, float]
-    ]:
-        """(point, unit tangent, unit outward normal) at arc length s."""
-        if self.kind == "line":
-            point = (
-                self.start[0] + self.direction[0] * s,
-                self.start[1] + self.direction[1] * s,
-            )
-            return (point, self.direction, self.outward)
-        theta = self.theta0 + self.sweep * (s / self.length)
-        point = (
-            self.center[0] + self.radius * math.cos(theta),
-            self.center[1] + self.radius * math.sin(theta),
-        )
-        tangent = (-math.sin(theta), math.cos(theta))
-        return (point, tangent, (math.cos(theta), math.sin(theta)))
 
 
 def ring_pieces(inset: float) -> tuple[_Piece, ...]:
@@ -175,13 +152,7 @@ def ring_pieces(inset: float) -> tuple[_Piece, ...]:
 
 
 def ring_polyline(inset: float, step_mm: float = 0.6) -> list[tuple[float, float]]:
-    points: list[tuple[float, float]] = []
-    for piece in ring_pieces(inset):
-        steps = max(2, math.ceil(piece.length / step_mm))
-        for index in range(steps):
-            point, _tangent, _outward = piece.at(piece.length * index / steps)
-            points.append((round(point[0], 3), round(point[1], 3)))
-    return points
+    return polyline_from_pieces(ring_pieces(inset), step_mm)
 
 
 @dataclass(frozen=True)
@@ -195,18 +166,16 @@ class UnitSite:
 
 def ring_unit_sites(ring: int) -> tuple[UnitSite, ...]:
     """Evenly pitched unit sites, skipping sharply curved stretches."""
-    sites: list[UnitSite] = []
     unit_span = LED_R_GAP + 1.6  # resistor anchor to cathode-stub end
-    for piece in ring_pieces(RING_INSETS[ring]):
-        if piece.radius < MIN_UNIT_RADIUS:
-            continue
-        count = int(piece.length // UNIT_PITCH)
-        if count == 0:
-            continue
-        margin = (piece.length - count * UNIT_PITCH) / 2 + (UNIT_PITCH - unit_span) / 2
-        for index in range(count):
-            sites.append(UnitSite(ring=ring, piece=piece, s=margin + index * UNIT_PITCH))
-    return tuple(sites)
+    return tuple(
+        UnitSite(ring=ring, piece=site.piece, s=site.s)
+        for site in pitched_sites(
+            ring_pieces(RING_INSETS[ring]),
+            pitch_mm=UNIT_PITCH,
+            span_mm=unit_span,
+            min_radius_mm=MIN_UNIT_RADIUS,
+        )
+    )
 
 
 def ring_unit_counts() -> tuple[int, ...]:
@@ -220,32 +189,14 @@ def ring_unit_counts() -> tuple[int, ...]:
 def pear_outline() -> tuple[tuple[float, float], ...]:
     points = ring_polyline(0.0, step_mm=0.8)
     join_y = TOP_CENTER[1] - math.sqrt(TOP_RADIUS**2 - STEM_HALF_WIDTH**2)
-    cx = TOP_CENTER[0]
-    spliced: list[tuple[float, float]] = []
-    stem_done = False
-    for point in points:
-        in_zone = abs(point[0] - cx) < STEM_HALF_WIDTH and point[1] < join_y + 2.0
-        if in_zone:
-            if not stem_done:
-                spliced.extend(
-                    (
-                        (cx - STEM_HALF_WIDTH, join_y),
-                        (cx - STEM_HALF_WIDTH, STEM_END_Y),
-                        (cx + STEM_HALF_WIDTH, STEM_END_Y),
-                        (cx + STEM_HALF_WIDTH, join_y),
-                    )
-                )
-                stem_done = True
-            continue
-        spliced.append(point)
-    deduped: list[tuple[float, float]] = []
-    for point in spliced:
-        rounded = (round(point[0], 3), round(point[1], 3))
-        if not deduped or rounded != deduped[-1]:
-            deduped.append(rounded)
-    if deduped[0] == deduped[-1]:
-        deduped.pop()
-    return tuple(deduped)
+    return splice_rect_tab(
+        points,
+        center_x=TOP_CENTER[0],
+        half_width=STEM_HALF_WIDTH,
+        end_y=STEM_END_Y,
+        join_y=join_y,
+        outward_up=True,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -308,22 +259,6 @@ def _silk_line(
     (stroke (width {width}) (type solid))
     (layer "F.SilkS")
     (uuid {uuid4()})
-  )"""
-
-
-def _silk_text(
-    text: str, at: tuple[float, float], origin: float, size: float = 0.8
-) -> str:
-    return f"""  (gr_text "{text}"
-    (at {at[0] + origin:.3f} {at[1] + origin:.3f} 0)
-    (layer "F.SilkS")
-    (uuid {uuid4()})
-    (effects
-      (font
-        (size {size} {size})
-        (thickness {size * 0.18:.2f})
-      )
-    )
   )"""
 
 
