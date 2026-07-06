@@ -70,6 +70,7 @@ from pcbsmith.generation.lm2596_buck import (
     write_lm2596_buck_project,
 )
 from pcbsmith.generation.mpu6050 import compose_mpu6050, write_mpu6050_project
+from pcbsmith.generation.pear import compose_pear, write_pear_project
 from pcbsmith.kicad.board import (
     BoardGenerationError,
     BoardLayout,
@@ -85,7 +86,9 @@ from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_l
 from pcbsmith.kicad.export_led_art import export_led_art_to_kicad
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
 from pcbsmith.kicad.export_mpu6050 import export_mpu6050_to_kicad
+from pcbsmith.kicad.export_pear import export_pear_to_kicad
 from pcbsmith.kicad.led_art_board import generate_led_art_board
+from pcbsmith.kicad.pear_board import generate_pear_board, ring_unit_counts
 from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
@@ -110,6 +113,7 @@ from pcbsmith.simulation.ngspice_buck import run_lm2596_power_stage_simulation
 from pcbsmith.simulation.ngspice_clover import run_clover_simulation
 from pcbsmith.simulation.ngspice_led_art import run_led_art_simulation
 from pcbsmith.simulation.ngspice_mpu6050 import run_mpu6050_simulation
+from pcbsmith.simulation.ngspice_pear import run_pear_simulation
 
 GENERIC_EVIDENCE_FINDING = "Generic passive and LED components are not datasheet-backed yet."
 
@@ -812,6 +816,156 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
                     "Shaped clover outline, front silkscreen art, and a "
                     "back-side sensor/MCU cluster; the tilt behaviour is a "
                     "firmware contract recorded in the math findings.",
+                ),
+            )
+    artifacts = _authority_artifacts(
+        output_dir=output_dir,
+        kicad_artifacts=kicad_artifacts,
+        erc_report=erc_report,
+        spice_report=KiCadReport(status="not_run"),
+        simulation=simulation,
+        board=board,
+    )
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
+    revisions = _authority_revisions(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
+    bundle_path = write_authority_review_bundle(
+        circuit,
+        output_dir,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+        revisions=revisions,
+        artifacts=artifacts,
+    )
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+    )
+    print(f"Review bundle: {bundle_path}")
+    print(f"Status: {status}")
+    return 0
+
+
+def _cmd_design_pear_authority(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
+    intent = classify_circuit_intent(args.request)
+    if intent.status != "supported":
+        raise ValueError("; ".join(intent.unsupported_reasons))
+    if intent.intent_id != "pear_led_rings":
+        raise ValueError(
+            "The request classified as a different intent; use the matching "
+            "design command instead."
+        )
+    topology = select_topology(intent)
+    circuit = compose_pear(intent, topology)
+    evidence = EvidenceReport(
+        status="needs_human_review",
+        findings=(
+            "The LED forward voltage is an engineering assumption; validate "
+            "a concrete part's datasheet before fabrication.",
+        ),
+    )
+
+    write_pear_project(circuit, output_dir, project_name=args.name)
+    kicad_artifacts = export_pear_to_kicad(
+        circuit,
+        output_dir,
+        project_name=args.name,
+    )
+    schematic_file = Path(kicad_artifacts["schematic_file"])
+
+    erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
+    simulation = run_pear_simulation(circuit, output_dir)
+
+    kicad = erc_report.model_copy(
+        update={
+            "findings": (
+                *erc_report.findings,
+                "KiCad SPICE export was intentionally skipped; the resistive "
+                "LED branches are simulated from a PCBSmith netlist.",
+            ),
+        }
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=(
+            "PCBSmith circuit object and KiCad schematic were generated before "
+            "authority checks.",
+            "ngspice ran a PCBSmith branch netlist, not a KiCad-exported "
+            "netlist.",
+        ),
+        findings=(
+            "The simulated netlist covers the LED branches only; it is not "
+            "translation-checked against the KiCad schematic.",
+        ),
+    )
+
+    board: BoardReport
+    design_review: DesignReviewReport | None
+    if erc_report.status != "passed" or simulation.status != "passed":
+        board = BoardReport(
+            status="not_run",
+            findings=(
+                "Board generation was skipped because KiCad ERC and ngspice "
+                "simulation must pass before a board is generated.",
+            ),
+        )
+        design_review = None
+    else:
+        board_file = output_dir / f"{args.name}.kicad_pcb"
+        try:
+            board_netlist, layout = generate_pear_board(
+                schematic_file=schematic_file,
+                board_file=board_file,
+            )
+        except BoardGenerationError as exc:
+            board = BoardReport(
+                status="failed",
+                board_file=str(board_file),
+                findings=(str(exc),),
+            )
+            design_review = None
+        else:
+            total_units = sum(ring_unit_counts())
+            design_review = run_design_checks(
+                layout,
+                board_netlist,
+                DesignChecksSpec(
+                    led_strings=tuple(
+                        (f"R{unit}", f"D{unit}")
+                        for unit in range(1, total_units + 1)
+                    ),
+                ),
+            )
+            board, design_review = _finish_board_authority(
+                board_file=board_file,
+                output_dir=output_dir,
+                project_name=args.name,
+                board_netlist=board_netlist,
+                layout=layout,
+                design_review=design_review,
+                extra_findings=(
+                    "Pear-shaped outline with three independently driven LED "
+                    "edge rings and the worm silkscreen; the ring switching "
+                    "is an external drive contract recorded in the math "
+                    "findings.",
                 ),
             )
     artifacts = _authority_artifacts(
@@ -1668,6 +1822,17 @@ def build_parser() -> argparse.ArgumentParser:
     clover_parser.add_argument("--evidence-manifest")
     clover_parser.add_argument("--overwrite", action="store_true")
     clover_parser.set_defaults(func=_cmd_design_clover_authority)
+
+    pear_parser = subparsers.add_parser(
+        "design-pear-authority",
+        help="generate the pear-shaped board with three LED edge rings and "
+        "the worm silkscreen, with authority evidence",
+    )
+    pear_parser.add_argument("output")
+    pear_parser.add_argument("--request", required=True)
+    pear_parser.add_argument("--name", required=True)
+    pear_parser.add_argument("--overwrite", action="store_true")
+    pear_parser.set_defaults(func=_cmd_design_pear_authority)
 
     revision_plan_parser = subparsers.add_parser(
         "revision-plan",

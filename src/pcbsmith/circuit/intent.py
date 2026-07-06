@@ -69,6 +69,19 @@ def classify_circuit_intent(raw_request: str) -> CircuitIntent:
                 "led_target_current_ma": 5.0,
             },
         )
+    if "pear" in normalized:
+        supply_match = _SUPPLY_PATTERN.search(raw_request)
+        supply_v = float(supply_match.group("volts")) if supply_match else 12.0
+        return CircuitIntent(
+            raw_request=raw_request,
+            intent_id="pear_led_rings",
+            status="supported",
+            assumptions={
+                "supply_voltage_v": supply_v,
+                "led_forward_voltage_v": 2.2,
+                "led_target_current_a": 0.005,
+            },
+        )
     if "clover" in normalized:
         return CircuitIntent(
             raw_request=raw_request,

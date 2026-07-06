@@ -12,6 +12,8 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         return _mpu6050_imu_topology()
     if intent.intent_id == "clover_tilt_indicator" and intent.status == "supported":
         return _clover_topology()
+    if intent.intent_id == "pear_led_rings" and intent.status == "supported":
+        return _pear_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
         return TopologySelection(
             topology_id="unsupported",
@@ -46,6 +48,33 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         ),
         warnings=(
             "LED brightness and conduction after AC coupling require simulation and human review.",
+        ),
+    )
+
+
+def _pear_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="pear_led_rings",
+        title="Pear-shaped board with three independently driven LED edge rings",
+        status="selected",
+        evidence=(
+            EvidenceRef(
+                kind="textbook_formula",
+                title="LED series resistor sizing",
+                locator="R = (Vsupply - Vf) / I, nearest E24",
+            ),
+            EvidenceRef(
+                kind="engineering_assumption",
+                title="Ring drive contract",
+                locator=(
+                    "Each ring net L1..L3 is driven externally at the supply "
+                    "voltage; branches are one resistor + one LED to ground."
+                ),
+            ),
+        ),
+        warnings=(
+            "LED forward voltage is an engineering assumption; validate "
+            "against a datasheet-backed part before fabrication.",
         ),
     )
 

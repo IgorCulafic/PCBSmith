@@ -11,6 +11,7 @@ approximations. See docs/pcb-design-rules.md section 8.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -214,9 +215,11 @@ def rotate_offset(dx: float, dy: float, rotation: float) -> tuple[float, float]:
         return (-dx, -dy)
     if normalized == 270:
         return (-dy, dx)
-    raise FootprintLibraryError(
-        f"Only right-angle footprint rotations are supported, not {rotation}."
-    )
+    # Arbitrary angles (e.g. tangent-following art placements) use the same
+    # convention: counter-clockwise on screen with y pointing down.
+    radians = math.radians(normalized)
+    cos_r, sin_r = math.cos(radians), math.sin(radians)
+    return (dx * cos_r + dy * sin_r, -dx * sin_r + dy * cos_r)
 
 
 # --------------------------------------------------------------------------

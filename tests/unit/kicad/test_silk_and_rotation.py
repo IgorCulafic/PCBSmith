@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import pytest
 from tests.unit.kicad.test_led_art_board import _fixture
 
 from pcbsmith.kicad.board import (
@@ -10,7 +9,6 @@ from pcbsmith.kicad.board import (
 )
 from pcbsmith.kicad.led_art_board import compute_led_art_board_layout
 from pcbsmith.kicad.library import (
-    FootprintLibraryError,
     SilkLine,
     SilkText,
     load_footprint,
@@ -18,13 +16,15 @@ from pcbsmith.kicad.library import (
 
 
 def test_rotate_offset_right_angles() -> None:
-    # KiCad rotations are CCW on screen with y pointing down.
+    # KiCad rotations are CCW on screen with y pointing down. Right angles
+    # stay exact; arbitrary angles (tangent-following art placements) use
+    # the same convention.
     assert rotate_offset(2.54, 0.0, 0) == (2.54, 0.0)
     assert rotate_offset(2.54, 0.0, 90) == (0.0, -2.54)
     assert rotate_offset(2.54, 0.0, 180) == (-2.54, 0.0)
     assert rotate_offset(2.54, 0.0, 270) == (0.0, 2.54)
-    with pytest.raises(FootprintLibraryError):
-        rotate_offset(1.0, 0.0, 45)
+    x, y = rotate_offset(1.0, 0.0, 45)
+    assert (round(x, 6), round(y, 6)) == (0.707107, -0.707107)
 
 
 def test_library_specs_come_from_official_footprints() -> None:
