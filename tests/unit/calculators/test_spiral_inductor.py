@@ -22,6 +22,12 @@ def test_spiral_inductor_matches_the_current_sheet_formula() -> None:
     # Hand check: d_avg 42 mm, fill 0.476 ->
     # L = mu0 * 400 * 0.021 * (ln(2.46/0.476) + 0.2*0.476^2) ~ 17.8 uH.
     assert math.isclose(outputs["inductance_h"], 17.8e-6, rel_tol=0.02)
+    # Two independent estimators from separate derivations must agree;
+    # this is what actually validates the recalled coefficients (the
+    # oscillator sim consumes the value, so it cannot).
+    assert math.isclose(
+        outputs["wheeler_inductance_h"], outputs["inductance_h"], rel_tol=0.05
+    )
     assert outputs["inner_diameter_m"] == 0.022
     # 2.6 m of 0.5 mm / 1 oz trace is a couple of ohms.
     assert 2.0 < outputs["dc_resistance_ohm"] < 3.5

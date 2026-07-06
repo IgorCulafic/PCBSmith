@@ -272,6 +272,14 @@ def solve_pcb_spiral_inductor(
         / 2
         * (math.log(2.46 / fill_ratio) + 0.20 * fill_ratio**2)
     )
+    # Independent cross-check: the modified-Wheeler expression from the
+    # same paper (octagonal coefficients K1=2.25, K2=3.55; an octagon
+    # tracks a circle within a few percent). Two estimators from separate
+    # derivations agreeing is the guard against a mis-remembered formula -
+    # the simulation cannot provide it because it consumes this value.
+    wheeler_h = (
+        2.25 * mu0 * turns**2 * average_diameter_m / (1 + 3.55 * fill_ratio)
+    )
     trace_length_m = math.pi * average_diameter_m * turns
     resistance_ohm = (
         COPPER_RESISTIVITY_OHM_M * trace_length_m
@@ -281,12 +289,19 @@ def solve_pcb_spiral_inductor(
     warnings: list[str] = []
     outputs = {
         "inductance_h": round(inductance_h, 12),
+        "wheeler_inductance_h": round(wheeler_h, 12),
         "inner_diameter_m": round(inner_diameter_m, 6),
         "average_diameter_m": round(average_diameter_m, 6),
         "fill_ratio": round(fill_ratio, 6),
         "trace_length_m": round(trace_length_m, 4),
         "dc_resistance_ohm": round(resistance_ohm, 4),
     }
+    disagreement = abs(inductance_h - wheeler_h) / inductance_h
+    if disagreement > 0.10:
+        warnings.append(
+            f"The current-sheet and modified-Wheeler estimates disagree by "
+            f"{disagreement:.0%}; do not trust either without measurement."
+        )
     if fill_ratio < 0.2:
         warnings.append(
             "Fill ratio below 0.2 is outside the current-sheet formula's "
@@ -308,6 +323,8 @@ def solve_pcb_spiral_inductor(
         "references": [
             "Mohan et al. 1999 current-sheet approximation, circle "
             "coefficients c1=1.00 c2=2.46 c3=0 c4=0.20.",
+            "Cross-check: Mohan et al. modified Wheeler, octagonal "
+            "coefficients K1=2.25 K2=3.55.",
             "DC resistance: rho * length / (width * copper thickness).",
         ],
     }
