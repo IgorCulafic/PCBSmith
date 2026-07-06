@@ -195,6 +195,13 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   no-connect whitelist; buck/MPU/clover/detector authorities declare
   their cards).
 
+- **7.5 The datasheet's mandatory support parts must exist in the
+  composition.** A regulator without its catch diode passes every
+  connectivity check and still burns; the card's `required_support`
+  entries (with explicit composition-role aliases) are validated against
+  the circuit's roles. (`SESSION` 2026-07-06, Track 6.) Status:
+  **implemented** (`support_findings`, run wherever cards are declared).
+
 - **8.1 Polarized two-terminal parts mark polarity on silkscreen.** Diodes
   and LEDs get a CATHODE BAR (a silk line beside the cathode terminal —
   `KICAD-LIB` `LED_0603_1608Metric` closes its silk outline with a bar at the

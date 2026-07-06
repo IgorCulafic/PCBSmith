@@ -234,3 +234,42 @@ def test_design_check_flags_a_forgotten_ic_pin() -> None:
     reviewed = DesignChecksSpec(allowed_unconnected_pins=(("Q1", "3"),))
     report = run_design_checks(layout, netlist, reviewed)
     assert not [f for f in report.findings if f.rule == "7.3"]
+
+
+def test_sealed_pour_cell_with_a_stranded_via_is_flagged() -> None:
+    # A thick foreign-net ring walls off a corner of the GND zone with a
+    # GND via inside: the fill strands it.
+    ring = [
+        TrackSegment(x1=x1, y1=y1, x2=x2, y2=y2,
+                     layer="B.Cu", net_name="/A", width_mm=1.0)
+        for x1, y1, x2, y2 in (
+            (2.0, 10.0, 15.0, 10.0),   # horizontal wall from the left edge
+            (15.0, 10.0, 15.0, 2.0),   # vertical wall to the top edge
+        )
+    ]
+    layout = _layout(
+        segments=tuple(ring),
+        vias=(ViaSpec(x=7.0, y=6.0, net_name="/GND"),),
+        zones=(("/GND", "B.Cu", (1.5, 1.5, 48.5, 28.5)),),
+    )
+    netlist = BoardNetlist(
+        components=_two_part_netlist().components,
+        nets=(
+            *_two_part_netlist().nets,
+            BoardNet(name="/GND", nodes=()),
+        ),
+    )
+    findings = run_virtual_drc(layout, netlist)
+    pour = [f for f in findings if f.check == "pour_connectivity"]
+    assert pour and "sealed off" in pour[0].message
+
+    # The same geometry with the via OUTSIDE the pocket stays clean.
+    fine = _layout(
+        segments=tuple(ring),
+        vias=(ViaSpec(x=30.0, y=20.0, net_name="/GND"),),
+        zones=(("/GND", "B.Cu", (1.5, 1.5, 48.5, 28.5)),),
+    )
+    assert not [
+        f for f in run_virtual_drc(fine, netlist)
+        if f.check == "pour_connectivity"
+    ]

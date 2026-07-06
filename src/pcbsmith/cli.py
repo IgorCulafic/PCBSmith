@@ -403,6 +403,7 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
             ),
             component_cards=(("U1", "LM2596S-ADJ"),),
             tie_nets=(("GND", "/GND"),),
+            composition_roles=tuple(c.role for c in circuit.components),
         ),
         ground_pour=True,
         thermal_pour_references=("U1",),
@@ -666,6 +667,7 @@ def _cmd_design_mpu6050_authority(args: argparse.Namespace) -> int:
             # must-tie contract (CLKIN/FSYNC to ground).
             component_cards=(("U1", "MPU-6050"),),
             tie_nets=(("GND", "/GND"),),
+            composition_roles=tuple(c.role for c in circuit.components),
         ),
         ground_pour=True,
         extra_findings=(
@@ -833,6 +835,7 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
                         ("U2", "ATtiny84A-SSU"),
                     ),
                     tie_nets=(("GND", "/GND"),),
+                    composition_roles=tuple(c.role for c in circuit.components),
                 ),
             )
             board, design_review = _finish_board_authority(

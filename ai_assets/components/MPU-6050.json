@@ -211,22 +211,34 @@
     {
       "role": "regout_capacitor",
       "note": "100 nF at REGOUT.",
-      "locator": "p22 section 7.2"
+      "locator": "p22 section 7.2",
+      "matches": [
+        "regout_filter_capacitor"
+      ]
     },
     {
       "role": "charge_pump_capacitor",
       "note": "2.2 nF at CPOUT.",
-      "locator": "p22 section 7.2"
+      "locator": "p22 section 7.2",
+      "matches": [
+        "charge_pump_capacitor"
+      ]
     },
     {
       "role": "vdd_bypass",
       "note": "100 nF at VDD.",
-      "locator": "p22 section 7.2"
+      "locator": "p22 section 7.2",
+      "matches": [
+        "vdd_bypass_capacitor"
+      ]
     },
     {
       "role": "vlogic_bypass",
       "note": "10 nF at VLOGIC.",
-      "locator": "p22 section 7.2"
+      "locator": "p22 section 7.2",
+      "matches": [
+        "vlogic_bypass_capacitor"
+      ]
     }
   ],
   "limits": {

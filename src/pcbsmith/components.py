@@ -49,8 +49,15 @@ class SupportPart(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
     role: str
+    # Composition roles that satisfy this requirement (exact match; the
+    # card is explicit rather than fuzzy). Defaults to the role itself.
+    matches: tuple[str, ...] = ()
     note: str = ""
     locator: str = ""
+
+    def satisfied_by(self, roles: set[str]) -> bool:
+        wanted = self.matches or (self.role,)
+        return any(role in roles for role in wanted)
 
 
 class DatasheetRef(BaseModel):
@@ -138,6 +145,38 @@ def validate_card_against_libraries(card: ComponentCard) -> tuple[str, ...]:
             f"Card pins {sorted(missing)} have no pad on {card.footprint}."
         )
     return tuple(problems)
+
+
+def support_findings(
+    card: ComponentCard,
+    reference: str,
+    composition_roles: set[str],
+) -> tuple[ReviewFinding, ...]:
+    """Rule 7.5: the datasheet's mandatory support parts must exist in
+    the composition (a regulator without its catch diode passes every
+    connectivity check and still burns)."""
+    findings: list[ReviewFinding] = []
+    for support in card.required_support:
+        if support.satisfied_by(composition_roles):
+            continue
+        findings.append(
+            ReviewFinding(
+                rule="7.5",
+                severity="blocker",
+                scope="component",
+                where=reference,
+                evidence=(
+                    f"{reference} ({card.mpn}) requires a "
+                    f"'{support.role}' support part ({support.locator}) "
+                    "but no composition role satisfies it."
+                ),
+                suggested_action=(
+                    f"Add the part per the datasheet: {support.note}"
+                ),
+                source="check",
+            )
+        )
+    return tuple(findings)
 
 
 def card_contract_findings(

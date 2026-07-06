@@ -85,11 +85,12 @@ def compose_clover(
     )
     led_evidence = (
         EvidenceRef(
-            kind="engineering_assumption",
-            title="Green LED forward voltage assumption",
+            kind="datasheet_fact",
+            title="Kingbright APT1608SGC green LED forward voltage",
             locator=(
-                "Vf=2.2V typical green InGaAlP assumption; replace with a "
-                "datasheet-backed part before fabrication."
+                "ai_assets/datasheets/apt1608sgc.pdf p2-3 (Kingbright "
+                "APT1608SGC: VF typ 2.2V max 2.5V @20mA; IF max 25mA; "
+                "sha256 3256acec755bc198...)"
             ),
         ),
     )

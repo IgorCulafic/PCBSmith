@@ -63,3 +63,20 @@ def test_draft_card_defaults_from_symbol_pin_types() -> None:
     assert card.support_status == "draft"
     assert {pin.number for pin in card.pins} == {"1", "2", "3"}
     assert validate_card_against_libraries(card) == ()
+
+
+def test_missing_catch_diode_is_flagged() -> None:
+    from pcbsmith.components import support_findings
+
+    card = load_card("LM2596S-ADJ")
+    complete = {
+        "buck_regulator", "catch_diode", "power_inductor",
+        "output_capacitor", "input_capacitor",
+    }
+    assert support_findings(card, "U1", complete) == ()
+
+    missing = complete - {"catch_diode"}
+    findings = support_findings(card, "U1", missing)
+    assert len(findings) == 1
+    assert findings[0].rule == "7.5"
+    assert "catch_diode" in findings[0].evidence

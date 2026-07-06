@@ -431,6 +431,98 @@ def _check_edge_clearance(
     return findings
 
 
+def _check_pour_connectivity(
+    items: list[_Stadium], layout: BoardLayout
+) -> list[VirtualDrcFinding]:
+    """The sealed-pour-cell class (most expensive live-DRC lesson): a
+    zone region walled off by foreign copper that still contains
+    same-net pads/vias fills as an island and strands them.
+
+    Grid flood-fill per zone: cells blocked where foreign copper plus
+    zone clearance reaches; regions that hold zone-net items but not the
+    largest region are reported. Coarse by design - the 0.35mm margin
+    keeps legal narrow channels open so a clean board never flags."""
+    ZONE_CLEARANCE = 0.5
+    GRID = 0.5
+    findings: list[VirtualDrcFinding] = []
+    for zone_net, zone_layer, rect in layout.zones:
+        x1, y1, x2, y2 = rect
+        columns = max(2, int((x2 - x1) / GRID))
+        rows = max(2, int((y2 - y1) / GRID))
+        blocked = [[False] * columns for _ in range(rows)]
+        blockers = [
+            item for item in items
+            if item.layer == zone_layer and item.net != zone_net
+        ]
+        for item in blockers:
+            reach = item.radius + ZONE_CLEARANCE - 0.35
+            min_col = max(0, int((min(item.a[0], item.b[0]) - reach - x1) / GRID))
+            max_col = min(columns - 1, int((max(item.a[0], item.b[0]) + reach - x1) / GRID))
+            min_row = max(0, int((min(item.a[1], item.b[1]) - reach - y1) / GRID))
+            max_row = min(rows - 1, int((max(item.a[1], item.b[1]) + reach - y1) / GRID))
+            for row in range(min_row, max_row + 1):
+                for col in range(min_col, max_col + 1):
+                    center = (x1 + (col + 0.5) * GRID, y1 + (row + 0.5) * GRID)
+                    if _point_seg_distance(center, item.a, item.b) < reach:
+                        blocked[row][col] = True
+        # Flood-fill the free cells into regions.
+        region = [[-1] * columns for _ in range(rows)]
+        region_count = 0
+        sizes: list[int] = []
+        for row in range(rows):
+            for col in range(columns):
+                if blocked[row][col] or region[row][col] != -1:
+                    continue
+                stack = [(row, col)]
+                region[row][col] = region_count
+                size = 0
+                while stack:
+                    r, c = stack.pop()
+                    size += 1
+                    for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
+                        nr, nc = r + dr, c + dc
+                        if (
+                            0 <= nr < rows and 0 <= nc < columns
+                            and not blocked[nr][nc] and region[nr][nc] == -1
+                        ):
+                            region[nr][nc] = region_count
+                            stack.append((nr, nc))
+                sizes.append(size)
+                region_count += 1
+        if region_count <= 1:
+            continue
+        main_region = sizes.index(max(sizes))
+        # Zone-net items in a non-main region are stranded.
+        for item in items:
+            if item.layer != zone_layer or item.net != zone_net:
+                continue
+            if item.owner == "" and item.a == item.b:
+                pass  # vias participate
+            elif item.owner == "":
+                continue  # tracks bridge cells themselves; pads/vias matter
+            mid = ((item.a[0] + item.b[0]) / 2, (item.a[1] + item.b[1]) / 2)
+            col = int((mid[0] - x1) / GRID)
+            row = int((mid[1] - y1) / GRID)
+            if not (0 <= row < rows and 0 <= col < columns):
+                continue
+            if blocked[row][col] or region[row][col] in (-1, main_region):
+                continue
+            findings.append(
+                VirtualDrcFinding(
+                    check="pour_connectivity",
+                    message=(
+                        f"{item.label} sits in a pour cell of zone "
+                        f"[{zone_net}] on {zone_layer} sealed off from the "
+                        "main region; add a stitch bridge over the free "
+                        "layer or open a channel."
+                    ),
+                    x_mm=mid[0],
+                    y_mm=mid[1],
+                )
+            )
+    return findings
+
+
 def run_virtual_drc(
     layout: BoardLayout, netlist: BoardNetlist
 ) -> tuple[VirtualDrcFinding, ...]:
@@ -440,5 +532,6 @@ def run_virtual_drc(
         *_check_copper_clearance(items),
         *_check_courtyards(layout),
         *_check_edge_clearance(items, layout),
+        *_check_pour_connectivity(items, layout),
     ]
     return tuple(findings)

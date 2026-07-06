@@ -58,22 +58,34 @@
     {
       "role": "catch_diode",
       "note": "Schottky rated above the load current (e.g. SS34).",
-      "locator": "SNVS124G section 9.2"
+      "locator": "SNVS124G section 9.2",
+      "matches": [
+        "catch_diode"
+      ]
     },
     {
       "role": "output_inductor",
       "note": "Sized by the ripple design equations.",
-      "locator": "SNVS124G section 9.2.2"
+      "locator": "SNVS124G section 9.2.2",
+      "matches": [
+        "power_inductor"
+      ]
     },
     {
       "role": "output_capacitor",
       "note": "Bulk electrolytic plus HF ceramic.",
-      "locator": "SNVS124G section 9.2.4"
+      "locator": "SNVS124G section 9.2.4",
+      "matches": [
+        "output_capacitor"
+      ]
     },
     {
       "role": "input_capacitor",
       "note": "Bulk electrolytic plus HF ceramic at VIN.",
-      "locator": "SNVS124G section 9.2.5"
+      "locator": "SNVS124G section 9.2.5",
+      "matches": [
+        "input_capacitor"
+      ]
     }
   ],
   "limits": {

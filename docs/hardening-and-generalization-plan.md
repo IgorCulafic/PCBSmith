@@ -464,7 +464,29 @@ tables).
   scare: a forgotten IC pin is invisible to ERC and DRC alike); clover
   and MPU authorities carry reviewed NC whitelists derived from their
   pin-net tables.
-- REMAINING: 2.1 pour-cell connectivity; 1.3/3.4 evidence fetches
+- DONE (2026-07-06 final sweep): 4.2 board-diff (live-tested on the
+  user's hand-edited buck r010: D1 moved -6.5mm, recorded as a rule
+  candidate; layout.json snapshots now emitted by every authority); 2.1
+  pour-cell connectivity check (grid flood-fill, lenient-by-design so a
+  clean board never flags; sealed-cell fixture proves it fires); 7.5
+  required-support check (cards' mandatory parts vs composition roles,
+  explicit aliases; missing catch diode = blocker); green LED evidence
+  upgraded to the fetched Kingbright APT1608SGC datasheet (VF 2.2V typ
+  confirmed) in clover+pear compositions.
+- ASSESSED: digikey-kicad-library (github) - officially unmaintained,
+  pre-v6 format; NOT a symbol source (ours is better) but its per-part
+  metadata (MPN + DK datasheet link + 1:1 footprint mapping) is a good
+  seed table for onboard-component later. digikey.com/reference-designs
+  is bot-walled to curl (403) - ingestion (4.3) needs a browser-assisted
+  session or manually downloaded design PDFs.
+- BLOCKED (environment): MMBT3904 datasheet (onsemi/diodes/smc/archive
+  all bot-walled - card annotated with attempts); live Nexar (no
+  credentials in env); LLM extraction + local-model spike (no API key,
+  no llama-server yet).
+- NOTED: tests/unit/core/test_geom.py::test_point_add_sub_inverse is a
+  latent hypothesis flake (float-precision example found once, passes on
+  rerun; .hypothesis cache unwritable since the reinstall).
+- REMAINING: 2.1 tightening (polygon-exact pour analysis); 1.3/3.4 evidence fetches
   (network session); 3.2 live Nexar; 4.2 board-diff learning; 4.3
   reference-design ingestion; 2.3 assisted routing; 4.7 local-model
   harness spike; 3.5 thermal check; Track 6 component onboarding

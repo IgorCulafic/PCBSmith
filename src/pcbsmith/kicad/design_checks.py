@@ -53,6 +53,9 @@ class DesignChecksSpec:
     component_cards: tuple[tuple[str, str], ...] = ()
     # Net-class map for must_tie pins, e.g. (("GND", "/GND"),).
     tie_nets: tuple[tuple[str, str], ...] = ()
+    # Rule 7.5: composition roles present in the circuit, for validating
+    # the cards' required support parts.
+    composition_roles: tuple[str, ...] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -99,15 +102,22 @@ def run_design_checks(
 
     allowed_unconnected = set(spec.allowed_unconnected_pins)
     if spec.component_cards:
-        from pcbsmith.components import card_contract_findings, load_card
+        from pcbsmith.components import (
+            card_contract_findings,
+            load_card,
+            support_findings,
+        )
 
         checks_run.append("component_card_contract")
         tie_map = dict(spec.tie_nets)
+        roles = set(spec.composition_roles)
         for reference, mpn in spec.component_cards:
             card = load_card(mpn)
             findings.extend(
                 card_contract_findings(card, reference, netlist, tie_map)
             )
+            if roles:
+                findings.extend(support_findings(card, reference, roles))
             # The card's reviewed NC pins feed rule 7.3's whitelist.
             allowed_unconnected.update(
                 (reference, pin) for pin in card.nc_pins()

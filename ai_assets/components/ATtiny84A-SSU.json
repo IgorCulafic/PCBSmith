@@ -129,7 +129,10 @@
     {
       "role": "vcc_bypass",
       "note": "100 nF at VCC.",
-      "locator": "AVR hardware design app note"
+      "locator": "AVR hardware design app note",
+      "matches": [
+        "mcu_bypass_capacitor"
+      ]
     }
   ],
   "limits": {
