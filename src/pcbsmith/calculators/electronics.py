@@ -226,6 +226,42 @@ I2C_LOW_LEVEL_VOLTAGE_V = 0.4
 I2C_RC_RISE_FACTOR = 0.8473  # ln(0.7/0.3): 30%->70% rise on an RC bus
 
 
+def solve_trace_current_capacity(
+    *,
+    trace_width_m: float,
+    copper_thickness_m: float = 35e-6,
+    temperature_rise_c: float = 10.0,
+) -> dict[str, Any]:
+    """IPC-2221 external-layer current capacity: I = k * dT^0.44 * A^0.725.
+
+    k = 0.048 for external layers, A in square mils. At 10 C rise a 0.8 mm
+    1 oz trace carries ~2 A, matching the published nomograph tables.
+    """
+    errors: list[str] = []
+    if trace_width_m <= 0 or copper_thickness_m <= 0:
+        errors.append("Trace width and copper thickness must be positive.")
+    if temperature_rise_c <= 0:
+        errors.append("Temperature rise must be positive.")
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+    mil = 25.4e-6
+    area_sq_mil = (trace_width_m / mil) * (copper_thickness_m / mil)
+    capacity_a = 0.048 * temperature_rise_c**0.44 * area_sq_mil**0.725
+    return {
+        "status": "ok",
+        "outputs": {
+            "cross_section_sq_mil": round(area_sq_mil, 3),
+            "capacity_a": round(capacity_a, 4),
+        },
+        "warnings": [],
+        "errors": [],
+        "references": [
+            "IPC-2221 external-layer chart fit: I = 0.048 * dT^0.44 * "
+            "A^0.725 (A in sq mil).",
+        ],
+    }
+
+
 def solve_pcb_spiral_inductor(
     *,
     outer_diameter_m: float,

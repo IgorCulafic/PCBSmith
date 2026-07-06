@@ -41,6 +41,9 @@ class DesignChecksSpec:
     copper_keepouts: tuple[
         tuple[float, float, float, tuple[str, ...]], ...
     ] = ()
+    # Rule 5.3: (net name, load current in amps) pairs; every segment of
+    # the net must carry the current per IPC-2221 at a 10 C rise.
+    net_currents: tuple[tuple[str, float], ...] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -80,6 +83,10 @@ def run_design_checks(
     if spec.copper_keepouts:
         checks_run.append("copper_keepout")
         findings.extend(_check_copper_keepouts(layout, spec.copper_keepouts))
+
+    if spec.net_currents:
+        checks_run.append("trace_current")
+        findings.extend(_check_trace_currents(layout, spec.net_currents))
 
     findings.extend(spec.extra_model_findings)
 
@@ -214,6 +221,50 @@ def _check_copper_keepouts(
                         )
                     )
                     break
+    return tuple(findings)
+
+
+def _check_trace_currents(
+    layout: BoardLayout,
+    net_currents: tuple[tuple[str, float], ...],
+) -> tuple[ReviewFinding, ...]:
+    # Rule 5.3: the narrowest segment of a power net limits the whole net.
+    from pcbsmith.calculators.electronics import solve_trace_current_capacity
+
+    findings: list[ReviewFinding] = []
+    for net_name, current_a in net_currents:
+        widths = [
+            segment.width_mm
+            for segment in layout.segments
+            if segment.net_name == net_name
+        ]
+        if not widths:
+            continue
+        narrowest_mm = min(widths)
+        capacity = solve_trace_current_capacity(
+            trace_width_m=narrowest_mm / 1000.0
+        )
+        capacity_a = float(capacity["outputs"]["capacity_a"])
+        if capacity_a < current_a:
+            findings.append(
+                ReviewFinding(
+                    rule="5.3",
+                    severity="blocker",
+                    scope="net",
+                    where=net_name,
+                    evidence=(
+                        f"The narrowest {net_name} segment is "
+                        f"{narrowest_mm:g}mm, good for {capacity_a:.2f}A at "
+                        f"a 10C rise (IPC-2221), but the net carries "
+                        f"{current_a:g}A."
+                    ),
+                    suggested_action=(
+                        "Widen the net's trace width or reduce the load "
+                        "current."
+                    ),
+                    source="check",
+                )
+            )
     return tuple(findings)
 
 

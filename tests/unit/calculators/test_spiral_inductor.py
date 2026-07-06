@@ -5,6 +5,7 @@ import math
 from pcbsmith.calculators.electronics import (
     solve_colpitts_oscillator,
     solve_pcb_spiral_inductor,
+    solve_trace_current_capacity,
 )
 
 
@@ -73,3 +74,11 @@ def test_colpitts_rejects_a_dead_bias_point() -> None:
         base_lower_ohms=10000.0,
     )
     assert result["status"] == "error"
+
+
+def test_trace_current_capacity_matches_the_published_tables() -> None:
+    # 0.8 mm / 1 oz at 10 C rise ~ 2 A; 0.3 mm ~ 1 A.
+    wide = solve_trace_current_capacity(trace_width_m=0.0008)
+    assert math.isclose(wide["outputs"]["capacity_a"], 2.03, rel_tol=0.02)
+    narrow = solve_trace_current_capacity(trace_width_m=0.0003)
+    assert math.isclose(narrow["outputs"]["capacity_a"], 1.0, rel_tol=0.02)

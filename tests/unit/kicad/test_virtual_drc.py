@@ -185,3 +185,22 @@ def test_design_check_flags_zone_and_track_in_a_keepout() -> None:
     )
     report = run_design_checks(allowed, _two_part_netlist(), spec)
     assert not [f for f in report.findings if f.rule == "9.1"]
+
+
+def test_design_check_flags_an_undersized_power_trace() -> None:
+    from pcbsmith.kicad.board import TrackSegment as _Seg
+
+    spec = DesignChecksSpec(net_currents=(("/A", 3.0),))
+    layout = _layout(
+        segments=(
+            _Seg(x1=5.0, y1=5.0, x2=45.0, y2=5.0,
+                 layer="F.Cu", net_name="/A", width_mm=0.3),
+        ),
+    )
+    report = run_design_checks(layout, _two_part_netlist(), spec)
+    assert any(finding.rule == "5.3" for finding in report.findings)
+    assert report.status == "failed"
+
+    roomy = DesignChecksSpec(net_currents=(("/A", 0.5),))
+    report = run_design_checks(layout, _two_part_netlist(), roomy)
+    assert not [finding for finding in report.findings if finding.rule == "5.3"]

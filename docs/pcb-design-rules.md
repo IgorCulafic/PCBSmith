@@ -213,6 +213,14 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   board). (`SESSION`.) Status: **implemented** (`outline_is_simple` runs
   on every shaped layout; blocker).
 
+- **5.3 Power-net trace widths must carry their load current.** The
+  narrowest segment of a net limits the whole net; capacity per the
+  IPC-2221 external-layer fit I = 0.048 * dT^0.44 * A^0.725 at a 10 C
+  rise (0.8 mm / 1 oz ~ 2 A, matching the published tables). (`IPC-2221`
+  chart fit; worked-example evidence fetch pending per plan 1.3.)
+  Status: **implemented** (`trace_current` check; the buck authority
+  declares its power path at the design load current).
+
 - **9.1 No copper pour or plane under a sensing coil.** A plane under a
   planar inductor forms a shorted turn: eddy currents cancel flux, drop the
   inductance, and destroy the Q. Only thin, radial-ish signal traces may

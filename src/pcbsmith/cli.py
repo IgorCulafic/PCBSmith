@@ -81,6 +81,7 @@ from pcbsmith.kicad.board import (
     BoardNetlist,
     compute_board_layout,
     generate_board,
+    parse_board_netlist,
     render_board_previews,
 )
 from pcbsmith.kicad.clover_board import generate_clover_board
@@ -393,6 +394,11 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
             switching_cluster_refs=("CIN", "CIN2", "U1", "D1"),
             sensitive_net_names=("FB",),
             inductor_references=("L1",),
+            # Rule 5.3: the power path must carry the design load current.
+            net_currents=tuple(
+                (net, float(circuit.intent.assumptions["load_current_a"]))
+                for net in ("/VIN", "/SW", "/VOUT", "/GND")
+            ),
         ),
         ground_pour=True,
         thermal_pour_references=("U1",),
@@ -1180,6 +1186,69 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
     print(f"Review bundle: {bundle_path}")
     print(f"Status: {status}")
     return 0
+
+
+def _cmd_fab_package(args: argparse.Namespace) -> int:
+    from pcbsmith.kicad.fabrication import FabricationError, export_fab_package
+
+    revision_dir = Path(args.revision_dir)
+    boards = sorted(revision_dir.glob("*.kicad_pcb"))
+    if not boards:
+        raise ValueError(f"No .kicad_pcb found in {revision_dir}.")
+    board_file = boards[0]
+    project_name = board_file.stem
+
+    try:
+        package = export_fab_package(board_file, project_name=project_name)
+    except FabricationError as exc:
+        print(f"Fab package failed: {exc}")
+        return 1
+
+    # Offline BOM from the revision's own netlist export: grouped rows,
+    # MPN column intentionally blank until Nexar selection lands (3.2).
+    netlist_files = sorted((revision_dir / ".pcbsmith" / "kicad").glob("*.net.xml"))
+    bom_lines = ["Qty,References,Value,Footprint,MPN,Note"]
+    if netlist_files:
+        netlist = parse_board_netlist(netlist_files[0].read_text(encoding="utf-8"))
+        groups: dict[tuple[str, str], list[str]] = {}
+        for component in netlist.components:
+            groups.setdefault((component.value, component.footprint), []).append(
+                component.reference
+            )
+        for (value, footprint), references in sorted(groups.items()):
+            note = (
+                "copper-only part (net tie); do not order"
+                if "NetTie" in footprint
+                else ""
+            )
+            refs = " ".join(sorted(references))
+            quoted = ",".join(
+                (str(len(references)), _csv(refs), _csv(value), _csv(footprint), "", note)
+            )
+            bom_lines.append(quoted)
+    bom_file = package.notes_file.parent / f"{project_name}-bom.csv"
+    bom_file.write_text(NEWLINE.join(bom_lines) + NEWLINE, encoding="utf-8")
+    import shutil as _shutil
+
+    zip_path = Path(
+        _shutil.make_archive(
+            str(package.zip_file.with_suffix("")),
+            "zip",
+            root_dir=package.notes_file.parent,
+        )
+    )
+    print(f"Fab package: {zip_path}")
+    for name in (*package.files, bom_file.name):
+        print(f"  {name}")
+    return 0
+
+
+NEWLINE = chr(10)
+
+
+def _csv(value: str) -> str:
+    quote = chr(34)
+    return quote + value.replace(quote, quote + quote) + quote
 
 
 def _cmd_review_comment(args: argparse.Namespace) -> int:
@@ -2032,6 +2101,14 @@ def build_parser() -> argparse.ArgumentParser:
     detector_parser.add_argument("--name", required=True)
     detector_parser.add_argument("--overwrite", action="store_true")
     detector_parser.set_defaults(func=_cmd_design_metal_detector_authority)
+
+    fab_parser = subparsers.add_parser(
+        "fab-package",
+        help="export gerbers, drill, positions, BOM, and fab notes for a "
+        "revision board as an orderable zip",
+    )
+    fab_parser.add_argument("revision_dir")
+    fab_parser.set_defaults(func=_cmd_fab_package)
 
     revision_plan_parser = subparsers.add_parser(
         "revision-plan",

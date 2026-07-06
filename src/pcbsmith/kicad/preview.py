@@ -215,3 +215,104 @@ def _font(size: int) -> Any:
         return ImageFont.load_default(size=size)
     except TypeError:
         return ImageFont.load_default()
+
+
+def plot_assembly_view(
+    netlist: BoardNetlist,
+    layout: BoardLayout,
+    output: Path,
+) -> Path:
+    """Assembly diagram: outline, part bodies, EVERY reference (including
+    silk-hidden ones), and a value table. This restores the hand-assembly
+    information the art boards trade away by hiding references on silk
+    (hardening plan 3.3)."""
+    try:
+        from PIL import Image, ImageDraw
+    except ImportError as exc:
+        raise BoardGenerationError(
+            "Pillow is required for assembly plots. "
+            "Install the preview extra: pip install 'pcbsmith[preview]'."
+        ) from exc
+
+    from pcbsmith.kicad.board import (
+        FOOTPRINT_LIBRARY,
+        placement_rotation,
+        placement_y,
+        rotate_offset,
+    )
+    from pcbsmith.kicad.shaped_board import back_offset
+
+    table_rows = sorted(
+        (component.reference, component.value, component.footprint.split(":")[-1])
+        for component, _x in layout.placements
+    )
+    table_width_px = 460
+    row_height_px = 20
+    board_width_px = int(layout.width_mm * SCALE_PX_PER_MM) + 2 * IMAGE_MARGIN_PX
+    height_px = max(
+        int(layout.height_mm * SCALE_PX_PER_MM) + 2 * IMAGE_MARGIN_PX,
+        (len(table_rows) + 3) * row_height_px + 2 * IMAGE_MARGIN_PX,
+    )
+    image = Image.new(
+        "RGB", (board_width_px + table_width_px, height_px), BACKGROUND
+    )
+    draw = ImageDraw.Draw(image)
+    font = _font(15)
+    small_font = _font(12)
+
+    def px(x_mm: float, y_mm: float) -> tuple[float, float]:
+        return (
+            IMAGE_MARGIN_PX + x_mm * SCALE_PX_PER_MM,
+            IMAGE_MARGIN_PX + y_mm * SCALE_PX_PER_MM,
+        )
+
+    if layout.outline:
+        draw.polygon(
+            [px(x, y) for x, y in layout.outline], outline=BOARD_EDGE, width=3
+        )
+    else:
+        draw.rectangle(
+            (*px(0, 0), *px(layout.width_mm, layout.height_mm)),
+            outline=BOARD_EDGE,
+            width=3,
+        )
+
+    front_body = (120, 200, 140)
+    back_body = (110, 150, 235)
+    for component, anchor_x in layout.placements:
+        reference = component.reference
+        spec = FOOTPRINT_LIBRARY[component.footprint]
+        rotation = placement_rotation(layout, reference)
+        anchor_y = placement_y(layout, reference)
+        flipped = reference in layout.part_flip
+        x1, y1, x2, y2 = spec.fab_rect
+        corners = ((x1, y1), (x2, y1), (x2, y2), (x1, y2))
+        polygon = []
+        for corner in corners:
+            if flipped:
+                dx, dy = back_offset(corner, rotation)
+            else:
+                dx, dy = rotate_offset(corner[0], corner[1], rotation)
+            polygon.append(px(anchor_x + dx, anchor_y + dy))
+        color = back_body if flipped else front_body
+        draw.polygon(polygon, outline=color, width=2)
+        center = px(anchor_x, anchor_y)
+        draw.text(center, reference, fill=REF_TEXT, font=font, anchor="mm")
+
+    table_x = board_width_px + 10
+    draw.text(
+        (table_x, IMAGE_MARGIN_PX - row_height_px),
+        "REF  VALUE  FOOTPRINT   (blue = back side)",
+        fill=NET_TEXT,
+        font=font,
+    )
+    for index, (reference, value, footprint) in enumerate(table_rows):
+        flipped = reference in layout.part_flip
+        draw.text(
+            (table_x, IMAGE_MARGIN_PX + index * row_height_px),
+            f"{reference:<5} {value:<18} {footprint}",
+            fill=back_body if flipped else NET_TEXT,
+            font=small_font,
+        )
+    image.save(output)
+    return output
