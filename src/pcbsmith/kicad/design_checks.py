@@ -44,6 +44,10 @@ class DesignChecksSpec:
     # Rule 5.3: (net name, load current in amps) pairs; every segment of
     # the net must carry the current per IPC-2221 at a 10 C rise.
     net_currents: tuple[tuple[str, float], ...] = ()
+    # Rule 7.3: (reference, pad name) pairs that are REVIEWED no-connects
+    # (datasheet-documented RESV/unused pins). Any other unconnected pad
+    # on a 3+ pin part is a blocker.
+    allowed_unconnected_pins: tuple[tuple[str, str], ...] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -87,6 +91,11 @@ def run_design_checks(
     if spec.net_currents:
         checks_run.append("trace_current")
         findings.extend(_check_trace_currents(layout, spec.net_currents))
+
+    checks_run.append("ic_pin_connectivity")
+    findings.extend(
+        _check_ic_pin_connectivity(layout, netlist, spec.allowed_unconnected_pins)
+    )
 
     findings.extend(spec.extra_model_findings)
 
@@ -221,6 +230,56 @@ def _check_copper_keepouts(
                         )
                     )
                     break
+    return tuple(findings)
+
+
+def _check_ic_pin_connectivity(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    allowed_unconnected: tuple[tuple[str, str], ...],
+) -> tuple[ReviewFinding, ...]:
+    # Rule 7.3: an IC pin that silently misses the netlist is the worst
+    # kind of failure - ERC cannot see it (the symbol simply lacks the
+    # wire) and DRC cannot see it (no net means no ratsnest). Compare the
+    # FOOTPRINT's named pads against the netlist for every 3+ pin part.
+    connected = {
+        (reference, pin)
+        for net in netlist.nets
+        for reference, pin in net.nodes
+    }
+    allowed = set(allowed_unconnected)
+    findings: list[ReviewFinding] = []
+    for component, _anchor_x in layout.placements:
+        spec = FOOTPRINT_LIBRARY[component.footprint]
+        named_pads = sorted(
+            {pad.name for pad in spec.pads if pad.name},
+            key=lambda name: (len(name), name),
+        )
+        if len(named_pads) < 3:
+            continue
+        for pad_name in named_pads:
+            key = (component.reference, pad_name)
+            if key in connected or key in allowed:
+                continue
+            findings.append(
+                ReviewFinding(
+                    rule="7.3",
+                    severity="blocker",
+                    scope="component",
+                    where=component.reference,
+                    evidence=(
+                        f"{component.reference} pad {pad_name} "
+                        f"({component.footprint}) is on no net and is not "
+                        "on the reviewed no-connect list."
+                    ),
+                    suggested_action=(
+                        "Wire the pin per the datasheet, or add it to "
+                        "allowed_unconnected_pins with the datasheet "
+                        "locator justifying the no-connect."
+                    ),
+                    source="check",
+                )
+            )
     return tuple(findings)
 
 

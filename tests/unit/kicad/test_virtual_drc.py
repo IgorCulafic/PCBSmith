@@ -204,3 +204,33 @@ def test_design_check_flags_an_undersized_power_trace() -> None:
     roomy = DesignChecksSpec(net_currents=(("/A", 0.5),))
     report = run_design_checks(layout, _two_part_netlist(), roomy)
     assert not [finding for finding in report.findings if finding.rule == "5.3"]
+
+
+def test_design_check_flags_a_forgotten_ic_pin() -> None:
+    from pcbsmith.kicad.board import BoardComponent as _Component
+
+    transistor = _Component(
+        reference="Q1", value="MMBT3904",
+        footprint="Package_TO_SOT_SMD:SOT-23", uuid_path="q1",
+    )
+    # Pin 3 (collector) is silently missing from every net.
+    netlist = BoardNetlist(
+        components=(transistor,),
+        nets=(
+            BoardNet(name="/B", nodes=(("Q1", "1"),)),
+            BoardNet(name="/E", nodes=(("Q1", "2"),)),
+        ),
+    )
+    layout = BoardLayout(
+        placements=((transistor, 25.0),),
+        segments=(), vias=(), width_mm=50.0, height_mm=30.0,
+        part_y_mm=(("Q1", 15.0),),
+    )
+    report = run_design_checks(layout, netlist, DesignChecksSpec())
+    hits = [f for f in report.findings if f.rule == "7.3"]
+    assert hits and "pad 3" in hits[0].evidence
+    assert report.status == "failed"
+
+    reviewed = DesignChecksSpec(allowed_unconnected_pins=(("Q1", "3"),))
+    report = run_design_checks(layout, netlist, reviewed)
+    assert not [f for f in report.findings if f.rule == "7.3"]

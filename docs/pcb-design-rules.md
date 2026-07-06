@@ -174,6 +174,16 @@ Source `KICAD-LIB`: the official KiCad footprint library installed at
 implementation of polarity silkscreen (KiCad Library Conventions, klc
 rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
 
+- **7.3 Every pin of a multi-pin part is on a net or on a REVIEWED
+  no-connect list.** A pin the schematic silently forgets is invisible to
+  both ERC (no wire, no complaint on a passive-pin symbol) and DRC (no
+  net, no ratsnest, no unconnected item) - the failure mode is a dead or
+  misbehaving IC on a "clean" board. The check compares the FOOTPRINT's
+  named pads against the netlist for every 3+ pin part; whitelists must
+  cite the datasheet (RESV / unused pins). (`SESSION` 2026-07-06 buck
+  review scare.) Status: **implemented** (`ic_pin_connectivity`, always
+  on; clover and MPU authorities carry their reviewed NC lists).
+
 - **8.1 Polarized two-terminal parts mark polarity on silkscreen.** Diodes
   and LEDs get a CATHODE BAR (a silk line beside the cathode terminal —
   `KICAD-LIB` `LED_0603_1608Metric` closes its silk outline with a bar at the

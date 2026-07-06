@@ -91,7 +91,10 @@ from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_l
 from pcbsmith.kicad.export_led_art import export_led_art_to_kicad
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
 from pcbsmith.kicad.export_metal_detector import export_metal_detector_to_kicad
-from pcbsmith.kicad.export_mpu6050 import export_mpu6050_to_kicad
+from pcbsmith.kicad.export_mpu6050 import (
+    MPU6050_PIN_NETS,
+    export_mpu6050_to_kicad,
+)
 from pcbsmith.kicad.export_pear import export_pear_to_kicad
 from pcbsmith.kicad.led_art_board import generate_led_art_board
 from pcbsmith.kicad.metal_detector_board import generate_detector_board
@@ -657,7 +660,15 @@ def _cmd_design_mpu6050_authority(args: argparse.Namespace) -> int:
         erc_report=erc_report,
         simulation=simulation,
         power_net_names=frozenset({"VDD", "GND"}),
-        design_checks=DesignChecksSpec(),
+        design_checks=DesignChecksSpec(
+            # Reviewed no-connects: RESV and unused pins per the datasheet
+            # pin table (p21); everything else must be on a net.
+            allowed_unconnected_pins=tuple(
+                ("U1", str(pin))
+                for pin in range(1, 25)
+                if pin not in MPU6050_PIN_NETS
+            ),
+        ),
         ground_pour=True,
         extra_findings=(
             "First multi-side package board: QFN north pads route through the "
@@ -810,12 +821,33 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
             )
             design_review = None
         else:
+            from pcbsmith.kicad.export_clover import (
+                U1_PIN_NETS as CLOVER_U1_NETS,
+            )
+            from pcbsmith.kicad.export_clover import (
+                U2_PIN_NETS as CLOVER_U2_NETS,
+            )
+
             design_review = run_design_checks(
                 layout,
                 board_netlist,
                 DesignChecksSpec(
                     led_strings=(
                         ("R3", "D1"), ("R4", "D2"), ("R5", "D3"), ("R6", "D4"),
+                    ),
+                    # Reviewed no-connects: pins absent from the schematic
+                    # pin-net tables (RESV and unused pins per datasheets).
+                    allowed_unconnected_pins=(
+                        *(
+                            ("U1", str(pin))
+                            for pin in range(1, 25)
+                            if pin not in CLOVER_U1_NETS
+                        ),
+                        *(
+                            ("U2", str(pin))
+                            for pin in range(1, 15)
+                            if pin not in CLOVER_U2_NETS
+                        ),
                     ),
                 ),
             )

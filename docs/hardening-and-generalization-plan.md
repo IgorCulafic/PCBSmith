@@ -382,6 +382,74 @@ without reading source. Effort: half a session.
 
 ---
 
+## Track 6 - Component onboarding (new part -> trusted building block)
+
+Motivation (user, 2026-07-06, after reviewing the buck in KiCad): today a
+new IC requires the operating AI to hand-draw a schematic symbol, hand-
+build a pin-net table, and hand-read the datasheet. The knowledge of HOW
+to use the part (which pins are mandatory, which are reviewed
+no-connects, what support parts the maker requires) lives nowhere the
+machine can check. Rule 7.3 (`ic_pin_connectivity`) now guards the
+worst symptom - a silently forgotten pin - but the onboarding itself
+must become a pipeline.
+
+### 6.1 Official KiCad SYMBOL import
+
+We already embed official footprints verbatim; symbols are still
+hand-drawn boxes. The installed share ships the full symbol library
+(`share/kicad/symbols/*.kicad_sym`, e.g. `Regulator_Switching` contains
+LM2596S-ADJ with real pin names/numbers). Deliverable: `kicad/symbols.py`
+mirroring `library.py` - parse the .kicad_sym s-expr, vendor the used
+symbols under `ai_assets/kicad_symbols/`, embed verbatim into generated
+schematics with injected reference/value/footprint properties. Pin
+positions come from the symbol, killing the label-placement guesswork.
+Effort: 2-3 sessions.
+
+### 6.2 The component card
+
+One JSON per part under `ai_assets/components/<mpn>.json`, produced by
+the extraction pipeline from a sha-pinned datasheet, holding the machine-
+checkable contract:
+
+- pin table: number, name, function class (power_in, gnd, output,
+  feedback, enable, nc_reserved, ...), connection requirement
+  (required / optional / must_tie_to with target), with page locators;
+- absolute limits and operating windows used by the evidence validators;
+- mandatory support parts from the typical-application section (the
+  LM2596 card would demand the catch diode, the output LC, and ON/OFF
+  disposition) - compositions get validated against the card;
+- symbol id + footprint id + verified pin-number mapping between them.
+
+The card REPLACES per-topology hand knowledge: `allowed_unconnected_pins`
+derives from `nc_reserved` pins, `must_tie_to` feeds a new check (e.g.
+ON/OFF must reach GND), and the evidence selector reads limits from it.
+Effort: 2 sessions for the schema + generator, then one card per part.
+
+### 6.3 Acquisition front door
+
+`pcbsmith onboard-component <mpn>`: resolve datasheet URL (Nexar when
+credentialed, else --datasheet PATH/URL), cache + sha-manifest, run
+extraction (in-session AI or the llm.py clients) into a DRAFT card,
+verify symbol/footprint availability in the official libraries (vendor
+them), and emit a review summary. Cards start
+`support_status=needs_datasheet_review`; a human (or later a validated
+extraction) promotes them. New parts never silently enter compositions -
+the card is the gate. Effort: 2 sessions after 6.1/6.2.
+
+### 6.4 Checks that consume the cards
+
+- `must_tie_to` connectivity (ON/OFF-class pins) - schematic-level;
+- mandatory-support-part presence (catch diode class) - composition
+  level;
+- card-vs-footprint pad census (every card pin exists on the footprint
+  and vice versa) - onboarding level.
+
+Sequencing: 6.1 alone already upgrades every existing board's schematic
+quality; 6.2+6.4 retire the hand-maintained pin tables; 6.3 makes new
+parts a command instead of a session. Slot after Wave 4's evidence
+fetches (the card generator IS the extraction pipeline pointed at pin
+tables).
+
 ## Progress (2026-07-06)
 
 - DONE: 4.4 hygiene; 2.1 virtual DRC (first four checks; pour-cell
@@ -392,10 +460,15 @@ without reading source. Effort: half a session.
   (geometry-hash-verified); 3.3 assembly artifact; 3.1 fab package; 3.2
   offline BOM half; 4.5 IPC-2221 current check (thermal 3.5 still
   pending); 4.8 front-end contract.
+- DONE (later same day): 7.3 ic_pin_connectivity check (buck review
+  scare: a forgotten IC pin is invisible to ERC and DRC alike); clover
+  and MPU authorities carry reviewed NC whitelists derived from their
+  pin-net tables.
 - REMAINING: 2.1 pour-cell connectivity; 1.3/3.4 evidence fetches
   (network session); 3.2 live Nexar; 4.2 board-diff learning; 4.3
   reference-design ingestion; 2.3 assisted routing; 4.7 local-model
-  harness spike; 3.5 thermal check.
+  harness spike; 3.5 thermal check; Track 6 component onboarding
+  (6.1 symbol import first).
 
 ## Execution Order
 
