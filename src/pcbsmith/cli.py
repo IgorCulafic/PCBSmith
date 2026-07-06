@@ -1205,6 +1205,65 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_board_diff(args: argparse.Namespace) -> int:
+    import json as _json
+
+    from pcbsmith.kicad.board_diff import (
+        append_rule_suggestion,
+        diff_placements,
+        load_layout_snapshot,
+        parse_board_placements,
+    )
+
+    revision_dir = Path(args.revision_dir)
+    boards = sorted(revision_dir.glob("*.kicad_pcb"))
+    if not boards:
+        raise ValueError(f"No .kicad_pcb found in {revision_dir}.")
+    edited = parse_board_placements(boards[0].read_text(encoding="utf-8"))
+
+    snapshot = revision_dir / ".pcbsmith" / "layout.json"
+    if args.reference:
+        reference_path = Path(args.reference)
+        if reference_path.is_dir():
+            reference_boards = sorted(reference_path.glob("*.kicad_pcb"))
+            if not reference_boards:
+                raise ValueError(f"No .kicad_pcb found in {reference_path}.")
+            reference_path = reference_boards[0]
+        generated = parse_board_placements(
+            reference_path.read_text(encoding="utf-8")
+        )
+    elif snapshot.exists():
+        generated = load_layout_snapshot(snapshot)
+    else:
+        raise ValueError(
+            "No layout snapshot in this revision (generated before board-"
+            "diff existed); pass --reference <generated board or rev dir>."
+        )
+
+    edits = diff_placements(generated, edited)
+    edits_file = revision_dir / "human-edits.json"
+    edits_file.write_text(
+        _json.dumps(
+            {
+                "schema": "pcbsmith-human-edits-v1",
+                "edits": [edit.describe() for edit in edits],
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    print(f"Human edits: {edits_file} ({len(edits)} placement change(s))")
+    for edit in edits:
+        print(f"  {edit.describe()}")
+    if edits:
+        append_rule_suggestion(
+            Path("docs/ai-rule-suggestions.md"), str(revision_dir), edits
+        )
+        print("Draft entries appended to docs/ai-rule-suggestions.md.")
+    return 0
+
+
 def _cmd_onboard_component(args: argparse.Namespace) -> int:
     import hashlib
 
@@ -1715,6 +1774,15 @@ def _finish_board_authority(
     # Virtual DRC first: the fast geometric pre-filter (hardening plan 2.1).
     # Its model deliberately underestimates copper, so findings are
     # high-confidence; on a hit, the KiCad round trip is skipped entirely.
+    from pcbsmith.kicad.board_diff import (
+        parse_board_placements,
+        write_layout_snapshot,
+    )
+
+    write_layout_snapshot(
+        parse_board_placements(board_file.read_text(encoding="utf-8")),
+        board_file.parent / ".pcbsmith" / "layout.json",
+    )
     virtual_findings = run_virtual_drc(layout, board_netlist)
     if virtual_findings:
         return (
@@ -2174,6 +2242,15 @@ def build_parser() -> argparse.ArgumentParser:
     detector_parser.add_argument("--name", required=True)
     detector_parser.add_argument("--overwrite", action="store_true")
     detector_parser.set_defaults(func=_cmd_design_metal_detector_authority)
+
+    board_diff_parser = subparsers.add_parser(
+        "board-diff",
+        help="diff a (user-edited) revision board against its generated "
+        "layout and record the edits as rule suggestions",
+    )
+    board_diff_parser.add_argument("revision_dir")
+    board_diff_parser.add_argument("--reference")
+    board_diff_parser.set_defaults(func=_cmd_board_diff)
 
     onboard_parser = subparsers.add_parser(
         "onboard-component",

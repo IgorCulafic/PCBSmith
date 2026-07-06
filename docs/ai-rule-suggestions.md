@@ -129,3 +129,18 @@ Entry format:
   switching loop despite a DRC pass.
 - decision_note: user-approved direct edit; promoted with the
   switching-cluster geometric check as the enforcement ratchet.
+
+## Human board edit (2026-07-06, `outputs\lm2596-buck-r010`)
+
+Source: `pcbsmith board-diff` (plan 4.2). The user moved parts by
+hand; each delta below is a candidate placement rule. Review and
+promote or discard.
+
+- D1: moved (62.03, 30) -> (62.5, 23.5) [d=(+0.47, -6.50)mm]
+
+Analysis (AI): D1 is the buck's catch diode; the generated row placed it
+at the row centerline (y 10). The edit lifts it 6.5 mm toward the top
+edge at the same x. If the intent was tightening the SW/GND loop or
+clearing the lane channel, the candidate rule is 2-D placement for
+switching-cluster parts (extend rule 3.1 beyond row adjacency). Needs
+the user's confirmation of intent before promotion.
