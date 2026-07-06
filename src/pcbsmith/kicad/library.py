@@ -612,6 +612,9 @@ LIBRARY_FOOTPRINT_IDS = (
     "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
     "Connector_PinHeader_2.54mm:PinHeader_1x08_P2.54mm_Vertical",
     "Package_SO:SOIC-14_3.9x8.7mm_P1.27mm",
+    "Package_TO_SOT_SMD:SOT-23",
+    "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
+    "NetTie:NetTie-2_SMD_Pad2.0mm",
 )
 
 # The pin header doubles as the off-board power connector; PCBSmith wires the

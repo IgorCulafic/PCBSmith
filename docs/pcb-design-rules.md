@@ -203,3 +203,32 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   generated projects. Status: deviation **documented**; queued fix is to
   adopt the KiCad conventions or import official `.kicad_mod` geometry
   outright (which would bring the real silk art with it).
+
+
+## 9. Sensing structures made of copper
+
+- **9.1 No copper pour or plane under a sensing coil.** A plane under a
+  planar inductor forms a shorted turn: eddy currents cancel flux, drop the
+  inductance, and destroy the Q. Only thin, radial-ish signal traces may
+  cross beneath a coil, and as few as possible (the metal detector carries
+  exactly one: the spiral's centre return). (`SESSION` metal-detector
+  slice + standard planar-magnetics practice.) Status: **implemented**
+  (detector's GND zone is clipped to the handle).
+- **9.2 Copper-only components are represented by net ties.** A structure
+  that exists only as traces (spiral inductor, capacitive pad, antenna)
+  still joins two nets in the schematic. The board uses an official KiCad
+  `NetTie-2` footprint at the joining point so DRC accepts the junction and
+  parity sees the symbol; the trace structure itself carries ONE net. The
+  net-tie footprint is BOM-excluded, so the schematic symbol must set
+  `in_bom no` to keep parity clean. (`KICAD-LIB` NetTie library +
+  `SESSION`.) Status: **implemented** (metal detector coil terminal L1).
+- **9.3 Exposed-copper regions are soldermask-opening graphics.** A filled
+  polygon on `F.Mask` opens the mask over the region (the mask layer is
+  negative). Exposed traces get surface-finished by the fab; specify ENIG
+  when durability matters, and keep silkscreen out of the opening.
+  (`SESSION`.) Status: **implemented** (detector coil disc).
+- **9.4 Planar spiral inductance is calculated, not guessed.** Use the
+  Mohan et al. (1999) current-sheet approximation
+  (`solve_pcb_spiral_inductor`), and carry the DC resistance and Q with
+  the value; a coil Q below ~10 warrants a warning. Status:
+  **implemented** (calculator with references).

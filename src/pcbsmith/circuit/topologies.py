@@ -14,6 +14,8 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         return _clover_topology()
     if intent.intent_id == "pear_led_rings" and intent.status == "supported":
         return _pear_topology()
+    if intent.intent_id == "metal_detector_coil" and intent.status == "supported":
+        return _metal_detector_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
         return TopologySelection(
             topology_id="unsupported",
@@ -48,6 +50,38 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         ),
         warnings=(
             "LED brightness and conduction after AC coupling require simulation and human review.",
+        ),
+    )
+
+
+def _metal_detector_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="metal_detector_coil",
+        title="Metal detector: exposed PCB spiral coil + Colpitts oscillator",
+        status="selected",
+        evidence=(
+            EvidenceRef(
+                kind="textbook_formula",
+                title="Planar spiral inductance (current-sheet approximation)",
+                locator="Mohan et al., IEEE JSSC 34(10) 1999",
+            ),
+            EvidenceRef(
+                kind="textbook_formula",
+                title="Colpitts oscillator frequency",
+                locator="f = 1 / (2*pi*sqrt(L * C1*C2/(C1+C2)))",
+            ),
+            EvidenceRef(
+                kind="engineering_assumption",
+                title="Eddy-current detection mechanism",
+                locator=(
+                    "Conductive metal near the coil reduces L and raises "
+                    "the oscillation frequency; measured externally at FOUT."
+                ),
+            ),
+        ),
+        warnings=(
+            "Detection sensitivity and the frequency-measurement backend "
+            "are an external contract; only the oscillator is verified.",
         ),
     )
 

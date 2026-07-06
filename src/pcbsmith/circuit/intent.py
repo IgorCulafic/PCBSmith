@@ -69,6 +69,17 @@ def classify_circuit_intent(raw_request: str) -> CircuitIntent:
                 "led_target_current_ma": 5.0,
             },
         )
+    if "metal detector" in normalized or "metal-detector" in normalized:
+        supply_match = _SUPPLY_PATTERN.search(raw_request)
+        supply_v = float(supply_match.group("volts")) if supply_match else 5.0
+        return CircuitIntent(
+            raw_request=raw_request,
+            intent_id="metal_detector_coil",
+            status="supported",
+            assumptions={
+                "supply_voltage_v": supply_v,
+            },
+        )
     if "pear" in normalized:
         supply_match = _SUPPLY_PATTERN.search(raw_request)
         supply_v = float(supply_match.group("volts")) if supply_match else 12.0

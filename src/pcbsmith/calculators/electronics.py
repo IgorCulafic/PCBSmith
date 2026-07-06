@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 from typing import Any
 
 LM2596_FEEDBACK_REFERENCE_V = 1.23
@@ -8,6 +9,9 @@ LM2596_SWITCHING_FREQUENCY_HZ = 150_000.0
 _STANDARD_FEEDBACK_UPPER_OHMS = (3300, 3480, 3600, 3740, 3900, 4020, 4220)
 _STANDARD_INDUCTANCES_UH = (33, 47, 68, 100, 150, 220)
 _STANDARD_OUTPUT_CAPS_UF = (22, 47, 100, 220, 330, 470)
+
+
+COPPER_RESISTIVITY_OHM_M = 1.72e-8
 
 
 def solve_lm2596_buck(
@@ -220,6 +224,153 @@ I2C_FAST_MODE_RISE_TIME_NS = 300.0
 I2C_LOW_LEVEL_SINK_MA = 3.0
 I2C_LOW_LEVEL_VOLTAGE_V = 0.4
 I2C_RC_RISE_FACTOR = 0.8473  # ln(0.7/0.3): 30%->70% rise on an RC bus
+
+
+def solve_pcb_spiral_inductor(
+    *,
+    outer_diameter_m: float,
+    trace_width_m: float,
+    trace_gap_m: float,
+    turns: int,
+    copper_thickness_m: float = 35e-6,
+    frequency_hz: float | None = None,
+) -> dict[str, Any]:
+    """Circular planar spiral inductance via the current-sheet approximation.
+
+    Mohan, del Mar Hershenson, Boyd, Lee, "Simple Accurate Expressions for
+    Planar Spiral Inductances", IEEE JSSC 34(10), 1999. Circle coefficients
+    c1=1.00, c2=2.46, c3=0.00, c4=0.20; stated accuracy ~2-3% for
+    0.2 <= fill ratio.
+    """
+    errors: list[str] = []
+    if outer_diameter_m <= 0:
+        errors.append("Outer diameter must be positive.")
+    if trace_width_m <= 0 or trace_gap_m <= 0:
+        errors.append("Trace width and gap must be positive.")
+    if turns < 2:
+        errors.append("A spiral needs at least two turns.")
+    pitch_m = trace_width_m + trace_gap_m
+    inner_diameter_m = outer_diameter_m - 2 * turns * pitch_m
+    if not errors and inner_diameter_m <= trace_width_m:
+        errors.append(
+            f"{turns} turns at {pitch_m * 1000:g} mm pitch overrun the "
+            f"{outer_diameter_m * 1000:g} mm outer diameter."
+        )
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+
+    mu0 = 4e-7 * math.pi
+    average_diameter_m = (outer_diameter_m + inner_diameter_m) / 2
+    fill_ratio = (outer_diameter_m - inner_diameter_m) / (
+        outer_diameter_m + inner_diameter_m
+    )
+    inductance_h = (
+        mu0
+        * turns**2
+        * average_diameter_m
+        * 1.00
+        / 2
+        * (math.log(2.46 / fill_ratio) + 0.20 * fill_ratio**2)
+    )
+    trace_length_m = math.pi * average_diameter_m * turns
+    resistance_ohm = (
+        COPPER_RESISTIVITY_OHM_M * trace_length_m
+        / (trace_width_m * copper_thickness_m)
+    )
+
+    warnings: list[str] = []
+    outputs = {
+        "inductance_h": round(inductance_h, 12),
+        "inner_diameter_m": round(inner_diameter_m, 6),
+        "average_diameter_m": round(average_diameter_m, 6),
+        "fill_ratio": round(fill_ratio, 6),
+        "trace_length_m": round(trace_length_m, 4),
+        "dc_resistance_ohm": round(resistance_ohm, 4),
+    }
+    if fill_ratio < 0.2:
+        warnings.append(
+            "Fill ratio below 0.2 is outside the current-sheet formula's "
+            "stated accuracy band."
+        )
+    if frequency_hz is not None:
+        quality = 2 * math.pi * frequency_hz * inductance_h / resistance_ohm
+        outputs["quality_factor"] = round(quality, 2)
+        if quality < 10:
+            warnings.append(
+                f"Coil Q of {quality:.1f} at {frequency_hz / 1e6:g} MHz is low; "
+                "oscillation amplitude and detection sensitivity suffer."
+            )
+    return {
+        "status": "warning" if warnings else "ok",
+        "outputs": outputs,
+        "warnings": warnings,
+        "errors": [],
+        "references": [
+            "Mohan et al. 1999 current-sheet approximation, circle "
+            "coefficients c1=1.00 c2=2.46 c3=0 c4=0.20.",
+            "DC resistance: rho * length / (width * copper thickness).",
+        ],
+    }
+
+
+def solve_colpitts_oscillator(
+    *,
+    supply_voltage_v: float,
+    inductance_h: float,
+    tank_c1_f: float,
+    tank_c2_f: float,
+    emitter_resistor_ohms: float,
+    base_upper_ohms: float,
+    base_lower_ohms: float,
+) -> dict[str, Any]:
+    """Common-base Colpitts oscillator: frequency and DC bias point."""
+    errors: list[str] = []
+    for label, value in (
+        ("Supply voltage", supply_voltage_v),
+        ("Inductance", inductance_h),
+        ("Tank C1", tank_c1_f),
+        ("Tank C2", tank_c2_f),
+        ("Emitter resistor", emitter_resistor_ohms),
+        ("Upper bias resistor", base_upper_ohms),
+        ("Lower bias resistor", base_lower_ohms),
+    ):
+        if value <= 0:
+            errors.append(f"{label} must be positive.")
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+
+    series_c_f = tank_c1_f * tank_c2_f / (tank_c1_f + tank_c2_f)
+    frequency_hz = 1 / (2 * math.pi * math.sqrt(inductance_h * series_c_f))
+    base_v = supply_voltage_v * base_lower_ohms / (base_upper_ohms + base_lower_ohms)
+    emitter_v = base_v - 0.7
+    collector_current_a = emitter_v / emitter_resistor_ohms
+
+    warnings: list[str] = []
+    if emitter_v <= 0.3:
+        errors.append(
+            f"Base divider gives {base_v:.2f} V; the transistor cannot bias on."
+        )
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+    if collector_current_a < 0.5e-3 or collector_current_a > 10e-3:
+        warnings.append(
+            f"Collector current {collector_current_a * 1000:.2f} mA is outside "
+            "the comfortable 0.5-10 mA small-signal window."
+        )
+    return {
+        "status": "warning" if warnings else "ok",
+        "outputs": {
+            "series_tank_c_f": round(series_c_f, 15),
+            "frequency_hz": round(frequency_hz, 1),
+            "base_v": round(base_v, 4),
+            "collector_current_a": round(collector_current_a, 6),
+        },
+        "warnings": warnings,
+        "errors": [],
+        "references": [
+            "Colpitts: f = 1 / (2*pi*sqrt(L * C1*C2/(C1+C2))).",
+            "Bias: Vb = Vcc*R2/(R1+R2); Ic ~= (Vb - 0.7) / RE.",
+        ],
+    }
 
 
 def solve_i2c_pullup(
