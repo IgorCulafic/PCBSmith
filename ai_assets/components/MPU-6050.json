@@ -1,0 +1,237 @@
+{
+  "schema_id": "pcbsmith-component-card-v1",
+  "mpn": "MPU-6050",
+  "manufacturer": "InvenSense/TDK",
+  "description": "6-axis IMU, I2C, QFN-24",
+  "symbol": "Sensor_Motion:MPU-6050",
+  "footprint": "Sensor_Motion:InvenSense_QFN-24_4x4mm_P0.5mm",
+  "datasheet": {
+    "local_path": "ai_assets/datasheets/mpu6050.pdf",
+    "sha256": "9d3b698699d6d907790607223deb7d7e604d2597bd1fc97f586e18ce5dc9ef9f",
+    "source_url": ""
+  },
+  "support_status": "reviewed",
+  "pins": [
+    {
+      "number": "1",
+      "name": "CLKIN",
+      "function": "clock_in",
+      "requirement": "must_tie",
+      "note": "Tie to GND when no external clock is used.",
+      "locator": "PS-MPU-6000A-00 p21",
+      "tie_class": "GND"
+    },
+    {
+      "number": "2",
+      "name": "NC",
+      "function": "nc",
+      "requirement": "nc_reserved",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "3",
+      "name": "NC",
+      "function": "nc",
+      "requirement": "nc_reserved",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "4",
+      "name": "NC",
+      "function": "nc",
+      "requirement": "nc_reserved",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "5",
+      "name": "NC",
+      "function": "nc",
+      "requirement": "nc_reserved",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "14",
+      "name": "NC",
+      "function": "nc",
+      "requirement": "nc_reserved",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "15",
+      "name": "NC",
+      "function": "nc",
+      "requirement": "nc_reserved",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "16",
+      "name": "NC",
+      "function": "nc",
+      "requirement": "nc_reserved",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "17",
+      "name": "NC",
+      "function": "nc",
+      "requirement": "nc_reserved",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "6",
+      "name": "AUX_DA",
+      "function": "aux_i2c",
+      "requirement": "nc_allowed",
+      "note": "Auxiliary I2C data; float when unused.",
+      "locator": "p21"
+    },
+    {
+      "number": "7",
+      "name": "AUX_CL",
+      "function": "aux_i2c",
+      "requirement": "nc_allowed",
+      "note": "Auxiliary I2C clock; float when unused.",
+      "locator": "p21"
+    },
+    {
+      "number": "8",
+      "name": "VLOGIC",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "Logic supply; 10 nF bypass.",
+      "locator": "p22 section 7.2"
+    },
+    {
+      "number": "9",
+      "name": "AD0",
+      "function": "address_select",
+      "requirement": "required",
+      "note": "I2C address select: GND=0x68, VDD=0x69 (direct or resistor).",
+      "locator": "p21"
+    },
+    {
+      "number": "10",
+      "name": "REGOUT",
+      "function": "regulator_out",
+      "requirement": "required",
+      "note": "100 nF to GND.",
+      "locator": "p22 section 7.2"
+    },
+    {
+      "number": "11",
+      "name": "FSYNC",
+      "function": "sync_in",
+      "requirement": "must_tie",
+      "note": "Tie to GND when unused.",
+      "locator": "p21",
+      "tie_class": "GND"
+    },
+    {
+      "number": "12",
+      "name": "INT",
+      "function": "interrupt_out",
+      "requirement": "optional",
+      "note": "Interrupt output.",
+      "locator": "p21"
+    },
+    {
+      "number": "13",
+      "name": "VDD",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "2.375-3.46 V; 100 nF bypass.",
+      "locator": "p12, p22"
+    },
+    {
+      "number": "18",
+      "name": "GND",
+      "function": "gnd",
+      "requirement": "required",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "19",
+      "name": "RESV",
+      "function": "reserved",
+      "requirement": "nc_reserved",
+      "note": "Reserved; do not connect.",
+      "locator": "p21"
+    },
+    {
+      "number": "21",
+      "name": "RESV",
+      "function": "reserved",
+      "requirement": "nc_reserved",
+      "note": "Reserved; do not connect.",
+      "locator": "p21"
+    },
+    {
+      "number": "22",
+      "name": "RESV",
+      "function": "reserved",
+      "requirement": "nc_reserved",
+      "note": "Reserved; do not connect.",
+      "locator": "p21"
+    },
+    {
+      "number": "20",
+      "name": "CPOUT",
+      "function": "charge_pump",
+      "requirement": "required",
+      "note": "2.2 nF to GND.",
+      "locator": "p22 section 7.2"
+    },
+    {
+      "number": "23",
+      "name": "SCL",
+      "function": "i2c_scl",
+      "requirement": "required",
+      "note": "",
+      "locator": "p21"
+    },
+    {
+      "number": "24",
+      "name": "SDA",
+      "function": "i2c_sda",
+      "requirement": "required",
+      "note": "",
+      "locator": "p21"
+    }
+  ],
+  "required_support": [
+    {
+      "role": "regout_capacitor",
+      "note": "100 nF at REGOUT.",
+      "locator": "p22 section 7.2"
+    },
+    {
+      "role": "charge_pump_capacitor",
+      "note": "2.2 nF at CPOUT.",
+      "locator": "p22 section 7.2"
+    },
+    {
+      "role": "vdd_bypass",
+      "note": "100 nF at VDD.",
+      "locator": "p22 section 7.2"
+    },
+    {
+      "role": "vlogic_bypass",
+      "note": "10 nF at VLOGIC.",
+      "locator": "p22 section 7.2"
+    }
+  ],
+  "limits": {
+    "vdd_min_v": 2.375,
+    "vdd_max_v": 3.46,
+    "gyro_current_ma": 3.6
+  }
+}

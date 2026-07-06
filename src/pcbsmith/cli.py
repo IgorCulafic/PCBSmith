@@ -92,7 +92,6 @@ from pcbsmith.kicad.export_led_art import export_led_art_to_kicad
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
 from pcbsmith.kicad.export_metal_detector import export_metal_detector_to_kicad
 from pcbsmith.kicad.export_mpu6050 import (
-    MPU6050_PIN_NETS,
     export_mpu6050_to_kicad,
 )
 from pcbsmith.kicad.export_pear import export_pear_to_kicad
@@ -402,6 +401,8 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
                 (net, float(circuit.intent.assumptions["load_current_a"]))
                 for net in ("/VIN", "/SW", "/VOUT", "/GND")
             ),
+            component_cards=(("U1", "LM2596S-ADJ"),),
+            tie_nets=(("GND", "/GND"),),
         ),
         ground_pour=True,
         thermal_pour_references=("U1",),
@@ -661,13 +662,10 @@ def _cmd_design_mpu6050_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         power_net_names=frozenset({"VDD", "GND"}),
         design_checks=DesignChecksSpec(
-            # Reviewed no-connects: RESV and unused pins per the datasheet
-            # pin table (p21); everything else must be on a net.
-            allowed_unconnected_pins=tuple(
-                ("U1", str(pin))
-                for pin in range(1, 25)
-                if pin not in MPU6050_PIN_NETS
-            ),
+            # The card carries the reviewed no-connect list and the
+            # must-tie contract (CLKIN/FSYNC to ground).
+            component_cards=(("U1", "MPU-6050"),),
+            tie_nets=(("GND", "/GND"),),
         ),
         ground_pour=True,
         extra_findings=(
@@ -821,13 +819,6 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
             )
             design_review = None
         else:
-            from pcbsmith.kicad.export_clover import (
-                U1_PIN_NETS as CLOVER_U1_NETS,
-            )
-            from pcbsmith.kicad.export_clover import (
-                U2_PIN_NETS as CLOVER_U2_NETS,
-            )
-
             design_review = run_design_checks(
                 layout,
                 board_netlist,
@@ -835,20 +826,13 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
                     led_strings=(
                         ("R3", "D1"), ("R4", "D2"), ("R5", "D3"), ("R6", "D4"),
                     ),
-                    # Reviewed no-connects: pins absent from the schematic
-                    # pin-net tables (RESV and unused pins per datasheets).
-                    allowed_unconnected_pins=(
-                        *(
-                            ("U1", str(pin))
-                            for pin in range(1, 25)
-                            if pin not in CLOVER_U1_NETS
-                        ),
-                        *(
-                            ("U2", str(pin))
-                            for pin in range(1, 15)
-                            if pin not in CLOVER_U2_NETS
-                        ),
+                    # The cards carry the reviewed no-connect lists and the
+                    # must-tie contracts (CLKIN/FSYNC to ground).
+                    component_cards=(
+                        ("U1", "MPU-6050"),
+                        ("U2", "ATtiny84A-SSU"),
                     ),
+                    tie_nets=(("GND", "/GND"),),
                 ),
             )
             board, design_review = _finish_board_authority(
@@ -1160,6 +1144,7 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
                             ("/COL",),
                         ),
                     ),
+                    component_cards=(("Q1", "MMBT3904"),),
                 ),
             )
             board, design_review = _finish_board_authority(
@@ -1217,6 +1202,62 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
     )
     print(f"Review bundle: {bundle_path}")
     print(f"Status: {status}")
+    return 0
+
+
+def _cmd_onboard_component(args: argparse.Namespace) -> int:
+    import hashlib
+
+    from pcbsmith.components import (
+        DatasheetRef,
+        card_path,
+        draft_card_from_symbol,
+        save_card,
+        validate_card_against_libraries,
+    )
+    from pcbsmith.kicad.library import load_footprint
+    from pcbsmith.kicad.symbols import vendor_symbol
+
+    if card_path(args.mpn).exists() and not args.overwrite:
+        raise ValueError(
+            f"A card for {args.mpn} already exists; pass --overwrite to "
+            "replace it."
+        )
+    # Verify and vendor both library halves before writing anything.
+    vendored_symbol = vendor_symbol(args.symbol)
+    load_footprint(args.footprint)
+
+    datasheet = DatasheetRef()
+    if args.datasheet:
+        pdf = Path(args.datasheet)
+        if not pdf.exists():
+            raise ValueError(f"Datasheet not found: {pdf}")
+        datasheet = DatasheetRef(
+            local_path=str(pdf).replace(chr(92), "/"),
+            sha256=hashlib.sha256(pdf.read_bytes()).hexdigest(),
+        )
+
+    card = draft_card_from_symbol(
+        args.mpn,
+        args.symbol,
+        args.footprint,
+        manufacturer=args.manufacturer or "",
+        datasheet=datasheet,
+    )
+    problems = validate_card_against_libraries(card)
+    path = save_card(card)
+    print(f"Draft card: {path}")
+    print(f"Vendored symbol: {vendored_symbol}")
+    print(f"Pins: {len(card.pins)} (requirements defaulted from pin types)")
+    if problems:
+        for problem in problems:
+            print(f"CENSUS PROBLEM: {problem}")
+        return 1
+    print(
+        "Status: draft - review each pin's requirement against the "
+        "datasheet (must_tie / nc_reserved / required), add required "
+        "support parts and limits, then set support_status."
+    )
     return 0
 
 
@@ -2133,6 +2174,19 @@ def build_parser() -> argparse.ArgumentParser:
     detector_parser.add_argument("--name", required=True)
     detector_parser.add_argument("--overwrite", action="store_true")
     detector_parser.set_defaults(func=_cmd_design_metal_detector_authority)
+
+    onboard_parser = subparsers.add_parser(
+        "onboard-component",
+        help="vendor a part's official symbol and footprint and generate a "
+        "draft component card for datasheet review",
+    )
+    onboard_parser.add_argument("mpn")
+    onboard_parser.add_argument("--symbol", required=True)
+    onboard_parser.add_argument("--footprint", required=True)
+    onboard_parser.add_argument("--datasheet")
+    onboard_parser.add_argument("--manufacturer")
+    onboard_parser.add_argument("--overwrite", action="store_true")
+    onboard_parser.set_defaults(func=_cmd_onboard_component)
 
     fab_parser = subparsers.add_parser(
         "fab-package",

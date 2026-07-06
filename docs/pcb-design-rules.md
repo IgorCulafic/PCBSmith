@@ -184,6 +184,17 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   review scare.) Status: **implemented** (`ic_pin_connectivity`, always
   on; clover and MPU authorities carry their reviewed NC lists).
 
+- **7.4 IC connectivity follows the part's component card.** The card
+  (`ai_assets/components/<mpn>.json`) is the machine-checkable datasheet
+  contract: required pins must be on a net, must_tie pins on the mapped
+  net class (LM2596 ~ON/OFF -> GND, MPU CLKIN/FSYNC -> GND), reserved
+  pins on none. Cards are censused against the official symbol and
+  footprint at creation; drafts from `onboard-component` stay untrusted
+  until reviewed. (`SESSION` 2026-07-06, plan Track 6.) Status:
+  **implemented** (`component_card_contract` check; cards feed 7.3's
+  no-connect whitelist; buck/MPU/clover/detector authorities declare
+  their cards).
+
 - **8.1 Polarized two-terminal parts mark polarity on silkscreen.** Diodes
   and LEDs get a CATHODE BAR (a silk line beside the cathode terminal —
   `KICAD-LIB` `LED_0603_1608Metric` closes its silk outline with a bar at the

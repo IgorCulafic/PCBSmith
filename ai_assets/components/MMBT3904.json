@@ -1,0 +1,45 @@
+{
+  "schema_id": "pcbsmith-component-card-v1",
+  "mpn": "MMBT3904",
+  "manufacturer": "onsemi (multi-source)",
+  "description": "NPN general-purpose transistor, SOT-23",
+  "symbol": "Transistor_BJT:MMBT3904",
+  "footprint": "Package_TO_SOT_SMD:SOT-23",
+  "datasheet": {
+    "local_path": "",
+    "sha256": "",
+    "source_url": ""
+  },
+  "support_status": "needs_datasheet_review",
+  "pins": [
+    {
+      "number": "1",
+      "name": "B",
+      "function": "base",
+      "requirement": "required",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "2",
+      "name": "E",
+      "function": "emitter",
+      "requirement": "required",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "3",
+      "name": "C",
+      "function": "collector",
+      "requirement": "required",
+      "note": "",
+      "locator": ""
+    }
+  ],
+  "required_support": [],
+  "limits": {
+    "vceo_v": 40.0,
+    "ic_max_ma": 200.0
+  }
+}

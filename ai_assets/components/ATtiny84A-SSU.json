@@ -1,0 +1,140 @@
+{
+  "schema_id": "pcbsmith-component-card-v1",
+  "mpn": "ATtiny84A-SSU",
+  "manufacturer": "Microchip",
+  "description": "AVR 8-bit MCU, SOIC-14",
+  "symbol": "MCU_Microchip_ATtiny:ATtiny84A-SS",
+  "footprint": "Package_SO:SOIC-14_3.9x8.7mm_P1.27mm",
+  "datasheet": {
+    "local_path": "ai_assets/datasheets/attiny84a.pdf",
+    "sha256": "304cec529f98f09c38f0dd70c7db169c76579ce214bd41f098ca0e3d62095be7",
+    "source_url": ""
+  },
+  "support_status": "reviewed",
+  "pins": [
+    {
+      "number": "1",
+      "name": "VCC",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "1.8-5.5 V.",
+      "locator": "doc8006 p1"
+    },
+    {
+      "number": "2",
+      "name": "PB0",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "3",
+      "name": "PB1",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "5",
+      "name": "PB2",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "6",
+      "name": "PA7",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "7",
+      "name": "PA6",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "8",
+      "name": "PA5",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "9",
+      "name": "PA4",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "10",
+      "name": "PA3",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "11",
+      "name": "PA2",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "12",
+      "name": "PA1",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "13",
+      "name": "PA0",
+      "function": "gpio",
+      "requirement": "nc_allowed",
+      "note": "",
+      "locator": ""
+    },
+    {
+      "number": "4",
+      "name": "~{RESET}/PB3",
+      "function": "reset",
+      "requirement": "nc_allowed",
+      "note": "Internal pull-up; add 10k + ISP header before production.",
+      "locator": "doc8006 section 10.3"
+    },
+    {
+      "number": "14",
+      "name": "GND",
+      "function": "gnd",
+      "requirement": "required",
+      "note": "",
+      "locator": "doc8006 p2"
+    }
+  ],
+  "required_support": [
+    {
+      "role": "vcc_bypass",
+      "note": "100 nF at VCC.",
+      "locator": "AVR hardware design app note"
+    }
+  ],
+  "limits": {
+    "vcc_min_v": 1.8,
+    "vcc_max_v": 5.5,
+    "iol_ma_at_3v": 5.0
+  }
+}

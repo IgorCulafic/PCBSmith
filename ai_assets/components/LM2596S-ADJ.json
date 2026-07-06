@@ -1,0 +1,85 @@
+{
+  "schema_id": "pcbsmith-component-card-v1",
+  "mpn": "LM2596S-ADJ",
+  "manufacturer": "Texas Instruments",
+  "description": "150 kHz 3 A step-down regulator, adjustable, TO-263-5",
+  "symbol": "Regulator_Switching:LM2596S-ADJ",
+  "footprint": "Package_TO_SOT_SMD:TO-263-5_TabPin3",
+  "datasheet": {
+    "local_path": "ai_assets/datasheets/lm2596.pdf",
+    "sha256": "c4cd25b7f4de7b1c98f117c47de28ae5e596a84fc54b1f6d24f9f5adde6fe8ae",
+    "source_url": ""
+  },
+  "support_status": "reviewed",
+  "pins": [
+    {
+      "number": "1",
+      "name": "VIN",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "Input supply; bulk + HF bypass close to the pin.",
+      "locator": "SNVS124G section 9.4.1 p31"
+    },
+    {
+      "number": "2",
+      "name": "OUT",
+      "function": "power_out",
+      "requirement": "required",
+      "note": "Switch node to the catch diode and inductor; keep the loop tight.",
+      "locator": "SNVS124G section 9.4.1 p31"
+    },
+    {
+      "number": "3",
+      "name": "GND",
+      "function": "gnd",
+      "requirement": "required",
+      "note": "Also the TO-263 tab; thermal pour.",
+      "locator": "SNVS124G p5"
+    },
+    {
+      "number": "4",
+      "name": "FB",
+      "function": "feedback",
+      "requirement": "required",
+      "note": "Feedback divider midpoint; route away from the inductor.",
+      "locator": "SNVS124G section 8.3 (Vref 1.23 V p6)"
+    },
+    {
+      "number": "5",
+      "name": "~{ON}/OFF",
+      "function": "enable",
+      "requirement": "must_tie",
+      "note": "Active-low enable: tie to GND for always-on operation.",
+      "locator": "SNVS124G section 8.4",
+      "tie_class": "GND"
+    }
+  ],
+  "required_support": [
+    {
+      "role": "catch_diode",
+      "note": "Schottky rated above the load current (e.g. SS34).",
+      "locator": "SNVS124G section 9.2"
+    },
+    {
+      "role": "output_inductor",
+      "note": "Sized by the ripple design equations.",
+      "locator": "SNVS124G section 9.2.2"
+    },
+    {
+      "role": "output_capacitor",
+      "note": "Bulk electrolytic plus HF ceramic.",
+      "locator": "SNVS124G section 9.2.4"
+    },
+    {
+      "role": "input_capacitor",
+      "note": "Bulk electrolytic plus HF ceramic at VIN.",
+      "locator": "SNVS124G section 9.2.5"
+    }
+  ],
+  "limits": {
+    "vin_max_v": 40.0,
+    "vref_v": 1.23,
+    "fsw_hz": 150000.0,
+    "iout_max_a": 3.0
+  }
+}

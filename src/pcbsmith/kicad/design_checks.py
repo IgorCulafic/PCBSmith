@@ -48,6 +48,11 @@ class DesignChecksSpec:
     # (datasheet-documented RESV/unused pins). Any other unconnected pad
     # on a 3+ pin part is a blocker.
     allowed_unconnected_pins: tuple[tuple[str, str], ...] = ()
+    # Rule 7.4: (reference, card mpn) pairs; the part's connectivity must
+    # honour its component card. Cards also feed 7.3's whitelist.
+    component_cards: tuple[tuple[str, str], ...] = ()
+    # Net-class map for must_tie pins, e.g. (("GND", "/GND"),).
+    tie_nets: tuple[tuple[str, str], ...] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -92,9 +97,27 @@ def run_design_checks(
         checks_run.append("trace_current")
         findings.extend(_check_trace_currents(layout, spec.net_currents))
 
+    allowed_unconnected = set(spec.allowed_unconnected_pins)
+    if spec.component_cards:
+        from pcbsmith.components import card_contract_findings, load_card
+
+        checks_run.append("component_card_contract")
+        tie_map = dict(spec.tie_nets)
+        for reference, mpn in spec.component_cards:
+            card = load_card(mpn)
+            findings.extend(
+                card_contract_findings(card, reference, netlist, tie_map)
+            )
+            # The card's reviewed NC pins feed rule 7.3's whitelist.
+            allowed_unconnected.update(
+                (reference, pin) for pin in card.nc_pins()
+            )
+
     checks_run.append("ic_pin_connectivity")
     findings.extend(
-        _check_ic_pin_connectivity(layout, netlist, spec.allowed_unconnected_pins)
+        _check_ic_pin_connectivity(
+            layout, netlist, tuple(sorted(allowed_unconnected))
+        )
     )
 
     findings.extend(spec.extra_model_findings)
