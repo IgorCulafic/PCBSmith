@@ -98,6 +98,7 @@ from pcbsmith.kicad.pear_board import generate_pear_board, ring_unit_counts
 from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
+from pcbsmith.kicad.virtual_drc import run_virtual_drc
 from pcbsmith.review.authority_bundle import write_authority_review_bundle
 from pcbsmith.review.circuit_bundle import write_circuit_review_bundle
 from pcbsmith.revision import (
@@ -1102,7 +1103,27 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
             )
             design_review = None
         else:
-            design_review = run_design_checks(layout, board_netlist, DesignChecksSpec())
+            from pcbsmith.kicad.metal_detector_board import (
+                COIL_CENTER,
+                SPIRAL_OUTER_RADIUS,
+            )
+            design_review = run_design_checks(
+                layout,
+                board_netlist,
+                DesignChecksSpec(
+                    copper_keepouts=(
+                        # The keepout is the coil itself plus half a trace
+                        # width; the handle pour legitimately ends just
+                        # above the outer turn.
+                        (
+                            COIL_CENTER[0],
+                            COIL_CENTER[1],
+                            SPIRAL_OUTER_RADIUS + 0.5,
+                            ("/COL",),
+                        ),
+                    ),
+                ),
+            )
             board, design_review = _finish_board_authority(
                 board_file=board_file,
                 output_dir=output_dir,
@@ -1549,6 +1570,23 @@ def _finish_board_authority(
     design_review: DesignReviewReport,
     extra_findings: tuple[str, ...],
 ) -> tuple[BoardReport, DesignReviewReport | None]:
+    # Virtual DRC first: the fast geometric pre-filter (hardening plan 2.1).
+    # Its model deliberately underestimates copper, so findings are
+    # high-confidence; on a hit, the KiCad round trip is skipped entirely.
+    virtual_findings = run_virtual_drc(layout, board_netlist)
+    if virtual_findings:
+        return (
+            BoardReport(
+                status="failed",
+                board_file=str(board_file),
+                findings=tuple(
+                    f"virtual_drc/{finding.check}: {finding.message} "
+                    f"at ({finding.x_mm:.1f}, {finding.y_mm:.1f})mm"
+                    for finding in virtual_findings[:20]
+                ),
+            ),
+            design_review,
+        )
     report = run_kicad_drc(board_file)
     _, preview_findings = render_board_previews(board_file)
     try:

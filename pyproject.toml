@@ -37,6 +37,9 @@ pcbsmith = "pcbsmith.cli:main"
 packages = ["src/pcbsmith"]
 
 [tool.pytest.ini_options]
+markers = [
+    "golden: live full-pipeline regeneration of every topology (slow, needs kicad-cli + ngspice); gated by PCBSMITH_GOLDEN=1",
+]
 testpaths = ["tests"]
 addopts = "-q --import-mode=importlib"
 

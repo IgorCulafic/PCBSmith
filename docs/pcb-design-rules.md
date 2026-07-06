@@ -207,13 +207,20 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
 
 ## 9. Sensing structures made of copper
 
+- **5.2 Board outlines must be simple closed polygons.** A
+  self-intersecting Edge.Cuts polygon poisons every downstream check (a
+  single mirrored arc constant once produced 90+ violations on the pear
+  board). (`SESSION`.) Status: **implemented** (`outline_is_simple` runs
+  on every shaped layout; blocker).
+
 - **9.1 No copper pour or plane under a sensing coil.** A plane under a
   planar inductor forms a shorted turn: eddy currents cancel flux, drop the
   inductance, and destroy the Q. Only thin, radial-ish signal traces may
   cross beneath a coil, and as few as possible (the metal detector carries
   exactly one: the spiral's centre return). (`SESSION` metal-detector
-  slice + standard planar-magnetics practice.) Status: **implemented**
-  (detector's GND zone is clipped to the handle).
+  slice + standard planar-magnetics practice.) Status: **implemented and
+  machine-enforced** (`copper_keepout` check; the detector authority
+  declares the coil disc with the coil net allow-listed).
 - **9.2 Copper-only components are represented by net ties.** A structure
   that exists only as traces (spiral inductor, capacitive pad, antenna)
   still joins two nets in the schematic. The board uses an official KiCad
@@ -221,7 +228,10 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   parity sees the symbol; the trace structure itself carries ONE net. The
   net-tie footprint is BOM-excluded, so the schematic symbol must set
   `in_bom no` to keep parity clean. (`KICAD-LIB` NetTie library +
-  `SESSION`.) Status: **implemented** (metal detector coil terminal L1).
+  `SESSION`.) Status: **implemented** (metal detector coil terminal L1);
+  the BOM-flag parity is machine-enforced by kicad-cli schematic parity
+  (it failed live before the symbol flag matched), and the pad-group
+  embedding is pinned by a convention probe test.
 - **9.3 Exposed-copper regions are soldermask-opening graphics.** A filled
   polygon on `F.Mask` opens the mask over the region (the mask layer is
   negative). Exposed traces get surface-finished by the fab; specify ENIG

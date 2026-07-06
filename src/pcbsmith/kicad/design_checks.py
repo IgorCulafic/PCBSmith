@@ -36,6 +36,11 @@ class DesignChecksSpec:
     inductor_references: tuple[str, ...] = ()
     # Series LED strings in supply-to-ground order: (resistor, led, led, ...).
     led_strings: tuple[tuple[str, ...], ...] = ()
+    # Rule 9.1 keepouts: (center_x, center_y, radius, allowed net names).
+    # No zone may intersect the circle; only allowed-net copper may.
+    copper_keepouts: tuple[
+        tuple[float, float, float, tuple[str, ...]], ...
+    ] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -68,6 +73,14 @@ def run_design_checks(
         checks_run.append("series_led_polarity")
         findings.extend(_check_series_led_polarity(netlist, spec.led_strings))
 
+    if layout.outline:
+        checks_run.append("outline_is_simple")
+        findings.extend(_check_outline_is_simple(layout))
+
+    if spec.copper_keepouts:
+        checks_run.append("copper_keepout")
+        findings.extend(_check_copper_keepouts(layout, spec.copper_keepouts))
+
     findings.extend(spec.extra_model_findings)
 
     if any(finding.severity == "blocker" for finding in findings):
@@ -81,6 +94,127 @@ def run_design_checks(
         checks_run=tuple(checks_run),
         findings=tuple(findings),
     )
+
+
+def _segments_intersect(
+    a1: tuple[float, float],
+    a2: tuple[float, float],
+    b1: tuple[float, float],
+    b2: tuple[float, float],
+) -> bool:
+    def orient(
+        p: tuple[float, float], q: tuple[float, float], r: tuple[float, float]
+    ) -> float:
+        return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
+
+    d1 = orient(b1, b2, a1)
+    d2 = orient(b1, b2, a2)
+    d3 = orient(a1, a2, b1)
+    d4 = orient(a1, a2, b2)
+    return d1 * d2 < 0 and d3 * d4 < 0
+
+
+def _check_outline_is_simple(layout: BoardLayout) -> tuple[ReviewFinding, ...]:
+    # Rule 5.2: a shaped outline must be a simple closed polygon. A single
+    # mirrored arc constant once swept the pear outline through the board
+    # body and produced 90+ downstream violations; this catches it at the
+    # source.
+    if layout.outline is None:
+        return ()
+    points = layout.outline
+    count = len(points)
+    edges = [(points[i], points[(i + 1) % count]) for i in range(count)]
+    for i in range(count):
+        for j in range(i + 2, count):
+            if i == 0 and j == count - 1:
+                continue
+            if _segments_intersect(*edges[i], *edges[j]):
+                crossing_x = (edges[i][0][0] + edges[j][0][0]) / 2
+                crossing_y = (edges[i][0][1] + edges[j][0][1]) / 2
+                return (
+                    ReviewFinding(
+                        rule="5.2",
+                        severity="blocker",
+                        scope="global",
+                        where="outline",
+                        evidence=(
+                            f"Outline edges {i} and {j} intersect near "
+                            f"({crossing_x:.1f}, {crossing_y:.1f})mm; the "
+                            "board polygon is self-intersecting."
+                        ),
+                        suggested_action=(
+                            "Fix the outline construction (arc sweep "
+                            "direction or splice window) so the polygon is "
+                            "simple."
+                        ),
+                        source="check",
+                    ),
+                )
+    return ()
+
+
+def _check_copper_keepouts(
+    layout: BoardLayout,
+    keepouts: tuple[tuple[float, float, float, tuple[str, ...]], ...],
+) -> tuple[ReviewFinding, ...]:
+    # Rule 9.1: no pour/plane and no foreign copper inside a sensing
+    # keepout (a plane under a coil is a shorted turn).
+    findings: list[ReviewFinding] = []
+    for center_x, center_y, radius, allowed in keepouts:
+        for zone_net, _layer, rect in layout.zones:
+            x1, y1, x2, y2 = rect
+            nearest_x = min(max(center_x, x1), x2)
+            nearest_y = min(max(center_y, y1), y2)
+            if (nearest_x - center_x) ** 2 + (nearest_y - center_y) ** 2 < radius**2:
+                findings.append(
+                    ReviewFinding(
+                        rule="9.1",
+                        severity="blocker",
+                        scope="region",
+                        where=f"zone {zone_net}",
+                        evidence=(
+                            f"Zone {zone_net} rect {rect} intersects the "
+                            f"copper keepout at ({center_x:g}, {center_y:g}) "
+                            f"r={radius:g}mm."
+                        ),
+                        suggested_action=(
+                            "Clip the zone away from the sensing region; a "
+                            "plane under a coil acts as a shorted turn."
+                        ),
+                        source="check",
+                    )
+                )
+        for segment in layout.segments:
+            if segment.net_name in allowed:
+                continue
+            mid_x = (segment.x1 + segment.x2) / 2
+            mid_y = (segment.y1 + segment.y2) / 2
+            probes = (
+                (segment.x1, segment.y1),
+                (mid_x, mid_y),
+                (segment.x2, segment.y2),
+            )
+            for x, y in probes:
+                if (x - center_x) ** 2 + (y - center_y) ** 2 < radius**2:
+                    findings.append(
+                        ReviewFinding(
+                            rule="9.1",
+                            severity="blocker",
+                            scope="net",
+                            where=segment.net_name,
+                            evidence=(
+                                f"Track [{segment.net_name}] enters the "
+                                f"copper keepout near ({x:.1f}, {y:.1f})mm."
+                            ),
+                            suggested_action=(
+                                "Route around the sensing region or add the "
+                                "net to the keepout allow list."
+                            ),
+                            source="check",
+                        )
+                    )
+                    break
+    return tuple(findings)
 
 
 def _check_connector_edges(layout: BoardLayout) -> tuple[ReviewFinding, ...]:

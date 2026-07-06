@@ -157,6 +157,9 @@ class PadSpec:
     width_mm: float
     height_mm: float
     drill_mm: float = 0.0
+    # The pad's own rotation within the footprint (third `at` element).
+    # QFN side pads carry 90 here; ignoring it mis-orients the pad body.
+    angle_deg: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -296,6 +299,11 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
         drill_nodes = _children(pad, "drill")
         x_mm = float(_atom(at[0][1])) if at else 0.0
         y_mm = float(_atom(at[0][2])) if at else 0.0
+        angle_deg = (
+            float(_atom(at[0][3]))
+            if at and len(at[0]) > 3 and not isinstance(at[0][3], list)
+            else 0.0
+        )
         width = float(_atom(size[0][1])) if size else 0.0
         height = float(_atom(size[0][2])) if size else width
         drill = 0.0
@@ -319,6 +327,7 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
                 width_mm=width,
                 height_mm=height,
                 drill_mm=drill,
+                angle_deg=angle_deg,
             )
         )
 
