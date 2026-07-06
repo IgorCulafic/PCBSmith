@@ -382,6 +382,21 @@ without reading source. Effort: half a session.
 
 ---
 
+## Progress (2026-07-06)
+
+- DONE: 4.4 hygiene; 2.1 virtual DRC (first four checks; pour-cell
+  analysis pending); 1.1 (outline_is_simple, copper_keepout; net-tie BOM
+  parity resolved as kicad-parity-enforced; net labelling as
+  by-construction+ERC); 1.2 convention probes; 4.1 golden suite; 1.3
+  Wheeler cross-check (evidence fetches pending); 2.2 art-board toolkit
+  (geometry-hash-verified); 3.3 assembly artifact; 3.1 fab package; 3.2
+  offline BOM half; 4.5 IPC-2221 current check (thermal 3.5 still
+  pending); 4.8 front-end contract.
+- REMAINING: 2.1 pour-cell connectivity; 1.3/3.4 evidence fetches
+  (network session); 3.2 live Nexar; 4.2 board-diff learning; 4.3
+  reference-design ingestion; 2.3 assisted routing; 4.7 local-model
+  harness spike; 3.5 thermal check.
+
 ## Execution Order
 
 Wave 0 (immediately, half a session):
