@@ -32,3 +32,6 @@ ai-context.json
 demo-assets/
 demo-server.py
 pcbsmith-demo.html
+
+# Archived pre-restructure snapshots (reference material, kept locally).
+old_files/
