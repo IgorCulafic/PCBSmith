@@ -40,6 +40,12 @@ All principles from the circuit-intelligence roadmap hold. Two additions:
   rotation convention, or footprint dimension that the library can
   provide. Convention facts (rotation direction, mirror behavior) are
   pinned by probe tests, not comments.
+- **Every AI-facing capability is a narrow, schema-validated tool.** New
+  capabilities (checks, fix proposals, extraction) are exposed through
+  small function interfaces with strict JSON-serializable inputs and
+  outputs — never "run arbitrary shell / edit arbitrary files". This is
+  what makes the pipeline drivable by a local model later (Track 5)
+  without retrofitting.
 
 ---
 
@@ -330,7 +336,43 @@ with the keyword matcher as validator (both must agree or the request is
 `needs_human_review`) — consistent with the "AI output is a proposal
 only" principle. No work now; recorded so it is not reinvented.
 
-### 4.7 Front-end readiness contract (no code yet)
+### 4.7 Local-model runway (Track 5, design constraint now, code later)
+
+Motivation: today the pipeline works because the operating AI brings a
+full agent harness — tool loop, file editing, shell, vision. A local
+model behind llama-server has none of that, and the 2026-05 KoboldCPP
+experiment showed mid-size models emit malformed tool calls when the
+output is unconstrained.
+
+What changes NOW (costs nothing, shapes Waves 1-3):
+
+- every capability lands as a narrow function with schema-typed I/O (see
+  the new principle above): `run_virtual_drc(layout) -> findings[]`,
+  `propose_patch(rule_id, parameter, value)`, `classify_intent(text)`,
+  `extract_facts(pdf, roles)` — the AI chooses among machine-verified
+  options; it never computes geometry or arithmetic (calculators and the
+  virtual DRC own all numbers);
+- findings/fix objects stay JSON-serializable so they can round-trip
+  through any model.
+
+What comes LATER (after Waves 1-2 shrink the reasoning burden):
+
+- a thin local harness: llama-server (already being stood up for the
+  Exam Generator) with **grammar-constrained decoding** (GBNF /
+  JSON-schema at the sampler) so malformed tool calls become impossible,
+  not merely repaired; Phase G's repair layer demotes to a fallback;
+- the tool registry: a dozen PCBSmith functions exposed OpenAI-tools
+  style, with the existing `evidence/llm.py` client as the base;
+- vision is a nice-to-have, not a correctness dependency: local mmproj
+  models can be tried for render review, but anything the model "must
+  notice by looking" is by definition a missing deterministic check.
+
+Realistic capability ladder for a ~30B local model once Waves 1-2 land:
+intent classification, datasheet fact extraction, review-finding triage,
+parameter-level patch proposals. Out of scope: authoring new board
+topologies from scratch (templates and the toolkit carry that).
+
+### 4.8 Front-end readiness contract (no code yet)
 
 The backend already emits everything a UI needs. Freeze the contract in
 one doc page: revision directory layout, bundle schema id, artifact keys,
@@ -364,7 +406,7 @@ Wave 4 (learning loops):
 - 4.2 board-diff learning
 - 4.3 reference-design ingestion
 - 2.3 assisted routing
-- 4.7 front-end contract; 4.6 stays gated
+- 4.7 local-model harness spike; 4.8 front-end contract; 4.6 stays gated
 
 Rough total: 20–25 working sessions. Each wave leaves the repo green
 (golden suite from Wave 1 onward) and each item lands with its tests and

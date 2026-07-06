@@ -10,3 +10,25 @@ pytest-cache-files-*/
 phase0-*-pytest*/
 phase0-pytest-basetemp/
 docs/reference/PCB_Application_Specification.docx
+
+# Generated design revisions (historical evidence lives in bundles/commits,
+# not in git; see hardening plan 4.4).
+outputs/
+
+# Vendored standalone ngspice (should eventually live outside the repo).
+Spice64/
+
+# Permission-locked leftovers from the 2026 PC reinstall.
+.cleanup-archive/
+
+# KiCad lock files and local editor state.
+*.lck
+*.kicad_prl
+_autosave-*
+
+# Local session/tooling artifacts.
+.claude/
+ai-context.json
+demo-assets/
+demo-server.py
+pcbsmith-demo.html

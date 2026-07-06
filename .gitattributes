@@ -1,0 +1,8 @@
+# Normalize line endings: LF in the repo for all text sources.
+* text=auto
+*.py text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.kicad_mod text eol=lf
+*.png binary
+*.pdf binary
