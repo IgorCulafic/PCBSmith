@@ -1,4 +1,11 @@
-"""KiCad schematic exporter for the clover tilt indicator (label-net style)."""
+"""KiCad schematic exporter for the clover tilt indicator (label-net style).
+
+Official symbols throughout (hardening plan 6.1): the real
+Sensor_Motion:MPU-6050 and MCU_Microchip_ATtiny:ATtiny84A-SS, Device
+passives, and power flags for the ICs' power_in pins. Wires attach at
+measured pin positions; the MCU's unused bidirectional pins carry
+explicit no-connect markers.
+"""
 
 from __future__ import annotations
 
@@ -8,24 +15,18 @@ from uuid import uuid4
 from pcbsmith.circuit.models import CircuitObject
 from pcbsmith.kicad.export_divider_highpass_led import (
     KICAD_SCHEMATIC_VERSION,
-    KICAD_SYMBOL_LIBRARY_VERSION,
-    _capacitor_symbol_drawing,
-    _generic_pin,
     _label,
-    _led_symbol_drawing,
-    _library_property,
     _render_project,
-    _render_symbol_table,
-    _render_two_pin_box_library_symbol,
-    _resistor_symbol_drawing,
     _symbol,
     _validate_project_name,
     _wire,
 )
-from pcbsmith.kicad.export_mpu6050 import (
-    _no_connect,
-    _render_mpu6050_library_symbol,
-    render_connector_library_symbol,
+from pcbsmith.kicad.export_mpu6050 import _no_connect
+from pcbsmith.kicad.symbols import (
+    instance_pin_position,
+    load_symbol,
+    pin_stub,
+    render_symbol_for_schematic,
 )
 
 SUPPORTED_TOPOLOGY_ID = "clover_tilt_indicator"
@@ -38,20 +39,52 @@ U1_PIN_NETS = {
 # ATtiny84A SOIC-14: 1 VCC, 14 GND, USI SDA=PA6(7) SCL=PA4(9), leaves on
 # PA0..PA3 (13..10), INT on PA7 (6). RESET (4) relies on its internal
 # pull-up (finding); 2/3/5/8 unused.
-ATTINY84_PIN_NAMES = {
-    1: "VCC", 2: "PB0", 3: "PB1", 4: "PB3/RST", 5: "PB2", 6: "PA7",
-    7: "PA6/SDA", 8: "PA5", 9: "PA4/SCL", 10: "PA3", 11: "PA2",
-    12: "PA1", 13: "PA0", 14: "GND",
-}
 U2_PIN_NETS = {
     1: "VDD", 6: "INT", 7: "SDA", 9: "SCL",
     10: "LEAF_NE", 11: "LEAF_SE", 12: "LEAF_SW", 13: "LEAF_NW",
     14: "GND",
 }
+U2_NC_PINS = (2, 3, 4, 5, 8)
+# The auxiliary I2C master bus is unused on this board; the datasheet
+# permits leaving AUX_DA/AUX_CL floating when no external sensor hangs
+# off the MPU.
+U1_NC_PINS = (6, 7)
 
-U1_X, U1_Y = 63.5, 63.5
-U2_X, U2_Y = 127.0, 63.5
-STUB = 5.08
+U1_AT = (63.5, 63.5)
+U2_AT = (127.0, 63.5)
+
+MPU = "Sensor_Motion:MPU-6050"
+MCU = "MCU_Microchip_ATtiny:ATtiny84A-SS"
+RESISTOR = "Device:R"
+CAPACITOR = "Device:C"
+LED = "Device:LED"
+CONNECTOR = "Connector_Generic:Conn_01x02"
+FLAG = "power:PWR_FLAG"
+
+# Vertical two-pin columns: (ref, lib_id, x, top net, bottom net).
+PASSIVE_COLUMNS = (
+    ("C1", CAPACITOR, 30.48, "REGOUT", "GND"),
+    ("C2", CAPACITOR, 43.18, "VDD", "GND"),
+    ("C3", CAPACITOR, 55.88, "CPOUT", "GND"),
+    ("C4", CAPACITOR, 68.58, "VDD", "GND"),
+    ("C5", CAPACITOR, 81.28, "VDD", "GND"),
+    ("R1", RESISTOR, 93.98, "VDD", "SDA"),
+    ("R2", RESISTOR, 106.68, "VDD", "SCL"),
+    ("R3", RESISTOR, 119.38, "LEAF_NE", "LEAF_NE_A"),
+    ("R4", RESISTOR, 132.08, "LEAF_NW", "LEAF_NW_A"),
+    ("R5", RESISTOR, 144.78, "LEAF_SW", "LEAF_SW_A"),
+    ("R6", RESISTOR, 157.48, "LEAF_SE", "LEAF_SE_A"),
+)
+# Horizontal LEDs: (ref, x, cathode net, anode net). Device:LED pin 1 is
+# the cathode on the left.
+LED_ROW = (
+    ("D1", 177.8, "GND", "LEAF_NE_A"),
+    ("D2", 198.12, "GND", "LEAF_NW_A"),
+    ("D3", 218.44, "GND", "LEAF_SW_A"),
+    ("D4", 238.76, "GND", "LEAF_SE_A"),
+)
+PASSIVE_Y = 111.76
+LED_Y = 111.76
 
 
 def export_clover_to_kicad(
@@ -67,17 +100,12 @@ def export_clover_to_kicad(
     output_dir.mkdir(parents=True, exist_ok=True)
     project_file = output_dir / f"{project_name}.kicad_pro"
     schematic_file = output_dir / f"{project_name}.kicad_sch"
-    symbol_library = output_dir / "PCBSmith.kicad_sym"
-    symbol_table = output_dir / "sym-lib-table"
 
     project_file.write_text(_render_project(), encoding="utf-8")
-    symbol_table.write_text(_render_symbol_table(), encoding="utf-8")
-    symbol_library.write_text(_render_symbol_library(), encoding="utf-8")
     schematic_file.write_text(_render_schematic(circuit, project_name), encoding="utf-8")
     return {
         "project_file": str(project_file),
         "schematic_file": str(schematic_file),
-        "symbol_library": str(symbol_library),
     }
 
 
@@ -87,86 +115,86 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
         for component in circuit.components
     }
 
-    def sym(lib: str, reference: str, x: float, y: float, rotation: int = 0) -> str:
-        value, footprint = fields[reference]
+    def sym(
+        lib: str, reference: str, x: float, y: float, *, pin_count: int,
+        in_bom: bool = True, on_board: bool = True, value: str | None = None,
+    ) -> str:
+        default_value, footprint = fields.get(reference, ("", ""))
         return _symbol(
-            lib, reference, value, x, y, project_name,
-            rotation=rotation, exclude_from_sim=True, footprint=footprint,
+            lib, reference, value or default_value, x, y, project_name,
+            exclude_from_sim=True, footprint=footprint,
+            in_bom=in_bom, on_board=on_board, pin_count=pin_count,
         )
 
-    symbols = [
-        sym("PCBSmith:CONN_01X02", "P1", 25.4, 55.88),
-        sym("PCBSmith:MPU6050", "U1", U1_X, U1_Y),
-        sym("PCBSmith:ATTINY84", "U2", U2_X, U2_Y),
+    mpu = load_symbol(MPU)
+    mcu = load_symbol(MCU)
+    resistor = load_symbol(RESISTOR)
+    capacitor = load_symbol(CAPACITOR)
+    led = load_symbol(LED)
+    connector = load_symbol(CONNECTOR)
+    flag = load_symbol(FLAG)
+
+    symbols: list[str] = [
+        sym(CONNECTOR, "P1", 25.4, 55.88, pin_count=2),
+        sym(MPU, "U1", *U1_AT, pin_count=24),
+        sym(MCU, "U2", *U2_AT, pin_count=14),
     ]
     wires: list[str] = []
     labels: list[str] = []
     no_connects: list[str] = []
 
-    for index, connector_net in enumerate(("VDD", "GND")):
-        y = 55.88 - index * 2.54
-        wires.append(_wire((25.4, y), (25.4 + STUB, y)))
-        labels.append(_label(connector_net, 25.4 + STUB, y))
+    for index, net in enumerate(("VDD", "GND")):
+        tip, endpoint = pin_stub(connector, str(index + 1), (25.4, 55.88))
+        wires.append(_wire(tip, endpoint))
+        labels.append(_label(net, *endpoint))
 
-    # MPU-6050 (24-pin, two columns; geometry mirrors export_mpu6050).
-    for pin in range(1, 25):
-        if pin <= 12:
-            x, y, stub = U1_X - 12.7, 48.26 - 15.24 + pin * 2.54 + 15.24, -STUB
-            y = U1_Y - (15.24 - pin * 2.54)
-        else:
-            x, stub = U1_X + 12.7, STUB
-            y = U1_Y + (15.24 - (pin - 13) * 2.54) - 30.48 + 30.48
-            y = U1_Y - (-15.24 + (pin - 13) * 2.54)
-        net = U1_PIN_NETS.get(pin)
-        if net is None:
-            no_connects.append(_no_connect(x, y))
-            continue
-        wires.append(_wire((x, y), (x + stub, y)))
-        labels.append(_label(net, x + stub, y))
+    for pin_number, net in U1_PIN_NETS.items():
+        tip, endpoint = pin_stub(mpu, str(pin_number), U1_AT)
+        wires.append(_wire(tip, endpoint))
+        labels.append(_label(net, *endpoint))
 
-    # ATtiny84A (14-pin, two columns: 1-7 left top-down, 8-14 right bottom-up).
-    for pin in range(1, 15):
-        if pin <= 7:
-            x, stub = U2_X - 12.7, -STUB
-            y = U2_Y - (8.89 - pin * 2.54)
-        else:
-            x, stub = U2_X + 12.7, STUB
-            y = U2_Y - (-8.89 + (pin - 8) * 2.54)
-        net = U2_PIN_NETS.get(pin)
-        if net is None:
-            no_connects.append(_no_connect(x, y))
-            continue
-        wires.append(_wire((x, y), (x + stub, y)))
-        labels.append(_label(net, x + stub, y))
+    for pin_number, net in U2_PIN_NETS.items():
+        tip, endpoint = pin_stub(mcu, str(pin_number), U2_AT)
+        wires.append(_wire(tip, endpoint))
+        labels.append(_label(net, *endpoint))
+    for nc_pin in U2_NC_PINS:
+        tip = instance_pin_position(mcu, str(nc_pin), U2_AT)
+        no_connects.append(_no_connect(*tip))
+    for nc_pin in U1_NC_PINS:
+        tip = instance_pin_position(mpu, str(nc_pin), U1_AT)
+        no_connects.append(_no_connect(*tip))
 
-    # Passives (vertical, label-net): (ref, lib, x, top net, bottom net).
-    passives = (
-        ("C1", "PCBSmith:C", 30.48, "REGOUT", "GND"),
-        ("C2", "PCBSmith:C", 38.1, "VDD", "GND"),
-        ("C3", "PCBSmith:C", 45.72, "CPOUT", "GND"),
-        ("C4", "PCBSmith:C", 53.34, "VDD", "GND"),
-        ("C5", "PCBSmith:C", 60.96, "VDD", "GND"),
-        ("R1", "PCBSmith:R", 68.58, "VDD", "SDA"),
-        ("R2", "PCBSmith:R", 76.2, "VDD", "SCL"),
-        ("R3", "PCBSmith:R", 88.9, "LEAF_NE", "LEAF_NE_A"),
-        ("R4", "PCBSmith:R", 96.52, "LEAF_NW", "LEAF_NW_A"),
-        ("R5", "PCBSmith:R", 104.14, "LEAF_SW", "LEAF_SW_A"),
-        ("R6", "PCBSmith:R", 111.76, "LEAF_SE", "LEAF_SE_A"),
-        ("D1", "PCBSmith:LED", 88.9, "LEAF_NE_A", "GND"),
-        ("D2", "PCBSmith:LED", 96.52, "LEAF_NW_A", "GND"),
-        ("D3", "PCBSmith:LED", 104.14, "LEAF_SW_A", "GND"),
-        ("D4", "PCBSmith:LED", 111.76, "LEAF_SE_A", "GND"),
+    for reference, lib, x, top_net, bottom_net in PASSIVE_COLUMNS:
+        imported = capacitor if lib == CAPACITOR else resistor
+        symbols.append(sym(lib, reference, x, PASSIVE_Y, pin_count=2))
+        for pin_name, net in (("1", top_net), ("2", bottom_net)):
+            tip, endpoint = pin_stub(imported, pin_name, (x, PASSIVE_Y))
+            wires.append(_wire(tip, endpoint))
+            labels.append(_label(net, *endpoint))
+
+    for reference, x, cathode_net, anode_net in LED_ROW:
+        symbols.append(sym(LED, reference, x, LED_Y, pin_count=2))
+        for pin_name, net in (("1", cathode_net), ("2", anode_net)):
+            tip, endpoint = pin_stub(led, pin_name, (x, LED_Y))
+            wires.append(_wire(tip, endpoint))
+            labels.append(_label(net, *endpoint))
+
+    # Power flags: both ICs declare power_in pins; the header is passive.
+    for index, net in enumerate(("VDD", "GND")):
+        x = 30.48 + index * 12.7
+        symbols.append(
+            sym(FLAG, f"#FLG0{index + 1}", x, 137.16,
+                pin_count=1, in_bom=False, on_board=False, value="PWR_FLAG")
+        )
+        tip, _out = pin_stub(flag, "1", (x, 137.16))
+        endpoint = (tip[0], tip[1] + 2.54)
+        wires.append(_wire(tip, endpoint))
+        labels.append(_label(net, *endpoint))
+
+    lib_symbols = "\n".join(
+        render_symbol_for_schematic(load_symbol(lib_id))
+        for lib_id in (RESISTOR, CAPACITOR, LED, MPU, MCU, CONNECTOR, FLAG)
     )
-    for reference, lib, x, top_net, bottom_net in passives:
-        y_center = 95.25 if not reference.startswith("D") else 116.84
-        symbols.append(sym(lib, reference, x, y_center, rotation=270))
-        top_tip = y_center - STUB
-        bottom_tip = y_center + STUB
-        wires.append(_wire((x, top_tip), (x, top_tip - 2.54)))
-        labels.append(_label(top_net, x, top_tip - 2.54))
-        wires.append(_wire((x, bottom_tip), (x, bottom_tip + 2.54)))
-        labels.append(_label(bottom_net, x, bottom_tip + 2.54))
-
     items = "\n".join((*symbols, *wires, *labels, *no_connects))
     return f"""(kicad_sch
   (version {KICAD_SCHEMATIC_VERSION})
@@ -176,7 +204,7 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   (paper "A3")
 
   (lib_symbols
-{_render_library_symbols(name_prefix="PCBSmith:")}
+{lib_symbols}
   )
 {items}
   (sheet_instances
@@ -184,95 +212,3 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   )
 )
 """
-
-
-def _render_symbol_library() -> str:
-    return f"""(kicad_symbol_lib
-  (version {KICAD_SYMBOL_LIBRARY_VERSION})
-  (generator "PCBSmith")
-  (generator_version "0.1")
-{_render_library_symbols(name_prefix="")}
-)
-"""
-
-
-def _render_library_symbols(*, name_prefix: str) -> str:
-    return "\n\n".join(
-        (
-            _render_two_pin_box_library_symbol(
-                f"{name_prefix}R",
-                reference="R",
-                value="R",
-                description="Generic resistor",
-                drawing=_resistor_symbol_drawing(),
-                pin_length_mm="2.54",
-            ),
-            _render_two_pin_box_library_symbol(
-                f"{name_prefix}C",
-                reference="C",
-                value="C",
-                description="Ceramic capacitor",
-                drawing=_capacitor_symbol_drawing(),
-                pin_length_mm="4.318",
-            ),
-            _render_two_pin_box_library_symbol(
-                f"{name_prefix}LED",
-                reference="D",
-                value="LED",
-                description="Leaf LED",
-                drawing=_led_symbol_drawing(),
-                pin_length_mm="3.81",
-                pin_one_at="right",
-            ),
-            _render_mpu6050_library_symbol(f"{name_prefix}MPU6050"),
-            _render_attiny84_library_symbol(f"{name_prefix}ATTINY84"),
-            render_connector_library_symbol(f"{name_prefix}CONN_01X02", pin_count=2),
-        )
-    )
-
-
-def _render_attiny84_library_symbol(name: str) -> str:
-    pins: list[str] = []
-    for pin in range(1, 8):
-        local_y = 8.89 - pin * 2.54
-        pins.append(
-            _generic_pin(str(pin), ATTINY84_PIN_NAMES[pin], -12.7, local_y, 0, "2.54")
-        )
-    for pin in range(8, 15):
-        local_y = -8.89 + (pin - 8) * 2.54
-        pins.append(
-            _generic_pin(str(pin), ATTINY84_PIN_NAMES[pin], 12.7, local_y, 180, "2.54")
-        )
-    rendered = "\n".join(pins)
-    return f"""  (symbol "{name}"
-    (pin_numbers
-      (hide no)
-    )
-    (pin_names
-      (offset 0.762)
-    )
-    (exclude_from_sim yes)
-    (in_bom yes)
-    (on_board yes)
-    {_library_property("Reference", "U", 0, 11.43)}
-    {_library_property("Value", "ATtiny84A", 0, -12.7)}
-    {_library_property("Footprint", "", 0, 0, hidden=True)}
-    {_library_property("Datasheet", "~", 0, 0, hidden=True)}
-    {_library_property("Description", "AVR 8-bit MCU, SOIC-14", 0, 0, hidden=True)}
-    (symbol "ATTINY84_0_1"
-      (rectangle
-        (start -10.16 10.16)
-        (end 10.16 -11.43)
-        (stroke
-          (width 0.254)
-          (type default)
-        )
-        (fill
-          (type background)
-        )
-      )
-    )
-    (symbol "ATTINY84_1_1"
-{rendered}
-    )
-  )"""

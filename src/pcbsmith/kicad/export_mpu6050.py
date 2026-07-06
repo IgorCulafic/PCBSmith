@@ -27,6 +27,11 @@ from pcbsmith.kicad.export_divider_highpass_led import (
     _validate_project_name,
     _wire,
 )
+from pcbsmith.kicad.symbols import (
+    load_symbol,
+    pin_stub,
+    render_symbol_for_schematic,
+)
 
 SUPPORTED_TOPOLOGY_ID = "mpu6050_imu"
 
@@ -101,88 +106,100 @@ def export_mpu6050_to_kicad(
     }
 
 
-def _pin_position(pin: int) -> tuple[float, float, str]:
-    """Sheet position of a U1 pin tip and which side it exits."""
-    if pin <= 12:
-        return (U1_X - U1_TIP_DX, 48.26 + pin * 2.54, "left")
-    return (U1_X + U1_TIP_DX, 78.74 - (pin - 13) * 2.54, "right")
-
-
 def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
     fields = {
         component.reference: (component.value, component.footprint or "")
         for component in circuit.components
     }
 
-    def sym(lib: str, reference: str, x: float, y: float, rotation: int = 0) -> str:
-        value, footprint = fields[reference]
+    def sym(
+        lib: str, reference: str, x: float, y: float, *, pin_count: int,
+        in_bom: bool = True, on_board: bool = True,
+    ) -> str:
+        value, footprint = fields.get(reference, ("", ""))
+        if reference.startswith("#"):
+            value, footprint = reference.lstrip("#FLG0") or "flag", ""
+            value = "PWR_FLAG"
         return _symbol(
-            lib,
-            reference,
-            value,
-            x,
-            y,
-            project_name,
-            rotation=rotation,
-            exclude_from_sim=True,
-            footprint=footprint,
+            lib, reference, value, x, y, project_name,
+            exclude_from_sim=True, footprint=footprint,
+            in_bom=in_bom, on_board=on_board, pin_count=pin_count,
         )
 
-    symbols = [
-        sym("PCBSmith:CONN_01X08", "P1", 30.48, 76.2),
-        sym("PCBSmith:MPU6050", "U1", U1_X, U1_Y),
+    mpu = load_symbol("Sensor_Motion:MPU-6050")
+    connector = load_symbol("Connector_Generic:Conn_01x08")
+    resistor = load_symbol("Device:R")
+    capacitor = load_symbol("Device:C")
+    flag = load_symbol("power:PWR_FLAG")
+
+    symbols: list[str] = [
+        sym("Connector_Generic:Conn_01x08", "P1", 30.48, 76.2, pin_count=8),
+        sym("Sensor_Motion:MPU-6050", "U1", U1_X, U1_Y, pin_count=24),
     ]
     wires: list[str] = []
     labels: list[str] = []
-    no_connects: list[str] = []
 
-    # Connector pins stack upward from the anchor: pin 1 (VDD) lowest.
     for index, connector_net in enumerate(HEADER_NETS):
-        y = 76.2 - index * 2.54
-        wires.append(_wire((30.48, y), (30.48 + STUB_MM, y)))
-        labels.append(_label(connector_net, 30.48 + STUB_MM, y))
+        tip, endpoint = pin_stub(connector, str(index + 1), (30.48, 76.2))
+        wires.append(_wire(tip, endpoint))
+        labels.append(_label(connector_net, *endpoint))
 
-    for pin in range(1, 25):
-        x, y, side = _pin_position(pin)
-        net: str | None = MPU6050_PIN_NETS.get(pin)
-        if net is None:
-            no_connects.append(_no_connect(x, y))
-            continue
-        stub = -STUB_MM if side == "left" else STUB_MM
-        wires.append(_wire((x, y), (x + stub, y)))
-        labels.append(_label(net, x + stub, y))
+    # Sensor pins: nets from the datasheet-derived table; every unused pin
+    # on the official symbol is NC/RESV typed no_connect, which ERC
+    # enforces natively (rule 7.3's schematic-side twin).
+    for pin_number, net in MPU6050_PIN_NETS.items():
+        tip, endpoint = pin_stub(mpu, str(pin_number), (U1_X, U1_Y))
+        wires.append(_wire(tip, endpoint))
+        labels.append(_label(net, *endpoint))
 
-    # Support passives: vertical two-pin parts, top pin to the signal net,
-    # bottom pin to GND (rotation 270 puts symbol pin 1 on top for R/C).
+    # Support passives (Device parts are natively vertical, pin 1 up).
     passives = (
-        ("C1", "PCBSmith:C", 35.56, "REGOUT", "GND"),
-        ("C2", "PCBSmith:C", 43.18, "VDD", "GND"),
-        ("C3", "PCBSmith:C", 50.8, "CPOUT", "GND"),
-        ("C4", "PCBSmith:C", 58.42, "VDD", "GND"),
-        ("R1", "PCBSmith:R", 110.49, "VDD", "SDA"),
-        ("R2", "PCBSmith:R", 118.11, "VDD", "SCL"),
-        ("R3", "PCBSmith:R", 125.73, "AD0", "GND"),
+        ("C1", capacitor, "Device:C", 35.56, "REGOUT", "GND"),
+        ("C2", capacitor, "Device:C", 45.72, "VDD", "GND"),
+        ("C3", capacitor, "Device:C", 55.88, "CPOUT", "GND"),
+        ("C4", capacitor, "Device:C", 66.04, "VDD", "GND"),
+        ("R1", resistor, "Device:R", 116.84, "VDD", "SDA"),
+        ("R2", resistor, "Device:R", 129.54, "VDD", "SCL"),
+        ("R3", resistor, "Device:R", 142.24, "AD0", "GND"),
     )
-    passive_y = 95.25
-    for reference, lib, x, top_net, bottom_net in passives:
-        symbols.append(sym(lib, reference, x, passive_y, rotation=270))
-        top_tip = passive_y - STUB_MM
-        bottom_tip = passive_y + STUB_MM
-        wires.append(_wire((x, top_tip), (x, top_tip - 2.54)))
-        labels.append(_label(top_net, x, top_tip - 2.54))
-        wires.append(_wire((x, bottom_tip), (x, bottom_tip + 2.54)))
-        labels.append(_label(bottom_net, x, bottom_tip + 2.54))
+    passive_y = 99.06
+    for reference, imported, lib, x, top_net, bottom_net in passives:
+        symbols.append(sym(lib, reference, x, passive_y, pin_count=2))
+        for pin_name, net in (("1", top_net), ("2", bottom_net)):
+            tip, endpoint = pin_stub(imported, pin_name, (x, passive_y))
+            wires.append(_wire(tip, endpoint))
+            labels.append(_label(net, *endpoint))
 
-    items = "\n".join((*symbols, *wires, *labels, *no_connects))
+    # Power flags: the sensor's VDD/VLOGIC/GND pins are power_in; the
+    # header pins are passive, so ERC needs an explicit source marker.
+    for index, net in enumerate(("VDD", "GND")):
+        x = 35.56 + index * 12.7
+        symbols.append(
+            sym("power:PWR_FLAG", f"#FLG0{index + 1}", x, 116.84,
+                pin_count=1, in_bom=False, on_board=False)
+        )
+        tip, _out = pin_stub(flag, "1", (x, 116.84))
+        endpoint = (tip[0], tip[1] + 2.54)
+        wires.append(_wire(tip, endpoint))
+        labels.append(_label(net, *endpoint))
+
+    lib_symbols = "\n".join(
+        render_symbol_for_schematic(load_symbol(lib_id))
+        for lib_id in (
+            "Device:R", "Device:C", "Sensor_Motion:MPU-6050",
+            "Connector_Generic:Conn_01x08", "power:PWR_FLAG",
+        )
+    )
+    items = "\n".join((*symbols, *wires, *labels))
     return f"""(kicad_sch
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
   (uuid {uuid4()})
-  (paper "A4")
+  (paper "A3")
 
   (lib_symbols
-{_render_library_symbols(name_prefix="PCBSmith:")}
+{lib_symbols}
   )
 {items}
   (sheet_instances
@@ -192,10 +209,12 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
 """
 
 
-def _no_connect(x: float, y: float) -> str:
+def _no_connect(x_mm: float, y_mm: float) -> str:
+    from uuid import uuid4 as _uuid4
+
     return f"""  (no_connect
-    (at {x:g} {y:g})
-    (uuid "{uuid4()}")
+    (at {x_mm:g} {y_mm:g})
+    (uuid "{_uuid4()}")
   )"""
 
 

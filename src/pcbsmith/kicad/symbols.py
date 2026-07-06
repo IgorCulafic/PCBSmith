@@ -253,6 +253,18 @@ def instance_pin_position(
     return (round(at[0] + pin.x_mm, 4), round(at[1] - pin.y_mm, 4))
 
 
+def pin_stub(
+    imported: ImportedSymbol,
+    number: str,
+    at: tuple[float, float],
+    length: float = 2.54,
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    """(tip, outward end) of a label-net stub wire for a pin."""
+    tip = instance_pin_position(imported, number, at)
+    out_x, out_y = pin_stub_outward(imported, number)
+    return (tip, (round(tip[0] + out_x * length, 4), round(tip[1] + out_y * length, 4)))
+
+
 def pin_stub_outward(
     imported: ImportedSymbol, number: str
 ) -> tuple[float, float]:
