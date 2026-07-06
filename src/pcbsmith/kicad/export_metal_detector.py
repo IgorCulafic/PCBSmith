@@ -1,4 +1,10 @@
-"""KiCad schematic exporter for the metal detector (label-net style)."""
+"""KiCad schematic exporter for the metal detector (label-net style).
+
+First adopter of OFFICIAL KiCad symbols (hardening plan 6.1): every
+symbol - including the exact MMBT3904 - is embedded verbatim from the
+official libraries, and every wire attaches at the measured pin position
+instead of hand-computed offsets.
+"""
 
 from __future__ import annotations
 
@@ -8,42 +14,50 @@ from uuid import uuid4
 from pcbsmith.circuit.models import CircuitObject
 from pcbsmith.kicad.export_divider_highpass_led import (
     KICAD_SCHEMATIC_VERSION,
-    KICAD_SYMBOL_LIBRARY_VERSION,
-    _capacitor_symbol_drawing,
-    _generic_pin,
     _label,
-    _library_property,
     _render_project,
-    _render_symbol_table,
-    _render_two_pin_box_library_symbol,
-    _resistor_symbol_drawing,
     _symbol,
     _validate_project_name,
     _wire,
 )
-from pcbsmith.kicad.export_lm2596_buck import _inductor_symbol_drawing
-from pcbsmith.kicad.export_mpu6050 import render_connector_library_symbol
 from pcbsmith.kicad.metal_detector_board import P1_PIN_NETS
+from pcbsmith.kicad.symbols import (
+    instance_pin_position,
+    load_symbol,
+    pin_stub_outward,
+    render_symbol_for_schematic,
+)
 
 SUPPORTED_TOPOLOGY_ID = "metal_detector_coil"
 
-STUB = 5.08
+STUB = 2.54
 
-# Two-pin parts as label-net columns: (ref, lib, x, top net, bottom net).
-PASSIVES = (
-    ("R1", "PCBSmith:R", 55.88, "VCC", "BASE"),
-    ("R2", "PCBSmith:R", 63.5, "BASE", "GND"),
-    ("C5", "PCBSmith:C", 71.12, "BASE", "GND"),
-    ("L1", "PCBSmith:L", 78.74, "VCC", "COL"),
-    ("C1", "PCBSmith:C", 86.36, "COL", "EM"),
-    ("C2", "PCBSmith:C", 93.98, "EM", "GND"),
-    ("R3", "PCBSmith:R", 101.6, "EM", "GND"),
-    ("C4", "PCBSmith:C", 109.22, "VCC", "GND"),
-    ("C3", "PCBSmith:C", 116.84, "COL", "FO_A"),
-    ("R4", "PCBSmith:R", 124.46, "FO_A", "FOUT"),
+RESISTOR = "Device:R"
+CAPACITOR = "Device:C"
+INDUCTOR = "Device:L"
+TRANSISTOR = "Transistor_BJT:MMBT3904"
+CONNECTOR = "Connector_Generic:Conn_01x03"
+
+# Instances: (reference, lib_id, x, y, {pin: net}). Device passives are
+# natively vertical (pin 1 up); net pairs read (top, bottom).
+Q1_PIN_NETS = {"1": "BASE", "2": "EM", "3": "COL"}
+INSTANCES: tuple[tuple[str, str, float, float, dict[str, str]], ...] = (
+    (
+        "P1", CONNECTOR, 25.4, 55.88,
+        {str(i + 1): net for i, net in enumerate(P1_PIN_NETS)},
+    ),
+    ("Q1", TRANSISTOR, 58.42, 55.88, Q1_PIN_NETS),
+    ("R1", RESISTOR, 78.74, 55.88, {"1": "VCC", "2": "BASE"}),
+    ("R2", RESISTOR, 91.44, 55.88, {"1": "BASE", "2": "GND"}),
+    ("C5", CAPACITOR, 104.14, 55.88, {"1": "BASE", "2": "GND"}),
+    ("L1", INDUCTOR, 116.84, 55.88, {"1": "VCC", "2": "COL"}),
+    ("C1", CAPACITOR, 132.08, 55.88, {"1": "COL", "2": "EM"}),
+    ("C2", CAPACITOR, 144.78, 55.88, {"1": "EM", "2": "GND"}),
+    ("R3", RESISTOR, 157.48, 55.88, {"1": "EM", "2": "GND"}),
+    ("C4", CAPACITOR, 195.58, 55.88, {"1": "VCC", "2": "GND"}),
+    ("C3", CAPACITOR, 182.88, 55.88, {"1": "COL", "2": "FO_A"}),
+    ("R4", RESISTOR, 170.18, 55.88, {"1": "FO_A", "2": "FOUT"}),
 )
-# The transistor: pin 1 base, pin 2 emitter, pin 3 collector (SOT-23).
-Q1_PIN_NETS = {1: "BASE", 2: "EM", 3: "COL"}
 
 
 def export_metal_detector_to_kicad(
@@ -59,17 +73,12 @@ def export_metal_detector_to_kicad(
     output_dir.mkdir(parents=True, exist_ok=True)
     project_file = output_dir / f"{project_name}.kicad_pro"
     schematic_file = output_dir / f"{project_name}.kicad_sch"
-    symbol_library = output_dir / "PCBSmith.kicad_sym"
-    symbol_table = output_dir / "sym-lib-table"
 
     project_file.write_text(_render_project(), encoding="utf-8")
-    symbol_table.write_text(_render_symbol_table(), encoding="utf-8")
-    symbol_library.write_text(_render_symbol_library(), encoding="utf-8")
     schematic_file.write_text(_render_schematic(circuit, project_name), encoding="utf-8")
     return {
         "project_file": str(project_file),
         "schematic_file": str(schematic_file),
-        "symbol_library": str(symbol_library),
     }
 
 
@@ -79,46 +88,33 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
         for component in circuit.components
     }
 
-    def sym(lib: str, reference: str, x: float, y: float, rotation: int = 0) -> str:
-        value, footprint = fields[reference]
-        return _symbol(
-            lib, reference, value, x, y, project_name,
-            rotation=rotation, exclude_from_sim=True, footprint=footprint,
-            # The coil exists only as copper; its net-tie footprint is
-            # excluded from the BOM and the symbol must match (parity).
-            in_bom=reference != "L1",
-        )
-
-    symbols = [
-        sym("PCBSmith:CONN_01X03", "P1", 25.4, 55.88),
-        sym("PCBSmith:NPN", "Q1", 58.42, 55.88),
-    ]
+    symbols: list[str] = []
     wires: list[str] = []
     labels: list[str] = []
+    for reference, lib_id, x, y, pin_nets in INSTANCES:
+        value, footprint = fields[reference]
+        imported = load_symbol(lib_id)
+        symbols.append(
+            _symbol(
+                lib_id, reference, value, x, y, project_name,
+                exclude_from_sim=True, footprint=footprint,
+                # The coil exists only as copper; its net-tie footprint is
+                # BOM-excluded and the symbol must match (parity).
+                in_bom="NetTie" not in footprint,
+                pin_count=len(imported.pins),
+            )
+        )
+        for pin_number, net in pin_nets.items():
+            tip = instance_pin_position(imported, pin_number, (x, y))
+            out_x, out_y = pin_stub_outward(imported, pin_number)
+            end = (tip[0] + out_x * STUB, tip[1] + out_y * STUB)
+            wires.append(_wire(tip, end))
+            labels.append(_label(net, end[0], end[1]))
 
-    # Connector pins stack upward from the anchor: pin 1 (VCC) lowest.
-    for index, connector_net in enumerate(P1_PIN_NETS):
-        y = 55.88 - index * 2.54
-        wires.append(_wire((25.4, y), (25.4 + STUB, y)))
-        labels.append(_label(connector_net, 25.4 + STUB, y))
-
-    # Transistor: base on the left, collector/emitter on the right.
-    q_pins = ((1, -7.62, 0.0, -STUB), (3, 7.62, -2.54, STUB), (2, 7.62, 2.54, STUB))
-    for pin, dx, dy, stub in q_pins:
-        x, y = 58.42 + dx, 55.88 + dy
-        wires.append(_wire((x, y), (x + stub, y)))
-        labels.append(_label(Q1_PIN_NETS[pin], x + stub, y))
-
-    for reference, lib, x, top_net, bottom_net in PASSIVES:
-        y_center = 87.63
-        symbols.append(sym(lib, reference, x, y_center, rotation=270))
-        top_tip = y_center - STUB
-        bottom_tip = y_center + STUB
-        wires.append(_wire((x, top_tip), (x, top_tip - 2.54)))
-        labels.append(_label(top_net, x, top_tip - 2.54))
-        wires.append(_wire((x, bottom_tip), (x, bottom_tip + 2.54)))
-        labels.append(_label(bottom_net, x, bottom_tip + 2.54))
-
+    lib_symbols = "\n".join(
+        render_symbol_for_schematic(load_symbol(lib_id))
+        for lib_id in (RESISTOR, CAPACITOR, INDUCTOR, TRANSISTOR, CONNECTOR)
+    )
     items = "\n".join((*symbols, *wires, *labels))
     return f"""(kicad_sch
   (version {KICAD_SCHEMATIC_VERSION})
@@ -128,7 +124,7 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   (paper "A4")
 
   (lib_symbols
-{_render_library_symbols(name_prefix="PCBSmith:")}
+{lib_symbols}
   )
 {items}
   (sheet_instances
@@ -136,88 +132,3 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   )
 )
 """
-
-
-def _render_symbol_library() -> str:
-    return f"""(kicad_symbol_lib
-  (version {KICAD_SYMBOL_LIBRARY_VERSION})
-  (generator "PCBSmith")
-  (generator_version "0.1")
-{_render_library_symbols(name_prefix="")}
-)
-"""
-
-
-def _render_library_symbols(*, name_prefix: str) -> str:
-    return "\n\n".join(
-        (
-            _render_two_pin_box_library_symbol(
-                f"{name_prefix}R",
-                reference="R",
-                value="R",
-                description="Generic resistor",
-                drawing=_resistor_symbol_drawing(),
-                pin_length_mm="2.54",
-            ),
-            _render_two_pin_box_library_symbol(
-                f"{name_prefix}C",
-                reference="C",
-                value="C",
-                description="Ceramic capacitor",
-                drawing=_capacitor_symbol_drawing(),
-                pin_length_mm="4.318",
-            ),
-            _render_two_pin_box_library_symbol(
-                f"{name_prefix}L",
-                reference="L",
-                value="L",
-                description="PCB spiral sensing coil",
-                drawing=_inductor_symbol_drawing(),
-                pin_length_mm="2.54",
-            ),
-            _render_npn_library_symbol(f"{name_prefix}NPN"),
-            render_connector_library_symbol(f"{name_prefix}CONN_01X03", pin_count=3),
-        )
-    )
-
-
-def _render_npn_library_symbol(name: str) -> str:
-    pins = "\n".join(
-        (
-            _generic_pin("1", "B", -7.62, 0.0, 0, "2.54"),
-            _generic_pin("3", "C", 7.62, 2.54, 180, "2.54"),
-            _generic_pin("2", "E", 7.62, -2.54, 180, "2.54"),
-        )
-    )
-    return f"""  (symbol "{name}"
-    (pin_numbers
-      (hide no)
-    )
-    (pin_names
-      (offset 0.762)
-    )
-    (exclude_from_sim yes)
-    (in_bom yes)
-    (on_board yes)
-    {_library_property("Reference", "Q", 0, 6.35)}
-    {_library_property("Value", "NPN", 0, -6.35)}
-    {_library_property("Footprint", "", 0, 0, hidden=True)}
-    {_library_property("Datasheet", "~", 0, 0, hidden=True)}
-    {_library_property("Description", "NPN small-signal transistor", 0, 0, hidden=True)}
-    (symbol "NPN_0_1"
-      (rectangle
-        (start -5.08 5.08)
-        (end 5.08 -5.08)
-        (stroke
-          (width 0.254)
-          (type default)
-        )
-        (fill
-          (type background)
-        )
-      )
-    )
-    (symbol "NPN_1_1"
-{pins}
-    )
-  )"""
