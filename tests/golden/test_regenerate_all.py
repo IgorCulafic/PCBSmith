@@ -79,6 +79,11 @@ TOPOLOGIES: tuple[tuple[str, str, list[str]], ...] = (
             "board as the detector coil",
         ],
     ),
+    (
+        "flyback",
+        "design-flyback-authority",
+        ["--request", "120 VAC to 3.3 V flyback converter"],
+    ),
 )
 
 

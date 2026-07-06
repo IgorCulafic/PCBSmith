@@ -80,6 +80,19 @@ def classify_circuit_intent(raw_request: str) -> CircuitIntent:
                 "supply_voltage_v": supply_v,
             },
         )
+    if "flyback" in normalized:
+        return CircuitIntent(
+            raw_request=raw_request,
+            intent_id="offline_flyback_3v3",
+            status="supported",
+            assumptions={
+                "vac_min_v": 108.0,
+                "vac_max_v": 132.0,
+                "vout_v": 3.3,
+                "iout_a": 0.5,
+                "reflected_voltage_v": 100.0,
+            },
+        )
     if "pear" in normalized:
         supply_match = _SUPPLY_PATTERN.search(raw_request)
         supply_v = float(supply_match.group("volts")) if supply_match else 12.0

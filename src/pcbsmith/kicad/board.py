@@ -195,6 +195,12 @@ class BoardLayout:
     part_flip: tuple[str, ...] = ()
     # References whose silkscreen reference text is hidden (art faces).
     hide_references: tuple[str, ...] = ()
+    # Per-reference label repositioning: footprint-local (x, y, total
+    # angle) for the Reference property, for dense layouts where the
+    # default spot lands on a neighbour.
+    part_reference_at: tuple[
+        tuple[str, tuple[float, float, float]], ...
+    ] = ()
 
 
 def placement_y(layout: BoardLayout, reference: str) -> float:
@@ -662,6 +668,9 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
                     force_board_only=spec.board_only,
                     flip=component.reference in layout.part_flip,
                     hide_reference=component.reference in layout.hide_references,
+                    reference_at=dict(layout.part_reference_at).get(
+                        component.reference
+                    ),
                 )
             )
         except FootprintLibraryError as exc:

@@ -226,6 +226,132 @@ I2C_LOW_LEVEL_VOLTAGE_V = 0.4
 I2C_RC_RISE_FACTOR = 0.8473  # ln(0.7/0.3): 30%->70% rise on an RC bus
 
 
+def solve_offline_flyback(
+    *,
+    vac_min_v: float,
+    vac_max_v: float,
+    vout_v: float,
+    iout_a: float,
+    reflected_voltage_v: float = 100.0,
+    efficiency: float = 0.75,
+    diode_drop_v: float = 0.5,
+    fsw_min_hz: float = 52e3,
+    fsw_max_hz: float = 75e3,
+    ilimit_min_a: float = 0.33,
+    ton_max_s: float = 6.5e-6,
+    bulk_capacitance_f: float = 9.4e-6,
+    line_frequency_hz: float = 60.0,
+    ref_voltage_v: float = 1.24,
+) -> dict[str, Any]:
+    """Offline DCM flyback design point (UCC28881-class hysteretic
+    switcher). Every device parameter defaults to the WORST-CASE limit
+    from the UCC28881 datasheet table 6.5 (fsw 52-75 kHz, ILIMIT >= 330
+    mA, tON <= 6.5 us); pass measured values to tighten.
+
+    Design chain: bulk ripple from the capacitor energy balance ->
+    maximum duty from the reflected voltage -> primary inductance sized
+    so the peak current stays under the device limit at the SLOWEST
+    switching frequency -> turns ratio from the reflected voltage ->
+    stress checks (drain, secondary PIV, DCM margin) -> feedback divider
+    on the shunt reference, nearest E24.
+    """
+    errors: list[str] = []
+    if vac_min_v <= 0 or vac_max_v < vac_min_v:
+        errors.append("AC input range is invalid.")
+    if vout_v <= ref_voltage_v:
+        errors.append("Output voltage must exceed the reference voltage.")
+    if iout_a <= 0:
+        errors.append("Output current must be positive.")
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+
+    warnings: list[str] = []
+    pout_w = vout_v * iout_a
+    pin_w = pout_w / efficiency
+
+    vdc_peak_min = vac_min_v * math.sqrt(2.0)
+    vdc_peak_max = vac_max_v * math.sqrt(2.0)
+    # Bulk hold-up: the capacitor carries the load for ~0.35 of a line
+    # half-cycle between recharge peaks.
+    discharge_s = 0.35 / line_frequency_hz
+    vdc_min_sq = vdc_peak_min**2 - 2.0 * pin_w * discharge_s / bulk_capacitance_f
+    if vdc_min_sq <= 0:
+        return {
+            "status": "error", "outputs": {}, "warnings": [],
+            "errors": ["Bulk capacitance is too small for the load."],
+        }
+    vdc_min = math.sqrt(vdc_min_sq)
+
+    duty_max = reflected_voltage_v / (reflected_voltage_v + vdc_min)
+    # Peak current at 90% of the device's minimum guaranteed limit; the
+    # inductance follows from the energy balance at the SLOWEST fsw.
+    ipk_budget_a = 0.9 * ilimit_min_a
+    inductance_h = 2.0 * pin_w / (ipk_budget_a**2 * fsw_min_hz)
+    ipk_a = math.sqrt(2.0 * pin_w / (inductance_h * fsw_min_hz))
+    ton_s = inductance_h * ipk_a / vdc_min
+    if ton_s > ton_max_s:
+        warnings.append(
+            f"Required on-time {ton_s * 1e6:.2f}us exceeds the device "
+            f"maximum {ton_max_s * 1e6:.1f}us; reduce power or raise VOR."
+        )
+    demag_s = inductance_h * ipk_a / reflected_voltage_v
+    period_min_s = 1.0 / fsw_min_hz
+    dcm_margin = (ton_s + demag_s) / period_min_s
+    if dcm_margin > 0.9:
+        warnings.append(
+            f"DCM margin is thin ({dcm_margin:.0%} of the period); the "
+            "converter may enter CCM at low line."
+        )
+
+    turns_ratio = reflected_voltage_v / (vout_v + diode_drop_v)
+    turns_ratio_selected = round(turns_ratio)
+
+    drain_peak_v = vdc_peak_max + 2.5 * reflected_voltage_v
+    secondary_piv_v = vout_v + vdc_peak_max / turns_ratio_selected
+
+    lower_ohms = 12000.0
+    upper_exact = lower_ohms * (vout_v - ref_voltage_v) / ref_voltage_v
+    upper_ohms = nearest_e24_ohms(upper_exact)
+    vout_regulated = ref_voltage_v * (1.0 + upper_ohms / lower_ohms)
+    if abs(vout_regulated - vout_v) > 0.03 * vout_v:
+        warnings.append(
+            f"E24 divider regulates to {vout_regulated:.3f}V "
+            f"({(vout_regulated / vout_v - 1):+.1%} from target)."
+        )
+
+    return {
+        "status": "warning" if warnings else "ok",
+        "outputs": {
+            "pin_w": round(pin_w, 3),
+            "vdc_min_v": round(vdc_min, 1),
+            "vdc_peak_max_v": round(vdc_peak_max, 1),
+            "duty_max": round(duty_max, 4),
+            "primary_inductance_h": round(inductance_h, 6),
+            "peak_primary_current_a": round(ipk_a, 4),
+            "on_time_s": round(ton_s, 9),
+            "dcm_period_fraction": round(dcm_margin, 3),
+            "turns_ratio": round(turns_ratio, 2),
+            "turns_ratio_selected": float(turns_ratio_selected),
+            "drain_peak_v": round(drain_peak_v, 1),
+            "secondary_piv_v": round(secondary_piv_v, 2),
+            "feedback_upper_ohms": upper_ohms,
+            "feedback_lower_ohms": lower_ohms,
+            "vout_regulated_v": round(vout_regulated, 4),
+        },
+        "warnings": warnings,
+        "errors": [],
+        "references": [
+            "UCC28881 datasheet (ai_assets/datasheets/ucc28881.pdf) p6: "
+            "fSW 52-75 kHz, ILIMIT 330-570 mA, tON_MAX >= 6.5 us; p3 pin "
+            "table; 700 V drain p4.",
+            "LMV431 datasheet (ai_assets/datasheets/lmv431.pdf) p5: "
+            "VREF 1.24 V, IZ(MIN) <= 80 uA.",
+            "DCM flyback energy balance: Pin = 0.5*Lp*Ipk^2*fsw; "
+            "Dmax = VOR/(VOR+Vdc_min); Np/Ns = VOR/(Vout+Vf).",
+        ],
+    }
+
+
 def solve_trace_current_capacity(
     *,
     trace_width_m: float,

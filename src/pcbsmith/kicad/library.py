@@ -194,6 +194,12 @@ class FootprintSpec:
     is_connector: bool = False
     silk_marks: tuple[SilkLine | SilkText, ...] = ()
     board_only: bool = False
+    # Convex hull of the F.CrtYd layer when the footprint draws one; None
+    # means the footprint has no courtyard layer and callers must
+    # approximate. A hull (not a bbox) because rounded courtyards such as
+    # TO-92 or radial-can circles would otherwise false-positive at the
+    # corners against KiCad's exact-shape check.
+    courtyard_hull: tuple[tuple[float, float], ...] | None = None
 
     def pads_named(self, name: str) -> tuple[PadSpec, ...]:
         matches = tuple(pad for pad in self.pads if pad.name == name)
@@ -336,6 +342,14 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
             layer_nodes = _children(shape, "layer")
             layer = _atom(layer_nodes[0][1]) if layer_nodes else ""
             points = _shape_points(shape)
+            if shape_name == "fp_circle":
+                # A circle parses as (end, center); its extent is the
+                # center plus/minus the radius, not those two points —
+                # radial-cap courtyards degenerate to a line otherwise.
+                # Courtyards get a dense ring so the convex hull tracks
+                # the curve; other layers only need the bounding corners.
+                samples = 24 if layer == "F.CrtYd" else 2
+                points = _circle_extent_points(shape, points, samples)
             if layer == "F.CrtYd":
                 courtyard.extend(points)
             elif layer == "F.Fab":
@@ -372,6 +386,10 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
     fab_xs = [x for x, _ in fab_points] or xs
     fab_ys = [y for _, y in fab_points] or ys
 
+    courtyard_hull = _convex_hull(courtyard) if courtyard else None
+    if courtyard_hull is not None and len(courtyard_hull) < 3:
+        courtyard_hull = None  # a line or point constrains nothing
+
     return FootprintSpec(
         pads=tuple(pads),
         fab_rect=(min(fab_xs), min(fab_ys), max(fab_xs), max(fab_ys)),
@@ -384,7 +402,56 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
         is_connector=library_id.startswith("Connector_"),
         silk_marks=tuple(silk_lines),
         board_only=board_only,
+        courtyard_hull=courtyard_hull,
     )
+
+
+def _circle_extent_points(
+    shape: SList, points: list[tuple[float, float]], samples: int = 2
+) -> list[tuple[float, float]]:
+    centers = _children(shape, "center")
+    ends = _children(shape, "end")
+    if not centers or not ends:
+        return points
+    cx = float(_atom(centers[0][1]))
+    cy = float(_atom(centers[0][2]))
+    ex = float(_atom(ends[0][1]))
+    ey = float(_atom(ends[0][2]))
+    radius = math.hypot(ex - cx, ey - cy)
+    if samples <= 2:
+        return [(cx - radius, cy - radius), (cx + radius, cy + radius)]
+    return [
+        (
+            cx + radius * math.cos(2 * math.pi * step / samples),
+            cy + radius * math.sin(2 * math.pi * step / samples),
+        )
+        for step in range(samples)
+    ]
+
+
+def _convex_hull(
+    points: list[tuple[float, float]]
+) -> tuple[tuple[float, float], ...]:
+    """Monotone-chain convex hull (CCW), degenerate inputs passed through."""
+    unique = sorted(set(points))
+    if len(unique) <= 2:
+        return tuple(unique)
+
+    def cross(o: tuple[float, float], a: tuple[float, float],
+              b: tuple[float, float]) -> float:
+        return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
+
+    lower: list[tuple[float, float]] = []
+    for point in unique:
+        while len(lower) >= 2 and cross(lower[-2], lower[-1], point) <= 0:
+            lower.pop()
+        lower.append(point)
+    upper: list[tuple[float, float]] = []
+    for point in reversed(unique):
+        while len(upper) >= 2 and cross(upper[-2], upper[-1], point) <= 0:
+            upper.pop()
+        upper.append(point)
+    return tuple(lower[:-1] + upper[:-1])
 
 
 def _shape_points(shape: SList) -> list[tuple[float, float]]:
@@ -427,6 +494,7 @@ def render_embedded_footprint(
     force_board_only: bool = False,
     flip: bool = False,
     hide_reference: bool = False,
+    reference_at: tuple[float, float, float] | None = None,
 ) -> str:
     tree = _as_list(_deep_copy(imported.tree))
     tree[1] = QuotedString(imported.library_id)
@@ -482,6 +550,20 @@ def render_embedded_footprint(
             # them leaves pads physically unrotated (live DRC shorted every
             # neighbouring pin of a rotated TO-263 before this fix).
             _add_rotation(child, rotation)
+
+    if reference_at is not None:
+        # Move the reference label to a caller-chosen footprint-local spot
+        # (dense layouts park labels clear of neighbours). The angle is a
+        # TOTAL angle like every board-file text angle: 0 keeps it upright.
+        for child in body:
+            if isinstance(child, list) and _safe_head(child) == "property":
+                if _atom(child[1]) == "Reference":
+                    for at in _children(child, "at"):
+                        at[1:] = [
+                            _fmt(reference_at[0]),
+                            _fmt(reference_at[1]),
+                            _fmt(reference_at[2]),
+                        ]
 
     if force_board_only and not _children_named(body, "attr"):
         body.append(["attr", "board_only", "exclude_from_pos_files", "exclude_from_bom"])
@@ -624,6 +706,16 @@ LIBRARY_FOOTPRINT_IDS = (
     "Package_TO_SOT_SMD:SOT-23",
     "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
     "NetTie:NetTie-2_SMD_Pad2.0mm",
+    # Offline flyback (mains) parts.
+    "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-3-2-5.08_1x02_P5.08mm_Horizontal",
+    "Resistor_THT:R_Axial_DIN0414_L11.9mm_D4.5mm_P15.24mm_Horizontal",
+    "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal",
+    "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm",
+    "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P10.00mm",
+    "Varistor:RV_Disc_D7mm_W3.5mm_P5mm",
+    "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm",
+    "Package_DIP:DIP-4_W7.62mm",
+    "Transformer_THT:Transformer_Breve_TEZ-22x24",
 )
 
 # The pin header doubles as the off-board power connector; PCBSmith wires the
@@ -670,6 +762,7 @@ def build_footprint_library() -> dict[str, FootprintSpec]:
                 is_connector=spec.is_connector,
                 silk_marks=marks,
                 board_only=board_only,
+                courtyard_hull=spec.courtyard_hull,
             )
         library[library_id] = spec
     return library

@@ -1,0 +1,101 @@
+{
+  "schema_id": "pcbsmith-component-card-v1",
+  "mpn": "UCC28881",
+  "manufacturer": "Texas Instruments",
+  "description": "700 V, 225 mA low-side offline flyback/buck switcher IC, SOIC-7",
+  "symbol": "PCBSmith:UCC28881",
+  "footprint": "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm",
+  "datasheet": {
+    "local_path": "ai_assets/datasheets/ucc28881.pdf",
+    "sha256": "1fba7780301ae99da68f6a9175f797a910132c2ab3624118b45b6ea189bdcc53",
+    "source_url": "https://www.ti.com/lit/gpn/ucc28881"
+  },
+  "support_status": "reviewed",
+  "pins": [
+    {
+      "number": "1",
+      "name": "GND",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "IC ground, tied to the rectified-bus return (HVM).",
+      "locator": "SLUSC05 section 5, pin functions table"
+    },
+    {
+      "number": "2",
+      "name": "GND",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "Second ground pin; tie to pin 1.",
+      "locator": "SLUSC05 section 5, pin functions table"
+    },
+    {
+      "number": "3",
+      "name": "FB",
+      "function": "analog_in",
+      "requirement": "required",
+      "note": "Feedback input, ~1.03 V threshold; driven by the optocoupler transistor.",
+      "locator": "SLUSC05 section 6.5 (VFB_TH)"
+    },
+    {
+      "number": "4",
+      "name": "VDD",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "Supply bypass; >= 100 nF ceramic to GND. Self-supplied from HVIN startup.",
+      "locator": "SLUSC05 section 7.3.1"
+    },
+    {
+      "number": "5",
+      "name": "HVIN",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "High-voltage startup input from the rectified bus.",
+      "locator": "SLUSC05 section 5, pin functions table"
+    },
+    {
+      "number": "8",
+      "name": "DRAIN",
+      "function": "power_out",
+      "requirement": "required",
+      "note": "700 V internal MOSFET drain; leads 6/7 are physically absent from the SOIC-7 package for drain creepage (SOIC-8 footprint pads 6/7 stay unconnected).",
+      "locator": "SLUSC05 section 5, pin functions table"
+    }
+  ],
+  "required_support": [
+    {
+      "role": "vdd_bypass",
+      "note": "Ceramic bypass at VDD, 100 nF or larger.",
+      "locator": "SLUSC05 section 7.3.1",
+      "matches": [
+        "vdd_bypass"
+      ]
+    },
+    {
+      "role": "clamp_network",
+      "note": "RCD or TVS clamp on the drain limits the leakage-inductance spike below 700 V.",
+      "locator": "SLUSC05 section 8.2.2",
+      "matches": [
+        "clamp_resistor",
+        "clamp_capacitor",
+        "clamp_diode"
+      ]
+    },
+    {
+      "role": "feedback_network",
+      "note": "FB needs a defined current path (optocoupler plus pull-up/startup resistor) - never floating.",
+      "locator": "SLUSC05 section 7.3.4",
+      "matches": [
+        "opto_feedback"
+      ]
+    }
+  ],
+  "limits": {
+    "drain_v_max": 700.0,
+    "ilimit_min_a": 0.33,
+    "ilimit_max_a": 0.57,
+    "fsw_min_hz": 52000.0,
+    "fsw_max_hz": 75000.0,
+    "ton_max_s": 6.5e-06,
+    "vfb_th_v": 1.03
+  }
+}

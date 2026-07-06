@@ -113,11 +113,22 @@ def validate_card_against_libraries(card: ComponentCard) -> tuple[str, ...]:
     from pcbsmith.kicad.symbols import load_symbol
 
     problems: list[str] = []
-    try:
-        symbol = load_symbol(card.symbol)
-    except Exception as exc:  # noqa: BLE001 - report, don't crash
-        return (f"Symbol {card.symbol} failed to load: {exc}",)
-    symbol_numbers = {pin.number for pin in symbol.pins}
+    if card.symbol.startswith("PCBSmith:"):
+        # Custom evidence-backed symbols (offline flyback parts) live in
+        # the generated sidecar library, not the official install.
+        from pcbsmith.kicad.export_flyback import _custom_pin_positions
+
+        try:
+            positions = _custom_pin_positions(card.symbol)
+        except KeyError:
+            return (f"Symbol {card.symbol} is not a known custom symbol.",)
+        symbol_numbers = set(positions)
+    else:
+        try:
+            symbol = load_symbol(card.symbol)
+        except Exception as exc:  # noqa: BLE001 - report, don't crash
+            return (f"Symbol {card.symbol} failed to load: {exc}",)
+        symbol_numbers = {pin.number for pin in symbol.pins}
     card_numbers = {pin.number for pin in card.pins}
     if symbol_numbers != card_numbers:
         problems.append(

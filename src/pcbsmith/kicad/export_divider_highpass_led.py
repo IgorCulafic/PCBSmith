@@ -316,6 +316,7 @@ def _symbol(
     on_board: bool = True,
     extra_properties: tuple[tuple[str, str], ...] = (),
     pin_count: int = 2,
+    pin_numbers: tuple[str, ...] | None = None,
     footprint: str = "",
 ) -> str:
     if pin_count < 1:
@@ -331,7 +332,10 @@ def _symbol(
         f"""    (pin "{pin_number}"
       (uuid "{uuid4()}")
     )"""
-        for pin_number in range(1, pin_count + 1)
+        for pin_number in (
+            pin_numbers
+            or tuple(str(number) for number in range(1, pin_count + 1))
+        )
     )
     return f"""  (symbol
     (lib_id "{lib_id}")

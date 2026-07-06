@@ -278,3 +278,42 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   (`solve_pcb_spiral_inductor`), and carry the DC resistance and Q with
   the value; a coil Q below ~10 warrants a warning. Status:
   **implemented** (calculator with references).
+
+## 10. Galvanic isolation (mains-fed designs)
+
+- **10.1 Primary and secondary copper keep a machine-checked creepage
+  distance.** An offline design declares an isolation barrier (a
+  vertical line at `barrier_x`), the set of primary nets, the set of
+  secondary nets, and the parts BUILT to straddle the barrier (the
+  transformer, the optocoupler, the Y-capacitor). The check then
+  enforces two things: (a) every primary copper item stays on the
+  primary side and every secondary item on the secondary side, with
+  straddle-part pads exempt; and (b) the worst-case pairwise distance
+  between primary and secondary copper is at least the declared gap
+  (6.4 mm on the flyback, sized for reinforced insulation at 120 VAC
+  working voltage per the IPC-2221 pollution-degree-2 tables — the
+  figure REQUIRES qualified review before fabrication). No copper
+  pours are allowed on such boards so the creepage analysis stays
+  exact. (`IPC-2221` clearance/creepage tables + `SESSION` flyback
+  slice.) Status: **implemented and machine-enforced**
+  (`isolation_barrier` design check, blocker; the flyback authority
+  declares barrier, nets, gap, and straddle refs).
+- **10.2 The barrier is visible on the board.** The isolation boundary
+  is drawn as a dashed silkscreen line with HV warnings on the primary
+  side, interrupted where the straddle parts and labels sit —
+  assembly and service people must be able to see the boundary the
+  layout enforces. (`SESSION` flyback slice, following published
+  offline-converter practice.) Status: **implemented** (flyback silk
+  graphics).
+- **10.3 Barrier-crossing parts are chosen for the barrier.** Only
+  components with an internal isolation rating cross: the transformer
+  (triple-insulated or margin-wound secondary), an optocoupler with
+  the required CTR and isolation voltage, and a safety-rated (Y1/Y2)
+  EMI capacitor. Their creepage comes from the package (transformer
+  pin-row spacing 15 mm, DIP optocoupler 7.62 mm body, Y-cap 10 mm
+  pitch), which must meet the same gap. A safety finding demanding
+  certified parts and qualified review rides every mains bundle and
+  caps it at needs_human_review. (`SESSION` flyback slice; TI SLUSC05
+  application section.) Status: **implemented** (composition emits
+  SAFETY_FINDING + TRANSFORMER_SPEC_FINDING; support parts carry
+  datasheet evidence).

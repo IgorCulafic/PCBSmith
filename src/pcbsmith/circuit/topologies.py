@@ -14,6 +14,8 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         return _clover_topology()
     if intent.intent_id == "pear_led_rings" and intent.status == "supported":
         return _pear_topology()
+    if intent.intent_id == "offline_flyback_3v3" and intent.status == "supported":
+        return _flyback_topology()
     if intent.intent_id == "metal_detector_coil" and intent.status == "supported":
         return _metal_detector_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
@@ -82,6 +84,36 @@ def _metal_detector_topology() -> TopologySelection:
         warnings=(
             "Detection sensitivity and the frequency-measurement backend "
             "are an external contract; only the oscillator is verified.",
+        ),
+    )
+
+
+def _flyback_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="offline_flyback_3v3",
+        title="120 VAC to 3.3 V isolated flyback (UCC28881, DCM)",
+        status="selected",
+        evidence=(
+            EvidenceRef(
+                kind="datasheet_fact",
+                title="UCC28881 limits: 700V FET, ILIMIT, fSW, tON",
+                locator="ai_assets/datasheets/ucc28881.pdf p3, p4, p6",
+            ),
+            EvidenceRef(
+                kind="datasheet_fact",
+                title="LMV431 1.24V low-voltage shunt reference",
+                locator="ai_assets/datasheets/lmv431.pdf p1, p5",
+            ),
+            EvidenceRef(
+                kind="textbook_formula",
+                title="DCM flyback energy balance and turns ratio",
+                locator="Pin = Lp*Ipk^2*fsw/2; Np/Ns = VOR/(Vout+Vf)",
+            ),
+        ),
+        warnings=(
+            "MAINS VOLTAGE DESIGN: creepage, certified Y-capacitor, fusible "
+            "resistor, and transformer safety isolation require qualified "
+            "human review and lab verification before any use.",
         ),
     )
 

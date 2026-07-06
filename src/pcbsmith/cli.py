@@ -60,6 +60,7 @@ from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
     write_divider_highpass_led_project,
 )
+from pcbsmith.generation.flyback import compose_flyback, write_flyback_project
 from pcbsmith.generation.led_art import (
     LedArtPlan,
     compose_led_art,
@@ -88,6 +89,7 @@ from pcbsmith.kicad.clover_board import generate_clover_board
 from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
 from pcbsmith.kicad.export_clover import export_clover_to_kicad
 from pcbsmith.kicad.export_divider_highpass_led import export_divider_highpass_led_to_kicad
+from pcbsmith.kicad.export_flyback import export_flyback_to_kicad
 from pcbsmith.kicad.export_led_art import export_led_art_to_kicad
 from pcbsmith.kicad.export_lm2596_buck import export_lm2596_buck_to_kicad
 from pcbsmith.kicad.export_metal_detector import export_metal_detector_to_kicad
@@ -95,6 +97,14 @@ from pcbsmith.kicad.export_mpu6050 import (
     export_mpu6050_to_kicad,
 )
 from pcbsmith.kicad.export_pear import export_pear_to_kicad
+from pcbsmith.kicad.flyback_board import (
+    BARRIER_X,
+    ISOLATION_GAP_MM,
+    PRIMARY_NETS,
+    SECONDARY_NETS,
+    STRADDLE_REFS,
+    generate_flyback_board,
+)
 from pcbsmith.kicad.led_art_board import generate_led_art_board
 from pcbsmith.kicad.metal_detector_board import generate_detector_board
 from pcbsmith.kicad.pear_board import generate_pear_board, ring_unit_counts
@@ -121,6 +131,7 @@ from pcbsmith.services.project_io import (
 from pcbsmith.simulation.ngspice import run_ngspice_netlist_file, run_ngspice_simulation
 from pcbsmith.simulation.ngspice_buck import run_lm2596_power_stage_simulation
 from pcbsmith.simulation.ngspice_clover import run_clover_simulation
+from pcbsmith.simulation.ngspice_flyback import run_flyback_simulation
 from pcbsmith.simulation.ngspice_led_art import run_led_art_simulation
 from pcbsmith.simulation.ngspice_metal_detector import run_detector_simulation
 from pcbsmith.simulation.ngspice_mpu6050 import run_mpu6050_simulation
@@ -1208,6 +1219,167 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
+    intent = classify_circuit_intent(args.request)
+    if intent.status != "supported":
+        raise ValueError("; ".join(intent.unsupported_reasons))
+    if intent.intent_id != "offline_flyback_3v3":
+        raise ValueError(
+            "The request classified as a different intent; use the matching "
+            "design command instead."
+        )
+    topology = select_topology(intent)
+    circuit = compose_flyback(intent, topology)
+    evidence = EvidenceReport(
+        status="needs_human_review",
+        findings=(
+            "UCC28881 and LMV431 facts come from fetched, sha-pinned TI "
+            "datasheets; the safety parts (Y-cap, MOV, fusible resistor) "
+            "are engineering selections that REQUIRE qualified review.",
+        ),
+    )
+
+    write_flyback_project(circuit, output_dir, project_name=args.name)
+    kicad_artifacts = export_flyback_to_kicad(
+        circuit, output_dir, project_name=args.name
+    )
+    schematic_file = Path(kicad_artifacts["schematic_file"])
+
+    erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
+    simulation = run_flyback_simulation(circuit, output_dir)
+
+    kicad = erc_report.model_copy(
+        update={
+            "findings": (
+                *erc_report.findings,
+                "KiCad SPICE export was intentionally skipped; the switching "
+                "stage is design-equation verified and the secondary "
+                "feedback chain is simulated from a PCBSmith netlist.",
+            ),
+        }
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=(
+            "PCBSmith circuit object and KiCad schematic were generated "
+            "before authority checks.",
+            "ngspice ran the secondary feedback chain only.",
+        ),
+        findings=(
+            "The mains switching stage is verified by the DCM design "
+            "equations against datasheet limits, not by SPICE.",
+        ),
+    )
+
+    board: BoardReport
+    design_review: DesignReviewReport | None
+    if erc_report.status != "passed" or simulation.status != "passed":
+        board = BoardReport(
+            status="not_run",
+            findings=(
+                "Board generation was skipped because KiCad ERC and ngspice "
+                "simulation must pass before a board is generated.",
+            ),
+        )
+        design_review = None
+    else:
+        board_file = output_dir / f"{args.name}.kicad_pcb"
+        try:
+            board_netlist, layout = generate_flyback_board(
+                schematic_file=schematic_file,
+                board_file=board_file,
+            )
+        except BoardGenerationError as exc:
+            board = BoardReport(
+                status="failed",
+                board_file=str(board_file),
+                findings=(str(exc),),
+            )
+            design_review = None
+        else:
+            design_review = run_design_checks(
+                layout,
+                board_netlist,
+                DesignChecksSpec(
+                    net_currents=(("/3V3", 0.5), ("/GNDS", 0.5)),
+                    isolation_barrier=(
+                        BARRIER_X,
+                        ISOLATION_GAP_MM,
+                        PRIMARY_NETS,
+                        SECONDARY_NETS,
+                        STRADDLE_REFS,
+                    ),
+                    allowed_unconnected_pins=(
+                        # UCC28881 is a SOIC-7: leads 6/7 are physically
+                        # absent (datasheet p3); the SOIC-8 land keeps
+                        # the pads.
+                        ("U1", "6"), ("U1", "7"),
+                        # TEZ land pads not used by this winding spec.
+                        ("T1", "2"), ("T1", "6"), ("T1", "7"),
+                    ),
+                ),
+            )
+            board, design_review = _finish_board_authority(
+                board_file=board_file,
+                output_dir=output_dir,
+                project_name=args.name,
+                board_netlist=board_netlist,
+                layout=layout,
+                design_review=design_review,
+                extra_findings=(
+                    "MAINS DESIGN: the isolation barrier (>=6.4mm creepage) "
+                    "is machine-checked (rule 10.1) and drawn on the silk; "
+                    "certification-level review and lab verification by a "
+                    "qualified engineer are required before connecting "
+                    "120VAC.",
+                ),
+            )
+    artifacts = _authority_artifacts(
+        output_dir=output_dir,
+        kicad_artifacts=kicad_artifacts,
+        erc_report=erc_report,
+        spice_report=KiCadReport(status="not_run"),
+        simulation=simulation,
+        board=board,
+    )
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
+    revisions = _authority_revisions(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
+    bundle_path = write_authority_review_bundle(
+        circuit,
+        output_dir,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+        revisions=revisions,
+        artifacts=artifacts,
+    )
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+    )
+    print(f"Review bundle: {bundle_path}")
+    print(f"Status: {status}")
+    return 0
+
+
 def _cmd_board_diff(args: argparse.Namespace) -> int:
     import json as _json
 
@@ -2245,6 +2417,17 @@ def build_parser() -> argparse.ArgumentParser:
     detector_parser.add_argument("--name", required=True)
     detector_parser.add_argument("--overwrite", action="store_true")
     detector_parser.set_defaults(func=_cmd_design_metal_detector_authority)
+
+    flyback_parser = subparsers.add_parser(
+        "design-flyback-authority",
+        help="generate the 120VAC-to-3.3V isolated flyback (UCC28881, "
+        "machine-checked isolation barrier) with authority evidence",
+    )
+    flyback_parser.add_argument("output")
+    flyback_parser.add_argument("--request", required=True)
+    flyback_parser.add_argument("--name", required=True)
+    flyback_parser.add_argument("--overwrite", action="store_true")
+    flyback_parser.set_defaults(func=_cmd_design_flyback_authority)
 
     board_diff_parser = subparsers.add_parser(
         "board-diff",

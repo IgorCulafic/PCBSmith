@@ -273,3 +273,26 @@ def test_sealed_pour_cell_with_a_stranded_via_is_flagged() -> None:
         f for f in run_virtual_drc(fine, netlist)
         if f.check == "pour_connectivity"
     ]
+
+
+def test_circle_courtyards_measure_as_dense_hulls() -> None:
+    """A radial cap's F.CrtYd is a circle; the hull must track it (a
+    naive parse degenerates to a line and the bbox overreaches corners)."""
+    from pcbsmith.kicad.library import load_footprint
+
+    spec = load_footprint(
+        "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm"
+    ).spec
+    hull = spec.courtyard_hull
+    assert hull is not None and len(hull) >= 12
+    xs = [x for x, _ in hull]
+    ys = [y for _, y in hull]
+    # Centre (2.5, 0), radius 5.25 per the footprint file.
+    assert abs(min(xs) - (2.5 - 5.25)) < 0.05
+    assert abs(max(xs) - (2.5 + 5.25)) < 0.05
+    assert abs(min(ys) + 5.25) < 0.05
+    assert abs(max(ys) - 5.25) < 0.05
+    # The hull is round, not square: the corner point (as far toward the
+    # bbox corner as possible) stays well inside the bbox corner.
+    corner_reach = max((x - 2.5) + abs(y) for x, y in hull)
+    assert corner_reach < 5.25 * 1.5  # a square bbox would reach 2r

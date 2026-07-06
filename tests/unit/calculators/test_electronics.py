@@ -98,3 +98,40 @@ def test_led_series_string_warns_on_resistor_power() -> None:
 
     assert result["status"] == "warning"
     assert any("0603 rating" in warning for warning in result["warnings"])
+
+
+def test_offline_flyback_design_point_matches_hand_calculation() -> None:
+    from pcbsmith.calculators.electronics import solve_offline_flyback
+
+    result = solve_offline_flyback(
+        vac_min_v=108.0,
+        vac_max_v=132.0,
+        vout_v=3.3,
+        iout_a=0.5,
+    )
+
+    outputs = result["outputs"]
+    # Hand chain: Pout = 1.65 W, Pin = 1.65 / 0.75 = 2.2 W.
+    assert outputs["pin_w"] == 2.2
+    # Dmax = VOR / (VOR + Vdc_min) with VOR = 100.
+    assert abs(
+        outputs["duty_max"]
+        - 100.0 / (100.0 + outputs["vdc_min_v"])
+    ) < 1e-3
+    # Energy balance at the slowest datasheet frequency:
+    # Pin = 0.5 * Lp * Ipk^2 * 52 kHz.
+    lp = outputs["primary_inductance_h"]
+    ipk = outputs["peak_primary_current_a"]
+    assert abs(0.5 * lp * ipk**2 * 52e3 - 2.2) < 0.02
+    # The peak current must respect the weakest-device current limit.
+    assert ipk <= 0.33
+    # Np/Ns = VOR / (Vout + Vf) = 100 / 3.8 -> 26.
+    assert outputs["turns_ratio_selected"] == 26.0
+    # Drain stress stays under the 700 V rating with margin.
+    assert outputs["drain_peak_v"] < 500.0
+    # E24 divider around the 1.24 V LMV431 reference: 20k / 12k.
+    assert outputs["feedback_upper_ohms"] == 20000.0
+    assert outputs["feedback_lower_ohms"] == 12000.0
+    assert abs(outputs["vout_regulated_v"] - 3.3) < 0.05
+    # Discontinuous conduction with a wide margin.
+    assert outputs["dcm_period_fraction"] < 0.5

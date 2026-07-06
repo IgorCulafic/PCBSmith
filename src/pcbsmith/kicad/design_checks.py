@@ -56,6 +56,11 @@ class DesignChecksSpec:
     # Rule 7.5: composition roles present in the circuit, for validating
     # the cards' required support parts.
     composition_roles: tuple[str, ...] = ()
+    # Rule 10.1: (barrier_x, gap_mm, primary nets, secondary nets,
+    # straddle refs whose pads are exempt - certified isolation parts).
+    isolation_barrier: tuple[
+        float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]
+    ] | None = None
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -122,6 +127,12 @@ def run_design_checks(
             allowed_unconnected.update(
                 (reference, pin) for pin in card.nc_pins()
             )
+
+    if spec.isolation_barrier is not None:
+        checks_run.append("isolation_barrier")
+        findings.extend(
+            _check_isolation_barrier(layout, netlist, spec.isolation_barrier)
+        )
 
     checks_run.append("ic_pin_connectivity")
     findings.extend(
@@ -310,6 +321,99 @@ def _check_ic_pin_connectivity(
                         "allowed_unconnected_pins with the datasheet "
                         "locator justifying the no-connect."
                     ),
+                    source="check",
+                )
+            )
+    return tuple(findings)
+
+
+def _check_isolation_barrier(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    barrier: tuple[
+        float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]
+    ],
+) -> tuple[ReviewFinding, ...]:
+    # Rule 10.1: mains isolation. Every piece of primary-net copper must
+    # stay >= gap away from every piece of secondary-net copper, except
+    # the pads of the declared straddle parts (transformer, optocoupler,
+    # Y-capacitor - parts whose internal isolation is a certified rating).
+    from pcbsmith.kicad.virtual_drc import (
+        _collect_items,
+        _seg_seg_distance,
+        _Stadium,
+    )
+
+    barrier_x, gap_mm, primary_nets, secondary_nets, straddle = barrier
+    items = _collect_items(layout, netlist)
+    primary = [
+        item for item in items
+        if item.net in primary_nets and item.owner not in straddle
+    ]
+    secondary = [
+        item for item in items
+        if item.net in secondary_nets and item.owner not in straddle
+    ]
+    findings: list[ReviewFinding] = []
+    worst_distance = 1e9
+    worst_pair: tuple[_Stadium, _Stadium] | None = None
+    for one in primary:
+        for two in secondary:
+            distance = (
+                _seg_seg_distance(one.a, one.b, two.a, two.b)
+                - one.radius - two.radius
+            )
+            if distance < worst_distance:
+                worst_distance = distance
+                worst_pair = (one, two)
+    if worst_pair is not None and worst_distance < gap_mm:
+        distance = worst_distance
+        one, two = worst_pair
+        findings.append(
+            ReviewFinding(
+                rule="10.1",
+                severity="blocker",
+                scope="global",
+                where="isolation barrier",
+                evidence=(
+                    f"Creepage between {one.label} and {two.label} is "
+                    f"{distance:.2f}mm; the barrier at x={barrier_x:g} "
+                    f"requires >= {gap_mm:g}mm."
+                ),
+                suggested_action=(
+                    "Move the copper away from the barrier or route it "
+                    "through a certified straddle part."
+                ),
+                source="check",
+            )
+        )
+    # Also verify side discipline: primary copper stays left of the
+    # barrier, secondary right (straddle pads exempt).
+    for item, side in (
+        *((item, "primary") for item in primary),
+        *((item, "secondary") for item in secondary),
+    ):
+        max_x = max(item.a[0], item.b[0]) + item.radius
+        min_x = min(item.a[0], item.b[0]) - item.radius
+        if side == "primary" and max_x > barrier_x:
+            findings.append(
+                ReviewFinding(
+                    rule="10.1", severity="blocker", scope="net",
+                    where=item.net,
+                    evidence=f"{item.label} crosses the barrier "
+                    f"(x max {max_x:.1f} > {barrier_x:g}).",
+                    suggested_action="Keep primary copper on the primary side.",
+                    source="check",
+                )
+            )
+        if side == "secondary" and min_x < barrier_x:
+            findings.append(
+                ReviewFinding(
+                    rule="10.1", severity="blocker", scope="net",
+                    where=item.net,
+                    evidence=f"{item.label} crosses the barrier "
+                    f"(x min {min_x:.1f} < {barrier_x:g}).",
+                    suggested_action="Keep secondary copper on the secondary side.",
                     source="check",
                 )
             )

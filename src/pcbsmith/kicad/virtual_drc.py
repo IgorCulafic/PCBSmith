@@ -318,10 +318,25 @@ def _courtyard_polygon(
     spec = FOOTPRINT_LIBRARY[component.footprint]
     rotation = placement_rotation(layout, reference)
     flipped = reference in layout.part_flip
-    # Use the FAB body plus the standard 0.25mm courtyard margin rather
-    # than the measured bounds: the bounds include silk overhangs, so the
-    # exact-courtyard test would false-positive. Underestimating is the
-    # pre-filter contract (kicad-cli remains the authority).
+    if spec.courtyard_hull is not None:
+        # The exact F.CrtYd convex hull, pulled toward its centroid by a
+        # hair so float noise on a deliberate edge-to-edge placement does
+        # not false-positive (kicad-cli remains the authority).
+        hull = spec.courtyard_hull
+        cx = sum(x for x, _ in hull) / len(hull)
+        cy = sum(y for _, y in hull) / len(hull)
+        shrink = 0.02
+        pulled = []
+        for x, y in hull:
+            distance = math.hypot(x - cx, y - cy)
+            factor = max(0.0, 1.0 - shrink / distance) if distance else 0.0
+            pulled.append((cx + (x - cx) * factor, cy + (y - cy) * factor))
+        return [
+            _placed(anchor, rotation, corner, flipped) for corner in pulled
+        ]
+    # No courtyard drawn: FAB body plus the standard 0.25mm margin. The
+    # measured bounds would include silk overhangs and false-positive;
+    # underestimating is the pre-filter contract.
     x1, y1, x2, y2 = spec.fab_rect
     margin = 0.25
     corners = (
@@ -350,8 +365,8 @@ def _check_courtyards(layout: BoardLayout) -> list[VirtualDrcFinding]:
                 continue  # courtyards live on per-side layers
             if _polygons_overlap(poly_one, poly_two):
                 center = (
-                    sum(x for x, _ in poly_one) / 4,
-                    sum(y for _, y in poly_one) / 4,
+                    sum(x for x, _ in poly_one) / len(poly_one),
+                    sum(y for _, y in poly_one) / len(poly_one),
                 )
                 findings.append(
                     VirtualDrcFinding(

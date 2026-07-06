@@ -1,0 +1,65 @@
+{
+  "schema_id": "pcbsmith-component-card-v1",
+  "mpn": "LMV431",
+  "manufacturer": "Texas Instruments",
+  "description": "1.24 V low-voltage adjustable precision shunt regulator, SOT-23",
+  "symbol": "PCBSmith:LMV431",
+  "footprint": "Package_TO_SOT_SMD:SOT-23",
+  "datasheet": {
+    "local_path": "ai_assets/datasheets/lmv431.pdf",
+    "sha256": "92b4ea5341546e29967916bc28f518aa15a9971da1c98cea493903fd38c216fb",
+    "source_url": "https://www.ti.com/lit/gpn/lmv431"
+  },
+  "support_status": "reviewed",
+  "pins": [
+    {
+      "number": "1",
+      "name": "K",
+      "function": "power_out",
+      "requirement": "required",
+      "note": "Cathode; sinks the regulation current (optocoupler LED return in isolated feedback).",
+      "locator": "SNVS020 pin configuration (SOT-23 DBZ)"
+    },
+    {
+      "number": "2",
+      "name": "REF",
+      "function": "analog_in",
+      "requirement": "required",
+      "note": "Reference input, regulates at 1.24 V; fed by the output divider.",
+      "locator": "SNVS020 section 6.5 (VREF)"
+    },
+    {
+      "number": "3",
+      "name": "A",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "Anode; ties to the secondary ground.",
+      "locator": "SNVS020 pin configuration (SOT-23 DBZ)"
+    }
+  ],
+  "required_support": [
+    {
+      "role": "reference_divider",
+      "note": "Resistor divider from the regulated output to REF sets Vout = VREF * (1 + R1/R2).",
+      "locator": "SNVS020 section 8.2",
+      "matches": [
+        "feedback_divider"
+      ]
+    },
+    {
+      "role": "cathode_bias",
+      "note": "Guarantee >= 80 uA cathode current at minimum load so regulation holds.",
+      "locator": "SNVS020 section 6.5 (IKA min)",
+      "matches": [
+        "opto_series_resistor",
+        "led_shunt_resistor"
+      ]
+    }
+  ],
+  "limits": {
+    "vref_v": 1.24,
+    "vka_max_v": 30.0,
+    "ika_max_a": 0.03,
+    "ika_min_a": 8e-05
+  }
+}
