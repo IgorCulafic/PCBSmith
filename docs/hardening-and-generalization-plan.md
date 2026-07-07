@@ -552,7 +552,14 @@ From the Flux/Quilter/Diode/PCBSchemaGen research
   Quilter's physics-scored-candidates lesson: generate N candidate
   placements/routes, score each with what already exists (virtual
   DRC + design checks + trace current + creepage), keep the best.
-  The verifier is built; only the candidate generator is missing.
+  STATUS: scorecard shipped (`kicad/layout_score.py`); grid A* net
+  router shipped (`kicad/astar_router.py`: two layers, via hops,
+  obstacles from the virtual-DRC stadium model, insulation-group
+  keepouts from the same spec the checks enforce). Head-to-head on
+  the flyback it re-routes hand nets verifier-clean and BEAT the
+  hand /VDD route (73.5mm/0 vias vs 79.8mm/1). REMAINING: full-board
+  multi-net routing with ordering/rip-up, then candidate generation
+  over placements.
 - **8.3 LLM-authored topologies gated by our verifier (upgrades 4.7).**
   The Diode/PCBSchemaGen pattern: an LLM (PCBSchemaGen got 81.3% from
   Gemma-4-31B - on disk in ai_assets/models) writes the

@@ -70,6 +70,12 @@ def _spec() -> DesignChecksSpec:
             SECONDARY_NETS,
             STRADDLE_REFS,
         ),
+        # Mirrors the CLI authority: the SOIC-7's absent leads and the
+        # TEZ pads this winding spec does not use.
+        allowed_unconnected_pins=(
+            ("U1", "6"), ("U1", "7"),
+            ("T1", "2"), ("T1", "6"), ("T1", "7"),
+        ),
     )
 
 
