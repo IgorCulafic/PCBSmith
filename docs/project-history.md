@@ -82,15 +82,15 @@ restarted "circuit-first" with `docs/circuit-intelligence-roadmap.md`.
 
 Each board was a user challenge chosen to break the tool somewhere new.
 
-- **Clover** (commit `a817b5d`): shaped outline (four-leaf clover),
+- **Clover** (commit `2d79a4a`): shaped outline (four-leaf clover),
   silk art + motto, parts on the BACK (flip transforms — inverse
   rotation then x-mirror), zones as shaped-board power, bezier
   traces-as-art. Live DRC 0/0.
-- **Pear** (commit `0e2978a`): two-circle convex-hull outline with
+- **Pear** (commit `5456fe4`): two-circle convex-hull outline with
   exact parallel inward offsets, 49 tangent-following LED units on
   three rings (arbitrary-angle rotation support), worm silkscreen with
   occlusion-clipped circles.
-- **Metal detector** (commit `21a5b35`): first FUNCTIONAL copper — a
+- **Metal detector** (commit `6e4483a`): first FUNCTIONAL copper — a
   20-turn exposed spiral as the Colpitts tank inductor. Spiral
   inductance calculator (Mohan current-sheet, Wheeler cross-check),
   copper-only components via NetTie, soldermask-opening graphics,
@@ -103,23 +103,23 @@ Each board was a user challenge chosen to break the tool somewhere new.
 Triggered by a post-challenge audit: "the project technically works,
 but only because it's you doing it."
 
-- **Waves 0-1** (commits `e49efdf`, `e17da2d`): repo hygiene;
+- **Waves 0-1** (commits `c6c5f4d`, `ea2e0bd`): repo hygiene;
   `kicad/virtual_drc.py` — stadium-model courtyard / copper-clearance /
   edge / (later) pour-connectivity pre-filter, wired before every
   KiCad run; rules→checks (`outline_is_simple`, `copper_keepout`);
   convention probe tests; the GOLDEN SUITE (`tests/golden`, gated by
   `PCBSMITH_GOLDEN=1`) regenerating every topology live and asserting
   terminal-clean.
-- **Waves 2-3** (commits `8c99aa5`, `71984a4`): the shaped-board
+- **Waves 2-3** (commits `2753e82`, `47d5ef6`): the shaped-board
   toolkit extracted (`kicad/shaped_board.py`: Router, Pieces,
   splice_rect_tab, silk primitives); assembly-view artifact;
   `fab-package` CLI (gerbers/drill/positions/notes/BOM zip); IPC-2221
   trace-current rule 5.3; frontend contract doc.
-- **Rule 7.3** (commit `cca5fbd`): the "invisible forgotten IC pin"
+- **Rule 7.3** (commit `a326ad4`): the "invisible forgotten IC pin"
   class (unwired pin = no ERC error, no DRC item) closed by the
   always-on `ic_pin_connectivity` check.
-- **Track 6 — component onboarding** (commits `8820079`, `ae6291e`,
-  `4e58ff8`, `c537b0a`): official SYMBOL import with
+- **Track 6 — component onboarding** (commits `8e80713`, `e790ff2`,
+  `5d55cf8`, `6c83b0e`): official SYMBOL import with
   extends-flattening (`kicad/symbols.py`); all IC exporters migrated to
   official symbols (PWR_FLAG semantics, native no-connects); component
   cards (`pcbsmith/components.py`, `ai_assets/components/*.json`) with
@@ -127,14 +127,14 @@ but only because it's you doing it."
   support parts (rule 7.5), card-driven NC whitelists; and the
   `onboard-component <mpn> --symbol --footprint` front door (live-tested
   on an NE555).
-- **Final sweep** (commits `66db087`, `2c02d33`): `board-diff` — user
+- **Final sweep** (commits `fc7ccf4`, `5f32b09`): `board-diff` — user
   KiCad edits become structured rule suggestions (live-tested on a
   hand-edited buck; every authority snapshots `layout.json`);
   pour-connectivity virtual check; green-LED datasheet fetched
   (assumption → datasheet_fact); DigiKey verdicts (old github lib =
   metadata seed only; reference site 403s curl).
 
-## The flyback (2026-07-07, commit `7bf5029`) — first mains-isolated board
+## The flyback (2026-07-07, commit `179c775`) — first mains-isolated board
 
 The user's "really difficult test": 120 VAC → 3.3 V / 0.5 A isolated
 flyback. UCC28881 (SOIC-7, leads 6/7 absent for drain creepage),
@@ -167,7 +167,7 @@ What it produced beyond the board itself:
   (two radial bulk cans between the bridge pads and the transformer
   body). Both pains drove the next day's work.
 
-## Reference-driven hardening (2026-07-07, commit `864fd0b`)
+## Reference-driven hardening (2026-07-07, commit `bc074d2`)
 
 The user supplied NWES's FLBACK-001 Rev B — a professional Altium
 build of the SAME circuit (also copied to `outputs/FLBACK-001-RevB`).
@@ -194,7 +194,7 @@ Analysis: `docs/reference-comparisons/flback-001-vs-flyback-r001.md`.
   with PTH/NPTH counts, assembly block, dual-unit extents). DNP BOM
   annotation. Clamp-dissipation warning.
 
-## State at handoff (2026-07-07, HEAD `864fd0b`, branch codex/circuit-intelligence-slice)
+## State at handoff (2026-07-07, HEAD `bc074d2`, branch codex/circuit-intelligence-slice)
 
 - 9 topologies regenerate terminal-clean in the golden suite: divider,
   buck, led-art, mpu6050, clover, pear, detector, flyback (+ the suite

@@ -35,3 +35,7 @@ pcbsmith-demo.html
 
 # Archived pre-restructure snapshots (reference material, kept locally).
 old_files/
+
+# Local AI runtimes and model weights - never in git (purged from history 2026-07-07)
+ai_assets/models/
+ai_assets/koboldcpp/
