@@ -28,6 +28,7 @@ from pcbsmith.circuit.models import (
 from pcbsmith.core.board import Board
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.reporting.review_pack import TestStep
 from pcbsmith.services.project_io import save_board, save_project, save_schematic
 
 SUPPORTED_TOPOLOGY_ID = "offline_flyback_3v3"
@@ -429,3 +430,85 @@ def write_flyback_project(
     save_project(project_dir, project)
     save_schematic(project_dir, project.schematics[0], Schematic(id="main"))
     save_board(project_dir, project.boards[0], Board(id="main"))
+
+
+def flyback_test_steps(outputs: dict[str, object]) -> tuple[TestStep, ...]:
+    """Bench test plan derived from the calculator's design point.
+
+    Every expected value traces to `solve_offline_flyback` outputs;
+    the safety column is non-negotiable for a mains design.
+    """
+    vout = float(outputs["vout_regulated_v"])  # type: ignore[arg-type]
+    vdc_min = float(outputs["vdc_min_v"])  # type: ignore[arg-type]
+    vdc_max = float(outputs["vdc_peak_max_v"])  # type: ignore[arg-type]
+    mains_safety = (
+        "ISOLATION TRANSFORMER mandatory; no scope ground on the "
+        "primary; discharge CB1 before touching."
+    )
+    return (
+        TestStep(
+            name="Visual + isolation gap",
+            procedure=(
+                "Inspect solder joints; verify the silkscreened barrier "
+                "channel between primary and secondary is free of "
+                "debris/solder; verify Y-caps and X-cap are the "
+                "safety-rated parts on the BOM."
+            ),
+            expected=">=6.4mm clean creepage channel; certified parts",
+            safety="Unpowered.",
+        ),
+        TestStep(
+            name="Pre-power continuity",
+            procedure=(
+                "Meter: EARTH pad to HVM (TP1 reference); EARTH to "
+                "GNDS (TP2); HVM to GNDS; L to N."
+            ),
+            expected=(
+                "All four read open (>1 Mohm); L-N shows the MOV/X-cap "
+                "network only"
+            ),
+            safety="Unpowered.",
+        ),
+        TestStep(
+            name="Rectified bus",
+            procedure=(
+                "Power through an isolation transformer with a 60W "
+                "series bulb; measure TP1 (HV+) to the bulk negative."
+            ),
+            expected=(
+                f"~{vdc_min:.0f}-{vdc_max:.0f} VDC depending on line "
+                "and load; series bulb dark or dim"
+            ),
+            safety=mains_safety,
+        ),
+        TestStep(
+            name="Output regulation",
+            procedure="Measure J2 output at no load, then at 0.5 A.",
+            expected=f"{vout:.2f} V +/- 3% at both points",
+            safety=mains_safety,
+        ),
+        TestStep(
+            name="Feedback reference",
+            procedure="Measure LMV431 REF (U3 pin 2) against TP2.",
+            expected="1.24 V +/- 2%",
+            safety=mains_safety,
+        ),
+        TestStep(
+            name="Opto LED current",
+            procedure=(
+                "Measure the voltage across RO1 (180R) and divide by "
+                "180."
+            ),
+            expected="2-20 mA in regulation",
+            safety=mains_safety,
+        ),
+        TestStep(
+            name="Output ripple",
+            procedure=(
+                "Scope J2 (isolated side only) at 0.5 A load, 20 MHz "
+                "bandwidth limit."
+            ),
+            expected="< 100 mVpp",
+            safety=mains_safety + " Scope on the SECONDARY only.",
+        ),
+    )

@@ -1242,6 +1242,37 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
     )
 
     write_flyback_project(circuit, output_dir, project_name=args.name)
+
+    # Track 8.1: the deterministic review pack (block diagram, test
+    # plan, FMEA, pin tables, BOM lint) from the design's own data.
+    from pcbsmith.calculators.electronics import solve_offline_flyback
+    from pcbsmith.generation.flyback import flyback_test_steps
+    from pcbsmith.kicad.export_flyback import INSTANCES as _FLY_INSTANCES
+    from pcbsmith.reporting.review_pack import render_review_pack
+
+    design_outputs = solve_offline_flyback(
+        vac_min_v=float(intent.assumptions["vac_min_v"]),
+        vac_max_v=float(intent.assumptions["vac_max_v"]),
+        vout_v=float(intent.assumptions["vout_v"]),
+        iout_a=float(intent.assumptions["iout_a"]),
+        reflected_voltage_v=float(intent.assumptions["reflected_voltage_v"]),
+    )["outputs"]
+    review_pack = render_review_pack(
+        project_name=args.name,
+        components=circuit.components,
+        pin_nets={
+            reference: {pin: f"/{net}" for pin, net in pins.items()}
+            for reference, _lib, _x, pins in _FLY_INSTANCES
+        },
+        cards=(("U1", "UCC28881"), ("U3", "LMV431")),
+        test_steps=flyback_test_steps(design_outputs),
+        notes=(
+            "MAINS DESIGN: execute nothing on this plan without an "
+            "isolation transformer and qualified supervision.",
+        ),
+    )
+    (output_dir / "review-pack.md").write_text(review_pack, encoding="utf-8")
+
     kicad_artifacts = export_flyback_to_kicad(
         circuit, output_dir, project_name=args.name
     )
@@ -2288,6 +2319,9 @@ def _authority_artifacts(
         "review_bundle": str(output_dir / "review-bundle-v2.json"),
         "kicad_schematic": kicad_artifacts["schematic_file"],
     }
+    _add_existing_artifact(
+        artifacts, "review_pack", str(output_dir / "review-pack.md")
+    )
     _add_existing_artifact(artifacts, "kicad_erc_report", erc_report.erc_report)
     if spice_report.status == "passed":
         _add_existing_artifact(artifacts, "kicad_spice_netlist", spice_report.spice_netlist)
