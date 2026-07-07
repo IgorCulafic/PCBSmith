@@ -557,9 +557,13 @@ From the Flux/Quilter/Diode/PCBSchemaGen research
   obstacles from the virtual-DRC stadium model, insulation-group
   keepouts from the same spec the checks enforce). Head-to-head on
   the flyback it re-routes hand nets verifier-clean and BEAT the
-  hand /VDD route (73.5mm/0 vias vs 79.8mm/1). REMAINING: full-board
-  multi-net routing with ordering/rip-up, then candidate generation
-  over placements.
+  hand /VDD route (73.5mm/0 vias vs 79.8mm/1). `route_board()`
+  (shortest-net-first ordering + rip-up-by-reorder) then routed the
+  ENTIRE flyback from bare placements in 14s, zero restarts, beating
+  the hand layout on the whole scorecard (731mm/8 vias vs 754mm/10,
+  viable under the full spec) - regression-locked. REMAINING:
+  candidate generation over PLACEMENTS on top (the dual-side flyback
+  compaction toward the reference's 80x37 is the target application).
 - **8.3 LLM-authored topologies gated by our verifier (upgrades 4.7).**
   The Diode/PCBSchemaGen pattern: an LLM (PCBSchemaGen got 81.3% from
   Gemma-4-31B - on disk in ai_assets/models) writes the

@@ -139,3 +139,43 @@ def test_beats_hand_route_on_flyback_vdd() -> None:
     assert score.is_viable
     assert result.length_mm < hand_length
     assert len(result.vias) < hand_vias
+
+
+def test_routes_entire_flyback_board_and_beats_hand_layout() -> None:
+    """The full-board experiment: every net of the real flyback routed
+    from bare placements. The complete result must pass the whole spec
+    (isolation included) and cost less than the hand routing on the
+    scorecard (track + via equivalence). ~15s - the price of the
+    strongest regression this suite owns."""
+    from tests.unit.kicad.test_flyback_board import _spec
+
+    from pcbsmith.kicad.astar_router import route_board
+
+    netlist = flyback_netlist()
+    hand = compute_flyback_board_layout(netlist)
+    bare = hand.__class__(
+        **{
+            **{key: getattr(hand, key) for key in hand.__dataclass_fields__},
+            "segments": (),
+            "vias": (),
+        }
+    )
+    widths = {
+        net: 0.8
+        for net in (
+            "/L", "/N", "/ACL", "/HVP", "/HVM", "/SW",
+            "/SEC", "/3V3", "/GNDS",
+        )
+    }
+    outcome = route_board(
+        bare, netlist,
+        net_widths=widths,
+        clearance_groups=clearance_groups_from_spec(_spec()),
+    )
+    assert outcome.failed == ()
+    score = score_layout(outcome.layout, netlist, _spec())
+    assert score.is_viable, (
+        score.virtual_drc_findings[:5] or score.blocker_findings[:5]
+    )
+    hand_score = score_layout(hand, netlist, _spec())
+    assert score.sort_key() < hand_score.sort_key()

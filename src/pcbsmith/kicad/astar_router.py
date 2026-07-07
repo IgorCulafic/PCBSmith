@@ -455,3 +455,99 @@ def with_route(layout: BoardLayout, result: RouteResult) -> BoardLayout:
             "vias": (*layout.vias, *result.vias),
         }
     )
+
+
+@dataclass(frozen=True)
+class BoardRouteResult:
+    layout: BoardLayout
+    results: tuple[RouteResult, ...]
+    order: tuple[str, ...]
+    restarts: int
+    failed: tuple[str, ...]
+
+
+def _routable_nets(
+    layout: BoardLayout, netlist: BoardNetlist
+) -> dict[str, float]:
+    """Nets with 2+ physical pads, keyed to an estimated half-perimeter
+    (the ordering heuristic: short, locally-constrained nets first)."""
+    items = _collect_items(layout, netlist)
+    spans: dict[str, list[tuple[float, float]]] = {}
+    for item in items:
+        if item.owner:
+            spans.setdefault(item.net, []).append(item.a)
+    estimates: dict[str, float] = {}
+    for net, points in spans.items():
+        unique = set(points)
+        if len(unique) < 2 or net.startswith("~"):
+            continue
+        xs = [x for x, _ in unique]
+        ys = [y for _, y in unique]
+        estimates[net] = (max(xs) - min(xs)) + (max(ys) - min(ys))
+    return estimates
+
+
+def route_board(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    *,
+    net_widths: dict[str, float] | None = None,
+    default_width_mm: float = 0.4,
+    clearance_groups: Sequence[
+        tuple[Collection[str], Collection[str], float, Collection[str]]
+    ] = (),
+    net_order: Sequence[str] | None = None,
+    max_restarts: int = 8,
+    grid_mm: float = GRID_MM,
+) -> BoardRouteResult:
+    """Route every multi-pad net sequentially; when a net cannot be
+    routed, promote it to the front of the order and restart (rip-up by
+    reordering - the MVP alternative to true rip-up)."""
+    widths = net_widths or {}
+    estimates = _routable_nets(layout, netlist)
+    if net_order is not None:
+        order = [net for net in net_order if net in estimates]
+        order += sorted(
+            (net for net in estimates if net not in set(order)),
+            key=lambda net: estimates[net],
+        )
+    else:
+        order = sorted(estimates, key=lambda net: estimates[net])
+
+    restarts = 0
+    while True:
+        working = layout
+        results: list[RouteResult] = []
+        failed: str | None = None
+        for net in order:
+            try:
+                result = route_net(
+                    working, netlist, net,
+                    track_width_mm=widths.get(net, default_width_mm),
+                    grid_mm=grid_mm,
+                    clearance_groups=clearance_groups,
+                )
+            except RoutingError:
+                failed = net
+                break
+            results.append(result)
+            working = with_route(working, result)
+        if failed is None:
+            return BoardRouteResult(
+                layout=working,
+                results=tuple(results),
+                order=tuple(order),
+                restarts=restarts,
+                failed=(),
+            )
+        if restarts >= max_restarts or order[0] == failed:
+            return BoardRouteResult(
+                layout=working,
+                results=tuple(results),
+                order=tuple(order),
+                restarts=restarts,
+                failed=(failed,),
+            )
+        order.remove(failed)
+        order.insert(0, failed)
+        restarts += 1
