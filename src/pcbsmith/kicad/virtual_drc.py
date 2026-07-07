@@ -21,6 +21,7 @@ Everything here is a narrow, JSON-serializable tool surface by design
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass
 
 from pcbsmith.kicad.board import (
@@ -538,6 +539,346 @@ def _check_pour_connectivity(
     return findings
 
 
+# ---------------------------------------------------------------------------
+# Silkscreen model. KiCad flags silk-over-copper (pads) and overlapping silk
+# items; before this model those only surfaced after a full kicad-cli round
+# trip (the flyback burned six of them on reference labels alone). Text
+# extents are ESTIMATED (stroke font), so boxes are deliberately shrunk —
+# underestimating is the pre-filter contract.
+
+_TEXT_CHAR_HALF_W = 0.4   # per character, x font size (KiCad advance ~1.0)
+_TEXT_HALF_H = 0.55       # x font size
+_DEFAULT_REF_SIZE = 1.27
+
+_Rect = tuple[float, float, float, float]  # x1, y1, x2, y2
+
+
+@dataclass(frozen=True)
+class _SilkText:
+    box: _Rect
+    side: str
+    owner: str  # footprint reference for labels, "" for board texts
+    label: str
+
+
+@dataclass(frozen=True)
+class _SilkLine:
+    a: Point
+    b: Point
+    half_width: float
+    side: str
+    label: str
+
+
+_GR_TEXT_RE = re.compile(
+    r'\(gr_text\s+"((?:[^"\\]|\\.)*)"\s*\(at\s+([-\d.]+)\s+([-\d.]+)',
+)
+_GR_TEXT_SIZE_RE = re.compile(r"\(size\s+([-\d.]+)\s+[-\d.]+\)")
+_GR_LINE_RE = re.compile(
+    r"\(gr_line\s*\(start\s+([-\d.]+)\s+([-\d.]+)\)\s*"
+    r"\(end\s+([-\d.]+)\s+([-\d.]+)\)\s*"
+    r"\(stroke\s*\(width\s+([-\d.]+)\)",
+)
+
+
+def _text_box(
+    center: Point, text: str, size: float, upright_swap: bool
+) -> _Rect:
+    half_w = max(len(text), 1) * size * _TEXT_CHAR_HALF_W
+    half_h = size * _TEXT_HALF_H
+    if upright_swap:
+        half_w, half_h = half_h, half_w
+    return (
+        center[0] - half_w, center[1] - half_h,
+        center[0] + half_w, center[1] + half_h,
+    )
+
+
+def _rects_overlap_depth(one: _Rect, two: _Rect) -> float:
+    dx = min(one[2], two[2]) - max(one[0], two[0])
+    dy = min(one[3], two[3]) - max(one[1], two[1])
+    return min(dx, dy)
+
+
+def _point_rect_distance(point: Point, rect: _Rect) -> float:
+    dx = max(rect[0] - point[0], 0.0, point[0] - rect[2])
+    dy = max(rect[1] - point[1], 0.0, point[1] - rect[3])
+    return math.hypot(dx, dy)
+
+
+def _seg_rect_distance(a: Point, b: Point, rect: _Rect) -> float:
+    if rect[0] <= a[0] <= rect[2] and rect[1] <= a[1] <= rect[3]:
+        return 0.0
+    if rect[0] <= b[0] <= rect[2] and rect[1] <= b[1] <= rect[3]:
+        return 0.0
+    corners = (
+        (rect[0], rect[1]), (rect[2], rect[1]),
+        (rect[2], rect[3]), (rect[0], rect[3]),
+    )
+    return min(
+        _seg_seg_distance(a, b, corners[index], corners[(index + 1) % 4])
+        for index in range(4)
+    )
+
+
+def _collect_silk_texts(layout: BoardLayout) -> list[_SilkText]:
+    from pcbsmith.kicad.board import BOARD_SHEET_ORIGIN_MM
+
+    texts: list[_SilkText] = []
+    overrides = dict(layout.part_reference_at)
+    for component, anchor_x in layout.placements:
+        reference = component.reference
+        spec = FOOTPRINT_LIBRARY[component.footprint]
+        if spec.board_only or reference in layout.hide_references:
+            continue
+        rotation = placement_rotation(layout, reference)
+        flipped = reference in layout.part_flip
+        override = overrides.get(reference)
+        if override is not None:
+            local = (override[0], override[1])
+            total_angle = override[2]
+            size = (
+                spec.reference_label[2]
+                if spec.reference_label
+                else _DEFAULT_REF_SIZE
+            )
+        elif spec.reference_label is not None:
+            local = (spec.reference_label[0], spec.reference_label[1])
+            total_angle = rotation
+            size = spec.reference_label[2]
+        else:
+            continue
+        center = _placed(
+            (anchor_x, placement_y(layout, reference)),
+            rotation, local, flipped,
+        )
+        texts.append(
+            _SilkText(
+                box=_text_box(
+                    center, reference, size,
+                    upright_swap=round(total_angle) % 180 == 90,
+                ),
+                side="B" if flipped else "F",
+                owner=reference,
+                label=f"reference label {reference}",
+            )
+        )
+    for graphic in layout.graphics:
+        if '"F.SilkS"' not in graphic:
+            continue
+        for match in _GR_TEXT_RE.finditer(graphic):
+            text = match.group(1)
+            center = (
+                float(match.group(2)) - BOARD_SHEET_ORIGIN_MM,
+                float(match.group(3)) - BOARD_SHEET_ORIGIN_MM,
+            )
+            size_match = _GR_TEXT_SIZE_RE.search(graphic, match.end())
+            size = float(size_match.group(1)) if size_match else 1.0
+            texts.append(
+                _SilkText(
+                    box=_text_box(center, text, size, upright_swap=False),
+                    side="F",
+                    owner="",
+                    label=f"silk text '{text}'",
+                )
+            )
+    return texts
+
+
+def _collect_silk_lines(layout: BoardLayout) -> list[_SilkLine]:
+    from pcbsmith.kicad.board import BOARD_SHEET_ORIGIN_MM
+
+    lines: list[_SilkLine] = []
+    for graphic in layout.graphics:
+        if '"F.SilkS"' not in graphic:
+            continue
+        for match in _GR_LINE_RE.finditer(graphic):
+            lines.append(
+                _SilkLine(
+                    a=(
+                        float(match.group(1)) - BOARD_SHEET_ORIGIN_MM,
+                        float(match.group(2)) - BOARD_SHEET_ORIGIN_MM,
+                    ),
+                    b=(
+                        float(match.group(3)) - BOARD_SHEET_ORIGIN_MM,
+                        float(match.group(4)) - BOARD_SHEET_ORIGIN_MM,
+                    ),
+                    half_width=float(match.group(5)) / 2.0,
+                    side="F",
+                    label="silk line",
+                )
+            )
+    return lines
+
+
+def _body_polys(layout: BoardLayout) -> list[tuple[str, str, list[Point]]]:
+    """(reference, side, placed fab hull) — the fab body underestimates
+    the silk outline drawn just outside it. A hull, not a bbox: round
+    can bodies would otherwise flag labels near their corners."""
+    polys: list[tuple[str, str, list[Point]]] = []
+    for component, anchor_x in layout.placements:
+        reference = component.reference
+        spec = FOOTPRINT_LIBRARY[component.footprint]
+        if spec.board_only:
+            continue
+        rotation = placement_rotation(layout, reference)
+        flipped = reference in layout.part_flip
+        anchor = (anchor_x, placement_y(layout, reference))
+        if spec.fab_hull is not None:
+            local_points: tuple[tuple[float, float], ...] = spec.fab_hull
+        else:
+            x1, y1, x2, y2 = spec.fab_rect
+            local_points = ((x1, y1), (x2, y1), (x2, y2), (x1, y2))
+        polys.append(
+            (
+                reference,
+                "B" if flipped else "F",
+                [
+                    _placed(anchor, rotation, point, flipped)
+                    for point in local_points
+                ],
+            )
+        )
+    return polys
+
+
+def _rect_poly_overlap_depth(rect: _Rect, poly: list[Point]) -> float:
+    """Positive when the rect penetrates the convex polygon; measured as
+    the deepest rect corner/edge inside, approximated via SAT margins."""
+    corners = [
+        (rect[0], rect[1]), (rect[2], rect[1]),
+        (rect[2], rect[3]), (rect[0], rect[3]),
+    ]
+    if not _polygons_overlap(corners, poly):
+        return 0.0
+    # Depth along the polygon edge normals: the smallest penetration.
+    depth = float("inf")
+    count = len(poly)
+    for index in range(count):
+        x1, y1 = poly[index]
+        x2, y2 = poly[(index + 1) % count]
+        nx, ny = y1 - y2, x2 - x1
+        length = math.hypot(nx, ny)
+        if length == 0:
+            continue
+        nx, ny = nx / length, ny / length
+        poly_proj = [nx * x + ny * y for x, y in poly]
+        rect_proj = [nx * x + ny * y for x, y in corners]
+        overlap = min(
+            max(poly_proj) - min(rect_proj),
+            max(rect_proj) - min(poly_proj),
+        )
+        depth = min(depth, overlap)
+    return depth if depth != float("inf") else 0.0
+
+
+def _seg_poly_distance(a: Point, b: Point, poly: list[Point]) -> float:
+    if _point_in_polygon(a, tuple(poly)) or _point_in_polygon(b, tuple(poly)):
+        return 0.0
+    count = len(poly)
+    return min(
+        _seg_seg_distance(a, b, poly[index], poly[(index + 1) % count])
+        for index in range(count)
+    )
+
+
+def _check_silkscreen(
+    layout: BoardLayout, items: list[_Stadium]
+) -> list[VirtualDrcFinding]:
+    texts = _collect_silk_texts(layout)
+    lines = _collect_silk_lines(layout)
+    bodies = _body_polys(layout)
+    pads = [item for item in items if item.owner]
+    findings: list[VirtualDrcFinding] = []
+
+    def report(check: str, message: str, at: Point) -> None:
+        findings.append(
+            VirtualDrcFinding(
+                check=check, message=message, x_mm=at[0], y_mm=at[1]
+            )
+        )
+
+    for text in texts:
+        center = (
+            (text.box[0] + text.box[2]) / 2,
+            (text.box[1] + text.box[3]) / 2,
+        )
+        for reference, side, poly in bodies:
+            if side != text.side or reference == text.owner:
+                continue
+            if _rect_poly_overlap_depth(text.box, poly) > TOLERANCE_MM:
+                report(
+                    "silk_overlap",
+                    f"{text.label} overlaps the body of {reference}",
+                    center,
+                )
+        for pad in pads:
+            layer = "B.Cu" if text.side == "B" else "F.Cu"
+            if pad.layer != layer or pad.owner == text.owner:
+                continue
+            distance = min(
+                _point_rect_distance(pad.a, text.box),
+                _point_rect_distance(pad.b, text.box),
+            )
+            if distance < pad.radius - TOLERANCE_MM:
+                report(
+                    "silk_over_pad",
+                    f"{text.label} sits on {pad.label}",
+                    center,
+                )
+                break
+    for index, text in enumerate(texts):
+        for other in texts[index + 1:]:
+            if other.side != text.side:
+                continue
+            if _rects_overlap_depth(text.box, other.box) > TOLERANCE_MM:
+                report(
+                    "silk_overlap",
+                    f"{text.label} overlaps {other.label}",
+                    (
+                        (text.box[0] + text.box[2]) / 2,
+                        (text.box[1] + text.box[3]) / 2,
+                    ),
+                )
+    for line in lines:
+        for reference, side, poly in bodies:
+            if side != line.side:
+                continue
+            if (
+                _seg_poly_distance(line.a, line.b, poly)
+                < line.half_width - TOLERANCE_MM
+            ):
+                report(
+                    "silk_overlap",
+                    f"{line.label} crosses the body of {reference}",
+                    line.a,
+                )
+        for text in texts:
+            if text.side != line.side:
+                continue
+            if (
+                _seg_rect_distance(line.a, line.b, text.box)
+                < line.half_width - TOLERANCE_MM
+            ):
+                report(
+                    "silk_overlap",
+                    f"{line.label} crosses {text.label}",
+                    line.a,
+                )
+        for pad in pads:
+            layer = "B.Cu" if line.side == "B" else "F.Cu"
+            if pad.layer != layer:
+                continue
+            distance = _seg_seg_distance(line.a, line.b, pad.a, pad.b)
+            if distance < pad.radius + line.half_width - TOLERANCE_MM:
+                report(
+                    "silk_over_pad",
+                    f"{line.label} crosses {pad.label}",
+                    line.a,
+                )
+    return findings
+
+
 def run_virtual_drc(
     layout: BoardLayout, netlist: BoardNetlist
 ) -> tuple[VirtualDrcFinding, ...]:
@@ -548,5 +889,6 @@ def run_virtual_drc(
         *_check_courtyards(layout),
         *_check_edge_clearance(items, layout),
         *_check_pour_connectivity(items, layout),
+        *_check_silkscreen(layout, items),
     ]
     return tuple(findings)

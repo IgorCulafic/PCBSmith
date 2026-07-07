@@ -200,6 +200,13 @@ class FootprintSpec:
     # TO-92 or radial-can circles would otherwise false-positive at the
     # corners against KiCad's exact-shape check.
     courtyard_hull: tuple[tuple[float, float], ...] | None = None
+    # Convex hull of the F.Fab body drawing (circles sampled); the
+    # silkscreen outline sits just outside it, so it is the honest
+    # underestimating proxy for silk-vs-part checks.
+    fab_hull: tuple[tuple[float, float], ...] | None = None
+    # Default Reference label placement from the footprint file:
+    # (local x, local y, font size). None when the file hides it.
+    reference_label: tuple[float, float, float] | None = None
 
     def pads_named(self, name: str) -> tuple[PadSpec, ...]:
         matches = tuple(pad for pad in self.pads if pad.name == name)
@@ -346,9 +353,10 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
                 # A circle parses as (end, center); its extent is the
                 # center plus/minus the radius, not those two points —
                 # radial-cap courtyards degenerate to a line otherwise.
-                # Courtyards get a dense ring so the convex hull tracks
-                # the curve; other layers only need the bounding corners.
-                samples = 24 if layer == "F.CrtYd" else 2
+                # Courtyards and fab bodies get a dense ring so the
+                # convex hull tracks the curve; other layers only need
+                # the bounding corners.
+                samples = 24 if layer in ("F.CrtYd", "F.Fab") else 2
                 points = _circle_extent_points(shape, points, samples)
             if layer == "F.CrtYd":
                 courtyard.extend(points)
@@ -389,6 +397,32 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
     courtyard_hull = _convex_hull(courtyard) if courtyard else None
     if courtyard_hull is not None and len(courtyard_hull) < 3:
         courtyard_hull = None  # a line or point constrains nothing
+    fab_hull = _convex_hull(fab_points) if fab_points else None
+    if fab_hull is not None and len(fab_hull) < 3:
+        fab_hull = None
+
+    reference_label = None
+    for prop in _children(tree, "property"):
+        if _atom(prop[1]) != "Reference":
+            continue
+        hidden = any(
+            _safe_head(child) == "hide" and _atom(child[1]) == "yes"
+            for child in prop
+            if isinstance(child, list) and len(child) > 1
+        )
+        ats = _children(prop, "at")
+        if hidden or not ats:
+            continue
+        font_size = 1.27
+        for effects in _children(prop, "effects"):
+            for font in _children(effects, "font"):
+                for size_node in _children(font, "size"):
+                    font_size = float(_atom(size_node[1]))
+        reference_label = (
+            float(_atom(ats[0][1])),
+            float(_atom(ats[0][2])),
+            font_size,
+        )
 
     return FootprintSpec(
         pads=tuple(pads),
@@ -403,6 +437,8 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
         silk_marks=tuple(silk_lines),
         board_only=board_only,
         courtyard_hull=courtyard_hull,
+        fab_hull=fab_hull,
+        reference_label=reference_label,
     )
 
 
@@ -763,6 +799,8 @@ def build_footprint_library() -> dict[str, FootprintSpec]:
                 silk_marks=marks,
                 board_only=board_only,
                 courtyard_hull=spec.courtyard_hull,
+                fab_hull=spec.fab_hull,
+                reference_label=spec.reference_label,
             )
         library[library_id] = spec
     return library

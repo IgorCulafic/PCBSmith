@@ -296,3 +296,56 @@ def test_circle_courtyards_measure_as_dense_hulls() -> None:
     # bbox corner as possible) stays well inside the bbox corner.
     corner_reach = max((x - 2.5) + abs(y) for x, y in hull)
     assert corner_reach < 5.25 * 1.5  # a square bbox would reach 2r
+
+
+def test_silk_reference_label_collision_is_flagged() -> None:
+    """Two 0603s stacked so R1's default reference label (1.43mm above
+    its body) lands inside R2's body must trip the silk model."""
+    netlist = _two_part_netlist()
+    layout = _layout(
+        placements=tuple(
+            (component, 10.0) for component in netlist.components
+        ),
+        part_y_mm=(("R1", 15.0), ("R2", 12.8)),
+        segments=(
+            TrackSegment(x1=9.2, y1=15.0, x2=9.2, y2=12.8,
+                         layer="F.Cu", net_name="/A"),
+            TrackSegment(x1=10.8, y1=15.0, x2=10.8, y2=12.8,
+                         layer="F.Cu", net_name="/B"),
+        ),
+    )
+    findings = run_virtual_drc(layout, netlist)
+    assert any(
+        finding.check == "silk_overlap" and "reference label R1" in finding.message
+        for finding in findings
+    ), findings
+
+
+def test_board_silk_text_over_pad_is_flagged() -> None:
+    from pcbsmith.kicad.board import BOARD_SHEET_ORIGIN_MM
+    from pcbsmith.kicad.shaped_board import silk_text
+
+    netlist = _two_part_netlist()
+    layout = _layout(
+        graphics=(silk_text("HV", (10.0, 15.0), BOARD_SHEET_ORIGIN_MM, size=1.6),),
+    )
+    findings = run_virtual_drc(layout, netlist)
+    assert any(finding.check == "silk_over_pad" for finding in findings), findings
+
+
+def test_board_silk_line_through_body_is_flagged() -> None:
+    from pcbsmith.kicad.board import BOARD_SHEET_ORIGIN_MM
+    from pcbsmith.kicad.shaped_board import silk_line
+
+    netlist = _two_part_netlist()
+    layout = _layout(
+        graphics=(
+            silk_line((10.0, 13.0), (10.0, 17.0), BOARD_SHEET_ORIGIN_MM,
+                      width=0.4),
+        ),
+    )
+    findings = run_virtual_drc(layout, netlist)
+    assert any(
+        finding.check == "silk_overlap" and "crosses the body" in finding.message
+        for finding in findings
+    ), findings

@@ -1380,6 +1380,34 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_ingest_reference(args: argparse.Namespace) -> int:
+    from pcbsmith.references import (
+        ReferenceIngestError,
+        ingest_reference_pack,
+        save_reference_record,
+    )
+
+    try:
+        record = ingest_reference_pack(
+            Path(args.source_dir), slug=args.slug
+        )
+        record_file = save_reference_record(record)
+    except ReferenceIngestError as exc:
+        print(f"Reference ingestion failed: {exc}")
+        return 1
+    print(f"Reference: {record.name} ({record.slug})")
+    print(f"BOM rows: {len(record.bom_rows)}")
+    if record.drill_rows:
+        holes = sum(row.count for row in record.drill_rows)
+        print(f"Drill table: {len(record.drill_rows)} tools, {holes} holes")
+    print(f"PDF texts: {len(record.pdf_texts)}")
+    print(f"Gerber layers: {len(record.gerber_files)}")
+    for note in record.notes:
+        print(f"Note: {note}")
+    print(f"Saved: {record_file}")
+    return 0
+
+
 def _cmd_board_diff(args: argparse.Namespace) -> int:
     import json as _json
 
@@ -1523,11 +1551,17 @@ def _cmd_fab_package(args: argparse.Namespace) -> int:
                 component.reference
             )
         for (value, footprint), references in sorted(groups.items()):
-            note = (
-                "copper-only part (net tie); do not order"
-                if "NetTie" in footprint
-                else ""
-            )
+            if "NetTie" in footprint:
+                note = "copper-only part (net tie); do not order"
+            elif (
+                value.strip().upper() == "DNP"
+                or value.strip().upper().endswith(" DNP")
+            ):
+                # Reference-design practice (FLBACK-001): optional parts
+                # keep their location but are marked do-not-populate.
+                note = "DNP - do not populate"
+            else:
+                note = ""
             refs = " ".join(sorted(references))
             quoted = ",".join(
                 (str(len(references)), _csv(refs), _csv(value), _csv(footprint), "", note)
@@ -2437,6 +2471,15 @@ def build_parser() -> argparse.ArgumentParser:
     board_diff_parser.add_argument("revision_dir")
     board_diff_parser.add_argument("--reference")
     board_diff_parser.set_defaults(func=_cmd_board_diff)
+
+    ingest_parser = subparsers.add_parser(
+        "ingest-reference",
+        help="ingest a professional design's output pack (BOM xlsx, NC "
+        "drill report, PDFs, gerbers) into ai_assets/references",
+    )
+    ingest_parser.add_argument("source_dir")
+    ingest_parser.add_argument("--slug")
+    ingest_parser.set_defaults(func=_cmd_ingest_reference)
 
     onboard_parser = subparsers.add_parser(
         "onboard-component",

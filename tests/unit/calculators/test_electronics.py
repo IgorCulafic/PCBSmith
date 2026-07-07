@@ -135,3 +135,21 @@ def test_offline_flyback_design_point_matches_hand_calculation() -> None:
     assert abs(outputs["vout_regulated_v"] - 3.3) < 0.05
     # Discontinuous conduction with a wide margin.
     assert outputs["dcm_period_fraction"] < 0.5
+
+
+def test_offline_flyback_warns_on_hot_clamp_resistor() -> None:
+    from pcbsmith.calculators.electronics import solve_offline_flyback
+
+    cool = solve_offline_flyback(
+        vac_min_v=108.0, vac_max_v=132.0, vout_v=3.3, iout_a=0.5,
+        clamp_resistance_ohms=680e3,
+    )
+    assert cool["outputs"]["clamp_dissipation_w"] < 0.1
+    assert not any("Clamp resistor" in w for w in cool["warnings"])
+
+    hot = solve_offline_flyback(
+        vac_min_v=108.0, vac_max_v=132.0, vout_v=3.3, iout_a=0.5,
+        clamp_resistance_ohms=56e3,  # the reference's 2W-axial value
+    )
+    assert hot["outputs"]["clamp_dissipation_w"] > 0.4
+    assert any("2W axial" in w for w in hot["warnings"])

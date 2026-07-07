@@ -95,6 +95,7 @@ def compose_flyback(
         vout_v=float(intent.assumptions["vout_v"]),
         iout_a=float(intent.assumptions["iout_a"]),
         reflected_voltage_v=float(intent.assumptions["reflected_voltage_v"]),
+        clamp_resistance_ohms=680e3,  # RC1 below
     )
     if design["status"] == "error":
         raise ValueError("; ".join(design["errors"]))

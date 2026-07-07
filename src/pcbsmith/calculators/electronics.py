@@ -242,6 +242,8 @@ def solve_offline_flyback(
     bulk_capacitance_f: float = 9.4e-6,
     line_frequency_hz: float = 60.0,
     ref_voltage_v: float = 1.24,
+    clamp_resistance_ohms: float | None = None,
+    clamp_voltage_v: float | None = None,
 ) -> dict[str, Any]:
     """Offline DCM flyback design point (UCC28881-class hysteretic
     switcher). Every device parameter defaults to the WORST-CASE limit
@@ -309,6 +311,28 @@ def solve_offline_flyback(
     drain_peak_v = vdc_peak_max + 2.5 * reflected_voltage_v
     secondary_piv_v = vout_v + vdc_peak_max / turns_ratio_selected
 
+    # RCD clamp bleed: the clamp resistor holds Vclamp between switching
+    # events, dissipating ~ Vclamp * (Vclamp - VOR) / R continuously. The
+    # FLBACK-001 reference uses a 2 W axial here; small-body resistors
+    # cook (rule of thumb: warn past 0.4 W).
+    clamp_dissipation_w = None
+    if clamp_resistance_ohms is not None:
+        vclamp = (
+            clamp_voltage_v
+            if clamp_voltage_v is not None
+            else 2.5 * reflected_voltage_v
+        )
+        clamp_dissipation_w = (
+            vclamp * max(vclamp - reflected_voltage_v, 0.0)
+            / clamp_resistance_ohms
+        )
+        if clamp_dissipation_w > 0.4:
+            warnings.append(
+                f"Clamp resistor dissipates ~{clamp_dissipation_w:.2f}W "
+                "continuously; specify a >= 2W axial part "
+                "(reference-design practice)."
+            )
+
     lower_ohms = 12000.0
     upper_exact = lower_ohms * (vout_v - ref_voltage_v) / ref_voltage_v
     upper_ohms = nearest_e24_ohms(upper_exact)
@@ -332,6 +356,11 @@ def solve_offline_flyback(
             "dcm_period_fraction": round(dcm_margin, 3),
             "turns_ratio": round(turns_ratio, 2),
             "turns_ratio_selected": float(turns_ratio_selected),
+            "clamp_dissipation_w": (
+                round(clamp_dissipation_w, 3)
+                if clamp_dissipation_w is not None
+                else None
+            ),
             "drain_peak_v": round(drain_peak_v, 1),
             "secondary_piv_v": round(secondary_piv_v, 2),
             "feedback_upper_ohms": upper_ohms,

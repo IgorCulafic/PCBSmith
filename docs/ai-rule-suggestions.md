@@ -144,3 +144,34 @@ edge at the same x. If the intent was tightening the SW/GND loop or
 clearing the lane channel, the candidate rule is 2-D placement for
 switching-cluster parts (extend rule 3.1 beyond row adjacency). Needs
 the user's confirmation of intent before promotion.
+
+## 2026-07-07: FLBACK-001 Rev B reference comparison (plan 4.3)
+
+Source: `pcbsmith ingest-reference` on the NWES FLBACK-001 pack
+(ai_assets/references/flback-001), same UCC28881 architecture as our
+flyback-r001. Full analysis in
+docs/reference-comparisons/flback-001-vs-flyback-r001.md. Rule
+candidates for review:
+
+- **Clamp-part ratings are calculated, not assumed.** The reference
+  uses a 2 W axial clamp resistor and a 250 V clamp cap; the calculator
+  now emits `clamp_dissipation_w` and warns past 0.4 W. Candidate rule:
+  composition must derive the clamp R power class and the clamp C
+  voltage class from the design point (partially implemented -
+  calculator warning only).
+- **Mains designs need a complete EMI/safety front end.** Fusible
+  resistor + MOV alone is not the professional baseline: X2 cap across
+  the line, line-to-earth Y-caps, an earth connection, and (optionally)
+  a GDT position. Candidate: extend rule 7.5 required-support for the
+  offline-converter topology class.
+- **Prefer integrated packages when they exist.** Four DO-41 diodes vs
+  one MiniDIP bridge cost ~16x24 mm and caused the courtyard crisis.
+  Candidate: component selection should surface integrated equivalents
+  (bridge, dual diodes) when the BOM has 2+ identical discretes in a
+  rectifier role.
+- **Every power design carries test points** (reference: rectified bus
+  + secondary ground). Candidate placement rule.
+- **DNP is a BOM state, not an absence** (reference keeps
+  frequency-compensation options on the board as DNP). Implemented:
+  value "DNP" now annotates the grouped BOM; composition support
+  pending.

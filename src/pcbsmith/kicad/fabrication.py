@@ -46,15 +46,26 @@ def _board_facts(board_file: Path) -> dict[str, str]:
     facts: dict[str, str] = {}
     xs: list[float] = []
     ys: list[float] = []
+    # Bodies may contain two levels of nesting, e.g. multi-line
+    # (stroke (width 0.1) (type default)) as KiCad 10 saves it.
     edge_section = re.findall(
-        r"\(gr_(?:poly|line|rect|arc|circle)[^“]*?\(layer \"Edge.Cuts\"\)", text
+        r"\(gr_(?:poly|line|rect|arc|circle)\b"
+        r"((?:[^()]|\((?:[^()]|\([^()]*\))*\))*?)\(layer \"Edge\.Cuts\"\)",
+        text,
     )
-    for x, y in re.findall(r"\(xy (-?\d+\.?\d*) (-?\d+\.?\d*)\)", text):
-        xs.append(float(x))
-        ys.append(float(y))
+    for body in edge_section:
+        for x, y in re.findall(
+            r"\((?:xy|start|end|mid|center) (-?\d+\.?\d*) (-?\d+\.?\d*)\)",
+            body,
+        ):
+            xs.append(float(x))
+            ys.append(float(y))
     if xs and ys:
+        width = max(xs) - min(xs)
+        height = max(ys) - min(ys)
         facts["extent_mm"] = (
-            f"{max(xs) - min(xs):.1f} x {max(ys) - min(ys):.1f}"
+            f"{width:.1f} x {height:.1f} mm "
+            f"({width / 0.0254:.0f} x {height / 0.0254:.0f} mil)"
         )
     facts["copper_layers"] = "2"
     facts["has_mask_opening"] = (
@@ -64,26 +75,92 @@ def _board_facts(board_file: Path) -> dict[str, str]:
     return facts
 
 
-def _fab_notes(project_name: str, facts: dict[str, str]) -> str:
+def _drill_table(board_file: Path) -> list[tuple[float, bool, int]]:
+    """(diameter_mm, plated, count) rows from the board file, largest
+    first. Oval slots report their round-drill equivalent (max axis)."""
+    text = board_file.read_text(encoding="utf-8")
+    counts: dict[tuple[float, bool], int] = {}
+    for match in re.finditer(
+        r'\(pad\s+"[^"]*"\s+(thru_hole|np_thru_hole)[^()]*'
+        r"(?:\([^()]*\)[^()]*)*?\(drill\s+(?:oval\s+)?([\d.]+)",
+        text,
+    ):
+        plated = match.group(1) == "thru_hole"
+        diameter = float(match.group(2))
+        counts[(diameter, plated)] = counts.get((diameter, plated), 0) + 1
+    for match in re.finditer(r"\(via\b.*?\(drill\s+([\d.]+)\)", text, re.S):
+        diameter = float(match.group(1))
+        counts[(diameter, True)] = counts.get((diameter, True), 0) + 1
+    return sorted(
+        ((diameter, plated, count) for (diameter, plated), count in counts.items()),
+        key=lambda row: row[0],
+    )
+
+
+def _fab_notes(
+    project_name: str,
+    facts: dict[str, str],
+    drill_rows: tuple[tuple[float, bool, int], ...] = (),
+) -> str:
+    finish = (
+        "ENIG (exposed copper is functional; HASL leveling or bare "
+        "copper would degrade or corrode it)"
+        if facts.get("has_mask_opening") == "yes"
+        else "HASL lead-free (or equivalent RoHS finish)"
+    )
     lines = [
         f"# Fabrication notes: {project_name}",
         "",
-        f"- Copper layers: {facts.get('copper_layers', '2')}",
-        f"- Board extent (all drawn geometry): {facts.get('extent_mm', 'see gerbers')} mm",
-        "- Material: FR-4, 1.6 mm, 1 oz outer copper.",
-        "- Minimum track/clearance used by the design rules: 0.2 mm.",
+        "## Fabrication",
+        "",
+        "1. Material: FR-4 per IPC-4101/126 or equivalent.",
+        f"2. Copper layers: {facts.get('copper_layers', '2')}.",
+        "3. Overall thickness: 1.6 mm +/- 10%.",
+        "4. Finished copper weight: 1 oz on outer layers.",
+        f"5. Plating finish: {finish}.",
+        "6. Soldermask: liquid photoimageable over bare copper, per "
+        "IPC-SM-840 Type B Class 3. Color: green.",
+        "7. Silkscreen: required, white.",
+        "8. Manufacture to IPC-6012, Class 2.",
+        f"9. Board outline extent: {facts.get('extent_mm', 'see gerbers')}.",
+        "10. Minimum track/clearance used by the design rules: 0.2 mm.",
     ]
     if facts.get("has_mask_opening") == "yes":
+        lines.append(
+            "11. This board EXPOSES copper through soldermask openings by "
+            "design (functional sensing copper); do not tent or mask them."
+        )
+    if drill_rows:
         lines.extend(
             (
-                "- This board EXPOSES copper through soldermask openings by "
-                "design (functional sensing copper).",
-                "- Specify ENIG surface finish: exposed copper is functional "
-                "and HASL leveling or bare copper would degrade or corrode.",
+                "",
+                "## Drill table",
+                "",
+                "| Hole size | Tolerance | Plated | Count |",
+                "| --- | --- | --- | --- |",
             )
         )
+        total = 0
+        for diameter, plated, count in drill_rows:
+            total += count
+            mil = diameter / 0.0254
+            lines.append(
+                f"| {diameter:.2f} mm ({mil:.1f} mil) | +/-0.076 mm "
+                f"| {'PTH' if plated else 'NPTH'} | {count} |"
+            )
+        lines.append(f"| **Total** | | | **{total}** |")
     lines.extend(
         (
+            "",
+            "## Assembly",
+            "",
+            "1. Assemble per IPC-A-610, current revision, Class 2.",
+            "2. Solder per the latest revision of IPC J-STD-001.",
+            "3. Contains ESD-sensitive components; handle per ANSI/ESD "
+            "S20.20.",
+            "4. RoHS compliance required.",
+            "5. Mount polarized components per the polarity marks on the "
+            "silkscreen.",
             "",
             "Generated by PCBSmith. The design has passed KiCad ERC, DRC "
             "with schematic parity, and behavioral simulation; it still "
@@ -151,7 +228,12 @@ def export_fab_package(
 
     notes_file = work_dir / "fab-notes.md"
     notes_file.write_text(
-        _fab_notes(project_name, _board_facts(board_file)), encoding="utf-8"
+        _fab_notes(
+            project_name,
+            _board_facts(board_file),
+            tuple(_drill_table(board_file)),
+        ),
+        encoding="utf-8",
     )
 
     files = tuple(sorted(path.name for path in work_dir.iterdir()))
