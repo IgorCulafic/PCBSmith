@@ -14,6 +14,7 @@ from pcbsmith.circuit.models import (
 from pcbsmith.core.board import Board
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.reporting.review_pack import TestStep
 from pcbsmith.services.project_io import save_board, save_project, save_schematic
 
 SUPPORTED_TOPOLOGY_ID = "lm2596_buck_regulator"
@@ -234,3 +235,51 @@ def write_lm2596_buck_project(
     save_project(project_dir, project)
     save_schematic(project_dir, project.schematics[0], Schematic(id="main"))
     save_board(project_dir, project.boards[0], Board(id="main"))
+
+
+def buck_test_steps(outputs: dict[str, object]) -> tuple[TestStep, ...]:
+    """Bench plan from the buck calculator's design point."""
+    vout = float(outputs["regulated_output_v"])  # type: ignore[arg-type]
+    fsw = float(outputs["switching_frequency_hz"])  # type: ignore[arg-type]
+    return (
+        TestStep(
+            name="Visual + polarity",
+            procedure=(
+                "Inspect solder joints; verify electrolytic and diode "
+                "polarity against the silkscreen marks."
+            ),
+            expected="Marks match; no bridges",
+            safety="Unpowered.",
+        ),
+        TestStep(
+            name="Pre-power resistance",
+            procedure="Meter VIN to GND and VOUT to GND.",
+            expected="No short (> 1 kohm rising as caps charge)",
+            safety="Unpowered.",
+        ),
+        TestStep(
+            name="Output regulation",
+            procedure=(
+                "Apply nominal input from a current-limited supply "
+                "(0.3 A limit first); measure VOUT unloaded, then at "
+                "the design load."
+            ),
+            expected=f"{vout:.2f} V +/- 3% at both points",
+            safety="Current-limit the first power-up.",
+        ),
+        TestStep(
+            name="Switching node",
+            procedure="Scope the SW node at the design load.",
+            expected=(
+                f"~{fsw / 1e3:.0f} kHz square wave, clean edges, no "
+                "ringing beyond a diode drop below ground"
+            ),
+        ),
+        TestStep(
+            name="Output ripple",
+            procedure=(
+                "Scope VOUT at the design load, 20 MHz bandwidth limit."
+            ),
+            expected="< 50 mVpp",
+        ),
+    )

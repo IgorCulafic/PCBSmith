@@ -23,6 +23,7 @@ from pcbsmith.circuit.models import (
 from pcbsmith.core.board import Board
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.reporting.review_pack import TestStep
 from pcbsmith.services.project_io import save_board, save_project, save_schematic
 
 SUPPORTED_TOPOLOGY_ID = "mpu6050_imu"
@@ -156,3 +157,36 @@ def write_mpu6050_project(
     save_project(project_dir, project)
     save_schematic(project_dir, project.schematics[0], Schematic(id="main"))
     save_board(project_dir, project.boards[0], Board(id="main"))
+
+
+def mpu6050_test_steps() -> tuple[TestStep, ...]:
+    """Bench plan for the IMU breakout (datasheet PS-MPU-6000A-00)."""
+    return (
+        TestStep(
+            name="Visual",
+            procedure="Inspect QFN fillets on all four sides; check the "
+            "pin-1 marker orientation.",
+            expected="Wetted joints; marker matches silkscreen",
+            safety="Unpowered.",
+        ),
+        TestStep(
+            name="Supply current",
+            procedure="Apply 3.3 V through a current meter.",
+            expected="< 10 mA idle (typ ~4 mA with gyros running)",
+        ),
+        TestStep(
+            name="I2C presence",
+            procedure="Bus-scan from the host with AD0 strapped low.",
+            expected="Device ACKs at address 0x68",
+        ),
+        TestStep(
+            name="WHO_AM_I",
+            procedure="Read register 0x75.",
+            expected="Returns 0x68",
+        ),
+        TestStep(
+            name="Live data",
+            procedure="Read accelerometer registers with the board flat.",
+            expected="Z axis ~ +1 g; X/Y ~ 0 g",
+        ),
+    )

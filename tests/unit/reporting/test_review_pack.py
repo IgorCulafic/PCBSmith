@@ -118,3 +118,53 @@ def test_full_pack_assembles() -> None:
     ):
         assert heading in pack
     assert "note one" in pack
+
+
+def test_pin_nets_from_netlist_roundtrip() -> None:
+    from pcbsmith.kicad.board import BoardNet, BoardNetlist
+    from pcbsmith.reporting.review_pack import pin_nets_from_netlist
+
+    netlist = BoardNetlist(
+        components=(),
+        nets=(
+            BoardNet(name="/A", nodes=(("R1", "1"), ("R2", "2"))),
+            BoardNet(name="/B", nodes=(("R1", "2"),)),
+        ),
+    )
+    assert pin_nets_from_netlist(netlist) == {
+        "R1": {"1": "/A", "2": "/B"},
+        "R2": {"2": "/A"},
+    }
+
+
+def test_buck_test_steps_carry_calculator_values() -> None:
+    from pcbsmith.calculators.electronics import solve_lm2596_buck
+    from pcbsmith.generation.lm2596_buck import buck_test_steps
+
+    outputs = solve_lm2596_buck(
+        input_voltage_min_v=8.0, input_voltage_nominal_v=12.0,
+        input_voltage_max_v=16.0, output_voltage_v=5.0, load_current_a=1.0,
+    )["outputs"]
+    text = render_test_plan(buck_test_steps(outputs))
+    assert "5.03 V +/- 3%" in text
+    assert "150 kHz" in text
+    assert "Current-limit" in text
+
+
+def test_mpu_test_steps_are_static_and_complete() -> None:
+    from pcbsmith.generation.mpu6050 import mpu6050_test_steps
+
+    text = render_test_plan(mpu6050_test_steps())
+    assert "0x68" in text
+    assert "WHO_AM_I" in text
+
+
+def test_fmea_has_curated_rows_for_buck_and_flyback_roles() -> None:
+    from pcbsmith.reporting.review_pack import ROLE_FMEA
+
+    for role in (
+        "buck_regulator", "catch_diode", "power_inductor",
+        "flyback_switcher", "line_y_capacitor", "imu_sensor",
+        "matrix_led", "divider_top",
+    ):
+        assert ROLE_FMEA.get(role), f"missing curated FMEA for {role}"

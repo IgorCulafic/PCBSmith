@@ -15,6 +15,7 @@ from pcbsmith.circuit.models import (
     AuthorityStatus,
     BoardReport,
     CircuitObject,
+    ComponentRole,
     DesignReviewReport,
     EvidenceReport,
     KiCadReport,
@@ -112,6 +113,7 @@ from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
+from pcbsmith.reporting.review_pack import TestStep as ReviewTestStep
 from pcbsmith.review.authority_bundle import write_authority_review_bundle
 from pcbsmith.review.circuit_bundle import write_circuit_review_bundle
 from pcbsmith.revision import (
@@ -273,6 +275,7 @@ def _cmd_design_divider_highpass_led_authority(args: argparse.Namespace) -> int:
         selected_kicad_spice=selected_kicad_spice,
     )
     board, design_review = _board_authority(
+        review_components=circuit.components,
         output_dir=output_dir,
         project_name=args.name,
         schematic_file=schematic_file,
@@ -396,7 +399,22 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
             "schematic.",
         ),
     )
+    from pcbsmith.calculators.electronics import solve_lm2596_buck
+    from pcbsmith.generation.lm2596_buck import buck_test_steps
+
+    buck_outputs = solve_lm2596_buck(
+        input_voltage_min_v=float(intent.assumptions["input_voltage_min_v"]),
+        input_voltage_nominal_v=float(
+            intent.assumptions["input_voltage_nominal_v"]
+        ),
+        input_voltage_max_v=float(intent.assumptions["input_voltage_max_v"]),
+        output_voltage_v=float(intent.assumptions["output_voltage_v"]),
+        load_current_a=float(intent.assumptions["load_current_a"]),
+    )["outputs"]
     board, design_review = _board_authority(
+        review_components=circuit.components,
+        review_cards=(("U1", "LM2596S-ADJ"),),
+        review_test_steps=buck_test_steps(buck_outputs),
         output_dir=output_dir,
         project_name=args.name,
         schematic_file=schematic_file,
@@ -533,6 +551,7 @@ def _cmd_design_led_art_authority(args: argparse.Namespace) -> int:
         ),
     )
     board, design_review = _art_board_authority(
+        review_components=circuit.components,
         output_dir=output_dir,
         project_name=args.name,
         schematic_file=schematic_file,
@@ -666,7 +685,12 @@ def _cmd_design_mpu6050_authority(args: argparse.Namespace) -> int:
             "it is not translation-checked against the KiCad schematic.",
         ),
     )
+    from pcbsmith.generation.mpu6050 import mpu6050_test_steps
+
     board, design_review = _board_authority(
+        review_components=circuit.components,
+        review_cards=(("U1", "MPU-6050"),),
+        review_test_steps=mpu6050_test_steps(),
         output_dir=output_dir,
         project_name=args.name,
         schematic_file=schematic_file,
@@ -850,6 +874,11 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
                 ),
             )
             board, design_review = _finish_board_authority(
+                review_components=circuit.components,
+                review_cards=(
+                    ("U1", "MPU-6050"),
+                    ("U2", "ATtiny84A-SSU"),
+                ),
                 board_file=board_file,
                 output_dir=output_dir,
                 project_name=args.name,
@@ -999,6 +1028,7 @@ def _cmd_design_pear_authority(args: argparse.Namespace) -> int:
                 ),
             )
             board, design_review = _finish_board_authority(
+                review_components=circuit.components,
                 board_file=board_file,
                 output_dir=output_dir,
                 project_name=args.name,
@@ -1162,6 +1192,8 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
                 ),
             )
             board, design_review = _finish_board_authority(
+                review_components=circuit.components,
+                review_cards=(("Q1", "MMBT3904"),),
                 board_file=board_file,
                 output_dir=output_dir,
                 project_name=args.name,
@@ -1243,12 +1275,9 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
 
     write_flyback_project(circuit, output_dir, project_name=args.name)
 
-    # Track 8.1: the deterministic review pack (block diagram, test
-    # plan, FMEA, pin tables, BOM lint) from the design's own data.
+    # Data for the generic review pack written by the board finish.
     from pcbsmith.calculators.electronics import solve_offline_flyback
     from pcbsmith.generation.flyback import flyback_test_steps
-    from pcbsmith.kicad.export_flyback import INSTANCES as _FLY_INSTANCES
-    from pcbsmith.reporting.review_pack import render_review_pack
 
     design_outputs = solve_offline_flyback(
         vac_min_v=float(intent.assumptions["vac_min_v"]),
@@ -1257,21 +1286,6 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
         iout_a=float(intent.assumptions["iout_a"]),
         reflected_voltage_v=float(intent.assumptions["reflected_voltage_v"]),
     )["outputs"]
-    review_pack = render_review_pack(
-        project_name=args.name,
-        components=circuit.components,
-        pin_nets={
-            reference: {pin: f"/{net}" for pin, net in pins.items()}
-            for reference, _lib, _x, pins in _FLY_INSTANCES
-        },
-        cards=(("U1", "UCC28881"), ("U3", "LMV431")),
-        test_steps=flyback_test_steps(design_outputs),
-        notes=(
-            "MAINS DESIGN: execute nothing on this plan without an "
-            "isolation transformer and qualified supervision.",
-        ),
-    )
-    (output_dir / "review-pack.md").write_text(review_pack, encoding="utf-8")
 
     kicad_artifacts = export_flyback_to_kicad(
         circuit, output_dir, project_name=args.name
@@ -1373,6 +1387,9 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
                 ),
             )
             board, design_review = _finish_board_authority(
+                review_components=circuit.components,
+                review_cards=(("U1", "UCC28881"), ("U3", "LMV431")),
+                review_test_steps=flyback_test_steps(design_outputs),
                 board_file=board_file,
                 output_dir=output_dir,
                 project_name=args.name,
@@ -1911,6 +1928,9 @@ def _board_authority(
     design_checks: DesignChecksSpec | None = None,
     ground_pour: bool = False,
     thermal_pour_references: tuple[str, ...] = (),
+    review_components: tuple[ComponentRole, ...] | None = None,
+    review_cards: tuple[tuple[str, str], ...] = (),
+    review_test_steps: tuple[ReviewTestStep, ...] = (),
 ) -> tuple[BoardReport, DesignReviewReport | None]:
     if erc_report.status != "passed" or simulation.status != "passed":
         return (
@@ -1965,6 +1985,9 @@ def _board_authority(
         layout=layout,
         design_review=design_review,
         extra_findings=extra_findings,
+        review_components=review_components,
+        review_cards=review_cards,
+        review_test_steps=review_test_steps,
     )
 
 
@@ -1979,6 +2002,9 @@ def _art_board_authority(
     power_net_names: frozenset[str],
     design_checks: DesignChecksSpec,
     extra_findings: tuple[str, ...] = (),
+    review_components: tuple[ComponentRole, ...] | None = None,
+    review_cards: tuple[tuple[str, str], ...] = (),
+    review_test_steps: tuple[ReviewTestStep, ...] = (),
 ) -> tuple[BoardReport, DesignReviewReport | None]:
     if erc_report.status != "passed" or simulation.status != "passed":
         return (
@@ -2017,6 +2043,9 @@ def _art_board_authority(
         layout=layout,
         design_review=design_review,
         extra_findings=extra_findings,
+        review_components=review_components,
+        review_cards=review_cards,
+        review_test_steps=review_test_steps,
     )
 
 
@@ -2029,6 +2058,9 @@ def _finish_board_authority(
     layout: BoardLayout,
     design_review: DesignReviewReport,
     extra_findings: tuple[str, ...],
+    review_components: tuple[ComponentRole, ...] | None = None,
+    review_cards: tuple[tuple[str, str], ...] = (),
+    review_test_steps: tuple[ReviewTestStep, ...] = (),
 ) -> tuple[BoardReport, DesignReviewReport | None]:
     # Virtual DRC first: the fast geometric pre-filter (hardening plan 2.1).
     # Its model deliberately underestimates copper, so findings are
@@ -2041,6 +2073,36 @@ def _finish_board_authority(
     write_layout_snapshot(
         parse_board_placements(board_file.read_text(encoding="utf-8")),
         board_file.parent / ".pcbsmith" / "layout.json",
+    )
+
+    # Track 8.1: the deterministic review pack, from the netlist the
+    # board was built from - topology-independent.
+    if review_components is not None:
+        from pcbsmith.reporting.review_pack import (
+            pin_nets_from_netlist,
+            render_review_pack,
+        )
+
+        (output_dir / "review-pack.md").write_text(
+            render_review_pack(
+                project_name=project_name,
+                components=review_components,
+                pin_nets=pin_nets_from_netlist(board_netlist),
+                cards=review_cards,
+                test_steps=review_test_steps,
+            ),
+            encoding="utf-8",
+        )
+
+    # Track 8.2: every board gets its scorecard alongside the layout
+    # snapshot, so revisions are comparable by the same yardstick the
+    # candidate generator will use.
+    from pcbsmith.kicad.layout_score import score_layout
+
+    (board_file.parent / ".pcbsmith" / "layout-score.json").write_text(
+        json.dumps(score_layout(layout, board_netlist).as_dict(), indent=2)
+        + "\n",
+        encoding="utf-8",
     )
     virtual_findings = run_virtual_drc(layout, board_netlist)
     if virtual_findings:
@@ -2321,6 +2383,11 @@ def _authority_artifacts(
     }
     _add_existing_artifact(
         artifacts, "review_pack", str(output_dir / "review-pack.md")
+    )
+    _add_existing_artifact(
+        artifacts,
+        "layout_score",
+        str(output_dir / ".pcbsmith" / "layout-score.json"),
     )
     _add_existing_artifact(artifacts, "kicad_erc_report", erc_report.erc_report)
     if spice_report.status == "passed":

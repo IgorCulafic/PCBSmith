@@ -162,6 +162,95 @@ ROLE_FMEA: dict[str, tuple[tuple[str, str, str], ...]] = {
          "Evidence note demands 300V/UL rating; bench only"),
     ),
     "output_terminal": (),
+    # Buck converter roles.
+    "buck_regulator": (
+        ("Thermal shutdown under load", "Output drops out cyclically",
+         "Thermal pour (rule 3.2); test plan load step"),
+        ("Feedback pin open", "Output runs to Vin",
+         "ic_pin_connectivity (rule 7.3); card must_tie contract"),
+    ),
+    "catch_diode": (
+        ("Reversed installation", "Shoot-through, diode burns",
+         "Polarity silk (rule 8.1); pin-net convention (rule 8.4)"),
+        ("Under-rated current", "Overheats at load",
+         "Card required_support sizing note; evidence"),
+    ),
+    "power_inductor": (
+        ("Saturation at peak current", "Ripple spikes, regulation lost",
+         "Calculator ripple sizing; test plan ripple step"),
+    ),
+    "input_capacitor": (
+        ("Missing/high ESR", "Input transients reach the regulator",
+         "Rule 7.5 required support; test plan"),
+    ),
+    "input_hf_capacitor": (
+        ("Missing", "HF noise into the regulator",
+         "Rule 7.5 required support"),
+    ),
+    "feedback_upper": (
+        ("Value drift", "Output voltage shifts",
+         "ngspice .op divider check; 1% parts"),
+    ),
+    "feedback_lower": (
+        ("Value drift", "Output voltage shifts",
+         "ngspice .op divider check; 1% parts"),
+    ),
+    "indicator_led": (
+        ("Reversed installation", "Indicator dark (cosmetic)",
+         "Series-LED polarity check (rule 7.1); polarity silk"),
+    ),
+    "indicator_resistor": (
+        ("Under-rated power", "Resistor discolours",
+         "Calculator warns past the 0603 rating"),
+    ),
+    # IMU breakout roles.
+    "imu_sensor": (
+        ("Wrong I2C address strap", "Host cannot find device",
+         "AD0 pulldown in composition; test plan I2C scan"),
+        ("Regulator caps missing", "Erratic readings",
+         "Card required_support (datasheet section 7.2)"),
+    ),
+    "mcu": (
+        ("Unprogrammed at assembly", "Board inert",
+         "Bench only - firmware contract finding"),
+    ),
+    # LED matrix / art roles.
+    "matrix_led": (
+        ("Reversed installation", "String dark",
+         "Series-LED polarity check (rule 7.1)"),
+    ),
+    "string_resistor": (
+        ("Under-rated power", "Resistor overheats",
+         "Calculator warns past the 0603 rating"),
+    ),
+    "led_current_limit": (
+        ("Wrong value", "LED over/under-driven",
+         "Calculator E24 selection with datasheet VF evidence"),
+    ),
+    # Generic connectors and passives.
+    "input_connector": (
+        ("Miswired harness", "Reverse polarity into the board",
+         "+/- silk marks (rule 8.2); bench only"),
+    ),
+    "power_connector": (
+        ("Miswired harness", "Reverse polarity into the board",
+         "+/- silk marks (rule 8.2); bench only"),
+    ),
+    "output_connector": (),
+    "io_connector": (),
+    "drive_connector": (),
+    "divider_top": (
+        ("Value drift", "Divider ratio shifts",
+         "ngspice .op checks the node voltage"),
+    ),
+    "divider_bottom": (
+        ("Value drift", "Divider ratio shifts",
+         "ngspice .op checks the node voltage"),
+    ),
+    "highpass_series_capacitor": (
+        ("Value drift", "Corner frequency shifts",
+         "Calculator sets the corner; ngspice AC behavior"),
+    ),
 }
 
 _FALLBACK_FMEA_ROW = (
@@ -169,6 +258,16 @@ _FALLBACK_FMEA_ROW = (
     "Unknown",
     "Human review required",
 )
+
+
+def pin_nets_from_netlist(netlist: object) -> dict[str, dict[str, str]]:
+    """Derive {reference: {pin: net}} from a parsed BoardNetlist - the
+    topology-independent source, available in every board authority."""
+    pin_nets: dict[str, dict[str, str]] = {}
+    for net in netlist.nets:  # type: ignore[attr-defined]
+        for reference, pin in net.nodes:
+            pin_nets.setdefault(reference, {})[pin] = net.name
+    return pin_nets
 
 
 def render_block_diagram(
