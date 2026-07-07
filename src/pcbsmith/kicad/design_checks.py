@@ -61,6 +61,14 @@ class DesignChecksSpec:
     isolation_barrier: tuple[
         float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]
     ] | None = None
+    # Rule 10.4: pairwise copper clearance between two net GROUPS with no
+    # barrier-line geometry - e.g. protective EARTH vs the mains nets,
+    # where only the certified line Y-caps may bridge. Each entry is
+    # (label, nets_a, nets_b, gap_mm, exempt refs).
+    net_group_clearances: tuple[
+        tuple[str, tuple[str, ...], tuple[str, ...], float, tuple[str, ...]],
+        ...,
+    ] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -127,6 +135,11 @@ def run_design_checks(
             allowed_unconnected.update(
                 (reference, pin) for pin in card.nc_pins()
             )
+
+    if spec.net_group_clearances:
+        checks_run.append("net_group_clearance")
+        for group in spec.net_group_clearances:
+            findings.extend(_check_net_group_clearance(layout, netlist, group))
 
     if spec.isolation_barrier is not None:
         checks_run.append("isolation_barrier")
@@ -324,6 +337,61 @@ def _check_ic_pin_connectivity(
                     source="check",
                 )
             )
+    return tuple(findings)
+
+
+def _check_net_group_clearance(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    group: tuple[str, tuple[str, ...], tuple[str, ...], float, tuple[str, ...]],
+) -> tuple[ReviewFinding, ...]:
+    """Rule 10.4: minimum copper distance between two net groups, with
+    the declared bridging parts (certified safety components) exempt."""
+    from pcbsmith.kicad.virtual_drc import _collect_items, _seg_seg_distance
+
+    label, nets_a, nets_b, gap_mm, exempt = group
+    items = _collect_items(layout, netlist)
+    exempt_set = set(exempt)
+    group_a = [
+        item for item in items
+        if item.net in nets_a and item.owner not in exempt_set
+    ]
+    group_b = [
+        item for item in items
+        if item.net in nets_b and item.owner not in exempt_set
+    ]
+    findings: list[ReviewFinding] = []
+    worst_distance = 1e9
+    worst_pair = None
+    for one in group_a:
+        for two in group_b:
+            distance = (
+                _seg_seg_distance(one.a, one.b, two.a, two.b)
+                - one.radius - two.radius
+            )
+            if distance < worst_distance:
+                worst_distance = distance
+                worst_pair = (one, two)
+    if worst_pair is not None and worst_distance < gap_mm:
+        one, two = worst_pair
+        findings.append(
+            ReviewFinding(
+                rule="10.4",
+                severity="blocker",
+                scope="global",
+                where=label,
+                evidence=(
+                    f"Clearance between {one.label} and {two.label} is "
+                    f"{worst_distance:.2f}mm; {label} requires >= "
+                    f"{gap_mm:g}mm."
+                ),
+                suggested_action=(
+                    "Move the copper apart or route the connection through "
+                    "a declared certified bridging part."
+                ),
+                source="check",
+            )
+        )
     return tuple(findings)
 
 

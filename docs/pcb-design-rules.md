@@ -317,3 +317,13 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   application section.) Status: **implemented** (composition emits
   SAFETY_FINDING + TRANSFORMER_SPEC_FINDING; support parts carry
   datasheet evidence).
+- **10.4 Net groups with insulation requirements keep machine-checked
+  copper distance.** Beyond the primary/secondary barrier, some net
+  groups must never approach each other except through certified parts:
+  protective EARTH vs the mains nets (bridged only by the line-rated
+  Y capacitors), and EARTH vs the isolated secondary. The
+  `net_group_clearance` check takes (label, nets_a, nets_b, gap,
+  exempt refs) tuples and enforces the worst-case pairwise distance.
+  (`FLBACK-001` reference front end + `SESSION` flyback r002.) Status:
+  **implemented and machine-enforced** (flyback: earth-primary 3.0mm
+  with CY2/CY3 exempt, earth-secondary 6.4mm).

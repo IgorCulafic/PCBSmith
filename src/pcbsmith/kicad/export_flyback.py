@@ -44,6 +44,9 @@ SCHOTTKY = "Device:D_Schottky"
 VARISTOR = "Device:Varistor"
 OPTO = "Isolator:PC817"
 CONNECTOR = "Connector_Generic:Conn_01x02"
+CONNECTOR_1P = "Connector_Generic:Conn_01x01"
+BRIDGE = "Device:D_Bridge_+-AA"
+TESTPOINT = "Connector:TestPoint"
 
 UCC28881 = "PCBSmith:UCC28881"
 LMV431 = "PCBSmith:LMV431"
@@ -67,12 +70,12 @@ INSTANCES: tuple[tuple[str, str, float, dict[str, str]], ...] = (
     ("J1", CONNECTOR, 20.32, {"1": "L", "2": "N"}),
     ("RF1", RESISTOR, 38.1, {"1": "L", "2": "ACL"}),
     ("RV1", VARISTOR, 55.88, {"1": "ACL", "2": "N"}),
-    ("D1", DIODE, 73.66, {"1": "HVP", "2": "ACL"}),
-    ("D2", DIODE, 91.44, {"1": "HVP", "2": "N"}),
-    ("D3", DIODE, 109.22, {"1": "ACL", "2": "HVM"}),
-    ("D4", DIODE, 127, {"1": "N", "2": "HVM"}),
-    ("CB1", CAP_POLARIZED, 144.78, {"1": "HVP", "2": "HVM"}),
-    ("CB2", CAP_POLARIZED, 162.56, {"1": "HVP", "2": "HVM"}),
+    ("CX1", CAPACITOR, 73.66, {"1": "ACL", "2": "N"}),
+    ("CY2", CAPACITOR, 91.44, {"1": "ACL", "2": "EARTH"}),
+    ("CY3", CAPACITOR, 109.22, {"1": "N", "2": "EARTH"}),
+    ("E1", CONNECTOR_1P, 127, {"1": "EARTH"}),
+    ("BR1", BRIDGE, 144.78, {"1": "HVP", "2": "HVM", "3": "ACL", "4": "N"}),
+    ("CB1", CAP_POLARIZED, 162.56, {"1": "HVP", "2": "HVM"}),
     ("D5", DIODE, 180.34, {"1": "HVP", "2": "HVM"}),
     ("U1", UCC28881, 198.12, U1_PIN_NETS),
     ("CV1", CAPACITOR, 215.9, {"1": "VDD", "2": "HVM"}),
@@ -91,7 +94,10 @@ INSTANCES: tuple[tuple[str, str, float, dict[str, str]], ...] = (
     ("RO2", RESISTOR, 447.04, {"1": "LEDA", "2": "OPK"}),
     ("RP1", RESISTOR, 464.82, {"1": "FB", "2": "HVM"}),
     ("CY1", CAPACITOR, 482.6, {"1": "HVM", "2": "GNDS"}),
-    ("J2", CONNECTOR, 500.38, {"1": "3V3", "2": "GNDS"}),
+    ("TP1", TESTPOINT, 500.38, {"1": "HVP"}),
+    ("TP2", TESTPOINT, 518.16, {"1": "GNDS"}),
+    ("CF1", CAPACITOR, 535.94, {"1": "3V3", "2": "FBS"}),
+    ("J2", CONNECTOR, 553.72, {"1": "3V3", "2": "GNDS"}),
 )
 
 
@@ -242,6 +248,10 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
                 exclude_from_sim=True, footprint=footprint,
                 pin_count=pin_count,
                 pin_numbers=tuple(pin_nets) if lib_id in custom_libs else None,
+                # Bare pads (test points, wire pads) carry
+                # exclude-from-BOM in their official footprints; the
+                # symbol instance must match or parity fails.
+                in_bom=reference not in ("TP1", "TP2", "E1"),
             )
         )
         for pin_number, net in pin_nets.items():
@@ -264,7 +274,7 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
         render_symbol_for_schematic(load_symbol(lib_id))
         for lib_id in (
             RESISTOR, CAPACITOR, CAP_POLARIZED, DIODE, SCHOTTKY, VARISTOR,
-            OPTO, CONNECTOR,
+            OPTO, CONNECTOR, CONNECTOR_1P, BRIDGE, TESTPOINT,
         )
     )
     custom = chr(10).join(

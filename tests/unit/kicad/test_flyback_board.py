@@ -107,3 +107,35 @@ def test_flyback_isolation_barrier_catches_smuggled_primary_trace() -> None:
     violations = [f for f in report.findings if f.rule == "10.1"]
     assert violations, "a primary trace on the secondary side must trip 10.1"
     assert all(f.severity == "blocker" for f in violations)
+
+
+def test_earth_clearance_catches_smuggled_earth_trace() -> None:
+    from pcbsmith.kicad.flyback_board import PRIMARY_NETS
+
+    netlist = _netlist()
+    layout = compute_flyback_board_layout(netlist)
+    smuggled = TrackSegment(
+        x1=12.0, y1=8.0, x2=12.0, y2=12.0,
+        layer="F.Cu", net_name="/EARTH", width_mm=0.4,
+    )
+    poisoned = layout.__class__(
+        **{
+            **{
+                field: getattr(layout, field)
+                for field in layout.__dataclass_fields__
+            },
+            "segments": (*layout.segments, smuggled),
+        }
+    )
+    spec = DesignChecksSpec(
+        net_group_clearances=(
+            ("earth-to-primary clearance", ("/EARTH",), PRIMARY_NETS, 3.0,
+             ("CY2", "CY3")),
+        ),
+    )
+    report = run_design_checks(poisoned, netlist, spec)
+    violations = [f for f in report.findings if f.rule == "10.4"]
+    assert violations, "an earth trace beside the mains terminal must trip 10.4"
+
+    clean_report = run_design_checks(layout, netlist, spec)
+    assert not [f for f in clean_report.findings if f.rule == "10.4"]

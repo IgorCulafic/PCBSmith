@@ -752,6 +752,11 @@ LIBRARY_FOOTPRINT_IDS = (
     "Package_SO:SOIC-8_5.3x6.2mm_P1.27mm",
     "Package_DIP:DIP-4_W7.62mm",
     "Transformer_THT:Transformer_Breve_TEZ-22x24",
+    # Flyback r002 (FLBACK-001 reference-driven front end).
+    "Diode_THT:Diode_Bridge_DIP-4_W7.62mm_P5.08mm",
+    "Capacitor_THT:C_Rect_L18.0mm_W7.0mm_P15.00mm_FKS3_FKP3",
+    "Connector_Wire:SolderWire-2.5sqmm_1x01_D2.4mm_OD3.6mm",
+    "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm",
 )
 
 # The pin header doubles as the off-board power connector; PCBSmith wires the

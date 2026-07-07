@@ -1312,6 +1312,25 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
                         SECONDARY_NETS,
                         STRADDLE_REFS,
                     ),
+                    net_group_clearances=(
+                        # Rule 10.4: protective earth keeps basic-insulation
+                        # distance from the mains nets; only the certified
+                        # line Y-caps bridge (FLBACK-001 practice).
+                        (
+                            "earth-to-primary clearance",
+                            ("/EARTH",),
+                            PRIMARY_NETS,
+                            3.0,
+                            ("CY2", "CY3"),
+                        ),
+                        (
+                            "earth-to-secondary clearance",
+                            ("/EARTH",),
+                            SECONDARY_NETS,
+                            ISOLATION_GAP_MM,
+                            (),
+                        ),
+                    ),
                     allowed_unconnected_pins=(
                         # UCC28881 is a SOIC-7: leads 6/7 are physically
                         # absent (datasheet p3); the SOIC-8 land keeps

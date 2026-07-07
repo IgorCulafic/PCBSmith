@@ -80,6 +80,18 @@ def _assumption(title: str, locator: str) -> tuple[EvidenceRef, ...]:
     )
 
 
+def _reference_practice(title: str, detail: str) -> tuple[EvidenceRef, ...]:
+    return (
+        EvidenceRef(
+            kind="reference_design",
+            title=title,
+            locator=(
+                f"ai_assets/references/flback-001/reference.json: {detail}"
+            ),
+        ),
+    )
+
+
 def compose_flyback(
     intent: CircuitIntent,
     topology: TopologySelection,
@@ -124,7 +136,6 @@ def compose_flyback(
     smd_r = "Resistor_SMD:R_0603_1608Metric"
     smd_c = "Capacitor_SMD:C_0603_1608Metric"
     axial = "Resistor_THT:R_Axial_DIN0414_L11.9mm_D4.5mm_P15.24mm_Horizontal"
-    do41 = "Diode_THT:D_DO-41_SOD81_P10.16mm_Horizontal"
     disc = "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P10.00mm"
 
     components = (
@@ -156,32 +167,65 @@ def compose_flyback(
                 "130 VAC rated disc varistor per the input-stage plan.",
             ),
         ),
-        *(
-            ComponentRole(
-                reference=f"D{index}", role="bridge_rectifier_diode",
-                symbol_id="stdlib:D", value="1N4007",
-                support_status="needs_datasheet_review", footprint=do41,
-                evidence=_assumption(
-                    "Discrete full bridge from 1kV standard diodes",
-                    "4x 1N4007; PIV 1000V >> 190V peak bus.",
-                ),
-            )
-            for index in (1, 2, 3, 4)
-        ),
-        capacitor(
-            "CB1", "bulk_capacitor", "4.7uF 400V",
-            "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm",
-            _assumption(
-                "Bulk electrolytic, 400V, derated",
-                "2x 4.7uF holds vdc_min per the calculator energy balance.",
+        ComponentRole(
+            reference="BR1", role="bridge_rectifier",
+            symbol_id="stdlib:D_BRIDGE", value="DB107 (600V 1A)",
+            support_status="needs_datasheet_review",
+            footprint="Diode_THT:Diode_Bridge_DIP-4_W7.62mm_P5.08mm",
+            evidence=_reference_practice(
+                "Integrated bridge instead of four discretes",
+                "FLBACK-001 uses an HD06 MiniDIP bridge; one 4-pin "
+                "package replaces the 16x24mm diode field. 600V >> 190V "
+                "peak bus.",
             ),
         ),
         capacitor(
-            "CB2", "bulk_capacitor", "4.7uF 400V",
+            "CB1", "bulk_capacitor", "10uF 450V",
             "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm",
-            _assumption(
-                "Bulk electrolytic, 400V, derated",
-                "Second bulk capacitor; splits ripple current.",
+            _reference_practice(
+                "Single high-voltage bulk can",
+                "FLBACK-001 buffers the same 2W with one Rubycon 450BXW "
+                "10uF/450V 10x16mm can; 9.4uF+ holds vdc_min per the "
+                "calculator energy balance.",
+            ),
+        ),
+        capacitor(
+            "CX1", "x2_line_capacitor", "100nF X2 275VAC",
+            "Capacitor_THT:C_Rect_L18.0mm_W7.0mm_P15.00mm_FKS3_FKP3",
+            _reference_practice(
+                "X2 film capacitor across the filtered line",
+                "FLBACK-001 C5 (Panasonic ECQ-UA 100nF 275VAC). MUST be "
+                "an X2 SAFETY-RATED part; the footprint is a geometric "
+                "match (L18 P15).",
+            ),
+        ),
+        capacitor(
+            "CY2", "line_y_capacitor", "2.2nF Y1 300VAC", disc,
+            _reference_practice(
+                "Line-to-earth Y capacitor (L side)",
+                "FLBACK-001 C10/C11 (Vishay VY2 2.2nF 300VAC). MUST be a "
+                "certified Y1/Y2 safety capacitor.",
+            ),
+        ),
+        capacitor(
+            "CY3", "line_y_capacitor", "2.2nF Y1 300VAC", disc,
+            _reference_practice(
+                "Line-to-earth Y capacitor (N side)",
+                "FLBACK-001 C10/C11 (Vishay VY2 2.2nF 300VAC). MUST be a "
+                "certified Y1/Y2 safety capacitor.",
+            ),
+        ),
+        ComponentRole(
+            reference="E1", role="earth_terminal",
+            symbol_id="stdlib:CONN_01X01", value="EARTH",
+            support_status="needs_datasheet_review",
+            footprint=(
+                "Connector_Wire:SolderWire-2.5sqmm_1x01_D2.4mm_OD3.6mm"
+            ),
+            evidence=_reference_practice(
+                "Protective-earth wire pad",
+                "FLBACK-001 brings mains in on 14-gauge wire pads "
+                "including earth; the line Y-caps return to it.",
             ),
         ),
         ComponentRole(
@@ -232,8 +276,8 @@ def compose_flyback(
             reference="T1", role="flyback_transformer",
             symbol_id="stdlib:FLYBACK_TRANSFORMER",
             value=(
-                f"custom {out['primary_inductance_h'] * 1e3:.2f}mH "
-                f"{out['turns_ratio_selected']:.0f}:1"
+                f"CUSTOM TEZ-22x24 Lp={out['primary_inductance_h'] * 1e6:.0f}uH "
+                f"Np:Ns={out['turns_ratio_selected']:.0f}:1 reinforced"
             ),
             support_status="needs_datasheet_review",
             footprint="Transformer_THT:Transformer_Breve_TEZ-22x24",
@@ -309,6 +353,35 @@ def compose_flyback(
             _assumption(
                 "Y-capacitor across the isolation barrier",
                 "MUST be a certified Y1/Y2 safety capacitor.",
+            ),
+        ),
+        ComponentRole(
+            reference="TP1", role="test_point",
+            symbol_id="stdlib:TESTPOINT", value="TP HV+",
+            support_status="needs_datasheet_review",
+            footprint="TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm",
+            evidence=_reference_practice(
+                "Rectified-bus test point",
+                "FLBACK-001 TP1; every power design carries probe points.",
+            ),
+        ),
+        ComponentRole(
+            reference="TP2", role="test_point",
+            symbol_id="stdlib:TESTPOINT", value="TP GNDS",
+            support_status="needs_datasheet_review",
+            footprint="TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm",
+            evidence=_reference_practice(
+                "Secondary-ground test point",
+                "FLBACK-001 TP2; the isolated-side probe reference.",
+            ),
+        ),
+        capacitor(
+            "CF1", "feedback_comp_capacitor", "DNP", smd_c,
+            _reference_practice(
+                "Do-not-populate compensation option across the upper "
+                "divider resistor",
+                "FLBACK-001 keeps C8/R6 as DNP positions; the pad site "
+                "costs nothing and rescues a marginal loop in the lab.",
             ),
         ),
         ComponentRole(
