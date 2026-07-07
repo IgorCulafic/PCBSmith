@@ -532,3 +532,35 @@ rulebook updates in the same commit.
 - Every calculator traces to a fetched document, not operator memory.
 - A user edit in KiCad becomes a structured suggestion without anyone
   reading coordinates by hand.
+
+## Track 8 (added 2026-07-07): market-derived features
+
+From the Flux/Quilter/Diode/PCBSchemaGen research
+(`docs/market-notes/`). Ordered by value-per-effort:
+
+- **8.1 Review-artifact bundle (deterministic).** Flux's most-loved
+  copilot features need an LLM; our structured design data does not:
+  - test-plan.md from calculator outputs + test-point positions + sim
+    expectations ("probe TP1: ~160VDC; VOUT 3.3V +/-3%; opto LED
+    2-20mA");
+  - FMEA-style table: component role -> failure mode -> effect ->
+    covering check/finding (roles and checks already exist as data);
+  - pin-function tables from component cards into the bundle;
+  - mermaid block diagram from topology roles/nets;
+  - BOM passive-consolidation lint (near-identical passives flag).
+- **8.2 A* router reframed as candidates + scorecard (upgrades 2.3).**
+  Quilter's physics-scored-candidates lesson: generate N candidate
+  placements/routes, score each with what already exists (virtual
+  DRC + design checks + trace current + creepage), keep the best.
+  The verifier is built; only the candidate generator is missing.
+- **8.3 LLM-authored topologies gated by our verifier (upgrades 4.7).**
+  The Diode/PCBSchemaGen pattern: an LLM (PCBSchemaGen got 81.3% from
+  Gemma-4-31B - on disk in ai_assets/models) writes the
+  composition/exporter/board module; our findings-with-positions ARE
+  the reward oracle with error localization; the golden suite is the
+  acceptance gate. This is the generality path past hand-written
+  topologies.
+- **8.4 Proven-modules registry (long horizon).** Diode Registry /
+  atopile packages / tscircuit registry pattern: compositions become
+  composable blocks (input stage, clamp, isolated feedback...) with
+  cards + evidence attached, instead of per-topology monoliths.
