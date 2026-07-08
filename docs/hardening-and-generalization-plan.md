@@ -561,17 +561,37 @@ From the Flux/Quilter/Diode/PCBSchemaGen research
   (shortest-net-first ordering + rip-up-by-reorder) then routed the
   ENTIRE flyback from bare placements in 14s, zero restarts, beating
   the hand layout on the whole scorecard (731mm/8 vias vs 754mm/10,
-  viable under the full spec) - regression-locked. REMAINING:
-  candidate generation over PLACEMENTS on top (the dual-side flyback
-  compaction toward the reference's 80x37 is the target application).
+  viable under the full spec) - regression-locked. COMPLETE:
+  `kicad/placement_search.py` closes the loop - local-search moves
+  (1-2 parts per candidate), courtyard+silk pre-gates before routing
+  is paid for, route_board + full-spec scoring, base always candidate
+  zero. Live on the flyback it found a 7-via variant of the 8-via
+  base (D5 -2,-1; CO1 0,-2). Dual-side compaction toward 80x37 is now
+  an application of this machinery, not new machinery.
 - **8.3 LLM-authored topologies gated by our verifier (upgrades 4.7).**
   The Diode/PCBSchemaGen pattern: an LLM (PCBSchemaGen got 81.3% from
   Gemma-4-31B - on disk in ai_assets/models) writes the
   composition/exporter/board module; our findings-with-positions ARE
   the reward oracle with error localization; the golden suite is the
   acceptance gate. This is the generality path past hand-written
-  topologies.
+  topologies. STATUS: harness shipped (`ai/topology_forge.py`) -
+  propose-verify-refine loop over a JSON topology spec, deterministic
+  verifier with pin-level localization (real footprint census, pad
+  coverage, floating nets), findings fed back verbatim; converges in
+  the mock-driven tests. `pcbsmith forge-topology <request>` runs it
+  against any OpenAI-compatible completion server. LIVE RUN PENDING:
+  the on-disk GGUFs are 27-32GB CPU-only loads (~10-20min/attempt on
+  this machine) - start KoboldCpp manually when convenient, then
+  `pcbsmith forge-topology "..." --endpoint http://127.0.0.1:5001`.
+  An accepted spec is raw material; it still faces the authority
+  chain and golden suite.
 - **8.4 Proven-modules registry (long horizon).** Diode Registry /
   atopile packages / tscircuit registry pattern: compositions become
   composable blocks (input stage, clamp, isolated feedback...) with
   cards + evidence attached, instead of per-topology monoliths.
+  STATUS: MVP shipped (`generation/blocks.py`): register_module
+  decorator + MODULE_REGISTRY + `pcbsmith modules` CLI; the flyback's
+  mains-input front end (7 parts, FLBACK-001-derived) is the first
+  registered block, extracted from and still used by compose_flyback
+  (identity guarded by tests + golden). NEXT: extract the RCD clamp
+  and isolated-feedback blocks; blocks for the other topologies.

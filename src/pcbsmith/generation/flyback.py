@@ -28,6 +28,7 @@ from pcbsmith.circuit.models import (
 from pcbsmith.core.board import Board
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.generation.blocks import register_module
 from pcbsmith.reporting.review_pack import TestStep
 from pcbsmith.services.project_io import save_board, save_project, save_schematic
 
@@ -81,6 +82,34 @@ def _assumption(title: str, locator: str) -> tuple[EvidenceRef, ...]:
     )
 
 
+def _resistor(
+    reference: str, role: str, value: str, footprint: str,
+    evidence: tuple[EvidenceRef, ...],
+) -> ComponentRole:
+    return ComponentRole(
+        reference=reference, role=role, symbol_id="stdlib:R", value=value,
+        support_status="needs_datasheet_review", footprint=footprint,
+        evidence=evidence,
+    )
+
+
+def _capacitor(
+    reference: str, role: str, value: str, footprint: str,
+    evidence: tuple[EvidenceRef, ...],
+) -> ComponentRole:
+    return ComponentRole(
+        reference=reference, role=role, symbol_id="stdlib:C", value=value,
+        support_status="needs_datasheet_review", footprint=footprint,
+        evidence=evidence,
+    )
+
+
+SMD_R = "Resistor_SMD:R_0603_1608Metric"
+SMD_C = "Capacitor_SMD:C_0603_1608Metric"
+AXIAL = "Resistor_THT:R_Axial_DIN0414_L11.9mm_D4.5mm_P15.24mm_Horizontal"
+DISC = "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P10.00mm"
+
+
 def _reference_practice(title: str, detail: str) -> tuple[EvidenceRef, ...]:
     return (
         EvidenceRef(
@@ -88,6 +117,89 @@ def _reference_practice(title: str, detail: str) -> tuple[EvidenceRef, ...]:
             title=title,
             locator=(
                 f"ai_assets/references/flback-001/reference.json: {detail}"
+            ),
+        ),
+    )
+
+
+@register_module(
+    "mains-input-front-end",
+    "120VAC entry: terminal, fusible resistor, MOV, X2 line cap, "
+    "line-to-earth Y caps, protective-earth wire pad (FLBACK-001 "
+    "reference practice).",
+    provides_roles=(
+        "mains_input_terminal", "fusible_input_resistor", "input_mov",
+        "x2_line_capacitor", "line_y_capacitor", "earth_terminal",
+    ),
+    proven_by="design-flyback-authority",
+)
+def mains_input_front_end() -> tuple[ComponentRole, ...]:
+    return (
+        ComponentRole(
+            reference="J1", role="mains_input_terminal",
+            symbol_id="stdlib:CONN_01X02", value="120VAC L/N",
+            support_status="needs_datasheet_review",
+            footprint="TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-3-2-5.08_1x02_P5.08mm_Horizontal",
+            evidence=_assumption(
+                "Mains-rated terminal block",
+                "Phoenix MKDS 1.5 class; verify 300V/UL rating of the "
+                "ordered part.",
+            ),
+        ),
+        _resistor(
+            "RF1", "fusible_input_resistor", "10R fusible 1W", AXIAL,
+            _assumption(
+                "Fusible flameproof resistor as input fuse",
+                "Article input stage; MUST be a fusible/flameproof type.",
+            ),
+        ),
+        ComponentRole(
+            reference="RV1", role="input_mov",
+            symbol_id="stdlib:VARISTOR", value="130VAC MOV (07D201K)",
+            support_status="needs_datasheet_review",
+            footprint="Varistor:RV_Disc_D7mm_W3.5mm_P5mm",
+            evidence=_assumption(
+                "MOV surge clamp on the AC input",
+                "130 VAC rated disc varistor per the input-stage plan.",
+            ),
+        ),
+        _capacitor(
+            "CX1", "x2_line_capacitor", "100nF X2 275VAC",
+            "Capacitor_THT:C_Rect_L18.0mm_W7.0mm_P15.00mm_FKS3_FKP3",
+            _reference_practice(
+                "X2 film capacitor across the filtered line",
+                "FLBACK-001 C5 (Panasonic ECQ-UA 100nF 275VAC). MUST be "
+                "an X2 SAFETY-RATED part; the footprint is a geometric "
+                "match (L18 P15).",
+            ),
+        ),
+        _capacitor(
+            "CY2", "line_y_capacitor", "2.2nF Y1 300VAC", DISC,
+            _reference_practice(
+                "Line-to-earth Y capacitor (L side)",
+                "FLBACK-001 C10/C11 (Vishay VY2 2.2nF 300VAC). MUST be a "
+                "certified Y1/Y2 safety capacitor.",
+            ),
+        ),
+        _capacitor(
+            "CY3", "line_y_capacitor", "2.2nF Y1 300VAC", DISC,
+            _reference_practice(
+                "Line-to-earth Y capacitor (N side)",
+                "FLBACK-001 C10/C11 (Vishay VY2 2.2nF 300VAC). MUST be a "
+                "certified Y1/Y2 safety capacitor.",
+            ),
+        ),
+        ComponentRole(
+            reference="E1", role="earth_terminal",
+            symbol_id="stdlib:CONN_01X01", value="EARTH",
+            support_status="needs_datasheet_review",
+            footprint=(
+                "Connector_Wire:SolderWire-2.5sqmm_1x01_D2.4mm_OD3.6mm"
+            ),
+            evidence=_reference_practice(
+                "Protective-earth wire pad",
+                "FLBACK-001 brings mains in on 14-gauge wire pads "
+                "including earth; the line Y-caps return to it.",
             ),
         ),
     )
@@ -114,60 +226,14 @@ def compose_flyback(
         raise ValueError("; ".join(design["errors"]))
     out = design["outputs"]
 
-    def resistor(
-        reference: str, role: str, value: str, footprint: str,
-        evidence: tuple[EvidenceRef, ...],
-    ) -> ComponentRole:
-        return ComponentRole(
-            reference=reference, role=role, symbol_id="stdlib:R", value=value,
-            support_status="needs_datasheet_review", footprint=footprint,
-            evidence=evidence,
-        )
-
-    def capacitor(
-        reference: str, role: str, value: str, footprint: str,
-        evidence: tuple[EvidenceRef, ...],
-    ) -> ComponentRole:
-        return ComponentRole(
-            reference=reference, role=role, symbol_id="stdlib:C", value=value,
-            support_status="needs_datasheet_review", footprint=footprint,
-            evidence=evidence,
-        )
-
-    smd_r = "Resistor_SMD:R_0603_1608Metric"
-    smd_c = "Capacitor_SMD:C_0603_1608Metric"
-    axial = "Resistor_THT:R_Axial_DIN0414_L11.9mm_D4.5mm_P15.24mm_Horizontal"
-    disc = "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P10.00mm"
+    resistor, capacitor = _resistor, _capacitor
+    smd_r = SMD_R
+    smd_c = SMD_C
+    axial = AXIAL
+    disc = DISC
 
     components = (
-        ComponentRole(
-            reference="J1", role="mains_input_terminal",
-            symbol_id="stdlib:CONN_01X02", value="120VAC L/N",
-            support_status="needs_datasheet_review",
-            footprint="TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-3-2-5.08_1x02_P5.08mm_Horizontal",
-            evidence=_assumption(
-                "Mains-rated terminal block",
-                "Phoenix MKDS 1.5 class; verify 300V/UL rating of the "
-                "ordered part.",
-            ),
-        ),
-        resistor(
-            "RF1", "fusible_input_resistor", "10R fusible 1W", axial,
-            _assumption(
-                "Fusible flameproof resistor as input fuse",
-                "Article input stage; MUST be a fusible/flameproof type.",
-            ),
-        ),
-        ComponentRole(
-            reference="RV1", role="input_mov",
-            symbol_id="stdlib:VARISTOR", value="130VAC MOV (07D201K)",
-            support_status="needs_datasheet_review",
-            footprint="Varistor:RV_Disc_D7mm_W3.5mm_P5mm",
-            evidence=_assumption(
-                "MOV surge clamp on the AC input",
-                "130 VAC rated disc varistor per the input-stage plan.",
-            ),
-        ),
+        *mains_input_front_end(),
         ComponentRole(
             reference="BR1", role="bridge_rectifier",
             symbol_id="stdlib:D_BRIDGE", value="DB107 (600V 1A)",
@@ -188,45 +254,6 @@ def compose_flyback(
                 "FLBACK-001 buffers the same 2W with one Rubycon 450BXW "
                 "10uF/450V 10x16mm can; 9.4uF+ holds vdc_min per the "
                 "calculator energy balance.",
-            ),
-        ),
-        capacitor(
-            "CX1", "x2_line_capacitor", "100nF X2 275VAC",
-            "Capacitor_THT:C_Rect_L18.0mm_W7.0mm_P15.00mm_FKS3_FKP3",
-            _reference_practice(
-                "X2 film capacitor across the filtered line",
-                "FLBACK-001 C5 (Panasonic ECQ-UA 100nF 275VAC). MUST be "
-                "an X2 SAFETY-RATED part; the footprint is a geometric "
-                "match (L18 P15).",
-            ),
-        ),
-        capacitor(
-            "CY2", "line_y_capacitor", "2.2nF Y1 300VAC", disc,
-            _reference_practice(
-                "Line-to-earth Y capacitor (L side)",
-                "FLBACK-001 C10/C11 (Vishay VY2 2.2nF 300VAC). MUST be a "
-                "certified Y1/Y2 safety capacitor.",
-            ),
-        ),
-        capacitor(
-            "CY3", "line_y_capacitor", "2.2nF Y1 300VAC", disc,
-            _reference_practice(
-                "Line-to-earth Y capacitor (N side)",
-                "FLBACK-001 C10/C11 (Vishay VY2 2.2nF 300VAC). MUST be a "
-                "certified Y1/Y2 safety capacitor.",
-            ),
-        ),
-        ComponentRole(
-            reference="E1", role="earth_terminal",
-            symbol_id="stdlib:CONN_01X01", value="EARTH",
-            support_status="needs_datasheet_review",
-            footprint=(
-                "Connector_Wire:SolderWire-2.5sqmm_1x01_D2.4mm_OD3.6mm"
-            ),
-            evidence=_reference_practice(
-                "Protective-earth wire pad",
-                "FLBACK-001 brings mains in on 14-gauge wire pads "
-                "including earth; the line Y-caps return to it.",
             ),
         ),
         ComponentRole(

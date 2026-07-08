@@ -1447,6 +1447,49 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_forge_topology(args: argparse.Namespace) -> int:
+    from pcbsmith.ai.topology_forge import (
+        forge_topology,
+        openai_compatible_client,
+    )
+
+    result = forge_topology(
+        args.request,
+        openai_compatible_client(args.endpoint),
+        max_iterations=args.max_iterations,
+    )
+    print(f"status: {result.status} after {result.iterations} iteration(s)")
+    for index, findings in enumerate(result.findings_history, start=1):
+        print(f"iteration {index}: "
+              f"{'ACCEPTED' if not findings else f'{len(findings)} findings'}")
+        for finding in findings[:8]:
+            print(f"  - {finding}")
+    if result.spec is not None:
+        out = Path(args.output) if args.output else None
+        rendered = json.dumps(result.spec, indent=2)
+        if out is not None:
+            out.write_text(rendered + "\n", encoding="utf-8")
+            print(f"spec written to {out}")
+        else:
+            print(rendered)
+    print(
+        "NOTE: an accepted spec is raw material for a topology module; "
+        "it still faces the full authority chain and golden suite."
+    )
+    return 0 if result.status == "accepted" else 1
+
+
+def _cmd_modules(args: argparse.Namespace) -> int:
+    import pcbsmith.generation.flyback  # noqa: F401 - populates the registry
+    from pcbsmith.generation.blocks import list_modules
+
+    for entry in list_modules():
+        print(f"{entry.name}  [proven by {entry.proven_by}]")
+        print(f"  {entry.description}")
+        print(f"  roles: {', '.join(entry.provides_roles)}")
+    return 0
+
+
 def _cmd_ingest_reference(args: argparse.Namespace) -> int:
     from pcbsmith.references import (
         ReferenceIngestError,
@@ -2591,6 +2634,24 @@ def build_parser() -> argparse.ArgumentParser:
     board_diff_parser.add_argument("revision_dir")
     board_diff_parser.add_argument("--reference")
     board_diff_parser.set_defaults(func=_cmd_board_diff)
+
+    forge_parser = subparsers.add_parser(
+        "forge-topology",
+        help="propose a topology spec with a local/remote LLM, gated by "
+        "the deterministic verifier (Track 8.3; needs a completion "
+        "server, e.g. KoboldCpp on 127.0.0.1:5001)",
+    )
+    forge_parser.add_argument("request")
+    forge_parser.add_argument("--endpoint", default="http://127.0.0.1:5001")
+    forge_parser.add_argument("--max-iterations", type=int, default=3)
+    forge_parser.add_argument("--output")
+    forge_parser.set_defaults(func=_cmd_forge_topology)
+
+    modules_parser = subparsers.add_parser(
+        "modules",
+        help="list the proven-module registry (reusable composition blocks)",
+    )
+    modules_parser.set_defaults(func=_cmd_modules)
 
     ingest_parser = subparsers.add_parser(
         "ingest-reference",
