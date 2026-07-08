@@ -80,6 +80,17 @@ def classify_circuit_intent(raw_request: str) -> CircuitIntent:
                 "supply_voltage_v": supply_v,
             },
         )
+    if "servo" in normalized:
+        return CircuitIntent(
+            raw_request=raw_request,
+            intent_id="servo_555_tester",
+            status="supported",
+            assumptions={
+                # The source project runs from a 6V pack; the board
+                # supports 5-6V per the NE555 4.5-16V range.
+                "supply_voltage_v": 6.0,
+            },
+        )
     if "flyback" in normalized:
         return CircuitIntent(
             raw_request=raw_request,

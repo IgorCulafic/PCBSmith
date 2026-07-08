@@ -221,3 +221,48 @@ Analysis: `docs/reference-comparisons/flback-001-vs-flyback-r001.md`.
   harness spike (plan 4.7).
 - Open question for the user: the intent behind their hand-moved buck
   D1 (+0.47, −6.50 mm) before promoting a placement rule.
+
+## Track 8 + the automation-routed servo tester (2026-07-07 .. 07-08)
+
+Track 8 landed in full: the deterministic review pack (block diagram,
+test plan, FMEA, pin tables, BOM lint), the layout scorecard
+(`layout_score.py`, hard gates + track/via/bbox cost), the A* router
+(`astar_router.py`: `route_net`/`route_board` with shortest-first
+ordering and rip-up-by-reorder), placement search
+(`placement_search.py`: courtyard+silk pre-gate, 1-2-part local moves),
+the topology forge (`ai/topology_forge.py`, propose-verify-refine
+against a local LLM), and the proven-module registry
+(`generation/blocks.py`). Landmarks: `route_board` routed the whole
+flyback from bare placements in 14 s beating the hand layout
+(731 mm/8 vias vs 754 mm/10 vias) and the scorer caught the router's
+first creepage violation, which became `clearance_groups_from_spec`.
+
+The 555 servo tester (`design-servo555-authority`, golden topology #9)
+was the first board designed automation-first: composition placed the
+parts coarsely, `route_board` produced every trace. The live loop
+(probe pre-gate -> route -> kicad-cli DRC) converged in three
+iterations and each failure became machinery:
+
+- kicad-cli caught routes cutting the corners of RECT pads (square
+  pin-1 markers) that the stadium model underestimates -> the router
+  now inflates rect/roundrect FOREIGN obstacles to min_dim/sqrt(2)
+  (`cover_rect_pads`), own-net pads stay exact.
+- SW_PUSH's duplicate pad numbers (two physical "1" pads) were left
+  half-unrouted by label-keyed dedupe -> router terminals key by
+  (label, position); new `pad_connectivity` virtual check asserts
+  every physical pad of a multi-pad net touches same-net copper.
+- Silk failures (0.7 mm text under the 0.8 mm board minimum, a rotated
+  connector ref walking off the board edge, KiCad's real ~1.9x-size
+  text boxes overlapping part outlines) -> new `silk_text_height` and
+  `silk_edge_clearance` virtual checks, and the board grew 52x38 ->
+  56x40 so every component value fits on silk in measured corridors.
+
+Circuit side: NE555 card from the sha-pinned TI datasheet (SLFS022),
+`solve_555_servo_tester` (astable per 6.3.2: FORWARD 4.712 ms at
+85.4 Hz, REVERSE 0.693 ms at 272.3 Hz — an END-STOP tester by design,
+flagged), the schematic's 10n-vs-100n CONT-pin discrepancy surfaced as
+a composition finding per the user's request, BC547 inverter stage
+simulated (saturation 22 mV, rail pull-up 5.19 V, pulse width within
+0.3% of design). Final state: ERC passed, sim passed, kicad-cli DRC
+0 violations / 0 unconnected, design review passed, fab package
+exported, bundle at needs_human_review.

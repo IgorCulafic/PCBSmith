@@ -77,6 +77,10 @@ from pcbsmith.generation.metal_detector import (
 )
 from pcbsmith.generation.mpu6050 import compose_mpu6050, write_mpu6050_project
 from pcbsmith.generation.pear import compose_pear, write_pear_project
+from pcbsmith.generation.servo555 import (
+    compose_servo555,
+    write_servo555_project,
+)
 from pcbsmith.kicad.board import (
     BoardGenerationError,
     BoardLayout,
@@ -98,6 +102,7 @@ from pcbsmith.kicad.export_mpu6050 import (
     export_mpu6050_to_kicad,
 )
 from pcbsmith.kicad.export_pear import export_pear_to_kicad
+from pcbsmith.kicad.export_servo555 import export_servo555_to_kicad
 from pcbsmith.kicad.flyback_board import (
     BARRIER_X,
     ISOLATION_GAP_MM,
@@ -110,6 +115,7 @@ from pcbsmith.kicad.led_art_board import generate_led_art_board
 from pcbsmith.kicad.metal_detector_board import generate_detector_board
 from pcbsmith.kicad.pear_board import generate_pear_board, ring_unit_counts
 from pcbsmith.kicad.preview import plot_board_review
+from pcbsmith.kicad.servo555_board import generate_servo555_board
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
@@ -138,6 +144,7 @@ from pcbsmith.simulation.ngspice_led_art import run_led_art_simulation
 from pcbsmith.simulation.ngspice_metal_detector import run_detector_simulation
 from pcbsmith.simulation.ngspice_mpu6050 import run_mpu6050_simulation
 from pcbsmith.simulation.ngspice_pear import run_pear_simulation
+from pcbsmith.simulation.ngspice_servo555 import run_servo555_simulation
 
 GENERIC_EVIDENCE_FINDING = "Generic passive and LED components are not datasheet-backed yet."
 
@@ -1447,6 +1454,172 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
+    intent = classify_circuit_intent(args.request)
+    if intent.status != "supported":
+        raise ValueError("; ".join(intent.unsupported_reasons))
+    if intent.intent_id != "servo_555_tester":
+        raise ValueError(
+            "The request classified as a different intent; use the matching "
+            "design command instead."
+        )
+    topology = select_topology(intent)
+    circuit = compose_servo555(intent, topology)
+    evidence = EvidenceReport(
+        status="needs_human_review",
+        findings=(
+            "NE555 facts come from the fetched, sha-pinned TI datasheet; "
+            "the reference-schematic component values (including the "
+            "flagged 10n-vs-100n control-pin discrepancy) and the servo "
+            "header pin order are reference-design reproductions that "
+            "REQUIRE review against the user's servo.",
+        ),
+    )
+
+    write_servo555_project(circuit, output_dir, project_name=args.name)
+
+    from pcbsmith.calculators.electronics import solve_555_servo_tester
+    from pcbsmith.generation.servo555 import servo555_test_steps
+
+    design_outputs = solve_555_servo_tester(
+        vcc_v=float(intent.assumptions["supply_voltage_v"]),
+    )["outputs"]
+
+    kicad_artifacts = export_servo555_to_kicad(
+        circuit, output_dir, project_name=args.name
+    )
+    schematic_file = Path(kicad_artifacts["schematic_file"])
+
+    erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
+    simulation = run_servo555_simulation(circuit, output_dir)
+
+    kicad = erc_report.model_copy(
+        update={
+            "findings": (
+                *erc_report.findings,
+                "KiCad SPICE export was intentionally skipped; the astable "
+                "timing is design-equation verified (SLFS022 6.3.2) and "
+                "the BC547 output stage is simulated from a PCBSmith "
+                "netlist.",
+            ),
+        }
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=(
+            "PCBSmith circuit object and KiCad schematic were generated "
+            "before authority checks.",
+            "ngspice ran the BC547 inverter stage only.",
+        ),
+        findings=(
+            "The 555 astable timing is verified by the datasheet design "
+            "equations, not by SPICE.",
+        ),
+    )
+
+    board: BoardReport
+    design_review: DesignReviewReport | None
+    if erc_report.status != "passed" or simulation.status != "passed":
+        board = BoardReport(
+            status="not_run",
+            findings=(
+                "Board generation was skipped because KiCad ERC and ngspice "
+                "simulation must pass before a board is generated.",
+            ),
+        )
+        design_review = None
+    else:
+        board_file = output_dir / f"{args.name}.kicad_pcb"
+        try:
+            board_netlist, layout = generate_servo555_board(
+                schematic_file=schematic_file,
+                board_file=board_file,
+            )
+        except BoardGenerationError as exc:
+            board = BoardReport(
+                status="failed",
+                board_file=str(board_file),
+                findings=(str(exc),),
+            )
+            design_review = None
+        else:
+            design_review = run_design_checks(
+                layout,
+                board_netlist,
+                DesignChecksSpec(
+                    # Stall current of a hobby servo through the supply
+                    # and return path (rule 5.3).
+                    net_currents=(("/VCC", 1.0), ("/GND", 1.0)),
+                    component_cards=(("U1", "NE555"),),
+                    tie_nets=(("GND", "/GND"), ("VCC", "/VCC")),
+                    composition_roles=tuple(
+                        c.role for c in circuit.components
+                    ),
+                ),
+            )
+            board, design_review = _finish_board_authority(
+                review_components=circuit.components,
+                review_cards=(("U1", "NE555"),),
+                review_test_steps=servo555_test_steps(design_outputs),
+                board_file=board_file,
+                output_dir=output_dir,
+                project_name=args.name,
+                board_netlist=board_netlist,
+                layout=layout,
+                design_review=design_review,
+                extra_findings=(
+                    "AUTOMATION-ROUTED BOARD: every trace was produced by "
+                    "route_board (Track 8.2), not hand-listed waypoints; "
+                    "the layout passed the same virtual DRC, kicad-cli "
+                    "DRC, and design checks as hand-routed boards.",
+                ),
+            )
+    artifacts = _authority_artifacts(
+        output_dir=output_dir,
+        kicad_artifacts=kicad_artifacts,
+        erc_report=erc_report,
+        spice_report=KiCadReport(status="not_run"),
+        simulation=simulation,
+        board=board,
+    )
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
+    revisions = _authority_revisions(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
+    bundle_path = write_authority_review_bundle(
+        circuit,
+        output_dir,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+        revisions=revisions,
+        artifacts=artifacts,
+    )
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+    )
+    print(f"Review bundle: {bundle_path}")
+    print(f"Status: {status}")
+    return 0
+
+
 def _cmd_forge_topology(args: argparse.Namespace) -> int:
     from pcbsmith.ai.topology_forge import (
         forge_topology,
@@ -2625,6 +2798,17 @@ def build_parser() -> argparse.ArgumentParser:
     flyback_parser.add_argument("--name", required=True)
     flyback_parser.add_argument("--overwrite", action="store_true")
     flyback_parser.set_defaults(func=_cmd_design_flyback_authority)
+
+    servo_parser = subparsers.add_parser(
+        "design-servo555-authority",
+        help="generate the 555 servo driver/tester (astable NE555, BC547 "
+        "inverter, automation-routed board) with authority evidence",
+    )
+    servo_parser.add_argument("output")
+    servo_parser.add_argument("--request", required=True)
+    servo_parser.add_argument("--name", required=True)
+    servo_parser.add_argument("--overwrite", action="store_true")
+    servo_parser.set_defaults(func=_cmd_design_servo555_authority)
 
     board_diff_parser = subparsers.add_parser(
         "board-diff",

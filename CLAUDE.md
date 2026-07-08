@@ -116,6 +116,28 @@ A detailed narrative of everything built so far is in
 - Mains isolation (rulebook §10): declare barrier_x, gap, primary and
   secondary net sets, straddle refs (transformer/opto/Y-cap). No
   copper pours on isolated boards — creepage analysis must stay exact.
+- RECT pads (square pin-1 markers on TO-92, pin headers) stick out past
+  the stadium model at the corners: the router covers them via
+  `_collect_items(..., cover_rect_pads=True)` for FOREIGN obstacles
+  only (own-net pads stay exact or stubs would miss the copper). The
+  DRC-checking model stays underestimating. Learned live: the servo
+  board's first route cut Q1/J2 pad corners and shorted /SIG to /GND.
+- Duplicate pad numbers are separate PHYSICAL pads to KiCad's ratsnest
+  (SW_PUSH_6mm has two "1" and two "2" pads): the router terminals and
+  the virtual `pad_connectivity` check key by (label AND position),
+  never label alone.
+- KiCad real silk text is ~1.9x the font size tall (ascender/descender
+  + thickness) and ~0.85mm/char wide at size 0.8 — the virtual text box
+  (0.4/char, 0.55 half-height) underestimates by design. Board minimum
+  silk height is 0.8mm (`silk_text_height` virtual check). Plan value
+  labels with REAL metrics: a corridor between two part outlines must
+  be >= ~2.0mm for a 0.8mm text row. The 52x38 servo cut failed live
+  silk DRC three times before growing to 56x40.
+- KiCad checks silk STROKES, not filled interiors: a ref label centered
+  over its own body clears DRC if it misses the outline lines. The
+  virtual model skips own-footprint label overlaps entirely (fab-hull
+  proxy would false-positive) — own-label collisions surface only in
+  live DRC, so keep the probe → kicad-cli loop for dense silk.
 
 ## Environment pitfalls (Windows, this machine)
 
@@ -180,14 +202,20 @@ A detailed narrative of everything built so far is in
 
 ## Current frontier (where to push next)
 
-- **flyback r002**: single 450 V bulk cap, integrated bridge (HD06),
-  X2 + line Y-caps + earth front end, test points, dual-side assembly,
-  compaction toward the FLBACK-001 reference (80×37 mm). Backlog with
-  analysis: `docs/reference-comparisons/flback-001-vs-flyback-r001.md`.
-- **A\* assisted routing (plan 2.3)** — the single biggest lever; hand
-  waypoint routing is the bottleneck every board hits.
+- **Automation-first boards are proven**: the servo555 tester (9th
+  golden topology) is the first board where `route_board` produced
+  every trace from coarse placements — placement + probe + route +
+  live DRC loop converged in 3 iterations and the fixes it forced
+  (rect-pad cover, per-physical-pad connectivity, silk height/edge
+  checks) are now permanent machinery. Next: dual-side flyback
+  compaction via `placement_search` (rotation/side moves).
+- **flyback r00x**: compaction toward the FLBACK-001 reference
+  (80×37 mm). Backlog with analysis:
+  `docs/reference-comparisons/flback-001-vs-flyback-r001.md`.
 - Polygon-exact pour analysis; pear/led-art/divider exporter
-  migrations to official symbols; local-model harness spike (4.7).
+  migrations to official symbols; live forge-topology run (user must
+  start KoboldCpp); more registry blocks (RCD clamp, isolated
+  feedback).
 - Blocked on environment: live Nexar BOM (credentials), LLM datasheet
   extraction (API key / local server), DigiKey reference-design site
   (403s curl; local packs via ingest-reference sidestep it).

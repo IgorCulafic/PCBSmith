@@ -650,3 +650,97 @@ def _nearest_standard_value(
                 return option
         return max(options)
     return min(options, key=lambda option: abs(option - value))
+
+
+def solve_555_servo_tester(
+    *,
+    vcc_v: float = 6.0,
+    r_charge_ohms: float = 33e3,
+    r_forward_ohms: float = 68e3,
+    r_reverse_ohms: float = 10e3,
+    c_timing_f: float = 100e-9,
+    base_resistor_ohms: float = 1e3,
+    collector_pullup_ohms: float = 4.7e3,
+    vbe_v: float = 0.7,
+    output_drop_v: float = 1.7,
+    servo_pulse_min_s: float = 0.9e-3,
+    servo_pulse_max_s: float = 2.1e-3,
+) -> dict[str, Any]:
+    """The 555-timer-circuits.com SERVO TESTER design point (the circuit
+    the instructables 'Drive Servos With a 555 Timer IC' builds).
+
+    Astable per the NE555 datasheet (SLFS022, section 6.3.2 p12):
+    tH = 0.693*(RA+RB)*C, tL = 0.693*RB*C, where RA is the 33k charge
+    resistor and RB is whichever button branch (68k FORWARD / 10k
+    REVERSE) is held. The BC547 stage INVERTS pin 3, so the servo pulse
+    width equals tL. Both branches land OUTSIDE the standard 0.9-2.1ms
+    proportional window - by design this is an END-STOP driver/tester,
+    not a proportional controller, and the outputs say so honestly.
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if not 4.5 <= vcc_v <= 16.0:
+        errors.append(
+            f"VCC {vcc_v:g}V outside the NE555 supply range 4.5-16V "
+            "(SLFS022 p3)."
+        )
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+
+    def branch(rb_ohms: float) -> dict[str, float]:
+        t_high = 0.693 * (r_charge_ohms + rb_ohms) * c_timing_f
+        t_low = 0.693 * rb_ohms * c_timing_f
+        period = t_high + t_low
+        return {
+            "servo_pulse_ms": round(t_low * 1e3, 3),
+            "frame_period_ms": round(period * 1e3, 3),
+            "frame_rate_hz": round(1.0 / period, 1),
+        }
+
+    forward = branch(r_forward_ohms)
+    reverse = branch(r_reverse_ohms)
+    for name, data in (("FORWARD", forward), ("REVERSE", reverse)):
+        pulse_s = data["servo_pulse_ms"] / 1e3
+        if not servo_pulse_min_s <= pulse_s <= servo_pulse_max_s:
+            warnings.append(
+                f"{name} pulse {data['servo_pulse_ms']:g}ms is outside "
+                f"the {servo_pulse_min_s * 1e3:g}-"
+                f"{servo_pulse_max_s * 1e3:g}ms proportional window: the "
+                "servo drives to an end stop (the source circuit's "
+                "intended behaviour for a tester)."
+            )
+
+    v_out_high = vcc_v - output_drop_v
+    base_current_a = (v_out_high - vbe_v) / base_resistor_ohms
+    collector_current_a = vcc_v / collector_pullup_ohms
+    forced_beta = collector_current_a / base_current_a
+    if forced_beta > 10.0:
+        warnings.append(
+            f"Forced beta {forced_beta:.1f} is high; the BC547 may not "
+            "saturate cleanly."
+        )
+
+    return {
+        "status": "warning" if warnings else "ok",
+        "outputs": {
+            "forward": forward,
+            "reverse": reverse,
+            "base_current_ma": round(base_current_a * 1e3, 2),
+            "collector_current_ma": round(collector_current_a * 1e3, 2),
+            "forced_beta": round(forced_beta, 2),
+            "output_high_v": round(v_out_high, 2),
+        },
+        "warnings": warnings,
+        "errors": [],
+        "references": [
+            "NE555 datasheet SLFS022 (ai_assets/datasheets/ne555.pdf) "
+            "p12 eq 1-3 (astable tH/tL), p3 (VCC 4.5-16V), p18 (bypass "
+            "capacitor recommendation), p17 (output level).",
+            "555-timer-circuits.com SERVO TESTER (the schematic the "
+            "instructable reproduces): 33k charge, 68k/10k button "
+            "branches, 100n timing, 10n control bypass, BC547 inverter "
+            "with 1k base and 4k7 collector.",
+            "Proportional window 0.9-2.1ms per the same site's pot "
+            "variant (SERVO CONTROLLER page).",
+        ],
+    }

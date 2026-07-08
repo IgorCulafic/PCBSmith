@@ -88,9 +88,18 @@ class GridRouter:
         }
         self.via_blocked: set[tuple[int, int]] = set()
 
+        # Own-net items keep exact radii (sources/targets must touch the
+        # real pad copper); foreign obstacles cover rect-pad corners so
+        # routes cannot legally cut them (kicad-cli parity).
         items = _collect_items(layout, netlist)
         own = [item for item in items if item.net == net_name]
-        foreign = [item for item in items if item.net != net_name]
+        foreign = [
+            item
+            for item in _collect_items(
+                layout, netlist, cover_rect_pads=True
+            )
+            if item.net != net_name
+        ]
         track_pad = self.width / 2 + CLEARANCE_MM
         via_pad = VIA_RADIUS_MM + CLEARANCE_MM
         for item in foreign:
@@ -215,11 +224,17 @@ class GridRouter:
         pads = [
             item for item in self.own_items if item.label.startswith("pad")
         ]
-        # One node set per physical pad (dedupe the THT twins).
-        by_label: dict[str, _Stadium] = {}
+        # One node set per physical pad (dedupe the THT twins). Keyed by
+        # label AND position: switch footprints carry duplicate pad
+        # numbers (SW_PUSH has two "1" pads), and KiCad's ratsnest wants
+        # copper to every physical pad - label-only dedupe left the twin
+        # copies unrouted (caught live by kicad-cli on the servo board).
+        by_pad: dict[tuple[str, tuple[float, float]], _Stadium] = {}
         for pad in pads:
-            by_label.setdefault(pad.label, pad)
-        ordered = sorted(by_label.values(), key=lambda item: item.label)
+            by_pad.setdefault((pad.label, pad.a), pad)
+        ordered = sorted(
+            by_pad.values(), key=lambda item: (item.label, item.a)
+        )
         if len(ordered) < 2:
             raise RoutingError(f"Net {self.net_name} has fewer than 2 pads.")
 

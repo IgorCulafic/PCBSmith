@@ -251,6 +251,73 @@ ROLE_FMEA: dict[str, tuple[tuple[str, str, str], ...]] = {
         ("Value drift", "Corner frequency shifts",
          "Calculator sets the corner; ngspice AC behavior"),
     ),
+    # 555 servo tester roles.
+    "power_input_terminal": (
+        ("Reverse supply connection", "IC and servo damaged",
+         "Silk +V/GND marks; test plan polarity step; bench only"),
+    ),
+    "timer_ic": (
+        ("RESET pin floating", "Timer held off by noise",
+         "Card must_tie VCC (rule 7.4); ERC connectivity"),
+        ("Socket pin misseat", "Erratic oscillation",
+         "Socketed DIP by design; test plan frequency step"),
+    ),
+    "timing_charge_resistor": (
+        ("Value drift", "Frame rate shifts",
+         "Calculator frame-rate outputs; test plan frequency step"),
+    ),
+    "forward_branch_resistor": (
+        ("Value drift", "FORWARD pulse width shifts",
+         "Calculator pulse-width outputs; test plan pulse step"),
+    ),
+    "reverse_branch_resistor": (
+        ("Value drift", "REVERSE pulse width shifts",
+         "Calculator pulse-width outputs; test plan pulse step"),
+    ),
+    "base_resistor": (
+        ("Open", "Servo signal stuck high",
+         "ngspice saturation check covers nominal; bench only for open"),
+    ),
+    "collector_pullup": (
+        ("Open", "Servo signal stuck low, servo limp",
+         "ngspice high-level check covers nominal; bench only for open"),
+    ),
+    "timing_capacitor": (
+        ("Value drift/leakage", "Pulse width and frame rate shift",
+         "Calculator timing outputs; test plan frequency step"),
+    ),
+    "control_bypass_capacitor": (
+        ("Missing", "Threshold jitter from supply noise",
+         "SLFS022 p18 bypass note; flagged 10n-vs-100n discrepancy"),
+    ),
+    "vcc_bypass_capacitor": (
+        ("Missing", "Timer resets on servo current spikes",
+         "Card required_support (rule 7.5); ERC connectivity"),
+    ),
+    "servo_bulk_capacitor": (
+        ("Capacitance loss / ESR rise", "Brownout under servo stall",
+         "Sized 470uF for stall transients; test plan stall step"),
+        ("Reverse polarity", "Vent/failure",
+         "Polarity silk mark (rule 8.1); assembly note"),
+    ),
+    "signal_inverter_transistor": (
+        ("Wrong pinout orientation", "No servo signal",
+         "TO-92 pin-net table from the BC547 symbol; silk outline"),
+        ("Insufficient base drive", "Signal never saturates low",
+         "Calculator forced-beta output; ngspice saturation check"),
+    ),
+    "forward_button": (
+        ("Contact bounce", "Momentary pulse-width jitter",
+         "Acceptable for a tester; noted in the test plan"),
+    ),
+    "reverse_button": (
+        ("Contact bounce", "Momentary pulse-width jitter",
+         "Acceptable for a tester; noted in the test plan"),
+    ),
+    "servo_header": (
+        ("Servo plugged in reversed", "Servo unpowered or damaged",
+         "GND/+V/SIG silk labels at the pins; test plan hookup step"),
+    ),
 }
 
 _FALLBACK_FMEA_ROW = (

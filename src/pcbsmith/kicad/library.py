@@ -160,6 +160,10 @@ class PadSpec:
     # The pad's own rotation within the footprint (third `at` element).
     # QFN side pads carry 90 here; ignoring it mis-orients the pad body.
     angle_deg: float = 0.0
+    # KiCad pad shape ("circle", "oval", "rect", "roundrect", ...).
+    # Rect-family corners stick out past the stadium model; the router
+    # inflates them as obstacles (kicad-cli DRC caught the corner cuts).
+    shape: str = ""
 
 
 @dataclass(frozen=True)
@@ -307,6 +311,7 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
     for pad in _children(tree, "pad"):
         name = _atom(pad[1])
         kind = _atom(pad[2])
+        pad_shape = _atom(pad[3]) if not isinstance(pad[3], list) else ""
         at = _children(pad, "at")
         size = _children(pad, "size")
         drill_nodes = _children(pad, "drill")
@@ -341,6 +346,7 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
                 height_mm=height,
                 drill_mm=drill,
                 angle_deg=angle_deg,
+                shape=pad_shape,
             )
         )
 
@@ -757,6 +763,13 @@ LIBRARY_FOOTPRINT_IDS = (
     "Capacitor_THT:C_Rect_L18.0mm_W7.0mm_P15.00mm_FKS3_FKP3",
     "Connector_Wire:SolderWire-2.5sqmm_1x01_D2.4mm_OD3.6mm",
     "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm",
+    # 555 servo tester (beginner THT board).
+    "Package_DIP:DIP-8_W7.62mm_Socket",
+    "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal",
+    "Capacitor_THT:C_Disc_D4.7mm_W2.5mm_P5.00mm",
+    "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm",
+    "Package_TO_SOT_THT:TO-92_Inline",
+    "Button_Switch_THT:SW_PUSH_6mm",
 )
 
 # The pin header doubles as the off-board power connector; PCBSmith wires the

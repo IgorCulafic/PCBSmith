@@ -84,6 +84,15 @@ TOPOLOGIES: tuple[tuple[str, str, list[str]], ...] = (
         "design-flyback-authority",
         ["--request", "120 VAC to 3.3 V flyback converter"],
     ),
+    (
+        "servo555",
+        "design-servo555-authority",
+        [
+            "--request",
+            "Design a compact PCB for a 555-timer-based RC servo driver "
+            "tester with forward and reverse buttons",
+        ],
+    ),
 )
 
 

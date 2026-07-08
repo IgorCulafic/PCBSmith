@@ -16,6 +16,8 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         return _pear_topology()
     if intent.intent_id == "offline_flyback_3v3" and intent.status == "supported":
         return _flyback_topology()
+    if intent.intent_id == "servo_555_tester" and intent.status == "supported":
+        return _servo555_topology()
     if intent.intent_id == "metal_detector_coil" and intent.status == "supported":
         return _metal_detector_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
@@ -52,6 +54,35 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         ),
         warnings=(
             "LED brightness and conduction after AC coupling require simulation and human review.",
+        ),
+    )
+
+
+def _servo555_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="servo_555_tester",
+        title="555 servo driver/tester: astable + BC547 inverter, "
+        "two-button end-stop control",
+        status="selected",
+        evidence=(
+            EvidenceRef(
+                kind="datasheet_fact",
+                title="NE555 astable timing tH/tL",
+                locator="SLFS022 section 6.3.2 p12, eq 1-3",
+            ),
+            EvidenceRef(
+                kind="reference_design",
+                title="555-timer-circuits.com SERVO TESTER (the circuit "
+                "the instructable 'Drive Servos With a 555 Timer IC' "
+                "builds)",
+                locator="33k/68k/10k/1k/4k7, 100n+10n, BC547, 6V",
+            ),
+        ),
+        warnings=(
+            "END-STOP tester by design: both button branches produce "
+            "pulses outside the 0.9-2.1ms proportional window, slamming "
+            "the servo to its limits. A proportional variant needs the "
+            "source's pot circuit instead.",
         ),
     )
 

@@ -39,6 +39,9 @@ VIA_RADIUS_MM = 0.3
 # Modelling tolerance: only flag violations deeper than this, so roundrect
 # corner radii and float noise never produce a false positive.
 TOLERANCE_MM = 0.05
+# KiCad board-setup constraint written by render_board_from_layout:
+# silkscreen text below this height fails kicad-cli DRC (text_height).
+MIN_SILK_TEXT_SIZE_MM = 0.8
 _GRID_CELL_MM = 4.0
 
 Point = tuple[float, float]
@@ -170,8 +173,20 @@ def _placed(
 
 
 def _collect_items(
-    layout: BoardLayout, netlist: BoardNetlist
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    *,
+    cover_rect_pads: bool = False,
 ) -> list[_Stadium]:
+    """Model the board's copper as stadiums.
+
+    Default radii UNDERESTIMATE rect-family pads (their corners stick
+    out past the stadium), keeping the virtual DRC free of false
+    positives against KiCad's exact shapes. ``cover_rect_pads=True``
+    inflates rect/roundrect radii to min_dim/sqrt(2) so the corners are
+    fully covered - the router uses this for FOREIGN obstacles, after
+    kicad-cli caught corner-cutting routes the honest model allowed.
+    """
     net_of = {
         (reference, pin): net.name
         for net in netlist.nets
@@ -196,6 +211,8 @@ def _collect_items(
                 pad.width_mm, pad.height_mm
             )) / 2
             radius = min(pad.width_mm, pad.height_mm) / 2
+            if cover_rect_pads and pad.shape in ("rect", "roundrect"):
+                radius = min(pad.width_mm, pad.height_mm) / math.sqrt(2)
             axis = (half_long, 0.0) if pad.width_mm >= pad.height_mm else (0.0, half_long)
             # The pad's own angle rotates its body within the footprint.
             axis = rotate_offset(axis[0], axis[1], pad.angle_deg)
@@ -539,6 +556,71 @@ def _check_pour_connectivity(
     return findings
 
 
+def _check_pad_connectivity(
+    items: list[_Stadium], layout: BoardLayout
+) -> list[VirtualDrcFinding]:
+    """Every physical pad of a multi-pad net must touch same-net copper
+    (track, via, abutting pad, or a same-net zone under it).
+
+    KiCad's ratsnest works per physical pad, so duplicate pad numbers
+    (SW_PUSH carries two "1" pads) each need copper; a label-level view
+    misses the twins - caught live by kicad-cli on the servo board."""
+    zone_rects: dict[tuple[str, str], list[_Rect]] = {}
+    for zone_net, zone_layer, rect in layout.zones:
+        zone_rects.setdefault((zone_net, zone_layer), []).append(rect)
+
+    copper: dict[tuple[str, str], list[_Stadium]] = {}
+    for item in items:
+        if item.net.startswith("~"):
+            continue
+        copper.setdefault((item.net, item.layer), []).append(item)
+
+    pad_counts: dict[str, set[tuple[str, Point]]] = {}
+    for item in items:
+        if item.owner and not item.net.startswith("~"):
+            pad_counts.setdefault(item.net, set()).add((item.label, item.a))
+
+    def _pad_connected(pad: _Stadium) -> bool:
+        for rect in zone_rects.get((pad.net, pad.layer), ()):
+            if rect[0] <= pad.a[0] <= rect[2] and rect[1] <= pad.a[1] <= rect[3]:
+                return True
+        for other in copper.get((pad.net, pad.layer), ()):
+            if other is pad:
+                continue
+            if other.label == pad.label and other.a == pad.a:
+                continue  # the THT twin is the same physical pad
+            distance = _seg_seg_distance(pad.a, pad.b, other.a, other.b)
+            if distance <= pad.radius + other.radius + TOLERANCE_MM:
+                return True
+        return False
+
+    findings: list[VirtualDrcFinding] = []
+    # Group the per-layer copies of each physical pad: connected on any
+    # layer is connected.
+    by_pad: dict[tuple[str, Point], list[_Stadium]] = {}
+    for item in items:
+        if item.owner and not item.net.startswith("~"):
+            by_pad.setdefault((item.label, item.a), []).append(item)
+    for (label, anchor), copies in sorted(by_pad.items()):
+        net = copies[0].net
+        if len(pad_counts.get(net, ())) < 2:
+            continue  # single-pad nets have nothing to reach
+        if any(_pad_connected(copy) for copy in copies):
+            continue
+        findings.append(
+            VirtualDrcFinding(
+                check="pad_connectivity",
+                message=(
+                    f"{label} has no same-net copper touching it; KiCad "
+                    "will report a missing connection."
+                ),
+                x_mm=anchor[0],
+                y_mm=anchor[1],
+            )
+        )
+    return findings
+
+
 # ---------------------------------------------------------------------------
 # Silkscreen model. KiCad flags silk-over-copper (pads) and overlapping silk
 # items; before this model those only surfaced after a full kicad-cli round
@@ -559,6 +641,7 @@ class _SilkText:
     side: str
     owner: str  # footprint reference for labels, "" for board texts
     label: str
+    size: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -661,6 +744,7 @@ def _collect_silk_texts(layout: BoardLayout) -> list[_SilkText]:
                 side="B" if flipped else "F",
                 owner=reference,
                 label=f"reference label {reference}",
+                size=size,
             )
         )
     for graphic in layout.graphics:
@@ -680,6 +764,7 @@ def _collect_silk_texts(layout: BoardLayout) -> list[_SilkText]:
                     side="F",
                     owner="",
                     label=f"silk text '{text}'",
+                    size=size,
                 )
             )
     return texts
@@ -803,6 +888,28 @@ def _check_silkscreen(
             (text.box[0] + text.box[2]) / 2,
             (text.box[1] + text.box[3]) / 2,
         )
+        # KiCad board-setup constraint: silk text below the minimum
+        # height fails DRC outright (caught live on the servo board).
+        if text.size < MIN_SILK_TEXT_SIZE_MM - TOLERANCE_MM:
+            report(
+                "silk_text_height",
+                f"{text.label} height {text.size:g}mm is below the "
+                f"{MIN_SILK_TEXT_SIZE_MM}mm board minimum",
+                center,
+            )
+        # Silk clipped by the board edge (rotated connector reference
+        # labels walk off small boards; caught live by kicad-cli).
+        if (
+            text.box[0] < -TOLERANCE_MM
+            or text.box[1] < -TOLERANCE_MM
+            or text.box[2] > layout.width_mm + TOLERANCE_MM
+            or text.box[3] > layout.height_mm + TOLERANCE_MM
+        ):
+            report(
+                "silk_edge_clearance",
+                f"{text.label} is clipped by the board edge",
+                center,
+            )
         for reference, side, poly in bodies:
             if side != text.side or reference == text.owner:
                 continue
@@ -889,6 +996,7 @@ def run_virtual_drc(
         *_check_courtyards(layout),
         *_check_edge_clearance(items, layout),
         *_check_pour_connectivity(items, layout),
+        *_check_pad_connectivity(items, layout),
         *_check_silkscreen(layout, items),
     ]
     return tuple(findings)

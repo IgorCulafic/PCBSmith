@@ -153,3 +153,43 @@ def test_offline_flyback_warns_on_hot_clamp_resistor() -> None:
     )
     assert hot["outputs"]["clamp_dissipation_w"] > 0.4
     assert any("2W axial" in w for w in hot["warnings"])
+
+
+def test_555_servo_tester_matches_datasheet_hand_calculation() -> None:
+    from pcbsmith.calculators.electronics import solve_555_servo_tester
+
+    result = solve_555_servo_tester()
+
+    # END-STOP behaviour is a warning state by design.
+    assert result["status"] == "warning"
+    outputs = result["outputs"]
+    # tL = 0.693 * RB * C (SLFS022 6.3.2): 0.693*68k*100n = 4.7124 ms.
+    assert math.isclose(
+        outputs["forward"]["servo_pulse_ms"], 4.712, abs_tol=5e-4
+    )
+    # Period tH+tL = 0.693*(RA+RB)*C + 0.693*RB*C:
+    # 0.693*(33k+68k)*100n + 4.7124 ms = 11.712 ms -> 85.4 Hz.
+    assert math.isclose(
+        outputs["forward"]["frame_rate_hz"], 85.4, abs_tol=0.05
+    )
+    # REVERSE: 0.693*10k*100n = 0.693 ms at 0.693*(43k)*100n + 0.693ms.
+    assert math.isclose(
+        outputs["reverse"]["servo_pulse_ms"], 0.693, abs_tol=5e-4
+    )
+    assert math.isclose(
+        outputs["reverse"]["frame_rate_hz"], 272.3, abs_tol=0.05
+    )
+    # BC547 drive: Ib=(4.3-0.7)/1k=3.6mA, Ic=6/4.7k=1.28mA, beta 0.35.
+    assert math.isclose(outputs["base_current_ma"], 3.6, abs_tol=0.01)
+    assert math.isclose(outputs["collector_current_ma"], 1.28, abs_tol=0.01)
+    assert math.isclose(outputs["forced_beta"], 0.35, abs_tol=0.01)
+    # Both branches sit outside the 0.9-2.1 ms proportional window.
+    assert sum("end stop" in w for w in result["warnings"]) == 2
+
+
+def test_555_servo_tester_rejects_out_of_range_supply() -> None:
+    from pcbsmith.calculators.electronics import solve_555_servo_tester
+
+    result = solve_555_servo_tester(vcc_v=3.0)
+    assert result["status"] == "error"
+    assert any("4.5-16V" in e for e in result["errors"])

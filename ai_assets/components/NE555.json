@@ -1,0 +1,104 @@
+{
+  "schema_id": "pcbsmith-component-card-v1",
+  "mpn": "NE555",
+  "manufacturer": "Texas Instruments",
+  "description": "Precision timer, 4.5-16V, astable/monostable, DIP-8",
+  "symbol": "Timer:NE555P",
+  "footprint": "Package_DIP:DIP-8_W7.62mm_Socket",
+  "datasheet": {
+    "local_path": "ai_assets/datasheets/ne555.pdf",
+    "sha256": "c7c6ababde92bb367579e95105e9a9d2d229b05377f5624ae4184031e6266a89",
+    "source_url": "https://www.ti.com/lit/gpn/ne555"
+  },
+  "support_status": "reviewed",
+  "pins": [
+    {
+      "number": "1",
+      "name": "GND",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "Ground reference.",
+      "locator": "SLFS022 pin functions p3"
+    },
+    {
+      "number": "2",
+      "name": "TRIG",
+      "function": "analog_in",
+      "requirement": "required",
+      "note": "Below 1/3 VCC sets the output high; tied to THRES in astable use.",
+      "locator": "SLFS022 pin functions p3, section 6.3.2"
+    },
+    {
+      "number": "3",
+      "name": "OUT",
+      "function": "power_out",
+      "requirement": "required",
+      "note": "Sinks or sources up to 200 mA.",
+      "locator": "SLFS022 p1 features"
+    },
+    {
+      "number": "4",
+      "name": "RESET",
+      "function": "control_in",
+      "requirement": "must_tie",
+      "tie_class": "VCC",
+      "note": "Active-low reset; tie to VCC when unused or the timer can be held off by noise.",
+      "locator": "SLFS022 pin functions p3"
+    },
+    {
+      "number": "5",
+      "name": "CONT",
+      "function": "analog_in",
+      "requirement": "optional",
+      "note": "2/3 VCC control voltage; bypass with ~10nF to ground when unused.",
+      "locator": "SLFS022 pin functions p3, p18"
+    },
+    {
+      "number": "6",
+      "name": "THRES",
+      "function": "analog_in",
+      "requirement": "required",
+      "note": "Above 2/3 VCC resets the output; the astable timing node.",
+      "locator": "SLFS022 pin functions p3, section 6.3.2"
+    },
+    {
+      "number": "7",
+      "name": "DISCH",
+      "function": "power_out",
+      "requirement": "required",
+      "note": "Open-collector discharge for the timing capacitor.",
+      "locator": "SLFS022 pin functions p3"
+    },
+    {
+      "number": "8",
+      "name": "VCC",
+      "function": "power_in",
+      "requirement": "required",
+      "note": "4.5-16V (NE555). Bypass capacitor highly recommended.",
+      "locator": "SLFS022 p3, p18"
+    }
+  ],
+  "required_support": [
+    {
+      "role": "vcc_bypass",
+      "note": "Bypass capacitor from VCC to GND, 0.01uF-0.1uF minimum.",
+      "locator": "SLFS022 p18",
+      "matches": [
+        "vcc_bypass_capacitor"
+      ]
+    },
+    {
+      "role": "timing_network",
+      "note": "Astable needs the RA/RB/C network per section 6.3.2.",
+      "locator": "SLFS022 section 6.3.2 p12",
+      "matches": [
+        "timing_capacitor"
+      ]
+    }
+  ],
+  "limits": {
+    "vcc_min_v": 4.5,
+    "vcc_max_v": 16.0,
+    "iout_max_a": 0.2
+  }
+}

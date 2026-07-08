@@ -93,7 +93,10 @@ def test_same_net_and_cross_layer_tracks_are_not_flagged() -> None:
                          layer="B.Cu", net_name="/B", width_mm=0.3),
         ),
     )
-    assert run_virtual_drc(layout, _two_part_netlist()) == ()
+    # The synthetic tracks do not reach the pads; only the (correct)
+    # pad-connectivity findings may appear, no clearance ones.
+    findings = run_virtual_drc(layout, _two_part_netlist())
+    assert all(f.check == "pad_connectivity" for f in findings)
 
 
 def test_track_grazing_a_foreign_pad_is_flagged() -> None:
@@ -115,7 +118,8 @@ def test_track_grazing_a_foreign_pad_is_flagged() -> None:
                          layer="F.Cu", net_name="/B", width_mm=0.2),
         ),
     )
-    assert run_virtual_drc(roomy, _two_part_netlist()) == ()
+    roomy_findings = run_virtual_drc(roomy, _two_part_netlist())
+    assert all(f.check == "pad_connectivity" for f in roomy_findings)
 
 
 def test_courtyard_overlap_is_flagged() -> None:
