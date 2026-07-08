@@ -595,3 +595,28 @@ From the Flux/Quilter/Diode/PCBSchemaGen research
   registered block, extracted from and still used by compose_flyback
   (identity guarded by tests + golden). NEXT: extract the RCD clamp
   and isolated-feedback blocks; blocks for the other topologies.
+
+## Track 9 (added 2026-07-08): human-readable schematics
+
+- **9.1 Reader schematic renderer.** USER REQUIREMENT (verbatim
+  intent, servo555 review): the label-net row schematic is "technically
+  correct and completely fine, but visually confusing and not a proper
+  electrical circuit. We can keep these types of schematics for you,
+  but in the future we need another one for regular people to look at
+  and/or edit, properly formatted." So: keep the row schematic as the
+  MACHINE artifact (trivially generatable, ERC/parity substrate), add a
+  second, conventionally drawn schematic as the HUMAN artifact.
+  Conventions that make a schematic readable: VCC rail along the top,
+  GND rail along the bottom, signal flow left to right, the IC drawn
+  centrally with its support parts hanging off the relevant pins,
+  passives drawn vertically between the rails, real drawn wires with
+  junction dots instead of net-label teleports, power/ground symbols
+  instead of a labeled rail where cleaner. Implementation path: the
+  pin-net INSTANCES tables already carry the full connectivity, and
+  `schematic_builder.py` (ladder spec) is the seed - generalize it to
+  a column/rail placer driven by net roles (power/ground/signal) and
+  the component role vocabulary; ERC + a netlist-equality check
+  against the row schematic keep it honest (two drawings, one truth).
+  Start with the servo555 (small, single IC) as the pilot, then
+  backfill topologies. The human schematic must also become the one
+  embedded in the review pack and the SVG the bundle links.
