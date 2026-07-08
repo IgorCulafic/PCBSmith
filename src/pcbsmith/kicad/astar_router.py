@@ -43,6 +43,10 @@ LAYERS = ("F.Cu", "B.Cu")
 # A via hop costs this many mm of track - matches the scorecard's
 # VIA_TRACK_EQUIV_MM so the router optimizes what the judge measures.
 VIA_COST_MM = 5.0
+# Small cost per direction change: among the many equal-length grid
+# paths it selects the one with maximal straight runs (KiCad-style
+# corners), without materially changing route choices.
+TURN_PENALTY_MM = 0.1
 
 
 class RoutingError(RuntimeError):
@@ -260,11 +264,18 @@ class GridRouter:
                 # entry cell to its centre the same way.
                 total += self._stub(segments, path[0], first.a)
                 first_stubbed = True
+        # Overlapping collinear copper (leg joins, staircase remnants,
+        # stubs retracing a run) reads as broken micro-tracks in KiCad;
+        # merge every straight run into one maximal segment. The copper
+        # union is unchanged, so connectivity and clearance hold.
+        merged = merge_collinear_segments(segments)
         return RouteResult(
             net_name=self.net_name,
-            segments=tuple(segments),
+            segments=merged,
             vias=tuple(vias),
-            length_mm=total,
+            length_mm=sum(
+                math.dist((s.x1, s.y1), (s.x2, s.y2)) for s in merged
+            ),
         )
 
     def _stub(
@@ -292,56 +303,103 @@ class GridRouter:
         target_cells = {(ix, iy) for _l, ix, iy in targets}
 
         def heuristic(node: tuple[str, int, int]) -> float:
+            # Octile distance: admissible with diagonal moves.
             _layer, ix, iy = node
-            return self.grid * min(
-                abs(ix - tx) + abs(iy - ty) for tx, ty in target_cells
-            )
+            best = math.inf
+            for tx, ty in target_cells:
+                dx, dy = abs(ix - tx), abs(iy - ty)
+                lo, hi = (dx, dy) if dx < dy else (dy, dx)
+                best = min(best, hi + (math.sqrt(2) - 1.0) * lo)
+            return self.grid * best
 
+        # Search states carry the incoming direction: a small turn
+        # penalty makes straight runs win among the many equal-length
+        # grid paths, so corners come out KiCad-style (one diagonal run
+        # + one straight run) instead of sawtooth micro-segments.
         counter = 0
-        open_heap: list[tuple[float, int, tuple[str, int, int]]] = []
-        g_score: dict[tuple[str, int, int], float] = {}
-        came: dict[tuple[str, int, int], tuple[str, int, int]] = {}
+        State = tuple[str, int, int]
+        open_heap: list[
+            tuple[float, int, State, tuple[int, int] | None]
+        ] = []
+        g_score: dict[tuple[State, tuple[int, int] | None], float] = {}
+        came: dict[
+            tuple[State, tuple[int, int] | None],
+            tuple[State, tuple[int, int] | None],
+        ] = {}
         for node in sorted(sources):
-            g_score[node] = 0.0
-            heapq.heappush(open_heap, (heuristic(node), counter, node))
+            g_score[(node, None)] = 0.0
+            heapq.heappush(open_heap, (heuristic(node), counter, node, None))
             counter += 1
-        closed: set[tuple[str, int, int]] = set()
+        closed: set[tuple[State, tuple[int, int] | None]] = set()
         while open_heap:
-            _f, _c, node = heapq.heappop(open_heap)
-            if node in closed:
+            _f, _c, node, came_dir = heapq.heappop(open_heap)
+            state = (node, came_dir)
+            if state in closed:
                 continue
             if node in targets:
                 path = [node]
-                while node in came:
-                    node = came[node]
-                    path.append(node)
+                while state in came:
+                    state = came[state]
+                    if path[-1] != state[0]:
+                        path.append(state[0])
                 path.reverse()
                 return path
-            closed.add(node)
+            closed.add(state)
             layer, ix, iy = node
-            g_here = g_score[node]
-            neighbours: list[tuple[tuple[str, int, int], float]] = []
+            g_here = g_score[state]
+            neighbours: list[
+                tuple[tuple[str, int, int], float, tuple[int, int] | None]
+            ] = []
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 nx, ny = ix + dx, iy + dy
                 if not (0 <= nx < self.cols and 0 <= ny < self.rows):
                     continue
                 if (nx, ny) in self.blocked[layer]:
                     continue
-                neighbours.append(((layer, nx, ny), self.grid))
+                neighbours.append(((layer, nx, ny), self.grid, (dx, dy)))
+            # Diagonal moves give KiCad-style 45-degree tracks instead
+            # of per-cell staircases. Corner-cut guard: both orthogonal
+            # neighbours must be free too, so the swept track never
+            # squeezes between two blocked cells.
+            for dx, dy in ((1, 1), (1, -1), (-1, 1), (-1, -1)):
+                nx, ny = ix + dx, iy + dy
+                if not (0 <= nx < self.cols and 0 <= ny < self.rows):
+                    continue
+                if (
+                    (nx, ny) in self.blocked[layer]
+                    or (ix + dx, iy) in self.blocked[layer]
+                    or (ix, iy + dy) in self.blocked[layer]
+                ):
+                    continue
+                neighbours.append(
+                    ((layer, nx, ny), self.grid * math.sqrt(2), (dx, dy))
+                )
             other = LAYERS[1] if layer == LAYERS[0] else LAYERS[0]
             if (
                 (ix, iy) not in self.via_blocked
                 and (ix, iy) not in self.blocked[other]
             ):
-                neighbours.append(((other, ix, iy), VIA_COST_MM))
-            for neighbour, cost in neighbours:
+                neighbours.append(((other, ix, iy), VIA_COST_MM, None))
+            for neighbour, cost, step in neighbours:
+                if (
+                    step is not None
+                    and came_dir is not None
+                    and step != came_dir
+                ):
+                    cost += TURN_PENALTY_MM
+                next_state = (neighbour, step)
                 tentative = g_here + cost
-                if tentative < g_score.get(neighbour, math.inf):
-                    g_score[neighbour] = tentative
-                    came[neighbour] = node
+                if tentative < g_score.get(next_state, math.inf):
+                    g_score[next_state] = tentative
+                    came[next_state] = state
                     heapq.heappush(
                         open_heap,
-                        (tentative + heuristic(neighbour), counter, neighbour),
+                        (
+                            tentative + heuristic(neighbour),
+                            counter,
+                            neighbour,
+                            step,
+                        ),
                     )
                     counter += 1
         raise RoutingError(
@@ -399,6 +457,77 @@ class GridRouter:
             x1=p1[0], y1=p1[1], x2=p2[0], y2=p2[1],
             layer=start[0], net_name=self.net_name, width_mm=self.width,
         )
+
+
+def merge_collinear_segments(
+    segments: Sequence[TrackSegment],
+) -> tuple[TrackSegment, ...]:
+    """Merge touching/overlapping collinear same-net tracks into maximal
+    runs and drop zero-length slivers.
+
+    KiCad's interactive router draws one segment per straight run; the
+    grid search naturally emits many short pieces whose union is the
+    same copper. Grouping key: (net, layer, width, direction, line
+    offset); within a group the segments are 1-D intervals along the
+    shared line, merged when they touch. T-junction branches live on a
+    different line, so junctions are preserved."""
+    Span = tuple[float, float, tuple[float, float], tuple[float, float]]
+    groups: dict[
+        tuple[str, str, float, float, float, float], list[Span]
+    ] = {}
+    for segment in segments:
+        dx = segment.x2 - segment.x1
+        dy = segment.y2 - segment.y1
+        norm = math.hypot(dx, dy)
+        if norm < 1e-9:
+            continue
+        ux, uy = dx / norm, dy / norm
+        if ux < 0.0 or (ux == 0.0 and uy < 0.0):
+            ux, uy = -ux, -uy
+        # Decompose each endpoint into (t along u, c across u); c is
+        # constant on the shared line and identifies it.
+        offset = segment.x1 * uy - segment.y1 * ux
+        key = (
+            segment.net_name,
+            segment.layer,
+            segment.width_mm,
+            round(ux, 9),
+            round(uy, 9),
+            round(offset, 6),
+        )
+        ends = sorted(
+            (
+                (segment.x1 * ux + segment.y1 * uy, (segment.x1, segment.y1)),
+                (segment.x2 * ux + segment.y2 * uy, (segment.x2, segment.y2)),
+            )
+        )
+        groups.setdefault(key, []).append(
+            (ends[0][0], ends[1][0], ends[0][1], ends[1][1])
+        )
+    merged: list[TrackSegment] = []
+    for (net, layer, width, _ux, _uy, _offset), spans in groups.items():
+        spans.sort()
+
+        # Merge touching intervals; endpoints stay the ORIGINAL segment
+        # coordinates (no reconstruction drift).
+        runs: list[tuple[tuple[float, float], tuple[float, float]]] = []
+        _run_lo, run_hi, run_p_lo, run_p_hi = spans[0]
+        for lo, hi, p_lo, p_hi in spans[1:]:
+            if lo <= run_hi + 1e-6:
+                if hi > run_hi:
+                    run_hi, run_p_hi = hi, p_hi
+            else:
+                runs.append((run_p_lo, run_p_hi))
+                _run_lo, run_hi, run_p_lo, run_p_hi = lo, hi, p_lo, p_hi
+        runs.append((run_p_lo, run_p_hi))
+        for p_lo, p_hi in runs:
+            merged.append(
+                TrackSegment(
+                    x1=p_lo[0], y1=p_lo[1], x2=p_hi[0], y2=p_hi[1],
+                    layer=layer, net_name=net, width_mm=width,
+                )
+            )
+    return tuple(merged)
 
 
 def route_net(

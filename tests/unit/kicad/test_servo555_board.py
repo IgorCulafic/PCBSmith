@@ -150,3 +150,20 @@ def test_silk_text_height_and_edge_containment_are_checked() -> None:
     checks = {f.check for f in run_virtual_drc(mutated, netlist)}
     assert "silk_text_height" in checks
     assert "silk_edge_clearance" in checks
+
+
+def test_traces_are_not_over_segmented() -> None:
+    # The user's KiCad review caught staircase micro-segments (0.2mm
+    # pieces stacked at every corner). Diagonal moves + turn penalty +
+    # collinear merging must keep tracks KiCad-like: few segments, and
+    # sub-grid slivers only where a pad-entry stub is unavoidable.
+    import math
+
+    netlist = _netlist()
+    layout = compute_servo555_board_layout(netlist)
+    lengths = [
+        math.dist((s.x1, s.y1), (s.x2, s.y2)) for s in layout.segments
+    ]
+    assert len(lengths) < 220, f"{len(lengths)} segments: over-segmented"
+    tiny = [length for length in lengths if length < 0.3]
+    assert len(tiny) <= 12, f"{len(tiny)} sub-0.3mm slivers"

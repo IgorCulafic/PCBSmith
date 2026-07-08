@@ -525,9 +525,34 @@ def _check_pour_connectivity(
         if region_count <= 1:
             continue
         main_region = sizes.index(max(sizes))
+        # A pad that touches same-net TRACK copper does not depend on
+        # the pour; a sealed cell around it is a harmless island KiCad
+        # removes. Only pour-dependent items are stranded. THT pads
+        # conduct through the barrel, so contact on either layer copy
+        # clears the physical pad.
+        tracks = [
+            item for item in items
+            if item.net == zone_net and not item.owner
+        ]
+        segments_only = [t for t in tracks if t.a != t.b]
+        trace_connected = {
+            (item.label, item.a)
+            for item in items
+            if item.net == zone_net
+            and (item.owner or item.a == item.b)  # pads and vias
+            and any(
+                track.layer == item.layer
+                and _seg_seg_distance(item.a, item.b, track.a, track.b)
+                <= item.radius + track.radius + TOLERANCE_MM
+                for track in segments_only
+            )
+        }
+
         # Zone-net items in a non-main region are stranded.
         for item in items:
             if item.layer != zone_layer or item.net != zone_net:
+                continue
+            if (item.label, item.a) in trace_connected:
                 continue
             if item.owner == "" and item.a == item.b:
                 pass  # vias participate

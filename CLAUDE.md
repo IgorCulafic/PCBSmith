@@ -138,6 +138,17 @@ A detailed narrative of everything built so far is in
   virtual model skips own-footprint label overlaps entirely (fab-hull
   proxy would false-positive) — own-label collisions surface only in
   live DRC, so keep the probe → kicad-cli loop for dense silk.
+- Grid routers emit STAIRCASE micro-segments unless you make them
+  KiCad-like on purpose (user caught 0.2mm stacked pieces at every
+  corner in the editor). Three parts, all required: 8-connected moves
+  (diagonals at grid·√2, corner-cut guard = both orthogonal cells
+  free), a TURN_PENALTY_MM in the search state (direction rides along;
+  among equal-length paths the straightest wins — without it A*
+  interleaves diagonal/straight into sawtooth), and
+  `merge_collinear_segments` on the emitted copper (keep ORIGINAL
+  endpoint coords when merging — reconstructing from line parameters
+  drifts ~1e-7). Judge output by segment stats: sub-0.3mm count should
+  be ≈ pad-entry stubs only.
 
 ## Environment pitfalls (Windows, this machine)
 

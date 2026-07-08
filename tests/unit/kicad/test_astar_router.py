@@ -69,8 +69,9 @@ def test_detours_around_a_partial_wall() -> None:
     result = route_net(layout, netlist, "/SIG")
     routed = with_route(layout, result)
     assert run_virtual_drc(routed, netlist) == ()
-    # It had to go around: meaningfully longer than the straight shot.
-    assert result.length_mm > 22.0
+    # It had to go around: meaningfully longer than the straight shot
+    # (~18.5mm); diagonal moves make the detour tighter than Manhattan.
+    assert result.length_mm > 19.5
     assert result.vias == ()  # the top gap is cheaper than two vias
 
 
@@ -179,3 +180,35 @@ def test_routes_entire_flyback_board_and_beats_hand_layout() -> None:
     )
     hand_score = score_layout(hand, netlist, _spec())
     assert score.sort_key() < hand_score.sort_key()
+
+
+def test_merge_collinear_segments_unifies_runs_and_keeps_junctions() -> None:
+    from pcbsmith.kicad.astar_router import merge_collinear_segments
+
+    def seg(x1, y1, x2, y2, layer="F.Cu", net="/A", width=0.4):
+        return TrackSegment(x1=x1, y1=y1, x2=x2, y2=y2, layer=layer,
+                            net_name=net, width_mm=width)
+
+    merged = merge_collinear_segments((
+        seg(0, 0, 2, 0),          # run pieces, one reversed, one
+        seg(3, 0, 2, 0),          # overlapping
+        seg(2.5, 0, 5, 0),
+        seg(2, 0, 2, 4),          # T-junction branch: different line
+        seg(0, 5, 2, 7),          # diagonal run split in two
+        seg(2, 7, 4, 9),
+        seg(1, 1, 1, 1),          # zero-length sliver: dropped
+        seg(0, 0, 2, 0, layer="B.Cu"),  # other layer stays separate
+    ))
+    by_layer = {}
+    for s in merged:
+        by_layer.setdefault(s.layer, []).append(s)
+    assert len(by_layer["B.Cu"]) == 1
+    front = by_layer["F.Cu"]
+    assert len(front) == 3  # one x-run, the branch, one diagonal
+    spans = sorted(
+        (min(s.x1, s.x2), max(s.x1, s.x2), min(s.y1, s.y2), max(s.y1, s.y2))
+        for s in front
+    )
+    assert (0.0, 5.0, 0.0, 0.0) in spans      # merged x-run 0..5
+    assert (2.0, 2.0, 0.0, 4.0) in spans      # junction branch intact
+    assert (0.0, 4.0, 5.0, 9.0) in spans      # merged diagonal
