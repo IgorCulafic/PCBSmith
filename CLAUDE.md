@@ -212,6 +212,12 @@ A detailed narrative of everything built so far is in
 - **flyback r00x**: compaction toward the FLBACK-001 reference
   (80×37 mm). Backlog with analysis:
   `docs/reference-comparisons/flback-001-vs-flyback-r001.md`.
+- **Human-readable schematics (Track 9.1, user requirement)**: the
+  row/label-net schematic stays as the machine artifact; every
+  topology needs a second, conventionally drawn schematic (rails,
+  signal flow, drawn wires) for people to read and edit. Netlist
+  equality against the row schematic is the correctness gate. Pilot
+  on servo555.
 - Polygon-exact pour analysis; pear/led-art/divider exporter
   migrations to official symbols; live forge-topology run (user must
   start KoboldCpp); more registry blocks (RCD clamp, isolated
