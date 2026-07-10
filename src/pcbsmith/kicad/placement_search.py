@@ -46,6 +46,7 @@ class PlacementCandidate:
     score: LayoutScore | None
     layout: BoardLayout | None
     rejected: str = ""
+    flipped: frozenset[str] = frozenset()
 
 
 def bare_layout(
@@ -57,6 +58,7 @@ def bare_layout(
     part_reference_at: tuple[
         tuple[str, tuple[float, float, float]], ...
     ] = (),
+    part_flip: Collection[str] = (),
 ) -> BoardLayout:
     """A placements-only BoardLayout ready for route_board."""
     by_ref = {component.reference: component for component in netlist.components}
@@ -83,6 +85,7 @@ def bare_layout(
         # so the silk model judges candidates the same way it judges
         # the hand layout.
         part_reference_at=part_reference_at,
+        part_flip=tuple(sorted(part_flip)),
     )
 
 
@@ -111,6 +114,56 @@ def perturb(
     return result
 
 
+def propose_move(
+    base: Placements,
+    base_flipped: frozenset[str],
+    chosen: Collection[str],
+    rng: random.Random,
+    *,
+    step_mm: float,
+    max_steps: int,
+    board_w: float,
+    board_h: float,
+    rotatable: Collection[str],
+    flippable: Collection[str],
+    margin_mm: float = 2.0,
+) -> tuple[Placements, frozenset[str]]:
+    """One local move per chosen part: a nudge, a quarter-turn, or a
+    side flip (dual-side compaction, Track 8.2 follow-up).
+
+    A flip toggles ``part_flip`` membership only: the anchor and stored
+    rotation stay, and the board renderer / virtual model apply the
+    KiCad back-side transform (inverse rotation, x-mirror) from that
+    single flag - so a flipped candidate is judged and rendered by
+    exactly the same code path as a hand-flipped part."""
+    placements = dict(base)
+    flipped = set(base_flipped)
+    for reference in chosen:
+        if reference not in placements:
+            continue
+        moves = ["nudge"]
+        if reference in rotatable:
+            moves.append("rotate")
+        if reference in flippable:
+            moves.append("flip")
+        move = rng.choice(moves)
+        x, y, rot = placements[reference]
+        if move == "nudge":
+            x += step_mm * rng.randint(-max_steps, max_steps)
+            y += step_mm * rng.randint(-max_steps, max_steps)
+            x = min(max(x, margin_mm), board_w - margin_mm)
+            y = min(max(y, margin_mm), board_h - margin_mm)
+        elif move == "rotate":
+            rot = (rot + rng.choice((90.0, 180.0, 270.0))) % 360.0
+        else:
+            if reference in flipped:
+                flipped.discard(reference)
+            else:
+                flipped.add(reference)
+        placements[reference] = (x, y, rot)
+    return placements, frozenset(flipped)
+
+
 def search_placements(
     netlist: BoardNetlist,
     base_placements: Placements,
@@ -118,6 +171,9 @@ def search_placements(
     board_w: float,
     board_h: float,
     movable: Collection[str],
+    rotatable: Collection[str] = (),
+    flippable: Collection[str] = (),
+    base_flipped: Collection[str] = (),
     candidates: int = 8,
     seed: int = 0,
     net_widths: dict[str, float] | None = None,
@@ -135,51 +191,60 @@ def search_placements(
 ) -> tuple[PlacementCandidate, ...]:
     """Generate, route, score, and rank placement candidates.
 
-    Returns candidates best-first; unroutable or overlapping candidates
-    sort last with their rejection reason recorded."""
+    Moves: nudges for ``movable`` parts, quarter-turns for ``rotatable``
+    parts, side flips for ``flippable`` parts (all three sets may
+    overlap; a part in any of them is eligible for selection). Returns
+    candidates best-first; unroutable or overlapping candidates sort
+    last with their rejection reason recorded."""
     rng = random.Random(seed)
+    start_flipped = frozenset(base_flipped)
+    eligible = sorted({*movable, *rotatable, *flippable})
 
-    def _valid_proposal() -> Placements | None:
+    def _valid_proposal() -> tuple[Placements, frozenset[str]] | None:
         # Dense boards reject most blind nudges; resample until the
         # courtyard gate passes instead of wasting the candidate slot.
-        movable_list = sorted(movable)
         for _try in range(proposal_tries):
             # Local-search moves: nudging every part at once rarely
             # survives the gates on a dense board; move one or two.
             chosen = rng.sample(
-                movable_list, k=min(len(movable_list), rng.choice((1, 2)))
+                eligible, k=min(len(eligible), rng.choice((1, 2)))
             )
-            proposal = perturb(
-                base_placements, chosen, rng,
+            proposal, prop_flipped = propose_move(
+                base_placements, start_flipped, chosen, rng,
                 step_mm=step_mm, max_steps=max_steps,
                 board_w=board_w, board_h=board_h,
+                rotatable=rotatable, flippable=flippable,
             )
             probe = bare_layout(
                 netlist, proposal, width_mm=board_w, height_mm=board_h,
                 part_reference_at=part_reference_at,
+                part_flip=prop_flipped,
             )
             if not _pre_gate(probe, netlist):
-                return proposal
+                return proposal, prop_flipped
         return None
 
-    proposals: list[tuple[str, Placements]] = [("base", dict(base_placements))]
+    proposals: list[tuple[str, Placements, frozenset[str]]] = [
+        ("base", dict(base_placements), start_flipped)
+    ]
     for index in range(1, candidates):
-        proposal = _valid_proposal()
-        if proposal is not None:
-            proposals.append((f"cand-{index}", proposal))
+        candidate = _valid_proposal()
+        if candidate is not None:
+            proposals.append((f"cand-{index}", *candidate))
 
     evaluated: list[PlacementCandidate] = []
-    for name, placements in proposals:
+    for name, placements, flipped in proposals:
         layout = bare_layout(
             netlist, placements, width_mm=board_w, height_mm=board_h,
             part_reference_at=part_reference_at,
+            part_flip=flipped,
         )
         rejection = _pre_gate(layout, netlist)
         if rejection:
             evaluated.append(
                 PlacementCandidate(
                     name=name, placements=placements, score=None,
-                    layout=None, rejected=rejection,
+                    layout=None, rejected=rejection, flipped=flipped,
                 )
             )
             if on_progress:
@@ -195,7 +260,7 @@ def search_placements(
             evaluated.append(
                 PlacementCandidate(
                     name=name, placements=placements, score=None,
-                    layout=None, rejected=f"routing: {exc}",
+                    layout=None, rejected=f"routing: {exc}", flipped=flipped,
                 )
             )
             continue
@@ -205,6 +270,7 @@ def search_placements(
                     name=name, placements=placements, score=None,
                     layout=None,
                     rejected=f"unroutable net: {outcome.failed[0]}",
+                    flipped=flipped,
                 )
             )
             if on_progress:
@@ -214,7 +280,7 @@ def search_placements(
         evaluated.append(
             PlacementCandidate(
                 name=name, placements=placements, score=score,
-                layout=outcome.layout,
+                layout=outcome.layout, flipped=flipped,
             )
         )
         if on_progress:
@@ -230,3 +296,70 @@ def search_placements(
 
     evaluated.sort(key=key)
     return tuple(evaluated)
+
+
+def climb_placements(
+    netlist: BoardNetlist,
+    base_placements: Placements,
+    *,
+    board_w: float,
+    board_h: float,
+    movable: Collection[str],
+    rotatable: Collection[str] = (),
+    flippable: Collection[str] = (),
+    base_flipped: Collection[str] = (),
+    rounds: int = 4,
+    candidates: int = 8,
+    seed: int = 0,
+    net_widths: dict[str, float] | None = None,
+    clearance_groups: Sequence[
+        tuple[Collection[str], Collection[str], float, Collection[str]]
+    ] = (),
+    spec: object | None = None,
+    step_mm: float = 1.0,
+    max_steps: int = 2,
+    part_reference_at: tuple[
+        tuple[str, tuple[float, float, float]], ...
+    ] = (),
+    on_progress: Callable[[str], None] | None = None,
+) -> tuple[PlacementCandidate, ...]:
+    """Iterated local search: each round searches around the incumbent
+    and adopts a strictly better winner. Returns the incumbent
+    trajectory (last entry is the final best). The base is candidate
+    zero of every round, so the climb can never regress."""
+    incumbent: PlacementCandidate | None = None
+    trajectory: list[PlacementCandidate] = []
+    placements = dict(base_placements)
+    flipped: Collection[str] = base_flipped
+    for round_index in range(rounds):
+        ranked = search_placements(
+            netlist, placements,
+            board_w=board_w, board_h=board_h,
+            movable=movable, rotatable=rotatable, flippable=flippable,
+            base_flipped=flipped,
+            candidates=candidates, seed=seed + round_index,
+            net_widths=net_widths, clearance_groups=clearance_groups,
+            spec=spec, step_mm=step_mm, max_steps=max_steps,
+            part_reference_at=part_reference_at,
+            on_progress=on_progress,
+        )
+        best = ranked[0]
+        if best.score is None:
+            break
+        if (
+            incumbent is None
+            or incumbent.score is None
+            or best.score.sort_key() < incumbent.score.sort_key()
+        ):
+            incumbent = best
+            trajectory.append(best)
+            placements = dict(best.placements)
+            flipped = best.flipped
+            if on_progress:
+                on_progress(
+                    f"round {round_index}: adopted {best.name} "
+                    f"cost={best.score.sort_key()}"
+                )
+        elif on_progress:
+            on_progress(f"round {round_index}: no improvement")
+    return tuple(trajectory)
