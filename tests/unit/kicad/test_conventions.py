@@ -92,3 +92,28 @@ def test_arbitrary_rotation_matches_the_right_angle_fast_paths() -> None:
         trig = rotate_offset(1.2, -0.7, angle + 1e-9)
         assert math.isclose(exact[0], trig[0], abs_tol=1e-6)
         assert math.isclose(exact[1], trig[1], abs_tol=1e-6)
+
+
+def test_fp_rect_courtyards_produce_full_hulls() -> None:
+    # fp_rect parses as two DIAGONAL corners; the hull of those is a
+    # line and was silently discarded, blinding the virtual courtyard
+    # check for every footprint that draws its F.CrtYd as one rect
+    # (terminal blocks, D9 discs, solder-wire pads - caught live by
+    # kicad-cli on the compacted flyback). The parsed hull must now
+    # span the real library rect.
+    from pcbsmith.kicad.board import FOOTPRINT_LIBRARY
+
+    expected = {
+        "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-3-2-5.08_1x02"
+        "_P5.08mm_Horizontal": (-3.04, -6.4, 8.13, 5.8),
+        "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P10.00mm":
+            (-1.25, -2.75, 11.25, 2.75),
+        "Connector_Wire:SolderWire-2.5sqmm_1x01_D2.4mm_OD3.6mm":
+            (-2.55, -2.5, 2.55, 2.5),
+    }
+    for library_id, (x1, y1, x2, y2) in expected.items():
+        hull = FOOTPRINT_LIBRARY[library_id].courtyard_hull
+        assert hull is not None, f"{library_id} lost its courtyard hull"
+        xs = [x for x, _ in hull]
+        ys = [y for _, y in hull]
+        assert (min(xs), min(ys), max(xs), max(ys)) == (x1, y1, x2, y2)

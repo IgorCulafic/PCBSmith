@@ -364,6 +364,16 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
                 # the bounding corners.
                 samples = 24 if layer in ("F.CrtYd", "F.Fab") else 2
                 points = _circle_extent_points(shape, points, samples)
+            elif shape_name == "fp_rect" and len(points) == 2:
+                # A rect parses as its two DIAGONAL corners; the convex
+                # hull of those is a line, so an fp_rect-drawn courtyard
+                # was silently discarded (len<3) and the virtual check
+                # went blind — terminal blocks, D9 discs, and solder-wire
+                # pads all draw their F.CrtYd this way (caught live by
+                # kicad-cli on the compacted flyback). Expand to all
+                # four corners.
+                (x1, y1), (x2, y2) = points
+                points = [(x1, y1), (x2, y1), (x2, y2), (x1, y2)]
             if layer == "F.CrtYd":
                 courtyard.extend(points)
             elif layer == "F.Fab":

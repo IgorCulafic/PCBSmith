@@ -218,21 +218,30 @@ A detailed narrative of everything built so far is in
   every trace from coarse placements — placement + probe + route +
   live DRC loop converged in 3 iterations and the fixes it forced
   (rect-pad cover, per-physical-pad connectivity, silk height/edge
-  checks) are now permanent machinery. Next: dual-side flyback
-  compaction via `placement_search` (rotation/side moves).
-- **flyback r00x**: compaction toward the FLBACK-001 reference
-  (80×37 mm). Backlog with analysis:
-  `docs/reference-comparisons/flback-001-vs-flyback-r001.md`.
-- **Human-readable schematics (Track 9.1, user requirement)**: the
-  row/label-net schematic stays as the machine artifact; every
-  topology needs a second, conventionally drawn schematic (rails,
-  signal flow, drawn wires) for people to read and edit. Netlist
-  equality against the row schematic is the correctness gate. Pilot
-  on servo555.
+  checks) are now permanent machinery.
+- **flyback dual-side compaction DEMONSTRATED (2026-07-10)**:
+  `tools/flyback_compaction.py` produced an 80×42 dual-side flyback
+  (whole SMD control circuit on the back, FLBACK-001-style), 100%
+  auto-routed, live kicad-cli DRC 0 violations / 0 unconnected.
+  `placement_search` grew rotation/side-flip moves and
+  `climb_placements`. NOT yet the golden flyback — silk production
+  pass (barrier/value texts) and authority wiring remain; analysis in
+  `docs/reference-comparisons/flyback-dual-side-compaction.md`. The
+  42 mm height floor is the TEZ-22x24 transformer; matching the
+  reference's 36.8 mm needs an EFD20-class part (component change).
+- **Human-readable schematics (Track 9.1, user requirement)**: pilot
+  LANDED on servo555 — `kicad/reader_schematic.py` (conventional
+  drawing renderer + offline wire-connectivity validator that rejects
+  label teleports and re-derives the machine pin->net table from the
+  drawn wires), live ERC + netlist-export equality gate board
+  generation, reader SVG is the schematic the bundle links. Next:
+  backfill the other topologies; grow the spec into the role-driven
+  column/rail placer.
 - Polygon-exact pour analysis; pear/led-art/divider exporter
   migrations to official symbols; live forge-topology run (user must
-  start KoboldCpp); more registry blocks (RCD clamp, isolated
-  feedback).
+  start KoboldCpp); more registry blocks (rcd-clamp and
+  isolated-feedback landed 2026-07-10; next: blocks for the other
+  topologies).
 - Blocked on environment: live Nexar BOM (credentials), LLM datasheet
   extraction (API key / local server), DigiKey reference-design site
   (403s curl; local packs via ingest-reference sidestep it).
