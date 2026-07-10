@@ -18,6 +18,11 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         return _flyback_topology()
     if intent.intent_id == "servo_555_tester" and intent.status == "supported":
         return _servo555_topology()
+    if (
+        intent.intent_id == "thermometer_env_display"
+        and intent.status == "supported"
+    ):
+        return _thermometer_topology()
     if intent.intent_id == "metal_detector_coil" and intent.status == "supported":
         return _metal_detector_topology()
     if intent.intent_id != "divider_highpass_led_indicator" or intent.status != "supported":
@@ -55,6 +60,18 @@ def select_topology(intent: CircuitIntent) -> TopologySelection:
         warnings=(
             "LED brightness and conduction after AC coupling require simulation and human review.",
         ),
+    )
+
+
+def _thermometer_topology() -> TopologySelection:
+    return TopologySelection(
+        topology_id="thermometer_env_display",
+        title="Thermometer-shaped SHT31 + ESP32-C3 display: 16-LED "
+        "mercury column via two 74HC595, dual OLED readouts, USB-C "
+        "powered 3.3V rail",
+        status="selected",
+        evidence=(),
+        warnings=(),
     )
 
 

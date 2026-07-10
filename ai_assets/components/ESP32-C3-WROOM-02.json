@@ -1,0 +1,169 @@
+{
+ "schema_id": "pcbsmith-component-card-v1",
+ "mpn": "ESP32-C3-WROOM-02",
+ "manufacturer": "Espressif",
+ "description": "ESP32-C3 WiFi/BLE module, 3.0-3.6V, USB-Serial/JTAG, 4MB flash",
+ "symbol": "RF_Module:ESP32-C3-WROOM-02",
+ "footprint": "RF_Module:ESP32-C3-WROOM-02",
+ "datasheet": {
+  "local_path": "ai_assets/datasheets/esp32-c3-wroom-02.pdf",
+  "sha256": "2375b1be75ebbfcffa050e6a26c3ee7957bc7171b319066081a491d1b2e21161",
+  "source_url": "https://www.espressif.com/sites/default/files/documentation/esp32-c3-wroom-02_datasheet_en.pdf"
+ },
+ "support_status": "reviewed",
+ "pins": [
+  {
+   "number": "1",
+   "name": "3V3",
+   "function": "power_in",
+   "requirement": "required",
+   "note": "3.0-3.6V supply; bulk + 100nF decoupling at the pin.",
+   "locator": "p3 (range), p10"
+  },
+  {
+   "number": "2",
+   "name": "EN",
+   "function": "control_in",
+   "requirement": "required",
+   "note": "High enables the chip; RC delay (10k to 3V3 + 100nF to GND) for clean power-on.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "3",
+   "name": "IO4",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO4/ADC1_CH4.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "4",
+   "name": "IO5",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO5/ADC2_CH0.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "5",
+   "name": "IO6",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO6.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "6",
+   "name": "IO7",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO7.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "7",
+   "name": "IO8",
+   "function": "control_in",
+   "requirement": "required",
+   "note": "Strapping pin: must be HIGH to enter download boot; pull up 10k.",
+   "locator": "p12-13 Table 4-3"
+  },
+  {
+   "number": "8",
+   "name": "IO9",
+   "function": "control_in",
+   "requirement": "optional",
+   "note": "Strapping pin BOOT: internal weak pull-up selects SPI boot; pull low to force download.",
+   "locator": "p12-13 Table 4-3"
+  },
+  {
+   "number": "9",
+   "name": "GND",
+   "function": "power_in",
+   "requirement": "required",
+   "note": "Ground.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "10",
+   "name": "IO10",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO10/FSPICS0.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "11",
+   "name": "RXD",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO20/U0RXD.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "12",
+   "name": "TXD",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO21/U0TXD.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "13",
+   "name": "IO18",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO18/USB_D-; USB Serial/JTAG programming.",
+   "locator": "p11, p19"
+  },
+  {
+   "number": "14",
+   "name": "IO19",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO19/USB_D+; USB Serial/JTAG programming.",
+   "locator": "p11, p19"
+  },
+  {
+   "number": "15",
+   "name": "IO3",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO3/ADC1_CH3.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "16",
+   "name": "IO2",
+   "function": "control_in",
+   "requirement": "required",
+   "note": "Strapping pin: must be HIGH at reset for both boot modes; pull up 10k.",
+   "locator": "p12-13 Table 4-3"
+  },
+  {
+   "number": "17",
+   "name": "IO1",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO1/ADC1_CH1.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "18",
+   "name": "IO0",
+   "function": "digital_io",
+   "requirement": "optional",
+   "note": "GPIO0/ADC1_CH0/XTAL_32K_P.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11"
+  },
+  {
+   "number": "19",
+   "name": "GND",
+   "function": "power_in",
+   "requirement": "must_tie",
+   "note": "Thermal/ground pad under the module.",
+   "locator": "ESP32-C3-WROOM-02 datasheet Table 3-1 p10-11",
+   "tie_class": "GND"
+  }
+ ]
+}

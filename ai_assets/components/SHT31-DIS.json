@@ -1,0 +1,91 @@
+{
+ "schema_id": "pcbsmith-component-card-v1",
+ "mpn": "SHT31-DIS",
+ "manufacturer": "Sensirion",
+ "description": "Digital temperature/humidity sensor, I2C, 2.15-5.5V, DFN-8",
+ "symbol": "Sensor_Humidity:SHT31-DIS",
+ "footprint": "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm",
+ "datasheet": {
+  "local_path": "ai_assets/datasheets/sht3x-dis.pdf",
+  "sha256": "095b1853e7f4328f5897c9ca6c392a7dd8b0202eda66b0a2629f9cb840dd496d",
+  "source_url": "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf"
+ },
+ "support_status": "reviewed",
+ "pins": [
+  {
+   "number": "1",
+   "name": "SDA",
+   "function": "digital_io",
+   "requirement": "required",
+   "note": "Serial data.",
+   "locator": "SHT3x-DIS datasheet Table 7 p8"
+  },
+  {
+   "number": "2",
+   "name": "ADDR",
+   "function": "control_in",
+   "requirement": "must_tie",
+   "note": "Address select: low=0x44, high=0x45; DO NOT float.",
+   "locator": "SHT3x-DIS datasheet Table 7 p8, p9",
+   "tie_class": "GND"
+  },
+  {
+   "number": "3",
+   "name": "ALERT",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Alarm output; MUST be left floating if unused.",
+   "locator": "SHT3x-DIS datasheet Table 7 p8"
+  },
+  {
+   "number": "4",
+   "name": "SCL",
+   "function": "digital_io",
+   "requirement": "required",
+   "note": "Serial clock.",
+   "locator": "SHT3x-DIS datasheet Table 7 p8"
+  },
+  {
+   "number": "5",
+   "name": "VDD",
+   "function": "power_in",
+   "requirement": "required",
+   "note": "2.15-5.5V; decouple 100nF as close as possible (section 3.1).",
+   "locator": "p6 (range), p8 section 3.1 (decoupling)"
+  },
+  {
+   "number": "6",
+   "name": "nRESET",
+   "function": "control_in",
+   "requirement": "optional",
+   "note": "Active-low reset; leave floating if unused, or to VDD through >=2k.",
+   "locator": "SHT3x-DIS datasheet Table 7 p8"
+  },
+  {
+   "number": "7",
+   "name": "R",
+   "function": "passive",
+   "requirement": "must_tie",
+   "note": "No electrical function; to be connected to VSS.",
+   "locator": "SHT3x-DIS datasheet Table 7 p8",
+   "tie_class": "GND"
+  },
+  {
+   "number": "8",
+   "name": "VSS",
+   "function": "power_in",
+   "requirement": "required",
+   "note": "Ground.",
+   "locator": "SHT3x-DIS datasheet Table 7 p8"
+  },
+  {
+   "number": "9",
+   "name": "EP",
+   "function": "power_in",
+   "requirement": "must_tie",
+   "note": "Die pad, internally connected to VSS.",
+   "locator": "SHT3x-DIS datasheet Table 7 p8",
+   "tie_class": "GND"
+  }
+ ]
+}
