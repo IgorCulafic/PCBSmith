@@ -371,3 +371,48 @@ def test_rotated_pin_position_rejects_non_quarter_turns() -> None:
     imported = load_symbol(RESISTOR)
     with pytest.raises(ValueError, match="quarter turn"):
         instance_pin_position_rotated(imported, "1", (10.0, 10.0), 45)
+
+
+def test_thermometer_reader_spec_reproduces_the_machine_table() -> None:
+    # The 63-part thermometer: two register banks, sixteen LED columns,
+    # I2C lanes and explicit no-connect crosses on the open pins.
+    from pcbsmith.kicad.export_thermometer_reader import (
+        PIN_NETS as THERMO_PIN_NETS,
+    )
+    from pcbsmith.kicad.export_thermometer_reader import (
+        THERMOMETER_READER_SPEC,
+    )
+
+    connectivity = analyze_reader_spec(
+        THERMOMETER_READER_SPEC, THERMO_PIN_NETS
+    )
+    assert connectivity.findings == ()
+    assert len(connectivity.junctions) >= 40
+    # Every declared no-connect resolved to a real pin tip.
+    assert len(connectivity.no_connect_points) == len(
+        THERMOMETER_READER_SPEC.no_connects
+    )
+
+
+def test_no_connect_contradictions_fire() -> None:
+    # A cross on a netted pin, and a cross on a wired pin, are both
+    # contradictions the validator must name (rule: a check, not a
+    # wish).
+    from pcbsmith.kicad.export_thermometer_reader import (
+        PIN_NETS as THERMO_PIN_NETS,
+    )
+    from pcbsmith.kicad.export_thermometer_reader import (
+        THERMOMETER_READER_SPEC,
+    )
+
+    netted = THERMOMETER_READER_SPEC.__class__(
+        **{
+            **{
+                field: getattr(THERMOMETER_READER_SPEC, field)
+                for field in THERMOMETER_READER_SPEC.__dataclass_fields__
+            },
+            "no_connects": (("U1", "1"),),  # VCC pin - netted
+        }
+    )
+    findings = analyze_reader_spec(netted, THERMO_PIN_NETS).findings
+    assert any("machine table nets it" in finding for finding in findings)

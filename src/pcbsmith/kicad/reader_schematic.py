@@ -95,6 +95,9 @@ class ReaderSpec:
     labels: tuple[tuple[str, Point], ...]
     flags: tuple[ReaderFlag, ...] = ()
     customs: tuple[CustomReaderSymbol, ...] = ()
+    # (reference, pin) pairs drawn with a no-connect cross - pins the
+    # design intentionally leaves open (ERC pin_not_connected).
+    no_connects: tuple[tuple[str, str], ...] = ()
     paper: str = "A3"
 
     def custom(self, lib_id: str) -> CustomReaderSymbol | None:
@@ -109,6 +112,7 @@ class ReaderConnectivity:
     segments: tuple[Segment, ...]
     junctions: tuple[Point, ...]
     findings: tuple[str, ...]
+    no_connect_points: tuple[Point, ...] = ()
 
 
 def _pt(point: Point) -> Point:
@@ -393,6 +397,43 @@ def analyze_reader_spec(
                 f"{sorted(labels) or 'unnamed'}, expected {flag.net}."
             )
 
+    # No-connects: a cross on a pin the machine table also leaves
+    # unnetted; a wired or netted pin under a cross is a contradiction.
+    no_connect_points: list[Point] = []
+    for reference, pin_number in spec.no_connects:
+        nc_instance = next(
+            (one for one in spec.instances if one.reference == reference),
+            None,
+        )
+        if nc_instance is None:
+            findings.append(
+                f"No-connect for {reference}.{pin_number}: no such symbol."
+            )
+            continue
+        if pin_number in pin_nets.get(reference, {}):
+            findings.append(
+                f"No-connect on {reference}.{pin_number}, but the machine "
+                f"table nets it to {pin_nets[reference][pin_number]}."
+            )
+            continue
+        try:
+            tip = pin_tip(nc_instance, pin_number)
+        except (KeyError, ValueError):
+            findings.append(
+                f"No-connect for {reference}.{pin_number}: pin not on "
+                f"symbol {instance.lib_id}."
+            )
+            continue
+        if component_of(tip) is not None or any(
+            _interior(tip, segment) for segment in segments
+        ):
+            findings.append(
+                f"No-connect pin {reference}.{pin_number} at {tip} "
+                "touches a wire."
+            )
+            continue
+        no_connect_points.append(tip)
+
     # Completeness: every net in the machine table must be drawn.
     expected_nets = {
         net for pins in pin_nets.values() for net in pins.values()
@@ -407,6 +448,7 @@ def analyze_reader_spec(
         segments=segments,
         junctions=junctions,
         findings=tuple(findings),
+        no_connect_points=tuple(no_connect_points),
     )
 
 
@@ -422,6 +464,13 @@ def _wire_sexpr(segment: Segment) -> str:
       (type solid)
     )
     (uuid "{uuid4()}")
+  )"""
+
+
+def _no_connect_sexpr(point: Point) -> str:
+    return f"""  (no_connect
+    (at {point[0]:g} {point[1]:g})
+    (uuid {uuid4()})
   )"""
 
 
@@ -517,6 +566,10 @@ def render_reader_schematic(
 
     wires = [_wire_sexpr(segment) for segment in connectivity.segments]
     junctions = [_junction_sexpr(point) for point in connectivity.junctions]
+    no_connects = [
+        _no_connect_sexpr(point)
+        for point in connectivity.no_connect_points
+    ]
     labels = [_label(name, *point) for name, point in spec.labels]
 
     custom_lib_ids = {entry.lib_id for entry in spec.customs}
@@ -531,7 +584,9 @@ def render_reader_schematic(
         ),
         *(entry.library_entry for entry in spec.customs),
     ))
-    items = "\n".join((*symbols, *wires, *junctions, *labels))
+    items = "\n".join(
+        (*symbols, *wires, *junctions, *no_connects, *labels)
+    )
     return f"""(kicad_sch
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
