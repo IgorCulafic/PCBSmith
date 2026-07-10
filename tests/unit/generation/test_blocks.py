@@ -31,3 +31,58 @@ def test_block_parts_match_the_composition() -> None:
     composed = {c.reference: c for c in circuit.components}
     for part in block_parts:
         assert composed[part.reference] == part
+
+
+def test_rcd_clamp_block_is_registered_and_matches_composition() -> None:
+    from pcbsmith.circuit.intent import classify_circuit_intent
+    from pcbsmith.circuit.topologies import select_topology
+    from pcbsmith.generation.blocks import MODULE_REGISTRY
+    from pcbsmith.generation.flyback import compose_flyback
+
+    entry = MODULE_REGISTRY["rcd-clamp"]
+    parts = entry.builder()
+    assert [c.reference for c in parts] == ["RC1", "CC1", "D6"]
+    assert entry.provides_roles == (
+        "clamp_resistor", "clamp_capacitor", "clamp_diode",
+    )
+    assert entry.proven_by == "design-flyback-authority"
+
+    intent = classify_circuit_intent("120 VAC to 3.3 V flyback converter")
+    circuit = compose_flyback(intent, select_topology(intent))
+    composed = {c.reference: c for c in circuit.components}
+    for part in parts:
+        assert composed[part.reference] == part
+
+
+def test_clamp_resistor_value_tracks_the_calculator_input() -> None:
+    # The block's RC1 value string and the dissipation the calculator
+    # checks must come from the same constant.
+    from pcbsmith.generation.blocks import MODULE_REGISTRY
+    from pcbsmith.generation.flyback import CLAMP_RESISTANCE_OHMS
+
+    (rc1, _cc1, _d6) = MODULE_REGISTRY["rcd-clamp"].builder()
+    assert rc1.value.startswith(f"{CLAMP_RESISTANCE_OHMS / 1000:g}k")
+
+
+def test_isolated_feedback_block_is_registered_and_matches_composition() -> None:
+    from pcbsmith.circuit.intent import classify_circuit_intent
+    from pcbsmith.circuit.topologies import select_topology
+    from pcbsmith.generation.blocks import MODULE_REGISTRY
+    from pcbsmith.generation.flyback import compose_flyback
+
+    intent = classify_circuit_intent("120 VAC to 3.3 V flyback converter")
+    circuit = compose_flyback(intent, select_topology(intent))
+    entry = MODULE_REGISTRY["isolated-feedback"]
+    # Divider values are the CALCULATOR's output, passed into the block;
+    # the identity check must therefore build with the composed values.
+    parts = entry.builder(
+        feedback_upper_ohms=circuit.math.calculations["feedback_upper_ohms"],
+        feedback_lower_ohms=circuit.math.calculations["feedback_lower_ohms"],
+    )
+    assert [c.reference for c in parts] == [
+        "U2", "U3", "RFB1", "RFB2", "RO1", "RO2", "RP1",
+    ]
+    assert entry.proven_by == "design-flyback-authority"
+    composed = {c.reference: c for c in circuit.components}
+    for part in parts:
+        assert composed[part.reference] == part

@@ -205,6 +205,111 @@ def mains_input_front_end() -> tuple[ComponentRole, ...]:
     )
 
 
+# The clamp bleeder RC1's value; also the calculator's dissipation
+# input, so the block and the math cannot drift apart.
+CLAMP_RESISTANCE_OHMS = 680e3
+
+
+@register_module(
+    "rcd-clamp",
+    "Primary-side RCD leakage clamp across the transformer: 680k 0.5W "
+    "bleeder, 2.2nF 630V hold capacitor, US1M fast diode (proven on "
+    "the offline flyback; dissipation checked by solve_offline_flyback).",
+    provides_roles=("clamp_resistor", "clamp_capacitor", "clamp_diode"),
+    proven_by="design-flyback-authority",
+)
+def rcd_clamp() -> tuple[ComponentRole, ...]:
+    return (
+        _resistor(
+            "RC1", "clamp_resistor",
+            f"{CLAMP_RESISTANCE_OHMS / 1000:g}k 0.5W", AXIAL,
+            _assumption(
+                "RCD clamp resistor",
+                "Sized for ~0.1W leakage-energy dissipation at Vclamp 250V.",
+            ),
+        ),
+        _capacitor(
+            "CC1", "clamp_capacitor", "2.2nF 630V", DISC,
+            _assumption(
+                "RCD clamp capacitor",
+                "Holds the clamp voltage between cycles; 630V+ rated.",
+            ),
+        ),
+        ComponentRole(
+            reference="D6", role="clamp_diode",
+            symbol_id="stdlib:D", value="US1M",
+            support_status="needs_datasheet_review",
+            footprint="Diode_SMD:D_SMA",
+            evidence=_assumption(
+                "Fast clamp diode", "1000V 1A fast recovery for the clamp.",
+            ),
+        ),
+    )
+
+
+@register_module(
+    "isolated-feedback",
+    "LMV431 + PC817 isolated feedback: the shunt reference senses the "
+    "output divider, the opto LED crosses the barrier, and the "
+    "phototransistor pulls the switcher's FB pin against its pull-down. "
+    "The DNP compensation capacitor stays a composition-level option.",
+    provides_roles=(
+        "feedback_optocoupler", "shunt_reference",
+        "feedback_upper_resistor", "feedback_lower_resistor",
+        "opto_led_resistor", "reference_bias_resistor",
+        "fb_pulldown_resistor",
+    ),
+    proven_by="design-flyback-authority",
+)
+def isolated_feedback(
+    *, feedback_upper_ohms: float, feedback_lower_ohms: float
+) -> tuple[ComponentRole, ...]:
+    """Divider values come from the topology's calculator (E24-snapped
+    for the LMV431's 1.24V reference), never from the block itself."""
+    return (
+        ComponentRole(
+            reference="U2", role="feedback_optocoupler",
+            symbol_id="stdlib:PC817", value="PC817",
+            support_status="needs_datasheet_review",
+            footprint="Package_DIP:DIP-4_W7.62mm",
+            evidence=_assumption(
+                "Optocoupler isolated feedback",
+                "PC817 class; verify CTR bin and isolation rating.",
+            ),
+        ),
+        ComponentRole(
+            reference="U3", role="shunt_reference",
+            symbol_id="stdlib:LMV431", value="LMV431",
+            support_status="supported",
+            footprint="Package_TO_SOT_SMD:SOT-23",
+            evidence=_lmv_evidence(),
+        ),
+        _resistor(
+            "RFB1", "feedback_upper_resistor",
+            f"{feedback_upper_ohms / 1000:g}k", SMD_R, _lmv_evidence(),
+        ),
+        _resistor(
+            "RFB2", "feedback_lower_resistor",
+            f"{feedback_lower_ohms / 1000:g}k", SMD_R, _lmv_evidence(),
+        ),
+        _resistor(
+            "RO1", "opto_led_resistor", "180R", SMD_R,
+            _assumption(
+                "Optocoupler LED series resistor",
+                "(3.3 - Vf_led - Vka_min)/5mA headroom chain.",
+            ),
+        ),
+        _resistor(
+            "RO2", "reference_bias_resistor", "1k", SMD_R,
+            _lmv_evidence(),
+        ),
+        _resistor(
+            "RP1", "fb_pulldown_resistor", "2.2k", SMD_R,
+            _ucc_evidence(),
+        ),
+    )
+
+
 def compose_flyback(
     intent: CircuitIntent,
     topology: TopologySelection,
@@ -220,16 +325,14 @@ def compose_flyback(
         vout_v=float(intent.assumptions["vout_v"]),
         iout_a=float(intent.assumptions["iout_a"]),
         reflected_voltage_v=float(intent.assumptions["reflected_voltage_v"]),
-        clamp_resistance_ohms=680e3,  # RC1 below
+        clamp_resistance_ohms=CLAMP_RESISTANCE_OHMS,  # RC1 in rcd_clamp()
     )
     if design["status"] == "error":
         raise ValueError("; ".join(design["errors"]))
     out = design["outputs"]
 
-    resistor, capacitor = _resistor, _capacitor
-    smd_r = SMD_R
+    capacitor = _capacitor
     smd_c = SMD_C
-    axial = AXIAL
     disc = DISC
 
     components = (
@@ -277,29 +380,7 @@ def compose_flyback(
             "CV1", "vdd_capacitor", "100nF", smd_c,
             _ucc_evidence(),
         ),
-        resistor(
-            "RC1", "clamp_resistor", "680k 0.5W", axial,
-            _assumption(
-                "RCD clamp resistor",
-                "Sized for ~0.1W leakage-energy dissipation at Vclamp 250V.",
-            ),
-        ),
-        capacitor(
-            "CC1", "clamp_capacitor", "2.2nF 630V", disc,
-            _assumption(
-                "RCD clamp capacitor",
-                "Holds the clamp voltage between cycles; 630V+ rated.",
-            ),
-        ),
-        ComponentRole(
-            reference="D6", role="clamp_diode",
-            symbol_id="stdlib:D", value="US1M",
-            support_status="needs_datasheet_review",
-            footprint="Diode_SMD:D_SMA",
-            evidence=_assumption(
-                "Fast clamp diode", "1000V 1A fast recovery for the clamp.",
-            ),
-        ),
+        *rcd_clamp(),
         ComponentRole(
             reference="T1", role="flyback_transformer",
             symbol_id="stdlib:FLYBACK_TRANSFORMER",
@@ -336,45 +417,9 @@ def compose_flyback(
         ),
         capacitor("CO2", "output_hf_capacitor", "100nF", smd_c,
                   _assumption("HF output ceramic", "High-frequency bypass.")),
-        ComponentRole(
-            reference="U2", role="feedback_optocoupler",
-            symbol_id="stdlib:PC817", value="PC817",
-            support_status="needs_datasheet_review",
-            footprint="Package_DIP:DIP-4_W7.62mm",
-            evidence=_assumption(
-                "Optocoupler isolated feedback",
-                "PC817 class; verify CTR bin and isolation rating.",
-            ),
-        ),
-        ComponentRole(
-            reference="U3", role="shunt_reference",
-            symbol_id="stdlib:LMV431", value="LMV431",
-            support_status="supported",
-            footprint="Package_TO_SOT_SMD:SOT-23",
-            evidence=_lmv_evidence(),
-        ),
-        resistor(
-            "RFB1", "feedback_upper_resistor",
-            f"{out['feedback_upper_ohms'] / 1000:g}k", smd_r, _lmv_evidence(),
-        ),
-        resistor(
-            "RFB2", "feedback_lower_resistor",
-            f"{out['feedback_lower_ohms'] / 1000:g}k", smd_r, _lmv_evidence(),
-        ),
-        resistor(
-            "RO1", "opto_led_resistor", "180R", smd_r,
-            _assumption(
-                "Optocoupler LED series resistor",
-                "(3.3 - Vf_led - Vka_min)/5mA headroom chain.",
-            ),
-        ),
-        resistor(
-            "RO2", "reference_bias_resistor", "1k", smd_r,
-            _lmv_evidence(),
-        ),
-        resistor(
-            "RP1", "fb_pulldown_resistor", "2.2k", smd_r,
-            _ucc_evidence(),
+        *isolated_feedback(
+            feedback_upper_ohms=float(out["feedback_upper_ohms"]),
+            feedback_lower_ohms=float(out["feedback_lower_ohms"]),
         ),
         capacitor(
             "CY1", "y_capacitor", "2.2nF Y1", disc,
