@@ -149,6 +149,17 @@ A detailed narrative of everything built so far is in
   endpoint coords when merging — reconstructing from line parameters
   drifts ~1e-7). Judge output by segment stats: sub-0.3mm count should
   be ≈ pad-entry stubs only.
+- Rule 11 trace craft (user directive 2026-07-10): the emit pipeline
+  is route → string-pull smooth (H/V/45 connectors, cells checked
+  against the SAME blocked sets) → merge collinear → prune covered
+  copper → checks. TWO root causes of the servo board's spaghetti:
+  the routing tree never absorbed a connected pad's own copper (later
+  legs laid parallel copper instead of branching — `tree |= targets`
+  after every leg), and grid wander that only post-smoothing removes.
+  `trace_corner_angle` (no acute joints outside pad copper) and
+  `redundant_copper` (no fully-contained track) are always-on blocker
+  checks; pruning is provably safe ONLY for area containment
+  (centerline coverage changes the copper point-set).
 
 ## Environment pitfalls (Windows, this machine)
 

@@ -327,3 +327,70 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   (`FLBACK-001` reference front end + `SESSION` flyback r002.) Status:
   **implemented and machine-enforced** (flyback: earth-primary 3.0mm
   with CY2/CY3 exempt, earth-secondary 6.4mm).
+
+## 11. Trace craft (routing shape discipline)
+
+Origin: user directive 2026-07-10 after reviewing the servo555 tester
+against an earlier hand-drawn 555 PWM dimmer board ("fix the traces
+logic and routing... research online the best practices... make it
+another check"). Researched sources: Altium "PCB Routing Angle Myths"
+(45 vs 90 signal-integrity claims are largely myth; the real reasons
+are fabrication and craft), Weller PCB trace-corner design guide
+(sub-90-degree interior corners are acid-trap culprits and belong in
+DRC), EBest/RayMing angle-rule surveys, Autodesk EAGLE routing tips,
+Proto-Electronics/Rowsum routing guides (pad entries, stubs), PCBway
+routing rules (loops, self-intersections), and the grid-router
+literature (Theta*/SOCS string-pulling: post-smoothing is the
+documented cleanup for fixed-grid search artifacts; Altium Situs docs:
+"fixed-grid routers... must run special post-processing routines to
+convert right-angle corners to diagonals").
+
+- **11.1 No acute copper corners outside pads.** Where two same-net
+  tracks meet outside pad/via copper, the interior angle must be
+  >= 90 degrees: 45-degree chamfers (135-degree joints) are the house
+  style, right angles are legal (the channel router's entire output),
+  anything sharper traps etchant and reads as an error. Joints inside
+  same-net pad or via copper are exempt (teardrop territory - the pad
+  masks the geometry). Status: **implemented and machine-enforced**
+  (`trace_corner_angle` design check, blocker; violation fixture in
+  test_design_checks).
+- **11.2 No redundant same-net copper.** No track may lie entirely
+  inside the union of its net's other copper: covered tracks are
+  routing debris that reads as spaghetti and hides the real topology
+  from reviewers. The A* router prunes them at emit time (area
+  containment => removing the track leaves the copper point-set,
+  connectivity, and clearance exactly unchanged); the
+  `redundant_copper` design check (blocker) keeps every pipeline
+  honest. Status: **implemented and machine-enforced**.
+- **11.3 Grid routes are post-smoothed before they become copper.**
+  Fixed-grid A* output wanders around inflated obstacles and cannot
+  fix a detour after passing it; every same-layer run is re-tightened
+  by greedy string-pulling constrained to H/V/45 connectors whose
+  every cell is verified against the SAME obstacle sets the search
+  used (legal by construction). This is the standard post-processing
+  step for fixed-grid routers. Combined with the tree-completeness
+  fix (a connected pad's own copper joins the routing tree, so later
+  legs branch instead of laying parallel copper - the defect that put
+  redundant copper in 44% of the servo board's segments), it produces
+  the long-run/45-corner look of hand routing. Status: **implemented**
+  (`GridRouter._smooth`; scorecard counts vias and track length, and
+  the servo board went from 118 segments / 4 vias to ~110 / 1).
+- **11.4 The routing emit pipeline is: route -> smooth -> merge
+  collinear -> prune covered -> checks.** Order matters: smoothing
+  operates on grid nodes (legality is cell-based), merging unifies
+  collinear runs without moving copper, pruning only ever deletes
+  fully-contained copper, and rules 11.1/11.2 then hold on the output
+  by construction while remaining independent checks for every other
+  pipeline (hand routes, channel router). Status: **implemented**
+  (astar_router.route()).
+- **11.5 Sculpted copper is exempt by declaration, never silently.**
+  Copper whose shape IS the design - sensing coils (section 9),
+  traces-as-art (clover brief) - is not routing and does not answer to
+  11.1/11.2. The exemption is a visible spec field
+  (`trace_craft_exempt_nets`) on the topology's DesignChecksSpec, so a
+  reviewer sees exactly which nets bypass the craft rules and why
+  (clover: all seven art nets; detector: the /COL tank spiral). Found
+  live: the first golden run with rule 11 armed correctly flagged the
+  spiral feed's 42-degree corner and a clover bezier sliver - real
+  geometry, deliberate shapes. Status: **implemented** (spec field +
+  exemption fixture test).

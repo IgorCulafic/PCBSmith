@@ -875,6 +875,12 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
                     ),
                     tie_nets=(("GND", "/GND"),),
                     composition_roles=tuple(c.role for c in circuit.components),
+                    # Rule 11: every trace on this board is bezier
+                    # ARTWORK by the design brief, reviewed visually.
+                    trace_craft_exempt_nets=(
+                        "/GND", "/VDD", "/SDA", "/SCL",
+                        "/CPOUT", "/INT", "/REGOUT",
+                    ),
                 ),
             )
             board, design_review = _finish_board_authority(
@@ -1193,6 +1199,10 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
                         ),
                     ),
                     component_cards=(("Q1", "MMBT3904"),),
+                    # Rule 11: the tank coil is SCULPTED sensing copper
+                    # (rule 9.1), not routing; its spiral feed corners
+                    # are deliberate.
+                    trace_craft_exempt_nets=("/COL",),
                 ),
             )
             board, design_review = _finish_board_authority(

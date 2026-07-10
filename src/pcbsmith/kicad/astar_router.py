@@ -250,12 +250,18 @@ class GridRouter:
         first_stubbed = False
         for pad in ordered[1:]:
             targets = set(self._pad_nodes(pad))
-            path = self._astar(tree, targets)
+            path = self._smooth(self._astar(tree, targets))
             new_segments, new_vias, length = self._emit(path)
             segments.extend(new_segments)
             vias.extend(new_vias)
             total += length
             tree |= set(path)
+            # The connected pad's OWN copper becomes part of the tree:
+            # without this, later legs cannot branch from it and the
+            # search lays fresh copper parallel to it instead - the
+            # redundant-spaghetti class (44% of the servo board's
+            # segments before the fix).
+            tree |= targets
             # Close the last grid cell onto the pad centre so KiCad sees
             # copper touching the pad anchor.
             total += self._stub(segments, path[-1], pad.a)
@@ -267,16 +273,103 @@ class GridRouter:
         # Overlapping collinear copper (leg joins, staircase remnants,
         # stubs retracing a run) reads as broken micro-tracks in KiCad;
         # merge every straight run into one maximal segment. The copper
-        # union is unchanged, so connectivity and clearance hold.
+        # union is unchanged, so connectivity and clearance hold. Then
+        # drop segments whose copper is FULLY inside the remaining
+        # same-net copper: the union point-set is unchanged, so both
+        # connectivity and clearance are exactly preserved (rule 11.2).
         merged = merge_collinear_segments(segments)
+        pruned = prune_redundant_segments(merged, self.own_items)
         return RouteResult(
             net_name=self.net_name,
-            segments=merged,
+            segments=pruned,
             vias=tuple(vias),
             length_mm=sum(
-                math.dist((s.x1, s.y1), (s.x2, s.y2)) for s in merged
+                math.dist((s.x1, s.y1), (s.x2, s.y2)) for s in pruned
             ),
         )
+
+    def _smooth(
+        self, path: list[tuple[str, int, int]]
+    ) -> list[tuple[str, int, int]]:
+        """String-pulling constrained to H/V/45 (greedy farthest
+        shortcut): grid A* wanders around inflated obstacles and the
+        turn penalty cannot remove detours after the fact, so each
+        same-layer run is re-tightened with one- or two-piece
+        connectors (straight, diagonal, or diagonal+straight) whose
+        every cell is checked against the SAME blocked sets the search
+        used - a smoothed path is legal by construction. Post-smoothing
+        is the documented cleanup for fixed-grid routers."""
+        if len(path) < 3:
+            return path
+        smoothed: list[tuple[str, int, int]] = []
+        run_start = 0
+        for index in range(1, len(path) + 1):
+            if index == len(path) or path[index][0] != path[run_start][0]:
+                run = path[run_start:index]
+                smoothed.extend(self._smooth_run(run))
+                run_start = index
+        return smoothed
+
+    def _smooth_run(
+        self, run: list[tuple[str, int, int]]
+    ) -> list[tuple[str, int, int]]:
+        result: list[tuple[str, int, int]] = []
+        i = 0
+        while i < len(run) - 1:
+            connector: list[tuple[str, int, int]] | None = None
+            j = len(run) - 1
+            while j > i + 1:
+                connector = self._connector(run[i], run[j])
+                if connector is not None:
+                    break
+                j -= 1
+            if connector is None:
+                result.append(run[i])
+                i += 1
+            else:
+                result.extend(connector[:-1])
+                i = j
+        result.append(run[-1])
+        return result
+
+    def _connector(
+        self, a: tuple[str, int, int], b: tuple[str, int, int]
+    ) -> list[tuple[str, int, int]] | None:
+        """The KiCad-style connector between two same-layer nodes: a
+        diagonal run plus a straight run (either order), every cell
+        free, corner-cut guard on diagonal steps."""
+        layer = a[0]
+        dx, dy = b[1] - a[1], b[2] - a[2]
+        step_x = (dx > 0) - (dx < 0)
+        step_y = (dy > 0) - (dy < 0)
+        diagonal = min(abs(dx), abs(dy))
+
+        def walk(diagonal_first: bool) -> list[tuple[str, int, int]] | None:
+            x, y = a[1], a[2]
+            cells = [(layer, x, y)]
+            moves: list[tuple[int, int]] = []
+            straight_x = [(step_x, 0)] * (abs(dx) - diagonal)
+            straight_y = [(0, step_y)] * (abs(dy) - diagonal)
+            slant = [(step_x, step_y)] * diagonal
+            if diagonal_first:
+                moves = slant + straight_x + straight_y
+            else:
+                moves = straight_x + straight_y + slant
+            blocked = self.blocked[layer]
+            for move_x, move_y in moves:
+                if move_x and move_y and (
+                    (x + move_x, y) in blocked or (x, y + move_y) in blocked
+                ):
+                    return None
+                x, y = x + move_x, y + move_y
+                if not (0 <= x < self.cols and 0 <= y < self.rows):
+                    return None
+                if (x, y) in blocked:
+                    return None
+                cells.append((layer, x, y))
+            return cells
+
+        return walk(True) or walk(False)
 
     def _stub(
         self,
@@ -528,6 +621,80 @@ def merge_collinear_segments(
                 )
             )
     return tuple(merged)
+
+
+# Coverage sampling: fine enough that no sliver of a "covered" segment
+# can poke past its covers between samples at PCB scales.
+COVER_SAMPLE_MM = 0.05
+COVER_MARGIN_MM = 0.01
+
+Stadium = tuple[tuple[float, float], tuple[float, float], float, str]
+
+
+def segment_covered_by(
+    segment: TrackSegment,
+    covers: Sequence[Stadium],
+    margin_mm: float = COVER_MARGIN_MM,
+) -> bool:
+    """True when the segment's COPPER AREA is fully inside some cover:
+    at every centerline sample, one same-layer cover stadium contains
+    the whole width (distance <= cover radius - half width - margin).
+    Centerline-only coverage would be laxer but removing such a segment
+    would change the copper point-set; area containment guarantees the
+    union is unchanged, so pruning is provably safe."""
+    length = math.dist((segment.x1, segment.y1), (segment.x2, segment.y2))
+    if length < 1e-9:
+        return True
+    half_width = segment.width_mm / 2
+    steps = max(2, int(length / COVER_SAMPLE_MM))
+    candidates = [
+        (a, b, radius, layer)
+        for a, b, radius, layer in covers
+        if layer == segment.layer
+        and radius >= half_width + margin_mm - 1e-9
+    ]
+    for index in range(steps + 1):
+        t = index / steps
+        point = (
+            segment.x1 + (segment.x2 - segment.x1) * t,
+            segment.y1 + (segment.y2 - segment.y1) * t,
+        )
+        if not any(
+            _point_seg_distance(point, a, b)
+            <= radius - half_width - margin_mm
+            for a, b, radius, _layer in candidates
+        ):
+            return False
+    return True
+
+
+def prune_redundant_segments(
+    segments: Sequence[TrackSegment],
+    own_items: Sequence[object],
+) -> tuple[TrackSegment, ...]:
+    """Drop same-net segments whose copper is fully inside the union of
+    the remaining same-net copper (rule 11.2). Removing such a segment
+    leaves the copper POINT-SET unchanged, so connectivity and
+    clearance are exactly preserved - this is the safety companion to
+    the tree fix, not a substitute for it. Shortest segments go first
+    so a long trunk is never sacrificed for its own slivers."""
+    kept = list(segments)
+    pad_covers: list[Stadium] = [
+        (item.a, item.b, item.radius, item.layer)  # type: ignore[attr-defined]
+        for item in own_items
+    ]
+    for segment in sorted(
+        segments,
+        key=lambda s: math.dist((s.x1, s.y1), (s.x2, s.y2)),
+    ):
+        others: list[Stadium] = [
+            ((s.x1, s.y1), (s.x2, s.y2), s.width_mm / 2, s.layer)
+            for s in kept
+            if s is not segment
+        ]
+        if segment_covered_by(segment, others + pad_covers):
+            kept.remove(segment)
+    return tuple(kept)
 
 
 def route_net(

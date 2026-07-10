@@ -215,3 +215,47 @@ def test_merge_collinear_segments_unifies_runs_and_keeps_junctions() -> None:
     assert (0.0, 5.0, 0.0, 0.0) in spans      # merged x-run 0..5
     assert (2.0, 2.0, 0.0, 4.0) in spans      # junction branch intact
     assert (0.0, 4.0, 5.0, 9.0) in spans      # merged diagonal
+
+
+def test_prune_redundant_segments_drops_only_contained_copper() -> None:
+    from pcbsmith.kicad.astar_router import prune_redundant_segments
+
+    def seg(x1, y1, x2, y2, width=0.4):
+        return TrackSegment(x1=x1, y1=y1, x2=x2, y2=y2, layer="F.Cu",
+                            net_name="/A", width_mm=width)
+
+    trunk = seg(0.0, 0.0, 20.0, 0.0, width=1.2)
+    contained = seg(5.0, 0.1, 12.0, 0.1, width=0.3)
+    # Same width, offset: the copper areas overlap but neither
+    # contains the other - pruning must keep it.
+    sibling = seg(0.0, 0.2, 20.0, 0.2, width=1.2)
+    kept = prune_redundant_segments((trunk, contained, sibling), ())
+    assert contained not in kept
+    assert trunk in kept
+    assert sibling in kept
+
+
+def test_router_output_carries_no_redundant_or_acute_copper() -> None:
+    """Rules 11.1/11.2 hold on the router's own output by construction:
+    the fixture route must pass the new checks."""
+    from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
+
+    layout, netlist = _fixture()
+    result = route_net(layout, netlist, "/SIG")
+    routed = with_route(layout, result)
+    report = run_design_checks(routed, netlist, DesignChecksSpec())
+    assert not [
+        f for f in report.findings if f.rule in ("11.1", "11.2")
+    ]
+
+
+def test_smoothing_straightens_the_clear_fixture() -> None:
+    # With nothing in the way, the smoothed route is ONE straight
+    # segment plus at most the two pad-entry stubs - no grid wander.
+    layout, netlist = _fixture()
+    result = route_net(layout, netlist, "/SIG")
+    long_segments = [
+        s for s in result.segments
+        if ((s.x1 - s.x2) ** 2 + (s.y1 - s.y2) ** 2) ** 0.5 > 0.5
+    ]
+    assert len(long_segments) == 1

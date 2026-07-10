@@ -69,6 +69,11 @@ class DesignChecksSpec:
         tuple[str, tuple[str, ...], tuple[str, ...], float, tuple[str, ...]],
         ...,
     ] = ()
+    # Rule 11 exemption: nets whose copper is SCULPTED on purpose -
+    # sensing coils (section 9), traces-as-art - rather than routed.
+    # The trace-craft checks skip them; declaring them here keeps the
+    # exemption visible and reviewable instead of silent.
+    trace_craft_exempt_nets: tuple[str, ...] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -151,6 +156,18 @@ def run_design_checks(
     findings.extend(
         _check_ic_pin_connectivity(
             layout, netlist, tuple(sorted(allowed_unconnected))
+        )
+    )
+
+    checks_run.append("trace_corner_angle")
+    findings.extend(
+        _check_trace_corners(layout, netlist, spec.trace_craft_exempt_nets)
+    )
+
+    checks_run.append("redundant_copper")
+    findings.extend(
+        _check_redundant_copper(
+            layout, netlist, spec.trace_craft_exempt_nets
         )
     )
 
@@ -714,6 +731,157 @@ def _check_sensitive_net_under_inductor(
                         "Route the sensitive net on a deeper lane or clear of "
                         "the inductor body, or specify a shielded inductor and "
                         "record that evidence."
+                    ),
+                    source="check",
+                )
+            )
+    return tuple(findings)
+
+
+# Rule 11.1 tolerance: 90-degree corners are legal (the Manhattan
+# channel router's whole output); anything meaningfully sharper is an
+# acid-trap shape and forbidden per fab practice.
+ACUTE_CORNER_DEG = 89.0
+
+
+def _check_trace_corners(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    exempt_nets: tuple[str, ...] = (),
+) -> tuple[ReviewFinding, ...]:
+    """Rule 11.1: no acute (<90 deg) corner where two same-net tracks
+    meet OUTSIDE pad/via copper. Sharp interior corners trap etchant
+    (thin or broken trace) and are forbidden in fab DRCs; 45-degree
+    chamfers (135 deg joints) and right angles pass. Joints whose
+    point sits inside same-net pad or via copper are exempt - that is
+    teardrop territory, and the pad masks the geometry."""
+    import math
+
+    from pcbsmith.kicad.virtual_drc import (
+        _collect_items,
+        _point_seg_distance,
+        _Stadium,
+    )
+
+    items = _collect_items(layout, netlist)
+    masks: dict[str, list[_Stadium]] = {}
+    for item in items:
+        if item.label.startswith(("pad", "via")):
+            masks.setdefault(item.net, []).append(item)
+
+    findings: list[ReviewFinding] = []
+    ends: dict[
+        tuple[str, str, tuple[float, float]],
+        list[tuple[float, float]],
+    ] = {}
+    exempt = set(exempt_nets)
+    for segment in layout.segments:
+        if segment.net_name in exempt:
+            continue
+        away_from_start = (
+            segment.x2 - segment.x1, segment.y2 - segment.y1,
+        )
+        away_from_end = (
+            segment.x1 - segment.x2, segment.y1 - segment.y2,
+        )
+        for point, away in (
+            ((segment.x1, segment.y1), away_from_start),
+            ((segment.x2, segment.y2), away_from_end),
+        ):
+            key = (
+                segment.net_name, segment.layer,
+                (round(point[0], 3), round(point[1], 3)),
+            )
+            ends.setdefault(key, []).append(away)
+
+    for (net, layer, point), aways in sorted(ends.items()):
+        if len(aways) < 2:
+            continue
+        masked = any(
+            (item.layer == layer or item.label.startswith("via"))
+            and _point_seg_distance(point, item.a, item.b) <= item.radius
+            for item in masks.get(net, ())
+        )
+        if masked:
+            continue
+        worst = 180.0
+        for index, one in enumerate(aways):
+            for two in aways[index + 1:]:
+                norm = math.hypot(*one) * math.hypot(*two)
+                if norm < 1e-12:
+                    continue
+                cosine = (one[0] * two[0] + one[1] * two[1]) / norm
+                angle = math.degrees(math.acos(max(-1.0, min(1.0, cosine))))
+                worst = min(worst, angle)
+        if worst < ACUTE_CORNER_DEG:
+            findings.append(
+                ReviewFinding(
+                    rule="11.1",
+                    severity="blocker",
+                    scope="net",
+                    where=net,
+                    evidence=(
+                        f"Tracks of {net} meet at {worst:.0f} deg at "
+                        f"({point[0]:.2f}, {point[1]:.2f}) on {layer}; "
+                        "acute copper corners trap etchant."
+                    ),
+                    suggested_action=(
+                        "Re-route the joint as a 45-degree chamfer or a "
+                        "right angle, or move it inside the pad copper."
+                    ),
+                    source="check",
+                )
+            )
+    return tuple(findings)
+
+
+def _check_redundant_copper(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    exempt_nets: tuple[str, ...] = (),
+) -> tuple[ReviewFinding, ...]:
+    """Rule 11.2: no track whose copper is entirely inside the union of
+    the net's OTHER copper. Redundant copper is routing debris - it
+    reads as spaghetti, hides the real topology from reviewers, and
+    serves no electrical purpose (the covered region already conducts).
+    The router prunes; this check keeps every pipeline honest."""
+    from pcbsmith.kicad.astar_router import segment_covered_by
+    from pcbsmith.kicad.virtual_drc import _collect_items
+
+    items = _collect_items(layout, netlist)
+    findings: list[ReviewFinding] = []
+    exempt = set(exempt_nets)
+    for segment in layout.segments:
+        if segment.net_name in exempt:
+            continue
+        covers = [
+            (item.a, item.b, item.radius, item.layer)
+            for item in items
+            if item.net == segment.net_name
+            and not (
+                item.label.startswith("track")
+                and item.a == (segment.x1, segment.y1)
+                and item.b == (segment.x2, segment.y2)
+                and item.layer == segment.layer
+            )
+        ]
+        if segment_covered_by(segment, covers, margin_mm=0.05):
+            findings.append(
+                ReviewFinding(
+                    rule="11.2",
+                    severity="blocker",
+                    scope="net",
+                    where=segment.net_name,
+                    evidence=(
+                        f"Track of {segment.net_name} from "
+                        f"({segment.x1:.2f}, {segment.y1:.2f}) to "
+                        f"({segment.x2:.2f}, {segment.y2:.2f}) on "
+                        f"{segment.layer} lies entirely inside the net's "
+                        "other copper."
+                    ),
+                    suggested_action=(
+                        "Delete the covered track; the remaining copper "
+                        "already carries the connection."
                     ),
                     source="check",
                 )
