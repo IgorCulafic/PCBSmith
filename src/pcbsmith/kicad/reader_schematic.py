@@ -236,7 +236,13 @@ def analyze_reader_spec(
         if custom is not None:
             pin_map = {number: (x, y) for number, x, y in custom.pins}
             px, py = pin_map[pin_number]
-            cos_r, sin_r = _QUARTER_TURNS[instance.rotation % 360]
+            turn = instance.rotation % 360
+            if turn not in _QUARTER_TURNS:
+                raise ValueError(
+                    f"Symbol instance rotation must be a quarter turn "
+                    f"(0/90/180/270), got {instance.rotation}"
+                )
+            cos_r, sin_r = _QUARTER_TURNS[turn]
             return _pt((
                 instance.at[0] + px * cos_r - py * sin_r,
                 instance.at[1] - (px * sin_r + py * cos_r),
@@ -257,7 +263,23 @@ def analyze_reader_spec(
             )
             continue
         for pin_number in pin_nets[instance.reference]:
-            tip = pin_tip(instance, pin_number)
+            # Geometry failures (a pin number absent from the symbol or
+            # its customs entry, a non-quarter-turn rotation) become
+            # findings for the specific ref/pin: this function REPORTS,
+            # it does not crash.
+            try:
+                tip = pin_tip(instance, pin_number)
+            except KeyError:
+                findings.append(
+                    f"{instance.reference} pin {pin_number} does not "
+                    f"exist on symbol {instance.lib_id}."
+                )
+                continue
+            except ValueError as exc:
+                findings.append(
+                    f"{instance.reference} pin {pin_number}: {exc}."
+                )
+                continue
             component = component_of(tip)
             if component is None:
                 # A wire crossing the tip mid-segment WOULD connect in

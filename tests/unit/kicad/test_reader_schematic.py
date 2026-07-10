@@ -333,3 +333,41 @@ def test_reader_flag_reaches_its_net() -> None:
         "#FLG01" in finding and "expected OUT" in finding
         for finding in connectivity.findings
     )
+
+
+def test_missing_pin_and_bad_rotation_become_findings_not_crashes() -> None:
+    # analyze_reader_spec REPORTS geometry failures per ref/pin.
+    spec = ReaderSpec(
+        instances=(
+            ReaderInstance("R1", RESISTOR, (50.8, 50.8), rotation=45),
+            ReaderInstance("R2", RESISTOR, (76.2, 50.8)),
+        ),
+        wires=(((76.2, 46.99), (76.2, 40.64)),),
+        labels=(("VCC", (76.2, 40.64)),),
+    )
+    pin_nets = {
+        "R1": {"1": "VCC"},
+        "R2": {"1": "VCC", "9": "VCC"},  # pin 9 does not exist on Device:R
+    }
+    connectivity = analyze_reader_spec(spec, pin_nets)
+    assert any(
+        "R1 pin 1" in f and "quarter turn" in f
+        for f in connectivity.findings
+    )
+    assert any(
+        "R2 pin 9" in f and "does not exist" in f
+        for f in connectivity.findings
+    )
+
+
+def test_rotated_pin_position_rejects_non_quarter_turns() -> None:
+    import pytest
+
+    from pcbsmith.kicad.symbols import (
+        instance_pin_position_rotated,
+        load_symbol,
+    )
+
+    imported = load_symbol(RESISTOR)
+    with pytest.raises(ValueError, match="quarter turn"):
+        instance_pin_position_rotated(imported, "1", (10.0, 10.0), 45)

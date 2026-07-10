@@ -22,7 +22,13 @@ def run_kicad_erc(
     report_name: str = "erc.json",
 ) -> KiCadReport:
     """``report_name`` keeps a second schematic's ERC (the Track 9.1
-    reader drawing) from overwriting the machine schematic's report."""
+    reader drawing) from overwriting the machine schematic's report.
+    It must be a bare file name: path separators would escape the
+    ``.pcbsmith/kicad/`` report directory."""
+    if Path(report_name).name != report_name or report_name in {"", ".", ".."}:
+        raise ValueError(
+            f"report_name must be a bare file name, got {report_name!r}"
+        )
     report_file = schematic_file.parent / ".pcbsmith" / "kicad" / report_name
     install = finder()
     if install is None:

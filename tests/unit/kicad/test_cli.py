@@ -27,3 +27,15 @@ def test_run_kicad_process_captures_command_output() -> None:
     assert result.command == ("kicad-cli.exe", "version")
     assert result.stdout == "10.0.2\n"
     assert result.stderr == ""
+
+
+def test_run_kicad_erc_rejects_path_traversal_report_names() -> None:
+    from pathlib import Path
+
+    import pytest
+
+    from pcbsmith.kicad.validate import run_kicad_erc
+
+    for bad in ("../escape.json", "sub/dir.json", "..", ""):
+        with pytest.raises(ValueError, match="bare file name"):
+            run_kicad_erc(Path("x.kicad_sch"), report_name=bad)

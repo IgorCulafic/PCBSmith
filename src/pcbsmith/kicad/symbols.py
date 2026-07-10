@@ -273,7 +273,13 @@ def instance_pin_position_rotated(
 ) -> tuple[float, float]:
     """``instance_pin_position`` for any quarter-turn instance angle."""
     pin = imported.pin(number)
-    cos_r, sin_r = _QUARTER_TURNS[rotation % 360]
+    turn = rotation % 360
+    if turn not in _QUARTER_TURNS:
+        raise ValueError(
+            f"Symbol instance rotation must be a quarter turn "
+            f"(0/90/180/270), got {rotation}"
+        )
+    cos_r, sin_r = _QUARTER_TURNS[turn]
     rotated_x = pin.x_mm * cos_r - pin.y_mm * sin_r
     rotated_y = pin.x_mm * sin_r + pin.y_mm * cos_r
     return (round(at[0] + rotated_x, 4), round(at[1] - rotated_y, 4))
