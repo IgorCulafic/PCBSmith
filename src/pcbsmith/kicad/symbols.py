@@ -253,6 +253,32 @@ def instance_pin_position(
     return (round(at[0] + pin.x_mm, 4), round(at[1] - pin.y_mm, 4))
 
 
+# Exact quarter-turn (cos, sin) pairs: instance rotations are CCW in
+# symbol (y-up) coordinates, then the y flip maps them onto the sheet.
+# Convention verified against the ladder builder's rotation-270
+# elements (left symbol pin lands at the TOP) and live kicad-cli ERC.
+_QUARTER_TURNS: dict[int, tuple[int, int]] = {
+    0: (1, 0),
+    90: (0, 1),
+    180: (-1, 0),
+    270: (0, -1),
+}
+
+
+def instance_pin_position_rotated(
+    imported: ImportedSymbol,
+    number: str,
+    at: tuple[float, float],
+    rotation: int = 0,
+) -> tuple[float, float]:
+    """``instance_pin_position`` for any quarter-turn instance angle."""
+    pin = imported.pin(number)
+    cos_r, sin_r = _QUARTER_TURNS[rotation % 360]
+    rotated_x = pin.x_mm * cos_r - pin.y_mm * sin_r
+    rotated_y = pin.x_mm * sin_r + pin.y_mm * cos_r
+    return (round(at[0] + rotated_x, 4), round(at[1] - rotated_y, 4))
+
+
 def pin_stub(
     imported: ImportedSymbol,
     number: str,

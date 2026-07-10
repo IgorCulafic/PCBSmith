@@ -318,6 +318,8 @@ def _symbol(
     pin_count: int = 2,
     pin_numbers: tuple[str, ...] | None = None,
     footprint: str = "",
+    reference_at: tuple[float, float] | None = None,
+    value_at: tuple[float, float] | None = None,
 ) -> str:
     if pin_count < 1:
         raise ValueError("KiCad symbols must have at least one pin")
@@ -327,6 +329,22 @@ def _symbol(
     rendered_extra_properties = "".join(
         "\n    " + _property(name, property_value, x_mm, y_mm, hidden=True)
         for name, property_value in extra_properties
+    )
+    # Overridden text positions are meant to be READ: compensate the
+    # instance rotation so the text stays upright.
+    upright = (360 - rotation) % 360
+    reference_property = _property(
+        "Reference",
+        reference,
+        *(reference_at or (x_mm, y_mm - 2.54)),
+        hidden=reference.startswith("#"),
+        angle=upright if reference_at else 0,
+    )
+    value_property = _property(
+        "Value",
+        value,
+        *(value_at or (x_mm, y_mm + 2.54)),
+        angle=upright if value_at else 0,
     )
     instance_pins = "\n".join(
         f"""    (pin "{pin_number}"
@@ -346,8 +364,8 @@ def _symbol(
     (on_board {board_flag})
     (dnp no)
     (uuid "{uuid4()}")
-    {_property("Reference", reference, x_mm, y_mm - 2.54, hidden=reference.startswith("#"))}
-    {_property("Value", value, x_mm, y_mm + 2.54)}
+    {reference_property}
+    {value_property}
     {_property("Footprint", footprint, x_mm, y_mm, hidden=True)}
     {_property("Datasheet", "~", x_mm, y_mm, hidden=True)}
     {rendered_extra_properties}
@@ -480,10 +498,11 @@ def _property(
     y_mm: float,
     *,
     hidden: bool = False,
+    angle: int = 0,
 ) -> str:
     hide = "\n        (hide yes)" if hidden else ""
     return f"""(property "{_escape(name)}" "{_escape(value)}"
-      (at {_format_mm(x_mm)} {_format_mm(y_mm)} 0)
+      (at {_format_mm(x_mm)} {_format_mm(y_mm)} {angle})
       (effects
         (font
           (size 1.27 1.27)

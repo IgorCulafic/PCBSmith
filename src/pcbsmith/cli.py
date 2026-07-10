@@ -86,6 +86,7 @@ from pcbsmith.kicad.board import (
     BoardLayout,
     BoardNetlist,
     compute_board_layout,
+    export_kicad_netlist_xml,
     generate_board,
     parse_board_netlist,
     render_board_previews,
@@ -1492,14 +1493,60 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
     )
     schematic_file = Path(kicad_artifacts["schematic_file"])
 
+    # Track 9.1: the human-readable schematic. Its wire connectivity is
+    # validated offline against the machine pin->net table at export
+    # time (the exporter raises on divergence); the live re-proof below
+    # is kicad-cli ERC plus netlist-export equality.
+    from pcbsmith.kicad.export_servo555_reader import (
+        export_servo555_reader_schematic,
+    )
+    from pcbsmith.kicad.reader_schematic import compare_netlists
+
+    reader_artifacts = export_servo555_reader_schematic(
+        circuit, output_dir, project_name=args.name
+    )
+    reader_schematic_file = Path(reader_artifacts["schematic_file"])
+    # Reader ERC runs FIRST: run_kicad_erc writes a fixed-name
+    # erc.json, and the stored report must be the machine one.
+    reader_erc = run_kicad_erc(reader_schematic_file)
+    reader_svg, _reader_svg_findings = export_schematic_svg(
+        reader_schematic_file
+    )
+
     erc_report = run_kicad_erc(schematic_file)
     schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
     simulation = run_servo555_simulation(circuit, output_dir)
 
+    equality_findings: tuple[str, ...] = ()
+    if erc_report.status == "passed" and reader_erc.status == "passed":
+        machine_netlist = parse_board_netlist(
+            export_kicad_netlist_xml(schematic_file).read_text(
+                encoding="utf-8"
+            )
+        )
+        reader_netlist = parse_board_netlist(
+            export_kicad_netlist_xml(reader_schematic_file).read_text(
+                encoding="utf-8"
+            )
+        )
+        equality_findings = compare_netlists(machine_netlist, reader_netlist)
+
+    reader_ok = reader_erc.status == "passed" and not equality_findings
     kicad = erc_report.model_copy(
         update={
+            "status": erc_report.status if reader_ok else "failed",
             "findings": (
                 *erc_report.findings,
+                f"Reader (human) schematic ERC: {reader_erc.status}.",
+                *reader_erc.findings,
+                *(
+                    equality_findings
+                    or (
+                        "Netlist equality: the reader schematic exports "
+                        "the same components and net partition as the "
+                        "machine schematic.",
+                    )
+                ),
                 "KiCad SPICE export was intentionally skipped; the astable "
                 "timing is design-equation verified (SLFS022 6.3.2) and "
                 "the BC547 output stage is simulated from a PCBSmith "
@@ -1522,11 +1569,16 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
 
     board: BoardReport
     design_review: DesignReviewReport | None
-    if erc_report.status != "passed" or simulation.status != "passed":
+    if (
+        erc_report.status != "passed"
+        or simulation.status != "passed"
+        or not reader_ok
+    ):
         board = BoardReport(
             status="not_run",
             findings=(
-                "Board generation was skipped because KiCad ERC and ngspice "
+                "Board generation was skipped because KiCad ERC (machine "
+                "and reader schematics), netlist equality, and ngspice "
                 "simulation must pass before a board is generated.",
             ),
         )
@@ -1585,7 +1637,17 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         board=board,
     )
-    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
+    # Track 9.1: the human-readable schematic is the SVG the bundle
+    # links; the row/label-net drawing stays as the machine artifact.
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", reader_svg)
+    _add_existing_artifact(
+        artifacts, "kicad_schematic_machine_svg", schematic_svg
+    )
+    _add_existing_artifact(
+        artifacts,
+        "kicad_reader_schematic",
+        reader_artifacts["schematic_file"],
+    )
     revisions = _authority_revisions(
         circuit=circuit,
         evidence=evidence,

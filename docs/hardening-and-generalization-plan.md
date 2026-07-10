@@ -620,3 +620,17 @@ From the Flux/Quilter/Diode/PCBSchemaGen research
   Start with the servo555 (small, single IC) as the pilot, then
   backfill topologies. The human schematic must also become the one
   embedded in the review pack and the SVG the bundle links.
+
+  STATUS 2026-07-10: pilot LANDED on servo555. Machinery:
+  `kicad/reader_schematic.py` (ReaderSpec -> renderer + OFFLINE
+  connectivity validator: wires split at every T with junction dots,
+  nets derived from drawn wires alone, label teleports rejected, the
+  derived partition + names asserted equal to the machine pin->net
+  table); `kicad/export_servo555_reader.py` (the drawing, sourced from
+  export_servo555.INSTANCES); `symbols.instance_pin_position_rotated`
+  (quarter-turn pin geometry, live-ERC verified). The authority runs
+  reader ERC + kicad-cli netlist-export equality (compare_netlists)
+  as a board gate, and the reader SVG is the bundle's linked
+  schematic (machine SVG kept as kicad_schematic_machine_svg).
+  Violation fixtures prove every validator check fires. NEXT: backfill
+  the other topologies; grow the spec into the role-driven placer.
