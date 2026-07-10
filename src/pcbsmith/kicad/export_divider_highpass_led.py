@@ -60,17 +60,29 @@ def _validate_project_name(project_name: str) -> str:
     return name
 
 
-def _render_project() -> str:
-    return """{
-  "board": {
-    "design_settings": {
-      "rule_severities": {
+def _render_project(*, min_through_hole_mm: float | None = None) -> str:
+    """The KiCad project next to the board carries the DRC constraints
+    kicad-cli reads. ``min_through_hole_mm`` relaxes the 0.3mm default
+    when an official footprint legitimately drills smaller (the
+    ESP32-C3-WROOM-02 thermal vias are 0.2mm; typical fab minimum is
+    0.15-0.2mm mechanical)."""
+    rules = ""
+    if min_through_hole_mm is not None:
+        rules = (
+            '\n      "rules": {\n'
+            f'        "min_through_hole_diameter": {min_through_hole_mm}\n'
+            "      },"
+        )
+    return f"""{{
+  "board": {{
+    "design_settings": {{{rules}
+      "rule_severities": {{
         "lib_footprint_mismatch": "ignore"
-      }
-    }
-  },
-  "meta": {"version": 1}
-}
+      }}
+    }}
+  }},
+  "meta": {{"version": 1}}
+}}
 """
 
 

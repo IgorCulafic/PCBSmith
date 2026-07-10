@@ -36,6 +36,10 @@ from pcbsmith.kicad.board import (
 CLEARANCE_MM = 0.2
 EDGE_CLEARANCE_MM = 0.5
 VIA_RADIUS_MM = 0.3
+# KiCad's hole-to-copper rule is 0.25mm - 0.05 wider than the copper
+# clearance. Net-less hole obstacles carry the excess in their radius
+# so the ordinary clearance machinery enforces the stricter rule.
+HOLE_EXTRA_MM = 0.25 - CLEARANCE_MM
 # Modelling tolerance: only flag violations deeper than this, so roundrect
 # corner radii and float noise never produce a false positive.
 TOLERANCE_MM = 0.05
@@ -200,20 +204,47 @@ def _collect_items(
         anchor = (anchor_x, placement_y(layout, reference))
         flipped = reference in layout.part_flip
         for pad in spec.pads:
-            if not pad.name:
+            if not pad.name and pad.drill_mm <= 0:
                 # Unnamed paste/thermal pads take the net of the named pad
                 # they overlap at embed time; the named pad models them.
+                # Unnamed DRILLED pads (USB-C shell alignment holes) fall
+                # through: the hole is a physical obstacle even without
+                # copper - kicad-cli caught tracks routed across them.
                 continue
-            net = net_of.get(
-                (reference, pad.name), f"~nc:{reference}.{pad.name}"
-            )
-            half_long = (max(pad.width_mm, pad.height_mm) - min(
-                pad.width_mm, pad.height_mm
+            if pad.kind == "npth" or not pad.name:
+                net = f"~hole:{reference}"
+            else:
+                net = net_of.get(
+                    (reference, pad.name), f"~nc:{reference}.{pad.name}"
+                )
+            width_mm = pad.width_mm
+            height_mm = pad.height_mm
+            if net.startswith("~hole:"):
+                # The obstacle is the HOLE (plus slot copper if any),
+                # inflated so plain clearance math enforces KiCad's
+                # 0.25mm hole-to-copper rule.
+                width_mm = max(width_mm, pad.drill_mm) + 2 * HOLE_EXTRA_MM
+                height_mm = max(height_mm, pad.drill_mm) + 2 * HOLE_EXTRA_MM
+            half_long = (max(width_mm, height_mm) - min(
+                width_mm, height_mm
             )) / 2
-            radius = min(pad.width_mm, pad.height_mm) / 2
-            if cover_rect_pads and pad.shape in ("rect", "roundrect"):
-                radius = min(pad.width_mm, pad.height_mm) / math.sqrt(2)
-            axis = (half_long, 0.0) if pad.width_mm >= pad.height_mm else (0.0, half_long)
+            radius = min(width_mm, height_mm) / 2
+            # Custom pads carry primitive-bbox extents (library.py);
+            # official-library customs are solid EP polygons, so the
+            # stadium stays inside the copper like a plain rect.
+            if cover_rect_pads and pad.shape in ("rect", "custom"):
+                radius = min(width_mm, height_mm) / math.sqrt(2)
+            elif cover_rect_pads and pad.shape == "roundrect":
+                # A roundrect's corners are pulled in by the corner
+                # radius (KiCad default ratio 0.25 of the short side):
+                # exact extent = min/2 + rr*(sqrt(2)-1). The blanket
+                # rect formula over-covered by ~17% and walled the ONLY
+                # legal entry into 0.5mm-pitch USB-C data pads
+                # (measured on the thermometer board).
+                short = min(width_mm, height_mm)
+                corner = 0.25 * short
+                radius = short / 2 + corner * (math.sqrt(2) - 1)
+            axis = (half_long, 0.0) if width_mm >= height_mm else (0.0, half_long)
             # The pad's own angle rotates its body within the footprint.
             axis = rotate_offset(axis[0], axis[1], pad.angle_deg)
             ends_local = (
@@ -421,6 +452,10 @@ def _check_edge_clearance(
     findings: list[VirtualDrcFinding] = []
     reported: set[str] = set()
     for item in items:
+        if item.net.startswith("~hole:"):
+            # Copper-edge clearance governs COPPER; a bare hole near
+            # (or straddling) the outline is the footprint's business.
+            continue
         midpoint = (
             (item.a[0] + item.b[0]) / 2,
             (item.a[1] + item.b[1]) / 2,
@@ -898,7 +933,12 @@ def _check_silkscreen(
     texts = _collect_silk_texts(layout)
     lines = _collect_silk_lines(layout)
     bodies = _body_polys(layout)
-    pads = [item for item in items if item.owner]
+    # ~hole: items carry no copper/mask aperture in the model - keep
+    # the silk checks strictly underestimating.
+    pads = [
+        item for item in items
+        if item.owner and not item.net.startswith("~hole:")
+    ]
     findings: list[VirtualDrcFinding] = []
 
     def report(check: str, message: str, at: Point) -> None:

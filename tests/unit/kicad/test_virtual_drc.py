@@ -353,3 +353,75 @@ def test_board_silk_line_through_body_is_flagged() -> None:
         finding.check == "silk_overlap" and "crosses the body" in finding.message
         for finding in findings
     ), findings
+
+
+def test_track_across_an_npth_hole_is_flagged() -> None:
+    # The USB-C shell's unnamed NPTH alignment holes carry no copper
+    # and no net, but the HOLE is a physical obstacle: kicad-cli's
+    # hole_clearance caught six routed tracks crossing them on the
+    # thermometer board while the model skipped every unnamed pad.
+    usb = BoardComponent(
+        reference="J1", value="USB",
+        footprint=(
+            "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P"
+            "_TopMnt_Horizontal"
+        ),
+        uuid_path="j1",
+    )
+    netlist = BoardNetlist(
+        components=(_resistor("R1"), usb),
+        nets=(BoardNet(name="/A", nodes=(("R1", "1"), ("R1", "2"))),),
+    )
+    # NPTH holes sit at J1 local (+/-2.89, -2.605): screen y 12.395.
+    layout = BoardLayout(
+        placements=((_resistor("R1"), 10.0), (usb, 25.0)),
+        segments=(
+            TrackSegment(x1=20.0, y1=12.395, x2=30.0, y2=12.395,
+                         layer="F.Cu", net_name="/A", width_mm=0.3),
+        ),
+        vias=(),
+        width_mm=50.0,
+        height_mm=30.0,
+        part_y_mm=(("R1", 15.0), ("J1", 15.0)),
+    )
+    findings = run_virtual_drc(layout, netlist)
+    assert any(
+        finding.check == "copper_clearance" and "~hole:J1" in finding.message
+        for finding in findings
+    )
+
+
+def test_custom_pad_true_extents_are_modelled() -> None:
+    # Copper grazing the SHT31 EP's real 1.0x1.7 polygon - legal against
+    # the old 1.0x1.0 anchor model, shorted on the real board
+    # (kicad-cli shorting_items, thermometer U4).
+    sensor = BoardComponent(
+        reference="U4", value="SHT31",
+        footprint=(
+            "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm"
+            "_EP1.1x1.7mm"
+        ),
+        uuid_path="u4",
+    )
+    netlist = BoardNetlist(
+        components=(_resistor("R1"), sensor),
+        nets=(BoardNet(name="/A", nodes=(("R1", "1"), ("R1", "2"))),),
+    )
+    # EP top edge is at y 15 - 0.85 = 14.15; the anchor-size model put
+    # it at 14.5. A track edge at 14.1 overlaps the real copper only.
+    layout = BoardLayout(
+        placements=((_resistor("R1"), 10.0), (sensor, 25.0)),
+        segments=(
+            TrackSegment(x1=24.4, y1=14.0, x2=25.6, y2=14.0,
+                         layer="F.Cu", net_name="/A", width_mm=0.2),
+        ),
+        vias=(),
+        width_mm=50.0,
+        height_mm=30.0,
+        part_y_mm=(("R1", 15.0), ("U4", 15.0)),
+    )
+    findings = run_virtual_drc(layout, netlist)
+    assert any(
+        finding.check == "copper_clearance" and "U4.9" in finding.message
+        for finding in findings
+    )

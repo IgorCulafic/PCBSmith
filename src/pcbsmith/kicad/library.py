@@ -333,9 +333,29 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
             ]
             drill = max(drill_values) if drill_values else 0.0
         if kind == "np_thru_hole":
-            kind = "tht"
+            # Keep NPTH distinct: no copper, but the HOLE is a physical
+            # obstacle (kicad-cli hole_clearance caught routed tracks
+            # crossing the USB-C shell holes the collapsed "tht" hid).
+            kind = "npth"
         elif kind == "thru_hole":
             kind = "tht"
+        if pad_shape == "custom":
+            # A custom pad's (size w h) is only its ANCHOR; the copper
+            # is the primitives. Model the true extents or every
+            # consumer under-sizes the pad (the SHT31 EP is 1.0x1.7 but
+            # anchors at 1.0x1.0 - kicad-cli caught a via parked on the
+            # unmodelled lobe).
+            extent = _custom_pad_extents(pad, width, height)
+            if extent is not None:
+                (min_x, min_y, max_x, max_y) = extent
+                offset_x = (min_x + max_x) / 2
+                offset_y = (min_y + max_y) / 2
+                theta = math.radians(angle_deg)
+                # Pad-local -> footprint frame (KiCad CCW, y down).
+                x_mm += offset_x * math.cos(theta) + offset_y * math.sin(theta)
+                y_mm += -offset_x * math.sin(theta) + offset_y * math.cos(theta)
+                width = max_x - min_x
+                height = max_y - min_y
         pads.append(
             PadSpec(
                 name=name,
@@ -455,6 +475,43 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
         courtyard_hull=courtyard_hull,
         fab_hull=fab_hull,
         reference_label=reference_label,
+    )
+
+
+def _custom_pad_extents(
+    pad: SList, anchor_width: float, anchor_height: float
+) -> tuple[float, float, float, float] | None:
+    """Pad-local bbox of a custom pad's copper primitives, unioned with
+    the anchor shape. Arcs contribute start/mid/end (honest under- not
+    over-estimate between samples); stroke widths widen the bbox."""
+    points: list[tuple[float, float]] = []
+    stroke = 0.0
+    for group in _children(pad, "primitives"):
+        for name in ("gr_poly", "gr_rect", "gr_line", "gr_arc", "gr_circle"):
+            for prim in _children(group, name):
+                prim_points = _shape_points(prim)
+                if name == "gr_circle":
+                    prim_points = _circle_extent_points(prim, prim_points)
+                points.extend(prim_points)
+                for width_node in _children(prim, "width"):
+                    stroke = max(stroke, float(_atom(width_node[1])))
+                for stroke_node in _children(prim, "stroke"):
+                    for width_node in _children(stroke_node, "width"):
+                        stroke = max(stroke, float(_atom(width_node[1])))
+    if not points:
+        return None
+    points.extend(
+        [
+            (-anchor_width / 2, -anchor_height / 2),
+            (anchor_width / 2, anchor_height / 2),
+        ]
+    )
+    half = stroke / 2
+    return (
+        min(x for x, _y in points) - half,
+        min(y for _x, y in points) - half,
+        max(x for x, _y in points) + half,
+        max(y for _x, y in points) + half,
     )
 
 
@@ -780,6 +837,15 @@ LIBRARY_FOOTPRINT_IDS = (
     "Capacitor_THT:CP_Radial_D8.0mm_P3.50mm",
     "Package_TO_SOT_THT:TO-92_Inline",
     "Button_Switch_THT:SW_PUSH_6mm",
+    # Thermometer display (SHT31 + ESP32-C3, USB-C powered).
+    "RF_Module:ESP32-C3-WROOM-02",
+    "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm",
+    "Package_SO:TSSOP-16_4.4x5mm_P0.65mm",
+    "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+    "Package_TO_SOT_SMD:SOT-23-5",
+    "LED_SMD:LED_0805_2012Metric",
+    "Capacitor_SMD:C_0805_2012Metric",
+    "Fuse:Fuse_1206_3216Metric",
 )
 
 # The pin header doubles as the off-board power connector; PCBSmith wires the

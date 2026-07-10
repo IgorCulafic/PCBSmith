@@ -74,6 +74,10 @@ class DesignChecksSpec:
     # The trace-craft checks skip them; declaring them here keeps the
     # exemption visible and reviewable instead of silent.
     trace_craft_exempt_nets: tuple[str, ...] = ()
+    # Rule 1.1 exemption: connector-footprint parts that carry ON-BOARD
+    # modules (display headers) rather than off-board wiring; declared
+    # per reference so the exemption is visible.
+    connector_edge_exempt_refs: tuple[str, ...] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -86,7 +90,9 @@ def run_design_checks(
     findings: list[ReviewFinding] = []
 
     checks_run.append("connector_edge")
-    findings.extend(_check_connector_edges(layout))
+    findings.extend(
+        _check_connector_edges(layout, spec.connector_edge_exempt_refs)
+    )
 
     if spec.switching_cluster_refs:
         checks_run.append("switching_cluster")
@@ -549,13 +555,18 @@ def _check_trace_currents(
     return tuple(findings)
 
 
-def _check_connector_edges(layout: BoardLayout) -> tuple[ReviewFinding, ...]:
+def _check_connector_edges(
+    layout: BoardLayout,
+    exempt_refs: tuple[str, ...] = (),
+) -> tuple[ReviewFinding, ...]:
     # Rule 1.1: connectors belong at ANY board edge (user: they just need to
     # be reachable for soldering and wiring), so all four edges qualify.
+    # Headers that carry ON-BOARD modules are exempt by declaration.
+    exempt = set(exempt_refs)
     findings: list[ReviewFinding] = []
     for component, anchor_x in layout.placements:
         spec = FOOTPRINT_LIBRARY[component.footprint]
-        if not spec.is_connector:
+        if not spec.is_connector or component.reference in exempt:
             continue
         rotation = placement_rotation(layout, component.reference)
         anchor_y = placement_y(layout, component.reference)
