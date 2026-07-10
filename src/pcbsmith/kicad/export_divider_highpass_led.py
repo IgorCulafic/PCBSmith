@@ -331,8 +331,12 @@ def _symbol(
         for name, property_value in extra_properties
     )
     # Overridden text positions are meant to be READ: compensate the
-    # instance rotation so the text stays upright.
-    upright = (360 - rotation) % 360
+    # instance rotation so the text stays upright. Convention PROBED
+    # against kicad-cli SVG export (a property angle equal to the
+    # rotation uprights 90/270-rotated instances; 180-rotated instances
+    # need angle 0 - the naive (360-rot) renders their text upside
+    # down).
+    upright = rotation if rotation % 180 else 0
     reference_property = _property(
         "Reference",
         reference,

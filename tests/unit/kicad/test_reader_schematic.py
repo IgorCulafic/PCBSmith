@@ -229,6 +229,47 @@ def test_servo555_reader_spec_reproduces_the_machine_table() -> None:
     assert len(connectivity.junctions) >= 20
 
 
+def test_flyback_reader_spec_reproduces_the_machine_table() -> None:
+    # The 31-part backfill: custom symbols (UCC28881, LMV431, the
+    # transformer) resolve their pins through the spec's customs table.
+    from pcbsmith.kicad.export_flyback_reader import (
+        FLYBACK_READER_SPEC,
+    )
+    from pcbsmith.kicad.export_flyback_reader import (
+        PIN_NETS as FLYBACK_PIN_NETS,
+    )
+
+    connectivity = analyze_reader_spec(FLYBACK_READER_SPEC, FLYBACK_PIN_NETS)
+    assert connectivity.findings == ()
+    assert len(connectivity.junctions) >= 30
+
+
+def test_custom_symbol_pin_misplacement_fires() -> None:
+    # A wire missing a CUSTOM symbol's pin must be caught through the
+    # same machinery as official symbols.
+    from dataclasses import replace
+
+    from pcbsmith.kicad.export_flyback_reader import (
+        FLYBACK_READER_SPEC,
+    )
+    from pcbsmith.kicad.export_flyback_reader import (
+        PIN_NETS as FLYBACK_PIN_NETS,
+    )
+
+    # Drop the wire that reaches the UCC28881's HVIN pin.
+    broken = replace(
+        FLYBACK_READER_SPEC,
+        wires=tuple(
+            wire for wire in FLYBACK_READER_SPEC.wires
+            if wire != ((157.48, 95.25), (160.02, 95.25))
+        ),
+    )
+    connectivity = analyze_reader_spec(broken, FLYBACK_PIN_NETS)
+    assert any(
+        "U1 pin 5" in finding for finding in connectivity.findings
+    )
+
+
 def test_compare_netlists_flags_partition_and_name_differences() -> None:
     from pcbsmith.kicad.board import BoardComponent, BoardNet, BoardNetlist
 

@@ -34,6 +34,7 @@ from pcbsmith.kicad.export_divider_highpass_led import (
     _symbol,
 )
 from pcbsmith.kicad.symbols import (
+    _QUARTER_TURNS,
     instance_pin_position_rotated,
     load_symbol,
     render_symbol_for_schematic,
@@ -230,6 +231,23 @@ def analyze_reader_spec(
 
     # Pins: every pin named by the machine table must sit at a wire
     # endpoint; touching a foreign wire anywhere is a drawn short.
+    def pin_tip(instance: ReaderInstance, pin_number: str) -> Point:
+        custom = spec.custom(instance.lib_id)
+        if custom is not None:
+            pin_map = {number: (x, y) for number, x, y in custom.pins}
+            px, py = pin_map[pin_number]
+            cos_r, sin_r = _QUARTER_TURNS[instance.rotation % 360]
+            return _pt((
+                instance.at[0] + px * cos_r - py * sin_r,
+                instance.at[1] - (px * sin_r + py * cos_r),
+            ))
+        return _pt(
+            instance_pin_position_rotated(
+                load_symbol(instance.lib_id), pin_number,
+                instance.at, instance.rotation,
+            )
+        )
+
     pin_component: dict[tuple[str, str], int] = {}
     known_references = {instance.reference for instance in spec.instances}
     for instance in spec.instances:
@@ -238,13 +256,8 @@ def analyze_reader_spec(
                 f"{instance.reference} has no pin->net table entry."
             )
             continue
-        imported = load_symbol(instance.lib_id)
         for pin_number in pin_nets[instance.reference]:
-            tip = _pt(
-                instance_pin_position_rotated(
-                    imported, pin_number, instance.at, instance.rotation
-                )
-            )
+            tip = pin_tip(instance, pin_number)
             component = component_of(tip)
             if component is None:
                 # A wire crossing the tip mid-segment WOULD connect in
@@ -433,7 +446,15 @@ def render_reader_schematic(
     symbols: list[str] = []
     for instance in spec.instances:
         value, footprint = fields[instance.reference]
-        imported = load_symbol(instance.lib_id)
+        custom = spec.custom(instance.lib_id)
+        if custom is not None:
+            pin_count = len(custom.pins)
+            pin_numbers: tuple[str, ...] | None = tuple(
+                number for number, _x, _y in custom.pins
+            )
+        else:
+            pin_count = len(load_symbol(instance.lib_id).pins)
+            pin_numbers = None
         symbols.append(
             _symbol(
                 instance.lib_id,
@@ -445,7 +466,8 @@ def render_reader_schematic(
                 rotation=instance.rotation,
                 exclude_from_sim=True,
                 footprint=footprint,
-                pin_count=len(imported.pins),
+                pin_count=pin_count,
+                pin_numbers=pin_numbers,
                 in_bom=instance.in_bom,
                 reference_at=instance.reference_at,
                 value_at=instance.value_at,
@@ -475,13 +497,18 @@ def render_reader_schematic(
     junctions = [_junction_sexpr(point) for point in connectivity.junctions]
     labels = [_label(name, *point) for name, point in spec.labels]
 
+    custom_lib_ids = {entry.lib_id for entry in spec.customs}
     lib_ids = sorted(
-        {instance.lib_id for instance in spec.instances}
+        ({instance.lib_id for instance in spec.instances} - custom_lib_ids)
         | ({PWR_FLAG_LIB} if spec.flags else set())
     )
-    lib_symbols = "\n".join(
-        render_symbol_for_schematic(load_symbol(lib_id)) for lib_id in lib_ids
-    )
+    lib_symbols = "\n".join((
+        *(
+            render_symbol_for_schematic(load_symbol(lib_id))
+            for lib_id in lib_ids
+        ),
+        *(entry.library_entry for entry in spec.customs),
+    ))
     items = "\n".join((*symbols, *wires, *junctions, *labels))
     return f"""(kicad_sch
   (version {KICAD_SCHEMATIC_VERSION})

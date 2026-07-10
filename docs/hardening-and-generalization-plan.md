@@ -632,5 +632,14 @@ From the Flux/Quilter/Diode/PCBSchemaGen research
   reader ERC + kicad-cli netlist-export equality (compare_netlists)
   as a board gate, and the reader SVG is the bundle's linked
   schematic (machine SVG kept as kicad_schematic_machine_svg).
-  Violation fixtures prove every validator check fires. NEXT: backfill
-  the other topologies; grow the spec into the role-driven placer.
+  Violation fixtures prove every validator check fires.
+  BACKFILL 2026-07-10: the FLYBACK reader schematic landed
+  (`kicad/export_flyback_reader.py`, 31 parts, 16 nets, custom-symbol
+  support via ReaderSpec.customs for the UCC28881/LMV431/transformer);
+  the reader step is now a shared authority helper
+  (`cli._reader_schematic_checks`, reader ERC report has its own
+  file name) used by both servo555 and flyback. Property text angle
+  convention PROBED against kicad-cli SVG (angle=rotation uprights
+  90/270 instances, angle=0 uprights 180 - the naive 360-rot renders
+  180-rotated text upside down). NEXT: buck/detector backfill (both
+  have INSTANCES tables); the role-driven placer.

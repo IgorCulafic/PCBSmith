@@ -32,6 +32,7 @@ from pcbsmith.circuit.models import (
 from pcbsmith.core.board import Board
 from pcbsmith.core.project import Project
 from pcbsmith.core.schematic import Schematic
+from pcbsmith.generation.blocks import register_module
 from pcbsmith.reporting.review_pack import TestStep
 from pcbsmith.services.project_io import save_board, save_project, save_schematic
 
@@ -99,6 +100,90 @@ def _capacitor(
     )
 
 
+@register_module(
+    "ne555-button-astable",
+    "The 555-timer-circuits.com button-selected astable: the 33k charge "
+    "path always runs, the timing branch completes only while FORWARD "
+    "(68k) or REVERSE (10k) is held; 100n timing cap, 10n CONT bypass. "
+    "Values verified by solve_555_servo_tester against SLFS022 6.3.2.",
+    provides_roles=(
+        "timing_charge_resistor", "forward_branch_resistor",
+        "reverse_branch_resistor", "timing_capacitor",
+        "control_bypass_capacitor", "forward_button", "reverse_button",
+    ),
+    proven_by="design-servo555-authority",
+)
+def ne555_button_astable() -> tuple[ComponentRole, ...]:
+    return (
+        _resistor("R1", "timing_charge_resistor", "33k", _source(
+            "Charge resistor VCC -> DISCH",
+        )),
+        _resistor("R2", "forward_branch_resistor", "68k", _source(
+            "FORWARD button branch DISCH -> THRES",
+        )),
+        _resistor("R3", "reverse_branch_resistor", "10k", _source(
+            "REVERSE button branch DISCH -> THRES",
+        )),
+        _capacitor("C1", "timing_capacitor", "100n", DISC, _source(
+            "Astable timing capacitor at THRES/TRIG",
+        )),
+        _capacitor("C2", "control_bypass_capacitor", "10n", DISC, (
+            EvidenceRef(
+                kind="reference_design",
+                title="CONT pin bypass - VALUE FLAGGED",
+                locator=(
+                    f"{SOURCE_LOCATOR}; schematic shows 10n, the "
+                    "instructable parts list says 100n - see the "
+                    "uncertain-value finding"
+                ),
+            ),
+        )),
+        ComponentRole(
+            reference="SW1", role="forward_button",
+            symbol_id="stdlib:SW_PUSH", value="FORWARD",
+            support_status="needs_datasheet_review",
+            footprint="Button_Switch_THT:SW_PUSH_6mm",
+            evidence=_source("Momentary FORWARD control"),
+        ),
+        ComponentRole(
+            reference="SW2", role="reverse_button",
+            symbol_id="stdlib:SW_PUSH", value="REVERSE",
+            support_status="needs_datasheet_review",
+            footprint="Button_Switch_THT:SW_PUSH_6mm",
+            evidence=_source("Momentary REVERSE control"),
+        ),
+    )
+
+
+@register_module(
+    "bjt-signal-inverter",
+    "BC547 inverting output stage: 1k base resistor from the source "
+    "pin, 4.7k collector pull-up to VCC; the load sees a positive "
+    "pulse equal to the source's LOW time. Simulated (saturation "
+    "22mV, pull-up 5.19V, pulse width within 0.3% of design).",
+    provides_roles=(
+        "base_resistor", "signal_inverter_transistor", "collector_pullup",
+    ),
+    proven_by="design-servo555-authority",
+)
+def bjt_signal_inverter() -> tuple[ComponentRole, ...]:
+    return (
+        _resistor("R4", "base_resistor", "1k", _source(
+            "555 OUT -> BC547 base",
+        )),
+        ComponentRole(
+            reference="Q1", role="signal_inverter_transistor",
+            symbol_id="stdlib:NPN", value="BC547",
+            support_status="needs_datasheet_review",
+            footprint="Package_TO_SOT_THT:TO-92_Inline",
+            evidence=_source("Inverting output stage"),
+        ),
+        _resistor("R5", "collector_pullup", "4.7k", _source(
+            "Servo-signal pull-up to VCC",
+        )),
+    )
+
+
 def compose_servo555(
     intent: CircuitIntent, topology: TopologySelection
 ) -> CircuitObject:
@@ -144,35 +229,11 @@ def compose_servo555(
                 ),
             ),
         ),
-        _resistor("R1", "timing_charge_resistor", "33k", _source(
-            "Charge resistor VCC -> DISCH",
-        )),
-        _resistor("R2", "forward_branch_resistor", "68k", _source(
-            "FORWARD button branch DISCH -> THRES",
-        )),
-        _resistor("R3", "reverse_branch_resistor", "10k", _source(
-            "REVERSE button branch DISCH -> THRES",
-        )),
-        _resistor("R4", "base_resistor", "1k", _source(
-            "555 OUT -> BC547 base",
-        )),
-        _resistor("R5", "collector_pullup", "4.7k", _source(
-            "Servo-signal pull-up to VCC",
-        )),
-        _capacitor("C1", "timing_capacitor", "100n", DISC, _source(
-            "Astable timing capacitor at THRES/TRIG",
-        )),
-        _capacitor("C2", "control_bypass_capacitor", "10n", DISC, (
-            EvidenceRef(
-                kind="reference_design",
-                title="CONT pin bypass - VALUE FLAGGED",
-                locator=(
-                    f"{SOURCE_LOCATOR}; schematic shows 10n, the "
-                    "instructable parts list says 100n - see the "
-                    "uncertain-value finding"
-                ),
-            ),
-        )),
+        # Proven blocks (Track 8.4): the button-selected astable and
+        # the inverter stage; the composition keeps board-level
+        # additions (bypass, bulk, connectors, test pads).
+        *ne555_button_astable(),
+        *bjt_signal_inverter(),
         _capacitor("C3", "vcc_bypass_capacitor", "100n", DISC, (
             EvidenceRef(
                 kind="datasheet_fact",
@@ -190,27 +251,6 @@ def compose_servo555(
                 "Prompt requirement (220-470uF): buffers servo stall/"
                 "start spikes so the 555 supply stays clean.",
             ),
-        ),
-        ComponentRole(
-            reference="Q1", role="signal_inverter_transistor",
-            symbol_id="stdlib:NPN", value="BC547",
-            support_status="needs_datasheet_review",
-            footprint="Package_TO_SOT_THT:TO-92_Inline",
-            evidence=_source("Inverting output stage"),
-        ),
-        ComponentRole(
-            reference="SW1", role="forward_button",
-            symbol_id="stdlib:SW_PUSH", value="FORWARD",
-            support_status="needs_datasheet_review",
-            footprint="Button_Switch_THT:SW_PUSH_6mm",
-            evidence=_source("Momentary FORWARD control"),
-        ),
-        ComponentRole(
-            reference="SW2", role="reverse_button",
-            symbol_id="stdlib:SW_PUSH", value="REVERSE",
-            support_status="needs_datasheet_review",
-            footprint="Button_Switch_THT:SW_PUSH_6mm",
-            evidence=_source("Momentary REVERSE control"),
         ),
         ComponentRole(
             reference="J2", role="servo_header",

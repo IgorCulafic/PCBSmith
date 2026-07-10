@@ -19,8 +19,11 @@ def run_kicad_erc(
     *,
     finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
     runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
+    report_name: str = "erc.json",
 ) -> KiCadReport:
-    report_file = schematic_file.parent / ".pcbsmith" / "kicad" / "erc.json"
+    """``report_name`` keeps a second schematic's ERC (the Track 9.1
+    reader drawing) from overwriting the machine schematic's report."""
+    report_file = schematic_file.parent / ".pcbsmith" / "kicad" / report_name
     install = finder()
     if install is None:
         return KiCadReport(

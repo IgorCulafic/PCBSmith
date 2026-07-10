@@ -229,19 +229,22 @@ A detailed narrative of everything built so far is in
   `docs/reference-comparisons/flyback-dual-side-compaction.md`. The
   42 mm height floor is the TEZ-22x24 transformer; matching the
   reference's 36.8 mm needs an EFD20-class part (component change).
-- **Human-readable schematics (Track 9.1, user requirement)**: pilot
-  LANDED on servo555 — `kicad/reader_schematic.py` (conventional
+- **Human-readable schematics (Track 9.1, user requirement)**: LANDED
+  on servo555 AND the flyback (31 parts, custom symbols via
+  ReaderSpec.customs) — `kicad/reader_schematic.py` (conventional
   drawing renderer + offline wire-connectivity validator that rejects
   label teleports and re-derives the machine pin->net table from the
   drawn wires), live ERC + netlist-export equality gate board
-  generation, reader SVG is the schematic the bundle links. Next:
-  backfill the other topologies; grow the spec into the role-driven
-  column/rail placer.
+  generation via the shared `_reader_schematic_checks` authority
+  helper, reader SVG is the schematic the bundle links. Property text
+  angles are PROBED convention (angle=rotation for 90/270, 0 for
+  180). Next: buck/detector backfill (INSTANCES tables exist); the
+  role-driven column/rail placer.
 - Polygon-exact pour analysis; pear/led-art/divider exporter
   migrations to official symbols; live forge-topology run (user must
-  start KoboldCpp); more registry blocks (rcd-clamp and
-  isolated-feedback landed 2026-07-10; next: blocks for the other
-  topologies).
+  start KoboldCpp); more registry blocks (rcd-clamp,
+  isolated-feedback, ne555-button-astable, and bjt-signal-inverter
+  landed 2026-07-10; next: buck/detector blocks).
 - Blocked on environment: live Nexar BOM (credentials), LLM datasheet
   extraction (API key / local server), DigiKey reference-design site
   (403s curl; local packs via ingest-reference sidestep it).

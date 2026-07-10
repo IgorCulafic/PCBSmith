@@ -1300,10 +1300,33 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
     schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
     simulation = run_flyback_simulation(circuit, output_dir)
 
+    # Track 9.1: the human-readable schematic (offline-validated at
+    # export, then live ERC + netlist-export equality).
+    from pcbsmith.kicad.export_flyback_reader import (
+        export_flyback_reader_schematic,
+    )
+
+    reader_erc, reader_svg, reader_artifacts, equality_findings, reader_ok = (
+        _reader_schematic_checks(
+            circuit, output_dir, args.name, schematic_file,
+            erc_report.status, export_flyback_reader_schematic,
+        )
+    )
     kicad = erc_report.model_copy(
         update={
+            "status": erc_report.status if reader_ok else "failed",
             "findings": (
                 *erc_report.findings,
+                f"Reader (human) schematic ERC: {reader_erc.status}.",
+                *reader_erc.findings,
+                *(
+                    equality_findings
+                    or (
+                        "Netlist equality: the reader schematic exports "
+                        "the same components and net partition as the "
+                        "machine schematic.",
+                    )
+                ),
                 "KiCad SPICE export was intentionally skipped; the switching "
                 "stage is design-equation verified and the secondary "
                 "feedback chain is simulated from a PCBSmith netlist.",
@@ -1325,11 +1348,16 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
 
     board: BoardReport
     design_review: DesignReviewReport | None
-    if erc_report.status != "passed" or simulation.status != "passed":
+    if (
+        erc_report.status != "passed"
+        or simulation.status != "passed"
+        or not reader_ok
+    ):
         board = BoardReport(
             status="not_run",
             findings=(
-                "Board generation was skipped because KiCad ERC and ngspice "
+                "Board generation was skipped because KiCad ERC (machine "
+                "and reader schematics), netlist equality, and ngspice "
                 "simulation must pass before a board is generated.",
             ),
         )
@@ -1383,7 +1411,17 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
         simulation=simulation,
         board=board,
     )
-    _add_existing_artifact(artifacts, "kicad_schematic_svg", schematic_svg)
+    # Track 9.1: the human-readable schematic is the SVG the bundle
+    # links; the row/label-net drawing stays as the machine artifact.
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", reader_svg)
+    _add_existing_artifact(
+        artifacts, "kicad_schematic_machine_svg", schematic_svg
+    )
+    _add_existing_artifact(
+        artifacts,
+        "kicad_reader_schematic",
+        reader_artifacts["schematic_file"],
+    )
     revisions = _authority_revisions(
         circuit=circuit,
         evidence=evidence,
@@ -1456,45 +1494,22 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
     )
     schematic_file = Path(kicad_artifacts["schematic_file"])
 
-    # Track 9.1: the human-readable schematic. Its wire connectivity is
-    # validated offline against the machine pin->net table at export
-    # time (the exporter raises on divergence); the live re-proof below
-    # is kicad-cli ERC plus netlist-export equality.
-    from pcbsmith.kicad.export_servo555_reader import (
-        export_servo555_reader_schematic,
-    )
-    from pcbsmith.kicad.reader_schematic import compare_netlists
-
-    reader_artifacts = export_servo555_reader_schematic(
-        circuit, output_dir, project_name=args.name
-    )
-    reader_schematic_file = Path(reader_artifacts["schematic_file"])
-    # Reader ERC runs FIRST: run_kicad_erc writes a fixed-name
-    # erc.json, and the stored report must be the machine one.
-    reader_erc = run_kicad_erc(reader_schematic_file)
-    reader_svg, _reader_svg_findings = export_schematic_svg(
-        reader_schematic_file
-    )
-
     erc_report = run_kicad_erc(schematic_file)
     schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
     simulation = run_servo555_simulation(circuit, output_dir)
 
-    equality_findings: tuple[str, ...] = ()
-    if erc_report.status == "passed" and reader_erc.status == "passed":
-        machine_netlist = parse_board_netlist(
-            export_kicad_netlist_xml(schematic_file).read_text(
-                encoding="utf-8"
-            )
-        )
-        reader_netlist = parse_board_netlist(
-            export_kicad_netlist_xml(reader_schematic_file).read_text(
-                encoding="utf-8"
-            )
-        )
-        equality_findings = compare_netlists(machine_netlist, reader_netlist)
+    # Track 9.1: the human-readable schematic (offline-validated at
+    # export, then live ERC + netlist-export equality).
+    from pcbsmith.kicad.export_servo555_reader import (
+        export_servo555_reader_schematic,
+    )
 
-    reader_ok = reader_erc.status == "passed" and not equality_findings
+    reader_erc, reader_svg, reader_artifacts, equality_findings, reader_ok = (
+        _reader_schematic_checks(
+            circuit, output_dir, args.name, schematic_file,
+            erc_report.status, export_servo555_reader_schematic,
+        )
+    )
     kicad = erc_report.model_copy(
         update={
             "status": erc_report.status if reader_ok else "failed",
@@ -2604,6 +2619,46 @@ def _apply_evidence_manifest(
             findings=selection_report.findings,
             cached_files=selection_report.cached_files,
         ),
+    )
+
+
+def _reader_schematic_checks(
+    circuit: CircuitObject,
+    output_dir: Path,
+    project_name: str,
+    machine_schematic: Path,
+    machine_erc_status: str,
+    exporter: Callable[..., dict[str, str]],
+) -> tuple[KiCadReport, str | None, dict[str, str], tuple[str, ...], bool]:
+    """Track 9.1 authority step: export the human-readable schematic
+    (its exporter already refuses drawings whose wire connectivity
+    diverges from the machine pin->net table), run ERC on it, export
+    its SVG, and - when both schematics passed ERC - prove netlist
+    equality via kicad-cli export. Returns (reader_erc, reader_svg,
+    reader_artifacts, equality_findings, reader_ok)."""
+    from pcbsmith.kicad.reader_schematic import compare_netlists
+
+    reader_artifacts = exporter(circuit, output_dir, project_name=project_name)
+    reader_schematic = Path(reader_artifacts["schematic_file"])
+    reader_erc = run_kicad_erc(reader_schematic, report_name="erc-reader.json")
+    reader_svg, _reader_svg_findings = export_schematic_svg(reader_schematic)
+    equality_findings: tuple[str, ...] = ()
+    if machine_erc_status == "passed" and reader_erc.status == "passed":
+        machine_netlist = parse_board_netlist(
+            export_kicad_netlist_xml(machine_schematic).read_text(
+                encoding="utf-8"
+            )
+        )
+        reader_netlist = parse_board_netlist(
+            export_kicad_netlist_xml(reader_schematic).read_text(
+                encoding="utf-8"
+            )
+        )
+        equality_findings = compare_netlists(machine_netlist, reader_netlist)
+    reader_ok = reader_erc.status == "passed" and not equality_findings
+    return (
+        reader_erc, reader_svg, reader_artifacts, equality_findings,
+        reader_ok,
     )
 
 
