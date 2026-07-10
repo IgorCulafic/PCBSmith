@@ -105,11 +105,7 @@ from pcbsmith.kicad.export_mpu6050 import (
 from pcbsmith.kicad.export_pear import export_pear_to_kicad
 from pcbsmith.kicad.export_servo555 import export_servo555_to_kicad
 from pcbsmith.kicad.flyback_board import (
-    BARRIER_X,
-    ISOLATION_GAP_MM,
-    PRIMARY_NETS,
-    SECONDARY_NETS,
-    STRADDLE_REFS,
+    flyback_checks_spec,
     generate_flyback_board,
 )
 from pcbsmith.kicad.led_art_board import generate_led_art_board
@@ -1353,46 +1349,13 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
             )
             design_review = None
         else:
+            # The single spec the router keepouts already routed
+            # against (flyback_board.flyback_checks_spec): rules 10.1,
+            # 10.4, 5.3, and the SOIC-7/TEZ unused-pin allowances.
             design_review = run_design_checks(
                 layout,
                 board_netlist,
-                DesignChecksSpec(
-                    net_currents=(("/3V3", 0.5), ("/GNDS", 0.5)),
-                    isolation_barrier=(
-                        BARRIER_X,
-                        ISOLATION_GAP_MM,
-                        PRIMARY_NETS,
-                        SECONDARY_NETS,
-                        STRADDLE_REFS,
-                    ),
-                    net_group_clearances=(
-                        # Rule 10.4: protective earth keeps basic-insulation
-                        # distance from the mains nets; only the certified
-                        # line Y-caps bridge (FLBACK-001 practice).
-                        (
-                            "earth-to-primary clearance",
-                            ("/EARTH",),
-                            PRIMARY_NETS,
-                            3.0,
-                            ("CY2", "CY3"),
-                        ),
-                        (
-                            "earth-to-secondary clearance",
-                            ("/EARTH",),
-                            SECONDARY_NETS,
-                            ISOLATION_GAP_MM,
-                            (),
-                        ),
-                    ),
-                    allowed_unconnected_pins=(
-                        # UCC28881 is a SOIC-7: leads 6/7 are physically
-                        # absent (datasheet p3); the SOIC-8 land keeps
-                        # the pads.
-                        ("U1", "6"), ("U1", "7"),
-                        # TEZ land pads not used by this winding spec.
-                        ("T1", "2"), ("T1", "6"), ("T1", "7"),
-                    ),
-                ),
+                flyback_checks_spec(),
             )
             board, design_review = _finish_board_authority(
                 review_components=circuit.components,

@@ -1,36 +1,38 @@
-"""Flyback board: offline geometry checks without kicad-cli.
+"""Flyback board r003: offline geometry checks without kicad-cli.
 
 Builds the board netlist from the exporter's pin-net tables (the same
-source the schematic is generated from), computes the hand-routed
-layout, and asserts the virtual DRC and the rule-10.1 isolation barrier
-hold - plus that a deliberately smuggled primary trace on the secondary
-side trips the barrier check.
+source the schematic is generated from), computes the automation-routed
+dual-side layout, and asserts the virtual DRC and the rule-10.1
+isolation barrier hold - plus that a deliberately smuggled primary
+trace on the secondary side trips the barrier check. Routing takes
+~20 s, so the routed layout is computed once per module.
 """
 
 from __future__ import annotations
 
 from collections import defaultdict
+from functools import cache
 
 from pcbsmith.circuit.intent import classify_circuit_intent
 from pcbsmith.circuit.topologies import select_topology
 from pcbsmith.generation.flyback import compose_flyback
 from pcbsmith.kicad.board import (
     BoardComponent,
+    BoardLayout,
     BoardNet,
     BoardNetlist,
     TrackSegment,
 )
 from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
 from pcbsmith.kicad.export_flyback import INSTANCES
-from pcbsmith.kicad.flyback_board import (
-    BARRIER_X,
-    ISOLATION_GAP_MM,
-    PRIMARY_NETS,
-    SECONDARY_NETS,
-    STRADDLE_REFS,
-    compute_flyback_board_layout,
-)
+from pcbsmith.kicad.flyback_board import compute_flyback_board_layout
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
+
+
+@cache
+def _routed() -> tuple[BoardNetlist, BoardLayout]:
+    netlist = _netlist()
+    return netlist, compute_flyback_board_layout(netlist)
 
 
 def _netlist() -> BoardNetlist:
@@ -62,40 +64,27 @@ def _netlist() -> BoardNetlist:
 
 
 def _spec() -> DesignChecksSpec:
-    return DesignChecksSpec(
-        isolation_barrier=(
-            BARRIER_X,
-            ISOLATION_GAP_MM,
-            PRIMARY_NETS,
-            SECONDARY_NETS,
-            STRADDLE_REFS,
-        ),
-        # Mirrors the CLI authority: the SOIC-7's absent leads and the
-        # TEZ pads this winding spec does not use.
-        allowed_unconnected_pins=(
-            ("U1", "6"), ("U1", "7"),
-            ("T1", "2"), ("T1", "6"), ("T1", "7"),
-        ),
-    )
+    # THE spec: the same declaration the router keepouts and the CLI
+    # authority use (flyback_board.flyback_checks_spec).
+    from pcbsmith.kicad.flyback_board import flyback_checks_spec
+
+    return flyback_checks_spec()
 
 
 def test_flyback_layout_is_virtual_drc_clean() -> None:
-    netlist = _netlist()
-    layout = compute_flyback_board_layout(netlist)
+    netlist, layout = _routed()
     assert run_virtual_drc(layout, netlist) == ()
 
 
 def test_flyback_isolation_barrier_passes() -> None:
-    netlist = _netlist()
-    layout = compute_flyback_board_layout(netlist)
+    netlist, layout = _routed()
     report = run_design_checks(layout, netlist, _spec())
     assert "isolation_barrier" in report.checks_run
     assert not [f for f in report.findings if f.rule == "10.1"]
 
 
 def test_flyback_isolation_barrier_catches_smuggled_primary_trace() -> None:
-    netlist = _netlist()
-    layout = compute_flyback_board_layout(netlist)
+    netlist, layout = _routed()
     smuggled = TrackSegment(
         x1=70.0, y1=20.0, x2=75.0, y2=20.0,
         layer="F.Cu", net_name="/HVP", width_mm=0.4,
@@ -118,10 +107,10 @@ def test_flyback_isolation_barrier_catches_smuggled_primary_trace() -> None:
 def test_earth_clearance_catches_smuggled_earth_trace() -> None:
     from pcbsmith.kicad.flyback_board import PRIMARY_NETS
 
-    netlist = _netlist()
-    layout = compute_flyback_board_layout(netlist)
+    netlist, layout = _routed()
+    # Beside J1's mains pads (J1 sits at x=4.5 on the r003 floor plan).
     smuggled = TrackSegment(
-        x1=12.0, y1=8.0, x2=12.0, y2=12.0,
+        x1=7.5, y1=8.0, x2=7.5, y2=12.0,
         layer="F.Cu", net_name="/EARTH", width_mm=0.4,
     )
     poisoned = layout.__class__(

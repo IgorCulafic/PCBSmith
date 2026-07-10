@@ -1,18 +1,27 @@
-"""Offline flyback board: mains primary, isolated 3.3 V secondary.
+"""Offline flyback board r003: dual-side, 80 x 42 mm, automation-routed.
 
-Two-layer, 88 x 50 mm (r002, reference-driven: integrated bridge and a
-single 450 V bulk can shrink the primary). The PRIMARY half carries the
-mains input with its EMI/safety front end (X2 cap, line Y-caps, earth
-pad), bridge, bulk, switcher, and clamp - through-hole where the
-voltages are highest. The SECONDARY half carries the SMD low-voltage
-output and feedback. Between them runs a machine-checked ISOLATION
-BARRIER at x = 56 with >= 6.4 mm creepage (rule 10.1), crossed
-only by the three parts built to cross it: the transformer (15 mm row
-spacing), the optocoupler, and the Y-capacitor (10 mm pitch disc).
+The FLBACK-001 reference's construction move applied to our circuit:
+the PRIMARY half of the FRONT carries the all-THT mains chain (terminal,
+fusible resistor, MOV, X2 cap, bridge, 450 V bulk can, clamp passives,
+line Y-caps, earth pad); the entire SMD control circuit lives on the
+BACK (UCC28881 cluster on the primary side, rectifier/filter/feedback
+on the secondary side). Between the halves runs the machine-checked
+ISOLATION BARRIER at x = 51 with >= 6.4 mm creepage (rule 10.1),
+crossed only by the three parts built to cross it: the transformer,
+the optocoupler, and the Y-capacitor.
 
-No copper pours anywhere: every net is an explicit trace so the creepage
-analysis stays exact. The barrier is drawn on the silkscreen with a
-warning, per the reference article's practice.
+Every trace comes from ``route_board`` (Track 8.2) with the isolation
+and earth clearance groups as router keepouts - the same declarations
+`run_design_checks` enforces, built once in :func:`flyback_checks_spec`
+so the router, the checks, and the CLI authority cannot drift apart.
+No copper pours anywhere: every net is an explicit trace so the
+creepage analysis stays exact.
+
+Predecessors: r002 (88 x 50, single-side, hand waypoints) and the
+compaction experiment `tools/flyback_compaction.py`; analysis in
+`docs/reference-comparisons/flyback-dual-side-compaction.md`. The
+42 mm height floor is the TEZ-22x24 transformer body; matching the
+reference's 36.8 mm needs an EFD20-class part (a component change).
 """
 
 from __future__ import annotations
@@ -20,6 +29,10 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from pcbsmith.kicad.astar_router import (
+    clearance_groups_from_spec,
+    route_board,
+)
 from pcbsmith.kicad.board import (
     BOARD_SHEET_ORIGIN_MM,
     BoardComponent,
@@ -31,20 +44,13 @@ from pcbsmith.kicad.board import (
     render_board_from_layout,
 )
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
-from pcbsmith.kicad.shaped_board import (
-    NetLookup,
-    Router,
-    placed_pad,
-    silk_line,
-    silk_text,
-)
+from pcbsmith.kicad.design_checks import DesignChecksSpec
+from pcbsmith.kicad.shaped_board import silk_line, silk_text
 
-BOARD_W = 88.0
-BOARD_H = 50.0
-BARRIER_X = 56.0
+BOARD_W = 80.0
+BOARD_H = 42.0
+BARRIER_X = 51.0
 ISOLATION_GAP_MM = 6.4
-PRIMARY_MAX_X = BARRIER_X - ISOLATION_GAP_MM / 2  # 52.8
-SECONDARY_MIN_X = BARRIER_X + ISOLATION_GAP_MM / 2  # 59.2
 
 PRIMARY_NETS = ("/L", "/N", "/ACL", "/HVP", "/HVM", "/SW", "/CLAMP", "/VDD", "/FB")
 EARTH_NETS = ("/EARTH",)
@@ -54,83 +60,158 @@ STRADDLE_REFS = ("T1", "U2", "CY1")
 HV_W = 0.8   # mains/bus traces
 SIG_W = 0.4
 
-# (x, y, rotation)
+# (x, y, rotation) - pad-1 anchors, from the compaction experiment's
+# probe -> route -> live-DRC loop. Every gap here was checked against
+# the REAL library courtyards (fp_rect hulls included) and the 1.5 mm
+# HV pad clearance class.
 PLACEMENTS: dict[str, tuple[float, float, float]] = {
-    "J1": (6.0, 8.0, 0.0),
-    "E1": (3.5, 17.0, 0.0),
-    "CY2": (15.0, 24.0, 180.0),
-    "CY3": (15.0, 31.0, 180.0),
-    "RF1": (18.0, 4.0, 0.0),
-    "CX1": (32.5, 13.0, 180.0),
-    "RV1": (41.5, 7.5, 180.0),
-    "BR1": (26.5, 24.0, 180.0),
-    "CB1": (31.0, 32.0, 180.0),
-    "D5": (37.0, 25.0, 90.0),
-    "TP1": (36.2, 15.0, 0.0),
-    "U1": (18.0, 37.8, 0.0),
-    "CV1": (11.0, 40.0, 180.0),
-    "RP1": (11.0, 35.5, 0.0),
-    "RC1": (28.0, 46.5, 0.0),
-    "CC1": (41.0, 41.0, 180.0),
-    "D6": (44.5, 39.7, 90.0),
-    "T1": (43.0, 16.0, 270.0),
-    "U2": (61.0, 8.0, 180.0),
-    "CY1": (52.5, 45.0, 0.0),
-    "D7": (66.0, 31.0, 180.0),
-    "CO1": (69.5, 22.0, 90.0),
-    "CO2": (70.5, 34.5, 270.0),
-    "U3": (76.0, 19.0, 0.0),
-    "RFB1": (80.0, 34.0, 270.0),
-    "RFB2": (83.0, 34.0, 90.0),
-    "RO1": (63.3, 21.0, 90.0),
-    "RO2": (64.5, 6.5, 0.0),
-    "TP2": (65.0, 14.0, 0.0),
-    "CF1": (81.5, 28.0, 90.0),
-    "J2": (78.0, 42.0, 0.0),
+    # -- front, primary THT ------------------------------------------
+    "J1": (4.5, 7.8, 0.0),
+    "E1": (3.0, 16.5, 0.0),
+    "CY2": (14.5, 22.5, 180.0),
+    "CY3": (14.5, 29.5, 180.0),
+    "RF1": (17.0, 3.5, 0.0),
+    "RV1": (37.0, 8.7, 180.0),
+    "CX1": (33.0, 14.2, 180.0),
+    "BR1": (25.0, 25.0, 180.0),
+    "CB1": (34.5, 32.0, 180.0),
+    "TP1": (37.0, 20.0, 0.0),
+    "RC1": (3.5, 38.5, 0.0),
+    "CC1": (23.5, 38.5, 90.0),
+    # -- the barrier band --------------------------------------------
+    "T1": (43.0, 17.5, 270.0),
+    "U2": (55.0, 5.0, 180.0),
+    "CY1": (45.0, 9.75, 0.0),
+    # -- front, secondary --------------------------------------------
+    "TP2": (58.0, 8.0, 0.0),
+    "J2": (71.0, 33.5, 0.0),
+    # -- back, primary SMD control -----------------------------------
+    # U1's cluster lives in the only back-primary pocket clear of THT
+    # annuli (CY2/CY3/CB1/BR1/RC1 pads all poke through): the HV pad
+    # clearance is 1.5 mm edge-to-edge and placement must supply it.
+    # x >= 11: the earth track ENTERING CY3.2's exempt pad still owes
+    # rule 10.4's 3.0 mm to U1's west pad column (measured live).
+    "U1": (11.0, 34.5, 0.0),
+    "CV1": (12.5, 25.5, 0.0),
+    "RP1": (8.5, 27.0, 0.0),
+    "D5": (33.0, 20.0, 90.0),
+    "D6": (35.0, 37.0, 0.0),
+    # -- back, secondary SMD -----------------------------------------
+    # D7/RO1 keep >2.5 mm from the T1 secondary pin row at x=58: the
+    # UNUSED transformer pins are still THT copper and wall in any SMD
+    # pad parked next to them (grid router lesson).
+    "D7": (62.5, 28.0, 0.0),
+    "CO1": (64.0, 20.0, 90.0),
+    "CO2": (60.0, 34.0, 0.0),
+    "U3": (71.0, 15.0, 0.0),
+    "RFB1": (75.0, 28.0, 90.0),
+    "RFB2": (77.5, 28.0, 90.0),
+    "RO1": (55.5, 18.0, 90.0),
+    "RO2": (59.5, 5.5, 0.0),
+    "CF1": (72.5, 24.0, 90.0),
 }
 
+FLIPPED_REFS: tuple[str, ...] = (
+    "CF1", "CO1", "CO2", "CV1", "D5", "D6", "D7",
+    "RFB1", "RFB2", "RO1", "RO2", "RP1", "U1", "U3",
+)
 
-# Footprint-local (x, y, total angle) for reference labels whose default
-# spot lands on a neighbour's silk or pads in this dense layout.
+# Footprint-local (x, y, total angle) reference-label overrides whose
+# defaults land on neighbours in this compacted layout (silk model +
+# live-DRC discipline). Back-side labels transform INVERSE rotation
+# then x-mirror.
 REFERENCE_AT: dict[str, tuple[float, float, float]] = {
-    "E1": (0.0, 3.3, 0.0),      # placed (3.5, 20.3), below the pad
-    "CY3": (-3.5, 0.0, 0.0),    # placed (18.5, 31.0), east of the disc
-    "CX1": (7.5, 2.5, 0.0),     # placed (25.0, 10.5), over its own body
-    "RP1": (-3.5, 0.0, 0.0),    # placed (7.5, 35.5), west of the resistor
-    "RC1": (-4.0, -1.6, 0.0),  # placed (24.0, 44.9), west of the body
-    "D6": (0.0, 2.8, 0.0),      # placed (47.3, 39.7), east of the diode
-    "CC1": (0.0, 3.6, 0.0),     # placed (41.0, 37.4), above its own silk
-    "RO1": (3.5, 0.0, 0.0),     # placed (63.3, 17.5), off the T1 body edge
-    "CO1": (7.0, 0.0, 0.0),     # placed (69.5, 15.0), off RO1's pads
-    "CV1": (0.0, 1.8, 0.0),     # placed (11.0, 38.2), off RC1's body
-    "RFB1": (-5.4, 2.5, 0.0),   # placed (77.5, 28.6), west of CF1
-    "RFB2": (3.6, 0.0, 0.0),    # placed (83.0, 30.4), a row below RFB1's
-    "CF1": (4.3, 0.0, 0.0),     # placed (81.5, 23.7), clear of the 3V3 bus
-    "J2": (-7.0, -2.0, 0.0),    # placed (71.0, 40.0), off RFB1's pads
+    "E1": (0.0, 3.3, 0.0),      # below the wire pad, off J1's body
+    "RF1": (7.62, 3.5, 0.0),    # south of the axial body (edge clip)
+    "CX1": (7.5, 0.5, 0.0),     # over its own film body, off BR1
+    "BR1": (3.8, 2.4, 0.0),     # over its own body, off CC1
+    "U2": (-2.5, 2.5, 0.0),     # east of the DIP, clear of CY1
+    "CY1": (12.0, 1.25, 0.0),   # east of the disc, under TP2
+    "U1": (0.0, 4.2, 0.0),      # south of the SOIC (back silk)
+    "CO2": (0.0, 2.0, 0.0),     # south of the cap, off T1's pads
+    "RO2": (0.0, -1.7, 0.0),    # north of the body, off TP2's annulus
+    "CY3": (3.5, 0.0, 0.0),     # over its own disc, off RC1's label
+    "RFB1": (0.0, -2.6, 0.0),   # west of the divider pair
+    "RFB2": (-2.6, 0.0, 0.0),   # north of its own body
+    "D7": (0.0, 2.5, 0.0),      # south, clear of CO1's pad
 }
+
+FLYBACK_NET_WIDTHS: dict[str, float] = {
+    net: HV_W
+    for net in (*PRIMARY_NETS, *EARTH_NETS, "/SEC", "/3V3", "/GNDS")
+}
+
+
+def flyback_checks_spec() -> DesignChecksSpec:
+    """THE flyback rule declaration: the router keepouts, the design
+    checks, and the CLI authority all read this one spec."""
+    return DesignChecksSpec(
+        net_currents=(("/3V3", 0.5), ("/GNDS", 0.5)),
+        isolation_barrier=(
+            BARRIER_X,
+            ISOLATION_GAP_MM,
+            PRIMARY_NETS,
+            SECONDARY_NETS,
+            STRADDLE_REFS,
+        ),
+        net_group_clearances=(
+            # Rule 10.4: protective earth keeps basic-insulation
+            # distance from the mains nets; only the certified line
+            # Y-caps bridge (FLBACK-001 practice).
+            (
+                "earth-to-primary clearance",
+                ("/EARTH",),
+                PRIMARY_NETS,
+                3.0,
+                ("CY2", "CY3"),
+            ),
+            (
+                "earth-to-secondary clearance",
+                ("/EARTH",),
+                SECONDARY_NETS,
+                ISOLATION_GAP_MM,
+                (),
+            ),
+        ),
+        allowed_unconnected_pins=(
+            # UCC28881 is a SOIC-7: leads 6/7 are physically absent
+            # (datasheet p3); the SOIC-8 land keeps the pads.
+            ("U1", "6"), ("U1", "7"),
+            # TEZ land pads not used by this winding spec.
+            ("T1", "2"), ("T1", "6"), ("T1", "7"),
+        ),
+    )
 
 
 def flyback_silk_graphics(origin: float) -> tuple[str, ...]:
     graphics: list[str] = []
-    # Dashed isolation boundary, drawn only where the straddle parts
-    # (U2, T1, CY1) and the ISOLATION label leave silkscreen room.
-    for y1, y2 in ((2.0, 3.5), (9.9, 11.0), (36.2, 38.1), (40.9, 41.9)):
+    # Rule 10.2: the barrier drawn on silk. The FRONT at x=51 is almost
+    # entirely occupied by the straddle parts (U2 y 1.7-6.8, CY1
+    # y 7.3-12.3, T1 y 12.8-37.3), so the front carries the free bottom
+    # segment plus the ISOLATION text; the BACK is clear along the whole
+    # barrier and carries the full dashed line.
+    graphics.append(
+        silk_line((BARRIER_X, 37.6), (BARRIER_X, 41.0), origin, width=0.4)
+    )
+    dash_y = 1.0
+    while dash_y + 1.5 <= 41.0:
         graphics.append(
-            silk_line((BARRIER_X, y1), (BARRIER_X, y2), origin, width=0.4)
+            silk_line(
+                (BARRIER_X, dash_y), (BARRIER_X, dash_y + 1.5), origin,
+                width=0.4, layer="B.SilkS",
+            )
         )
-    graphics.append(silk_text("HV", (33.0, 8.0), origin, size=1.6))
-    graphics.append(silk_text("ISOLATION", (61.0, 39.5), origin, size=1.0))
-    graphics.append(silk_text("3V3", (85.0, 20.0), origin, size=1.6))
-    graphics.append(silk_text("DANGER", (11.0, 15.2), origin, size=1.2))
-    graphics.append(silk_text("120 VAC", (10.5, 19.0), origin, size=1.2))
-    graphics.append(silk_text("EARTH", (8.2, 17.0), origin, size=0.8))
+        dash_y += 3.0
+    graphics.append(silk_text("ISOLATION", (57.5, 39.4), origin, size=1.0))
+    graphics.append(silk_text("DANGER 120VAC", (22.0, 9.0), origin, size=1.0))
+    graphics.append(silk_text("HV", (28.5, 21.5), origin, size=1.6))
+    graphics.append(silk_text("EARTH", (8.0, 16.5), origin, size=0.8))
+    graphics.append(silk_text("3V3", (65.5, 20.0), origin, size=1.6))
     return tuple(graphics)
 
 
-def compute_flyback_board_layout(netlist: BoardNetlist) -> BoardLayout:
+def _unrouted_layout(netlist: BoardNetlist) -> BoardLayout:
     by_ref = {component.reference: component for component in netlist.components}
-    nets = NetLookup(netlist)
-
     placements: list[tuple[BoardComponent, float]] = []
     part_y: list[tuple[str, float]] = []
     part_rotation: list[tuple[str, float]] = []
@@ -141,312 +222,10 @@ def compute_flyback_board_layout(netlist: BoardNetlist) -> BoardLayout:
         part_y.append((reference, y))
         if rotation:
             part_rotation.append((reference, rotation))
-
-    def pad(reference: str, pin: str) -> tuple[float, float]:
-        x, y, rotation = PLACEMENTS[reference]
-        return placed_pad(
-            by_ref[reference].footprint, pin, anchor=(x, y), rotation=rotation
-        )
-
-    def pad_for(reference: str, net_name: str) -> tuple[float, float]:
-        return pad(reference, nets.pin_on(reference, net_name))
-
-    router = Router()
-
-    # ---- Primary side ----
-    j1_l, j1_n = pad("J1", "1"), pad("J1", "2")
-    nets.expect("J1", "1", "/L")
-    rf1_l = pad_for("RF1", "/L")
-    rf1_acl = pad_for("RF1", "/ACL")
-    router.path("/L", (j1_l, (j1_l[0], 4.0), rf1_l), layer="F.Cu", width=HV_W)
-
-    rv1_acl = pad_for("RV1", "/ACL")
-    rv1_n = pad_for("RV1", "/N")
-    cx1_acl = pad_for("CX1", "/ACL")
-    cx1_n = pad_for("CX1", "/N")
-    br1_hvp = pad("BR1", "1")
-    br1_hvm = pad("BR1", "2")
-    br1_acl = pad("BR1", "3")
-    br1_n = pad("BR1", "4")
-    nets.expect("BR1", "1", "/HVP")
-
-    # N: terminal -> X2 cap -> (back) MOV and bridge and N-side Y cap.
-    router.path("/N", (j1_n, (13.0, 11.0), cx1_n), layer="F.Cu", width=HV_W)
-    router.path("/N", (rv1_n, (20.0, 6.0), j1_n), layer="B.Cu", width=HV_W)
-    router.path(
-        "/N", (cx1_n, (16.8, 17.0), (17.0, 21.0), br1_n),
-        layer="B.Cu", width=HV_W,
-    )
-    cy3_n = pad_for("CY3", "/N")
-    router.path("/N", (br1_n, (16.5, 28.5), cy3_n), layer="B.Cu", width=HV_W)
-
-    # ACL: post-fuse live to the MOV, X2, bridge, and L-side Y cap.
-    router.path("/ACL", (rf1_acl, (38.5, 5.0), rv1_acl), layer="F.Cu", width=HV_W)
-    router.path("/ACL", (rf1_acl, (31.0, 8.0), cx1_acl), layer="F.Cu", width=HV_W)
-    router.path(
-        "/ACL", (cx1_acl, (21.0, 17.5), br1_acl), layer="F.Cu", width=HV_W
-    )
-    cy2_acl = pad_for("CY2", "/ACL")
-    router.path("/ACL", (br1_acl, (16.5, 21.5), cy2_acl), layer="F.Cu", width=HV_W)
-
-    # EARTH: wire pad up the west edge to both line Y caps.
-    e1_earth = pad_for("E1", "/EARTH")
-    cy2_earth = pad_for("CY2", "/EARTH")
-    cy3_earth = pad_for("CY3", "/EARTH")
-    router.path(
-        "/EARTH", (e1_earth, (3.5, 24.0), cy2_earth), layer="F.Cu", width=HV_W
-    )
-    router.path(
-        "/EARTH", ((3.5, 24.0), (3.5, 31.0), cy3_earth),
-        layer="F.Cu", width=HV_W,
-    )
-
-    # HVP: bridge + -> bulk +, TVS, test point, transformer, HVIN, clamp.
-    cb1_p = pad_for("CB1", "/HVP")
-    cb1_m = pad_for("CB1", "/HVM")
-    d5_k = pad_for("D5", "/HVP")
-    d5_a = pad_for("D5", "/HVM")
-    t1_hvp = pad("T1", "1")
-    nets.expect("T1", "1", "/HVP")
-    u1_hvin = pad("U1", "5")
-    u1_drain = pad("U1", "8")
-    rc1_hvp = pad_for("RC1", "/HVP")
-    tp1 = pad("TP1", "1")
-    router.path(
-        "/HVP", (br1_hvp, (28.5, 27.5), cb1_p), layer="F.Cu", width=HV_W
-    )
-    router.path(
-        "/HVP",
-        (d5_k, (38.9, 25.0), (38.9, 18.5), t1_hvp),
-        layer="F.Cu", width=HV_W,
-    )
-    router.path(
-        "/HVP", ((38.9, 18.5), tp1), layer="F.Cu", width=HV_W
-    )
-    router.path(
-        "/HVP", (cb1_p, (35.0, 29.5), d5_k), layer="F.Cu", width=HV_W
-    )
-
-    # HVIN and the clamp source dive to the back at the test point's
-    # through-hole and resurface next to the switcher.
-    router.path(
-        "/HVP",
-        (tp1, (30.0, 34.0), (24.5, 37.5), (23.6, 38.9)),
-        layer="B.Cu", width=HV_W,
-    )
-    router.via("/HVP", 23.6, 38.9)
-    router.path(
-        "/HVP", ((23.6, 38.9), (u1_hvin[0] + 2.1, u1_hvin[1]), u1_hvin),
-        layer="F.Cu", width=HV_W,
-    )
-    router.path(
-        "/HVP", ((23.6, 38.9), (24.0, 40.5), (25.5, 44.0), rc1_hvp),
-        layer="F.Cu", width=HV_W,
-    )
-    router.via("/HVP", 39.5, 41.5)
-    router.path(
-        "/HVP", ((30.0, 34.0), (38.0, 40.5), (39.5, 41.5)),
-        layer="B.Cu", width=HV_W,
-    )
-
-
-    # HVM: bridge - -> bulk -, TVS return, controller ground, CV1, Y-cap.
-    u1_gnd1, u1_gnd2 = pad("U1", "1"), pad("U1", "2")
-    cy1_hvm = pad_for("CY1", "/HVM")
-    router.path(
-        "/HVM", (br1_hvm, (24.0, 20.5), (24.0, 29.0), cb1_m),
-        layer="F.Cu", width=HV_W,
-    )
-    router.path(
-        "/HVM", (br1_hvm, (31.0, 18.2), (35.5, 20.5), d5_a),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path(
-        "/HVM", (cb1_m, (20.0, 33.5), (16.4, 34.8), u1_gnd1),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path("/HVM", (u1_gnd1, u1_gnd2), layer="F.Cu", width=SIG_W)
-    rp1_hvm = pad_for("RP1", "/HVM")
-    router.path("/HVM", (rp1_hvm, (13.5, 35.7), u1_gnd1),
-                layer="F.Cu", width=SIG_W)
-    cv1_hvm = pad_for("CV1", "/HVM")
-    router.via("/HVM", 12.0, 33.5)
-    router.path(
-        "/HVM", ((12.0, 33.5), (14.0, 34.5), (16.4, 34.8)),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path(
-        "/HVM", ((12.0, 33.5), (12.0, 43.5), (14.0, 45.0)),
-        layer="B.Cu", width=SIG_W,
-    )
-    router.via("/HVM", 14.0, 45.0)
-    router.path(
-        "/HVM", (cv1_hvm, (12.0, 42.8), (14.0, 45.0)),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path(
-        "/HVM",
-        ((14.0, 45.0), (15.0, 48.3), (44.0, 48.3), (50.0, 47.0), cy1_hvm),
-        layer="B.Cu", width=SIG_W,
-    )
-
-    # Clamp: HVP -> RC1 || CC1 -> CLAMP -> D6 -> SW.
-    rc1_cl = pad_for("RC1", "/CLAMP")
-    cc1_hvp = pad_for("CC1", "/HVP")
-    cc1_cl = pad_for("CC1", "/CLAMP")
-    d6_cl = pad_for("D6", "/CLAMP")
-    d6_sw = pad_for("D6", "/SW")
-    router.path("/HVP", ((39.5, 41.5), cc1_hvp), layer="F.Cu", width=HV_W)
-    router.path(
-        "/CLAMP",
-        (rc1_cl, (43.5, 44.0), (36.0, 44.3), (32.0, 42.5), cc1_cl),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path("/CLAMP", ((43.5, 44.0), d6_cl), layer="F.Cu", width=SIG_W)
-
-    # SW: transformer primary return, clamp diode, drain (the drain lane
-    # threads between the bulk can's pads).
-    t1_sw = pad("T1", "4")
-    router.path("/SW", (t1_sw, (43.8, 34.0), d6_sw), layer="F.Cu", width=SIG_W)
-    router.path(
-        "/SW",
-        (t1_sw, (39.5, 33.8), (35.0, 34.6), (25.0, 35.3),
-         (u1_drain[0] + 1.2, u1_drain[1]), u1_drain),
-        layer="F.Cu", width=HV_W,
-    )
-
-    # VDD and FB housekeeping to the optocoupler.
-    u1_vdd = pad("U1", "4")
-    u1_fb = pad("U1", "3")
-    cv1_vdd = pad_for("CV1", "/VDD")
-    u2_vdd = pad("U2", "4")
-    u2_fb = pad("U2", "3")
-    rp1_fb = pad_for("RP1", "/FB")
-    router.path(
-        "/VDD", (u1_vdd, (13.5, u1_vdd[1]), cv1_vdd),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.via("/VDD", 13.8, 41.3)
-    router.path("/VDD", (cv1_vdd, (13.8, 41.3)), layer="F.Cu", width=SIG_W)
-    router.path(
-        "/VDD",
-        ((13.8, 41.3), (24.0, 43.0), (33.0, 44.6), (38.0, 45.0),
-         (43.0, 44.8), (46.5, 43.0), (47.5, 37.0), (47.5, 20.0),
-         (46.0, 9.7), (52.0, 9.0), u2_vdd),
-        layer="B.Cu", width=SIG_W,
-    )
-    router.path(
-        "/FB",
-        (rp1_fb, (10.225, u1_fb[1]), u1_fb),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.via("/FB", 10.0, 18.5)
-    router.path(
-        "/FB", (rp1_fb, (10.0, 33.0), (10.0, 18.5)),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path(
-        "/FB",
-        ((10.0, 18.5), (13.0, 12.0), (13.0, 9.0), (20.0, 7.5),
-         (30.0, 7.0), (36.5, 8.0), (43.0, 10.0), (48.0, 7.0), u2_fb),
-        layer="B.Cu", width=SIG_W,
-    )
-
-    # ---- Secondary side ----
-    t1_sec = pad("T1", "5")
-    t1_gnds = pad("T1", "8")
-    d7_sec = pad_for("D7", "/SEC")
-    d7_3v3 = pad_for("D7", "/3V3")
-    router.path("/SEC", (t1_sec, d7_sec), layer="F.Cu", width=HV_W)
-
-    # 3V3 bus along y=31, GNDS bus along y=16.
-    router.path("/3V3", (d7_3v3, (81.5, 31.0)), layer="F.Cu", width=HV_W)
-    router.path("/GNDS", (t1_gnds, (84.5, 16.0)), layer="F.Cu", width=HV_W)
-    tp2 = pad("TP2", "1")
-    router.path("/GNDS", (tp2, (tp2[0], 16.0)), layer="F.Cu", width=SIG_W)
-
-    # Output filter: CO1 between the buses, CO2 south of the 3V3 bus.
-    co1_3v3 = pad_for("CO1", "/3V3")
-    co1_gnds = pad_for("CO1", "/GNDS")
-    router.path("/3V3", (co1_3v3, (co1_3v3[0], 31.0)), layer="F.Cu", width=SIG_W)
-    router.path("/GNDS", (co1_gnds, (co1_gnds[0], 16.0)), layer="F.Cu", width=SIG_W)
-    co2_3v3 = pad_for("CO2", "/3V3")
-    co2_gnds = pad_for("CO2", "/GNDS")
-    router.path("/3V3", (co2_3v3, (co2_3v3[0], 31.0)), layer="F.Cu", width=SIG_W)
-    router.path("/GNDS", (co2_gnds, (co2_gnds[0], 45.0)), layer="F.Cu", width=SIG_W)
-
-    # Feedback divider south-east; FBS reaches the LMV431 over the back.
-    rfb1_3v3 = pad_for("RFB1", "/3V3")
-    rfb1_fbs = pad_for("RFB1", "/FBS")
-    rfb2_fbs = pad_for("RFB2", "/FBS")
-    rfb2_gnds = pad_for("RFB2", "/GNDS")
-    router.path("/3V3", (rfb1_3v3, (rfb1_3v3[0], 31.0)), layer="F.Cu", width=SIG_W)
-    router.path(
-        "/FBS",
-        (rfb1_fbs, (80.0, 36.0), (83.0, 36.0), rfb2_fbs),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path("/GNDS", (rfb2_gnds, (84.5, 33.0)), layer="F.Cu", width=SIG_W)
-
-    u3_k = pad("U3", "1")
-    u3_ref = pad("U3", "2")
-    u3_a = pad("U3", "3")
-    router.via("/FBS", 78.2, 21.5)
-    router.path("/FBS", (u3_ref, (78.2, 21.5)), layer="F.Cu", width=SIG_W)
-    router.via("/FBS", 79.3, 37.3)
-    router.path("/FBS", ((78.2, 21.5), (79.3, 37.3)), layer="B.Cu", width=SIG_W)
-    router.path("/FBS", ((79.3, 37.3), (80.0, 36.0)), layer="F.Cu", width=SIG_W)
-    # The DNP compensation cap parks beside the divider: its 3V3 stub
-    # tees the bus, its FBS stub joins the LMV431 REF via.
-    cf1_3v3 = pad_for("CF1", "/3V3")
-    cf1_fbs = pad_for("CF1", "/FBS")
-    router.path("/3V3", (cf1_3v3, (cf1_3v3[0], 31.0)), layer="F.Cu", width=SIG_W)
-    router.path(
-        "/FBS", (cf1_fbs, (80.5, 24.0), (78.2, 21.5)),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path("/GNDS", (u3_a, (77.5, 17.0), (77.5, 16.0)),
-                layer="F.Cu", width=SIG_W)
-    u2_opk = pad("U2", "2")
-    u2_leda = pad("U2", "1")
-    router.via("/OPK", 71.3, 17.4)
-    router.path("/OPK", (u3_k, (71.3, 17.4)), layer="F.Cu", width=SIG_W)
-    router.path("/OPK", ((71.3, 17.4), u2_opk), layer="B.Cu", width=SIG_W)
-
-    # Opto drive: RO1 series resistor, RO2 across the LED.
-    ro1_3v3 = pad_for("RO1", "/3V3")
-    ro1_leda = pad_for("RO1", "/LEDA")
-    ro2_leda = pad_for("RO2", "/LEDA")
-    ro2_opk = pad_for("RO2", "/OPK")
-    router.path(
-        "/3V3", (ro1_3v3, (63.3, 26.0), (65.5, 29.0), (69.0, 31.0)),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.via("/LEDA", 63.9, 19.0)
-    router.path("/LEDA", (ro1_leda, (63.9, 19.0)), layer="F.Cu", width=SIG_W)
-    router.path("/LEDA", ((63.9, 19.0), u2_leda), layer="B.Cu", width=SIG_W)
-    router.path("/LEDA", (ro2_leda, (62.0, 7.5), u2_leda),
-                layer="F.Cu", width=SIG_W)
-    router.path("/OPK", (ro2_opk, (65.5, 5.0), (62.0, 4.8), u2_opk),
-                layer="F.Cu", width=SIG_W)
-
-    # Y-capacitor secondary leg and the output terminal.
-    cy1_gnds = pad_for("CY1", "/GNDS")
-    j2_3v3 = pad_for("J2", "/3V3")
-    j2_gnds = pad_for("J2", "/GNDS")
-    router.path(
-        "/GNDS",
-        (cy1_gnds, (80.0, 45.0), j2_gnds),
-        layer="F.Cu", width=SIG_W,
-    )
-    router.path("/3V3", (j2_3v3, (j2_3v3[0], 31.0)), layer="F.Cu", width=HV_W)
-    router.path("/GNDS", (j2_gnds, (84.5, 40.0), (84.5, 16.0)),
-                layer="F.Cu", width=HV_W)
-
     return BoardLayout(
         placements=tuple(placements),
-        segments=tuple(router.segments),
-        vias=tuple(router.vias),
+        segments=(),
+        vias=(),
         width_mm=BOARD_W,
         height_mm=BOARD_H,
         part_y_mm=tuple(part_y),
@@ -454,7 +233,23 @@ def compute_flyback_board_layout(netlist: BoardNetlist) -> BoardLayout:
         zones=(),
         graphics=flyback_silk_graphics(BOARD_SHEET_ORIGIN_MM),
         part_reference_at=tuple(REFERENCE_AT.items()),
+        part_flip=FLIPPED_REFS,
     )
+
+
+def compute_flyback_board_layout(netlist: BoardNetlist) -> BoardLayout:
+    result = route_board(
+        _unrouted_layout(netlist),
+        netlist,
+        net_widths=FLYBACK_NET_WIDTHS,
+        default_width_mm=SIG_W,
+        clearance_groups=clearance_groups_from_spec(flyback_checks_spec()),
+    )
+    if result.failed:
+        raise BoardGenerationError(
+            "route_board could not route: " + ", ".join(result.failed)
+        )
+    return result.layout
 
 
 def generate_flyback_board(

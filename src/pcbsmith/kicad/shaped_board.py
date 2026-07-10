@@ -271,13 +271,14 @@ def silk_poly(points: Sequence[Point], origin: float) -> str:
 
 
 def silk_line(
-    a: Point, b: Point, origin: float, width: float = 0.3
+    a: Point, b: Point, origin: float, width: float = 0.3,
+    layer: str = "F.SilkS",
 ) -> str:
     return f"""  (gr_line
     (start {a[0] + origin:.3f} {a[1] + origin:.3f})
     (end {b[0] + origin:.3f} {b[1] + origin:.3f})
     (stroke (width {width}) (type solid))
-    (layer "F.SilkS")
+    (layer "{layer}")
     (uuid {uuid4()})
   )"""
 

@@ -1,17 +1,15 @@
-"""Dual-side flyback compaction experiment (Track 8.2 follow-up).
+"""Dual-side flyback polish harness (Track 8.2 follow-up).
 
-Goal: shrink the 88 x 50 mm flyback r002 toward the FLBACK-001
-reference (80.4 x 36.8 mm) by moving the SMD control circuitry to the
-BACK, the way the reference does. Our TEZ-22x24 transformer is
-physically larger than their EFD20 (24.5 x 22.5 mm courtyard), so the
-honest floor for this magnetics choice is ~80 x 40.
+Originally the compaction EXPERIMENT that produced the 80 x 42 dual-side
+layout; that layout was promoted into `kicad/flyback_board.py` (r003)
+and this script now imports the promoted placements instead of carrying
+its own copy - one truth, no drift. What remains here is the search
+harness: route the promoted base, score it, then run the
+`climb_placements` polish (nudge / rotate / side-flip local search)
+and report whether the incumbent improves.
 
-Stages (each gated by the machinery that judges real boards):
-1. courtyard/silk pre-gate on the hand-drafted dual-side placements
-2. route_board with the rule-10.1 creepage clearance groups
-3. layout_score (virtual DRC + design checks as hard gates)
-4. climb_placements polish (nudge / rotate / flip local search)
-5. write the routed .kicad_pcb + a score report for review
+History and analysis:
+`docs/reference-comparisons/flyback-dual-side-compaction.md`.
 
 Run:  python -X utf8 tools/flyback_compaction.py <output-dir> [--skip-climb]
 """
@@ -38,16 +36,16 @@ from pcbsmith.kicad.board import (
     BoardNetlist,
     render_board_from_layout,
 )
-from pcbsmith.kicad.design_checks import DesignChecksSpec
 from pcbsmith.kicad.export_flyback import INSTANCES
 from pcbsmith.kicad.flyback_board import (
-    EARTH_NETS,
-    HV_W,
-    ISOLATION_GAP_MM,
-    PRIMARY_NETS,
-    SECONDARY_NETS,
+    BOARD_H,
+    BOARD_W,
+    FLIPPED_REFS,
+    FLYBACK_NET_WIDTHS,
+    PLACEMENTS,
+    REFERENCE_AT,
     SIG_W,
-    STRADDLE_REFS,
+    flyback_checks_spec,
 )
 from pcbsmith.kicad.layout_score import score_layout
 from pcbsmith.kicad.placement_search import (
@@ -55,84 +53,6 @@ from pcbsmith.kicad.placement_search import (
     bare_layout,
     climb_placements,
 )
-
-BOARD_W = 80.0
-BOARD_H = 42.0
-BARRIER_X = 51.0
-
-# (x, y, rotation). Anchors chosen against the probed courtyard hulls;
-# the pre-gate (courtyards + real-metric silk model) is the referee.
-PLACEMENTS: dict[str, tuple[float, float, float]] = {
-    # -- front, primary THT ------------------------------------------
-    "J1": (4.5, 7.8, 0.0),
-    "E1": (3.0, 16.5, 0.0),
-    "CY2": (14.5, 22.5, 180.0),
-    "CY3": (14.5, 29.5, 180.0),
-    "RF1": (17.0, 3.5, 0.0),
-    "RV1": (37.0, 8.7, 180.0),
-    "CX1": (33.0, 14.2, 180.0),
-    "BR1": (25.0, 25.0, 180.0),
-    "CB1": (34.5, 32.0, 180.0),
-    "TP1": (37.0, 20.0, 0.0),
-    "RC1": (3.5, 38.5, 0.0),
-    "CC1": (23.5, 38.5, 90.0),
-    # -- the barrier band --------------------------------------------
-    "T1": (43.0, 17.5, 270.0),
-    "U2": (55.0, 5.0, 180.0),
-    "CY1": (45.0, 9.75, 0.0),
-    # -- front, secondary --------------------------------------------
-    "TP2": (58.0, 8.0, 0.0),
-    "J2": (71.0, 33.5, 0.0),
-    # -- back, primary SMD control -----------------------------------
-    # U1's cluster lives in the only back-primary pocket clear of THT
-    # annuli (CY2/CY3/CB1/BR1/RC1 pads all poke through): the HV pad
-    # clearance is 1.5 mm edge-to-edge and placement must supply it.
-    "U1": (9.5, 34.5, 0.0),
-    "CV1": (12.5, 25.5, 0.0),
-    "RP1": (8.5, 27.0, 0.0),
-    "D5": (33.0, 20.0, 90.0),
-    "D6": (35.0, 37.0, 0.0),
-    # -- back, secondary SMD -----------------------------------------
-    # D7/RO1 keep >2.5 mm from the T1 secondary pin row at x=58: the
-    # UNUSED transformer pins are still THT copper and wall in any SMD
-    # pad parked next to them (grid router lesson).
-    "D7": (62.5, 28.0, 0.0),
-    "CO1": (64.0, 20.0, 90.0),
-    "CO2": (60.0, 34.0, 0.0),
-    "U3": (71.0, 15.0, 0.0),
-    "RFB1": (75.0, 28.0, 90.0),
-    "RFB2": (77.5, 28.0, 90.0),
-    "RO1": (55.5, 18.0, 90.0),
-    "RO2": (59.5, 5.5, 0.0),
-    "CF1": (72.5, 24.0, 90.0),
-}
-
-FLIPPED: frozenset[str] = frozenset(
-    {"U1", "CV1", "RP1", "D5", "D6",
-     "D7", "CO1", "CO2", "U3", "RFB1", "RFB2", "RO1", "RO2", "CF1"}
-)
-
-# Footprint-local (x, y, total angle) reference-label overrides whose
-# defaults land on neighbours in this compacted layout (silk model +
-# live-DRC discipline, same mechanism as the r002 board).
-REFERENCE_AT: dict[str, tuple[float, float, float]] = {
-    "E1": (0.0, 3.3, 0.0),      # below the wire pad, off J1's body
-    "RF1": (7.62, 3.5, 0.0),    # south of the axial body (edge clip)
-    "CX1": (7.5, 0.5, 0.0),     # over its own film body, off BR1
-    "BR1": (3.8, 2.4, 0.0),     # over its own body, off CC1
-    "U2": (-2.5, 2.5, 0.0),     # east of the DIP, clear of CY1
-    "CY1": (12.0, 1.25, 0.0),   # east of the disc, under TP2
-    "U1": (0.0, 4.2, 0.0),      # south of the SOIC (back silk)
-    "CO2": (0.0, 2.0, 0.0),     # south of the cap, off T1's pads
-    "RO2": (0.0, -1.7, 0.0),    # north of the body, off TP2's annulus
-    "CY3": (3.5, 0.0, 0.0),     # over its own disc, off RC1's label
-    # Live kicad-cli findings: KiCad's real text boxes put these three
-    # back-silk labels on neighbouring pads/outlines. Back side label
-    # transform is INVERSE rotation then x-mirror.
-    "RFB1": (0.0, -2.6, 0.0),   # west of the divider pair
-    "RFB2": (-2.6, 0.0, 0.0),   # north of its own body
-    "D7": (0.0, 2.5, 0.0),      # south, clear of CO1's pad
-}
 
 
 def offline_netlist() -> BoardNetlist:
@@ -158,26 +78,6 @@ def offline_netlist() -> BoardNetlist:
     )
 
 
-def checks_spec() -> DesignChecksSpec:
-    return DesignChecksSpec(
-        isolation_barrier=(
-            BARRIER_X, ISOLATION_GAP_MM,
-            PRIMARY_NETS, SECONDARY_NETS, STRADDLE_REFS,
-        ),
-        allowed_unconnected_pins=(
-            ("U1", "6"), ("U1", "7"),
-            ("T1", "2"), ("T1", "6"), ("T1", "7"),
-        ),
-    )
-
-
-def net_widths() -> dict[str, float]:
-    return {
-        net: HV_W
-        for net in (*PRIMARY_NETS, *EARTH_NETS, "/SEC", "/3V3", "/GNDS")
-    }
-
-
 def main() -> int:
     output_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(
         "outputs/flyback-compaction"
@@ -186,12 +86,13 @@ def main() -> int:
     output_dir.mkdir(parents=True, exist_ok=True)
 
     netlist = offline_netlist()
-    spec = checks_spec()
+    spec = flyback_checks_spec()
     groups = clearance_groups_from_spec(spec)
+    flipped = frozenset(FLIPPED_REFS)
 
     layout = bare_layout(
         netlist, PLACEMENTS, width_mm=BOARD_W, height_mm=BOARD_H,
-        part_flip=FLIPPED,
+        part_flip=flipped,
         part_reference_at=tuple(REFERENCE_AT.items()),
     )
     gate = _pre_gate(layout, netlist)
@@ -202,7 +103,7 @@ def main() -> int:
 
     outcome = route_board(
         layout, netlist,
-        net_widths=net_widths(), default_width_mm=SIG_W,
+        net_widths=FLYBACK_NET_WIDTHS, default_width_mm=SIG_W,
         clearance_groups=groups,
     )
     if outcome.failed:
@@ -220,17 +121,17 @@ def main() -> int:
     best_layout = outcome.layout
     best_score = score
     best_placements = dict(PLACEMENTS)
-    best_flipped = FLIPPED
+    best_flipped = flipped
     if not skip_climb and score.is_viable:
         trajectory = climb_placements(
             netlist, PLACEMENTS,
             board_w=BOARD_W, board_h=BOARD_H,
             movable=tuple(PLACEMENTS),
-            rotatable=tuple(FLIPPED),
-            flippable=tuple(FLIPPED),
-            base_flipped=FLIPPED,
+            rotatable=FLIPPED_REFS,
+            flippable=FLIPPED_REFS,
+            base_flipped=flipped,
             rounds=3, candidates=6, seed=1,
-            net_widths=net_widths(), clearance_groups=groups,
+            net_widths=FLYBACK_NET_WIDTHS, clearance_groups=groups,
             spec=spec,
             part_reference_at=tuple(REFERENCE_AT.items()),
             on_progress=lambda line: print(f"  climb: {line}"),
@@ -249,7 +150,6 @@ def main() -> int:
     )
     report = {
         "board_mm": [BOARD_W, BOARD_H],
-        "barrier_x": BARRIER_X,
         "reference_mm": [80.4, 36.8],
         "previous_mm": [88.0, 50.0],
         "flipped": sorted(best_flipped),

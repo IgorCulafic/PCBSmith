@@ -77,12 +77,30 @@ class ReaderFlag:
 
 
 @dataclass(frozen=True)
+class CustomReaderSymbol:
+    """A PCBSmith custom symbol (not loadable via load_symbol): pin
+    connection points in symbol coordinates (y UP, like .kicad_sym)
+    plus the ready-made lib_symbols entry text."""
+
+    lib_id: str
+    pins: tuple[tuple[str, float, float], ...]  # (number, x_mm, y_mm-up)
+    library_entry: str
+
+
+@dataclass(frozen=True)
 class ReaderSpec:
     instances: tuple[ReaderInstance, ...]
     wires: tuple[Segment, ...]
     labels: tuple[tuple[str, Point], ...]
     flags: tuple[ReaderFlag, ...] = ()
+    customs: tuple[CustomReaderSymbol, ...] = ()
     paper: str = "A3"
+
+    def custom(self, lib_id: str) -> CustomReaderSymbol | None:
+        for entry in self.customs:
+            if entry.lib_id == lib_id:
+                return entry
+        return None
 
 
 @dataclass(frozen=True)

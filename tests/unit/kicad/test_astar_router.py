@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from tests.unit.kicad.test_flyback_board import _netlist as flyback_netlist
+from tests.unit.kicad.test_flyback_board import _routed as flyback_routed
 
 from pcbsmith.kicad.astar_router import (
     clearance_groups_from_spec,
@@ -17,7 +17,6 @@ from pcbsmith.kicad.board import (
     BoardNetlist,
     TrackSegment,
 )
-from pcbsmith.kicad.flyback_board import compute_flyback_board_layout
 from pcbsmith.kicad.layout_score import score_layout
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
 
@@ -90,13 +89,12 @@ def test_full_wall_forces_vias_to_the_back() -> None:
 
 
 def test_reroutes_flyback_fb_net_verifier_clean() -> None:
-    """The head-to-head: strip the hand-routed FB net from the real
-    flyback board and let the router redo it against all remaining
-    copper. The scorer - including the isolation rules - is the judge."""
+    """Strip the FB net from the real (automation-routed) flyback board
+    and let the router redo it against all remaining copper. The
+    scorer - including the isolation rules - is the judge."""
     from tests.unit.kicad.test_flyback_board import _spec
 
-    netlist = flyback_netlist()
-    hand = compute_flyback_board_layout(netlist)
+    netlist, hand = flyback_routed()
     hand_fb_length = sum(
         ((seg.x1 - seg.x2) ** 2 + (seg.y1 - seg.y2) ** 2) ** 0.5
         for seg in hand.segments
@@ -117,20 +115,25 @@ def test_reroutes_flyback_fb_net_verifier_clean() -> None:
     assert result.length_mm < hand_fb_length * 1.6
 
 
-def test_beats_hand_route_on_flyback_vdd() -> None:
-    """Live measurement locked in as a regression: the MVP router found
-    a via-free VDD route shorter than the hand-crafted one."""
+def test_reroutes_flyback_vdd_at_parity() -> None:
+    """r003 is already automation-routed, so the old beats-the-hand-
+    layout assertion has no hand baseline left. What must still hold:
+    stripping /VDD from the FINISHED board (all other copper as
+    obstacles) and re-routing it stays viable and lands near the
+    production route's cost - rip-up-and-reroute is the search's
+    fundamental move."""
     from tests.unit.kicad.test_flyback_board import _spec
 
-    netlist = flyback_netlist()
-    hand = compute_flyback_board_layout(netlist)
-    hand_length = sum(
+    netlist, production = flyback_routed()
+    production_length = sum(
         ((seg.x1 - seg.x2) ** 2 + (seg.y1 - seg.y2) ** 2) ** 0.5
-        for seg in hand.segments
+        for seg in production.segments
         if seg.net_name == "/VDD"
     )
-    hand_vias = sum(1 for via in hand.vias if via.net_name == "/VDD")
-    stripped = strip_net(hand, "/VDD")
+    production_vias = sum(
+        1 for via in production.vias if via.net_name == "/VDD"
+    )
+    stripped = strip_net(production, "/VDD")
     result = route_net(
         stripped, netlist, "/VDD",
         clearance_groups=clearance_groups_from_spec(_spec()),
@@ -138,39 +141,39 @@ def test_beats_hand_route_on_flyback_vdd() -> None:
     routed = with_route(stripped, result)
     score = score_layout(routed, netlist, _spec())
     assert score.is_viable
-    assert result.length_mm < hand_length
-    assert len(result.vias) < hand_vias
+    # The in-order production route had less copper to dodge; the
+    # reroute against the full board may pay a small detour tax.
+    assert result.length_mm < production_length * 1.3
+    assert len(result.vias) <= production_vias + 1
 
 
-def test_routes_entire_flyback_board_and_beats_hand_layout() -> None:
-    """The full-board experiment: every net of the real flyback routed
-    from bare placements. The complete result must pass the whole spec
-    (isolation included) and cost less than the hand routing on the
-    scorecard (track + via equivalence). ~15s - the price of the
-    strongest regression this suite owns."""
+def test_routes_entire_flyback_board_from_bare_placements() -> None:
+    """The full-board regression: every net of the real flyback routed
+    from bare placements with the PRODUCTION widths and clearance
+    groups. Must pass the whole spec (isolation included) and
+    reproduce the production layout's routing cost - this is exactly
+    how compute_flyback_board_layout builds r003, so the reroute is a
+    determinism/parity check, not a competition."""
     from tests.unit.kicad.test_flyback_board import _spec
 
     from pcbsmith.kicad.astar_router import route_board
+    from pcbsmith.kicad.flyback_board import FLYBACK_NET_WIDTHS, SIG_W
 
-    netlist = flyback_netlist()
-    hand = compute_flyback_board_layout(netlist)
-    bare = hand.__class__(
+    netlist, production = flyback_routed()
+    bare = production.__class__(
         **{
-            **{key: getattr(hand, key) for key in hand.__dataclass_fields__},
+            **{
+                key: getattr(production, key)
+                for key in production.__dataclass_fields__
+            },
             "segments": (),
             "vias": (),
         }
     )
-    widths = {
-        net: 0.8
-        for net in (
-            "/L", "/N", "/ACL", "/HVP", "/HVM", "/SW",
-            "/SEC", "/3V3", "/GNDS",
-        )
-    }
     outcome = route_board(
         bare, netlist,
-        net_widths=widths,
+        net_widths=FLYBACK_NET_WIDTHS,
+        default_width_mm=SIG_W,
         clearance_groups=clearance_groups_from_spec(_spec()),
     )
     assert outcome.failed == ()
@@ -178,8 +181,8 @@ def test_routes_entire_flyback_board_and_beats_hand_layout() -> None:
     assert score.is_viable, (
         score.virtual_drc_findings[:5] or score.blocker_findings[:5]
     )
-    hand_score = score_layout(hand, netlist, _spec())
-    assert score.sort_key() < hand_score.sort_key()
+    production_score = score_layout(production, netlist, _spec())
+    assert score.sort_key() == production_score.sort_key()
 
 
 def test_merge_collinear_segments_unifies_runs_and_keeps_junctions() -> None:

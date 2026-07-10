@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from tests.unit.kicad.test_flyback_board import _netlist
+from tests.unit.kicad.test_flyback_board import _routed
 
 from pcbsmith.kicad.board import TrackSegment
-from pcbsmith.kicad.flyback_board import compute_flyback_board_layout
 from pcbsmith.kicad.layout_score import rank_candidates, score_layout
 
 
@@ -22,20 +21,20 @@ def _with_extra_segment(layout, segment):
 
 
 def test_flyback_layout_scores_viable() -> None:
-    netlist = _netlist()
-    layout = compute_flyback_board_layout(netlist)
+    netlist, layout = _routed()
     score = score_layout(layout, netlist)
     assert score.is_viable
     assert score.total_track_mm > 100.0
     assert score.via_count >= 5
-    # Headroom exists but is finite on a dense board.
-    assert 0.0 < score.min_copper_margin_mm < 5.0
+    # The grid router legally runs AT the clearance limit, so the r003
+    # headroom is exactly zero up to float dust; it must never go
+    # meaningfully negative (that would be a real violation).
+    assert -1e-9 <= score.min_copper_margin_mm < 5.0
     assert score.parts_bbox_mm2 > 1000.0
 
 
 def test_shorted_candidate_ranks_after_viable_one() -> None:
-    netlist = _netlist()
-    good = compute_flyback_board_layout(netlist)
+    netlist, good = _routed()
     # A track through foreign pads: hard violations, longer copper.
     bad = _with_extra_segment(
         good,
@@ -49,8 +48,7 @@ def test_shorted_candidate_ranks_after_viable_one() -> None:
 
 
 def test_extra_detour_costs_ranking_but_stays_viable() -> None:
-    netlist = _netlist()
-    good = compute_flyback_board_layout(netlist)
+    netlist, good = _routed()
     # A legal but pointless same-net stub in free space.
     detour = _with_extra_segment(
         good,
