@@ -175,3 +175,45 @@ candidates for review:
   frequency-compensation options on the board as DNP). Implemented:
   value "DNP" now annotates the grouped BOM; composition support
   pending.
+
+## 2026-07-11 Bus routing, placement compatibility, dual-side assembly (research wave)
+- status: proposed
+- proposed_by: claude-fable-5, deep-research harness + user directive (bus-routing example image)
+- rule: new 11.6-11.8, new section 12, amendment to 4.x
+- suggestion:
+  - **11.6 Bus routing**: nets declared as a BUS GROUP (e.g. SEG1-16,
+    address/data lines, I2C pairs) route as a bundle: one leader path,
+    followers offset at constant pitch with matched bends; pigtails
+    only at the pad ends. Check: >= X% of each member's length runs
+    within one pitch of a neighbouring member; bends occur at shared
+    stations. Rationale: craft/area (research digest section 2) - NOT
+    signal integrity at our speeds.
+  - **11.7 Corner physics honesty**: rule 11 keeps H/V/45 as CRAFT;
+    the rulebook must not claim electrical harm from 90-degree corners
+    below multi-Gbps (Bogatin ~2 fF/mil; Johnson 0.3% reflection at
+    100 ps edges). High-voltage sections keep sharp-corner avoidance
+    (field concentration) - already implicit in section 10.
+  - **11.8 Crosstalk spacing classes**: foreign-net-to-bundle spacing
+    >= 3x width (3W) as the default class; clock/periodic nets get a
+    wider class (50 mil per TI SPRAAR7). Intra-bundle pitch may be
+    manufacturing-minimum for same-bus members.
+  - **12.x Placement compatibility engine**: component cards gain
+    optional declarations the placer/checks enforce: heat-source
+    keepout (SHT3x-class sensors: distance from LDO/module, thin-trace
+    entry, slot/moat candidate), antenna keepout (ESP32: antenna zone
+    over board edge, >= 15 mm clearance, no copper under), decoupling
+    proximity (cap within N mm of its pin, own connection), crystal
+    keepout (foreign traces out of oscillator zone), hot-loop area
+    metric for switching topologies.
+  - **4.x Dual-side placement as strategy**: FLIPPED_REFS is gated by
+    a mass-per-wetted-perimeter table (SAC305 ~0.0269 g/mm with 20%
+    margin; chip passives/SOT/TSSOP/QFN safe, heavy parts excluded)
+    instead of ad-hoc judgment.
+- evidence: thermometer stem congestion (7 failed route attempts from
+  independent per-net A*); user-supplied bus-routing example image;
+  research digest docs/reference/routing-placement-research-2026-07.md
+  (sources: TI SPRAAR7, Espressif HW design guidelines, Sensirion SHT3x
+  design-in, ADI AN-139, ST AN2867, SMTA dual-side reflow, Bogatin,
+  Johnson). Antenna finding applies to the CURRENT thermometer r001
+  draft: U1's antenna points into the bulb over copper.
+- decision_note:
