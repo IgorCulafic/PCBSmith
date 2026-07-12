@@ -24,6 +24,36 @@ golden) and a commit.
   "as close as possible"). This table feeds ai-rule-suggestions.md
   entries for user promotion.
 
+### Phase 0 addendum — sources still to obtain (ask the user)
+
+Confirmed gaps the current nine sources cannot close, in priority
+order (the user can obtain books/documents given author + title):
+1. **IPC-2152** (Standard for Determining Current Carrying Capacity
+   in Printed Board Design) — 2221B explicitly defers current sizing
+   to it; our formula is the older 2221A fit. Highest-value single
+   document.
+2. **IPC-2222A** (Sectional Design Standard for Rigid Organic Printed
+   Boards) — PTH aspect-ratio limits and rigid-board specifics that
+   2221B defers.
+3. **Bruce Archambeault — "PCB Design for Real-World EMI Control"** —
+   measurement-driven EMC rules; closes gaps where Ott/Montrose give
+   mechanisms without board-level numbers.
+4. **Lee Ritchey — "Right the First Time" (vols 1-2)** — stackup and
+   routing strategy from a working designer; strong on WHERE rules
+   stop applying.
+5. **Howard Johnson — "High-Speed Signal Propagation: Advanced Black
+   Magic"** — only if we ever pass ~100 MHz; low priority.
+6. **USB 2.0 specification** (usb.org, free) — normative eye/skew
+   numbers instead of app-note relays.
+7. **JLCPCB / PCBWay capability pages** (free, web) — the ACTUAL fab
+   limits our boards face (min drill/annular/slot/silk); turn into a
+   machine-readable fab profile the checks read instead of constants.
+8. **Sensirion SHT3x "Design-In Guide" PDF** (free) — we cite it via
+   web extraction; pin the original next to the datasheets.
+9. **IEC 62368-1 creepage/clearance tables** (or a summary source) —
+   the flyback's mains rules currently lean on IPC Table 6-1 plus
+   folklore wording; the real safety standard is this one.
+
 ## Phase 1 — audit fixes from IPC-2221B (cheap, do immediately)
 
 From `ipc-2221b.md` (all with exact table cites):

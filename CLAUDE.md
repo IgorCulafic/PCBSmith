@@ -10,6 +10,10 @@ reference material; you build, verify, and harden.
 
 A detailed narrative of everything built so far is in
 `docs/project-history.md`. Read it once before your first real task.
+Then: `docs/architecture.md` (what every module does and how the
+pipeline flows), `docs/lessons-and-pitfalls.md` (the complete mistake
+ledger — read BEFORE touching the router or placements), and
+`docs/routing-placement-plan.md` (the active roadmap).
 
 ## The five laws (learned the hard way, in force everywhere)
 
