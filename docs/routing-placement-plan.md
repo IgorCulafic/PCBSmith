@@ -9,7 +9,17 @@ nothing gets encoded without its applicability range. Execute phases
 in order; each ends with the standard gates (ruff, mypy, pytest,
 golden) and a commit.
 
-## Phase 0 — finish the knowledge base (first session after this)
+## Phase 0 — finish the knowledge base — **COMPLETE 2026-07-12**
+
+Done: all nine sources distilled; 72-rule spot-verification campaign
+(5 corrections applied, 1 false mismatch overturned by dimensional
+analysis); CONSOLIDATED.md written with the six-docket resolutions;
+source-wishlist.md ranks the next acquisitions. Honest residuals:
+IPC-7351 is the 2005 original (three OCR-ambiguous exception cells
+deferred to a 7351B copy); the sensitive-victim spacing number
+assumes a back-side pour - the no-pour penalty needs a field-solver
+or measurement; johnson has 5 remaining OCR-uncertain thresholds
+outside the verified sample.
 
 - Distill `johnson-hsdd` (446 OCR'd pages) and `ipc-7351` (85 pages)
   from `.book-cache/` with the same agent brief as the other seven

@@ -217,3 +217,22 @@ candidates for review:
   Johnson). Antenna finding applies to the CURRENT thermometer r001
   draft: U1's antenna points into the bulb over copper.
 - decision_note:
+
+
+## 2026-07-12 Consolidated book-rule candidates (phase 0 complete)
+- status: proposed
+- proposed_by: claude-fable-5 + opus consolidation agent, nine-source book KB
+- rule: candidates spanning 11.6-11.8, 12.x, 4.x, and phase-1 audit fixes
+- suggestion: docs/reference/books/CONSOLIDATED.md is the canonical
+  candidate list - ~48 consolidated rules organized by plan phase, each
+  with every supporting source, verification status, thresholds
+  EVALUATED for our board class, and machine form; the final section
+  lists the 12 highest-value promotion-ready entries. Headline
+  decision: three crosstalk spacing classes (same-bus at mfg minimum /
+  foreign 3W craft floor - explicitly NOT a coupling guarantee on our
+  1.6 mm 2-layer stack / sensitive victims 5.7h = 9.1 mm with pour, or
+  opposite-layer/guard without).
+- evidence: 72-rule spot-verification campaign (5 corrections, 1 false
+  mismatch overturned by dimensional analysis, 2 honest ambiguities);
+  six-item contradiction docket resolved explicitly in the file.
+- decision_note:

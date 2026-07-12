@@ -177,13 +177,14 @@ ledger — read BEFORE touching the router or placements), and
 - The durable form is `docs/reference/books/*.md` — seven
   distillations (Bogatin, Ott, Montrose, Williams, IPC-2221B,
   IPC-A-610, Coombs), every rule with THRESHOLD/WHY/WHERE(page)/
-  MACHINE FORM/APPLICABILITY. HONESTY CAVEAT: the notes were
-  produced by subagents and reviewed only at summary level — no
-  rule has been independently verified against its cited page yet.
-  Before HARD-CODING any threshold into a check, verify that rule's
-  locator against `.book-cache/` (seconds of work). A systematic
-  spot-verification pass is part of plan phase 0. NEVER re-read the
-  books wholesale; verify locators, do not re-extract.
+  MACHINE FORM/APPLICABILITY. All NINE sources are distilled and
+  spot-verified (72 rules checked 2026-07-12; corrections and two
+  honest ambiguities recorded in each file's Verification section).
+  docs/reference/books/CONSOLIDATED.md is the deduplicated cross-book
+  table with the contradiction-docket resolutions - START THERE.
+  Text-cache hazard: pypdf/OCR drop the Greek mu glyph; close any
+  unit-sensitive verification by dimensional analysis, never string
+  match. NEVER re-read the books wholesale.
 - `docs/routing-placement-plan.md` is THE roadmap (user directive:
   research-first, bus routing, placement compatibility, dual-side
   gate, thermometer r002). Execute its phases in order; phase 0 is
