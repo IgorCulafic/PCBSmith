@@ -16,6 +16,12 @@ Reading protocol (so we never pay for the same page twice):
    (frequency/voltage/class limits — per the project law that a rule
    without its applicability range must not be encoded).
 3. Contradictions between books are recorded, not silently resolved.
+4. VERIFICATION STATUS: all seven distillations are subagent-
+   produced and reviewed at summary level only. Verify a rule's
+   page locator against `.book-cache/` before hard-coding its
+   threshold; the systematic spot-check pass (random sample per
+   book) is plan phase 0 work, and this table should record
+   per-book verification when it happens.
 
 | slug | book | status |
 |------|------|--------|

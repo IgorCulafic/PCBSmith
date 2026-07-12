@@ -46,7 +46,8 @@ ledger — read BEFORE touching the router or placements), and
    locators. `assumption` is an honest status — mark it, don't hide it.
    Component cards (`ai_assets/components/*.json`) are the durable form.
 
-## How to build a new topology (the proven sequence)
+## How to build a new topology (the sequence - proven through
+## schematics on 10/10 topologies, through boards on only 9/10)
 
 1. **Datasheets first.** Fetch, pin, read; extract the WORST-CASE
    limits table into the calculator's defaults.
@@ -173,11 +174,16 @@ ledger — read BEFORE touching the router or placements), and
   `tools/book_ocr.py` (pypdfium2+RapidOCR, ~7 s/page, resumable)
   OCR'd the two scanned ones (johnson-hsdd, ipc-7351 — cached but NOT
   yet distilled).
-- The durable form is `docs/reference/books/*.md` — seven complete
+- The durable form is `docs/reference/books/*.md` — seven
   distillations (Bogatin, Ott, Montrose, Williams, IPC-2221B,
   IPC-A-610, Coombs), every rule with THRESHOLD/WHY/WHERE(page)/
-  MACHINE FORM/APPLICABILITY. NEVER re-read the books wholesale; the
-  notes are the extraction. ~200 rules total, top-10 ranked per book.
+  MACHINE FORM/APPLICABILITY. HONESTY CAVEAT: the notes were
+  produced by subagents and reviewed only at summary level — no
+  rule has been independently verified against its cited page yet.
+  Before HARD-CODING any threshold into a check, verify that rule's
+  locator against `.book-cache/` (seconds of work). A systematic
+  spot-verification pass is part of plan phase 0. NEVER re-read the
+  books wholesale; verify locators, do not re-extract.
 - `docs/routing-placement-plan.md` is THE roadmap (user directive:
   research-first, bus routing, placement compatibility, dual-side
   gate, thermometer r002). Execute its phases in order; phase 0 is
@@ -278,13 +284,17 @@ ledger — read BEFORE touching the router or placements), and
 
 ## Current frontier (where to push next)
 
-- **Automation-first boards are proven**: the servo555 tester (9th
+- **Automation-first boards work at SMALL scale only**: the servo555
+  tester (9th
   golden topology) is the first board where `route_board` produced
   every trace from coarse placements — placement + probe + route +
   live DRC loop converged in 3 iterations and the fixes it forced
   (rect-pad cover, per-physical-pad connectivity, silk height/edge
-  checks) are now permanent machinery.
-- **flyback dual-side compaction DEMONSTRATED (2026-07-10)**:
+  checks) are now permanent machinery. SCOPE LIMIT, learned the
+  hard way: that was 9 parts on an open rectangle; the same router
+  failed outright at 63 parts in a narrow corridor (thermometer).
+  "Proven" means proven AT THAT SCALE, nothing more.
+- **flyback dual-side compaction (2026-07-10, one data point)**:
   `tools/flyback_compaction.py` produced an 80×42 dual-side flyback
   (whole SMD control circuit on the back, FLBACK-001-style), 100%
   auto-routed, live kicad-cli DRC 0 violations / 0 unconnected.
@@ -294,7 +304,10 @@ ledger — read BEFORE touching the router or placements), and
   `docs/reference-comparisons/flyback-dual-side-compaction.md`. The
   42 mm height floor is the TEZ-22x24 transformer; matching the
   reference's 36.8 mm needs an EFD20-class part (component change).
-- **Human-readable schematics (Track 9.1, user requirement)**: LANDED
+- **Human-readable schematics (Track 9.1, user requirement)**:
+  working with live gates on 3 of 10 topologies (servo555,
+  flyback, thermometer) — the other SEVEN still lack reader
+  schematics. LANDED
   on servo555 AND the flyback (31 parts, custom symbols via
   ReaderSpec.customs) — `kicad/reader_schematic.py` (conventional
   drawing renderer + offline wire-connectivity validator that rejects

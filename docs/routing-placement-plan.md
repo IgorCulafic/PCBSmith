@@ -98,9 +98,14 @@ crosstalk scaling + TI SPRAAR7 from the research digest):
    R11-R16 — our >= 3 ns edges and < 76 mm runs are sub-critical,
    bogatin R4-R6).
 4. Pilot: thermometer SEG bundles (16 nets, 2 groups), then the
-   stem control trunk (SER/SRCLK/RCLK/OE as a 4-net bundle). This
-   plus phase-3 placement is expected to make the board routable;
-   do NOT hand-iterate placements again before bus routing exists.
+   stem control trunk (SER/SRCLK/RCLK/OE as a 4-net bundle).
+   HYPOTHESIS, NOT A PROMISE: bus routing + phase-3 placement is
+   our best-reasoned route to a routable board, but it is untested;
+   if the pilot still fails, the fallbacks are (a) coupling
+   placement_search moves to routability probes, (b) widening the
+   stem (component/outline change). Do NOT hand-iterate placements
+   again before bus routing exists — that path consumed 2+ hours
+   and is measured to not converge.
 
 ## Phase 3 — placement-compatibility engine
 

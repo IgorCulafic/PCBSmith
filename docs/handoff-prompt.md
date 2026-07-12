@@ -15,9 +15,10 @@ honest status over green lights, works in long autonomous stretches
 claims too — he says so himself.
 
 **Read these before doing anything, in this order:**
-1. `CLAUDE.md` — the working handbook: the five laws, the proven
-   topology-building sequence, placement/routing craft, environment
-   pitfalls, current frontier. Non-negotiable.
+1. `CLAUDE.md` — the working handbook: the five laws, the
+   topology-building sequence (proven through schematics; boards
+   only up to ~30-part open layouts), placement/routing craft,
+   environment pitfalls, current frontier. Non-negotiable.
 2. `docs/lessons-and-pitfalls.md` — every mistake class ever hit,
    how it was found, what to watch for. Read BEFORE touching the
    router, placements, or shell scripts on this machine.
@@ -80,6 +81,20 @@ claims too — he says so himself.
 - Known defects to fix in thermometer r002 (already documented):
   module antenna sits over interior copper (Espressif rule), sensor
   needs a milled moat + thin traces (Sensirion rule).
+
+**What does NOT work / is not verified (do not assume otherwise):**
+- The router: fails beyond ~30 parts or in narrow shared corridors.
+- The book notes: subagent-produced; spot-verify a rule's page cite
+  before hard-coding its threshold (systematic pass = plan phase 0).
+- Pour analysis is bbox-approximate, not polygon-exact.
+- Intent classification is keyword matching — fragile as topologies
+  grow.
+- Dormant (no credentials/server on this machine): LLM datasheet
+  extraction, Nexar BOM pricing, the topology forge.
+- Seven of ten topologies still lack human-readable reader
+  schematics.
+- The clearance model is voltage-blind (flat 0.2 mm) until plan
+  phase 1.
 
 Start by reading the documents above, then tell Igor your understanding
 of the current state and begin with plan phase 0 unless he says
