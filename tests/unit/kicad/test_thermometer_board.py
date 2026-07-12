@@ -1,0 +1,134 @@
+"""Thermometer board: shaped outline, scale-locked LEDs, declarations.
+
+The full route (fine-pitch pre-routing + main pass inside the shaped
+outline) takes tens of minutes and lives in the golden suite; these
+tests pin the FAST invariants the board's correctness rests on: the
+outline geometry, the single scale truth shared by copper and silk,
+placement containment, and the checks-spec declarations.
+"""
+
+from __future__ import annotations
+
+from collections import defaultdict
+
+from pcbsmith.calculators.electronics import thermometer_scale_fraction
+from pcbsmith.circuit.intent import classify_circuit_intent
+from pcbsmith.circuit.topologies import select_topology
+from pcbsmith.generation.thermometer import compose_thermometer
+from pcbsmith.kicad.board import (
+    BoardComponent,
+    BoardNet,
+    BoardNetlist,
+)
+from pcbsmith.kicad.export_thermometer import INSTANCES
+from pcbsmith.kicad.thermometer_board import (
+    BOARD_H,
+    BOARD_W,
+    FINE_PITCH_NETS,
+    LED_COUNT,
+    PLACEMENTS,
+    SCALE_Y0,
+    SCALE_Y50,
+    led_y,
+    scale_y,
+    thermometer_checks_spec,
+    thermometer_outline,
+    thermometer_silk_graphics,
+)
+from pcbsmith.kicad.virtual_drc import _point_in_polygon
+
+REQUEST = "thermometer temperature humidity display pcb"
+
+
+def _netlist() -> BoardNetlist:
+    intent = classify_circuit_intent(REQUEST)
+    design = compose_thermometer(intent, select_topology(intent))
+    footprints = {
+        component.reference: component.footprint
+        for component in design.components
+    }
+    nodes: dict[str, list[tuple[str, str]]] = defaultdict(list)
+    for reference, _lib, _x, _y, pin_nets in INSTANCES:
+        for pin, net in pin_nets.items():
+            nodes[net].append((reference, pin))
+    return BoardNetlist(
+        components=tuple(
+            BoardComponent(
+                reference=reference,
+                value=reference,
+                footprint=footprint,
+                uuid_path=f"uuid-{reference}",
+            )
+            for reference, footprint in footprints.items()
+        ),
+        nets=tuple(
+            BoardNet(name=f"/{name}", nodes=tuple(pins))
+            for name, pins in sorted(nodes.items())
+        ),
+    )
+
+
+def test_outline_is_closed_and_spans_the_board() -> None:
+    outline = thermometer_outline()
+    assert len(outline) > 40  # tip arc + bulb sweep are real curves
+    xs = [x for x, _y in outline]
+    ys = [y for _x, y in outline]
+    assert min(xs) >= 0 and max(xs) <= BOARD_W
+    assert min(ys) >= 0 and max(ys) <= BOARD_H
+    # The USB tab reaches the bottom edge; the tip is near the top.
+    assert max(ys) == BOARD_H
+    assert min(ys) < 10.0
+
+
+def test_led_column_follows_the_scale_truth() -> None:
+    # One scale function drives BOTH the LED copper and the silk
+    # graduations: LED k sits exactly at its threshold temperature.
+    for index in range(1, LED_COUNT + 1):
+        threshold_c = 50.0 * index / LED_COUNT
+        fraction = thermometer_scale_fraction(threshold_c)
+        expected = SCALE_Y0 + (SCALE_Y50 - SCALE_Y0) * fraction
+        assert abs(led_y(index) - expected) < 1e-9
+        x, y, _rot = PLACEMENTS[f"D{index}"]
+        assert (x, y) == (23.0, led_y(index))
+    assert scale_y(0.0) == SCALE_Y0
+    assert scale_y(50.0) == SCALE_Y50
+
+
+def test_placements_sit_inside_the_outline() -> None:
+    outline = thermometer_outline()
+    for reference, (x, y, _rot) in PLACEMENTS.items():
+        assert _point_in_polygon((x, y), outline), (
+            f"{reference} anchor ({x}, {y}) is outside the outline"
+        )
+
+
+def test_graduation_silk_marks_every_ten_degrees() -> None:
+    graphics = "\n".join(thermometer_silk_graphics(0.0))
+    for label in ("0", "10", "20", "30", "40", "50"):
+        assert f'"{label}"' in graphics
+    assert '"USB-C 5V"' in graphics
+
+
+def test_checks_spec_declares_the_board_contracts() -> None:
+    spec = thermometer_checks_spec()
+    assert dict(spec.component_cards) == {
+        "U1": "ESP32-C3-WROOM-02",
+        "U2": "SN74HC595PW",
+        "U3": "SN74HC595PW",
+        "U4": "SHT31-DIS",
+    }
+    # OLED module sockets are on-board carriers, exempt from rule 1.1
+    # by declaration.
+    assert spec.connector_edge_exempt_refs == ("J2", "J3")
+    assert ("J1", "A8") in spec.allowed_unconnected_pins
+
+
+def test_fine_pitch_declaration_covers_the_sub_grid_pads() -> None:
+    # USB-C data/CC rows, the DFN sensor bus, the register cascade and
+    # the rails that share their corridors.
+    assert {"/DP", "/DM", "/CC1", "/CC2", "/SDA1", "/SCL1",
+            "/CAS", "/VCC", "/GND"} <= set(FINE_PITCH_NETS)
+    netlist = _netlist()
+    net_names = {net.name for net in netlist.nets}
+    assert set(FINE_PITCH_NETS) <= net_names
+    assert len(netlist.components) == 63

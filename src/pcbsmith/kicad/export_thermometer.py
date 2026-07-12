@@ -191,7 +191,10 @@ def export_thermometer_to_kicad(
     symbol_library = output_dir / "PCBSmith.kicad_sym"
     symbol_table = output_dir / "sym-lib-table"
 
-    project_file.write_text(_render_project(), encoding="utf-8")
+    # U1's official footprint drills 0.2mm thermal vias in its EP.
+    project_file.write_text(
+        _render_project(min_through_hole_mm=0.2), encoding="utf-8"
+    )
     symbol_table.write_text(_render_symbol_table(), encoding="utf-8")
     symbol_library.write_text(_render_empty_library(), encoding="utf-8")
     schematic_file.write_text(
