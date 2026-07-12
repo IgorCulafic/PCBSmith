@@ -25,12 +25,12 @@ Reading protocol (so we never pay for the same page twice):
 
 | slug | book | status |
 |------|------|--------|
-| bogatin-spi | Bogatin, Signal and Power Integrity — Simplified, 3rd ed. | distilled ([notes](bogatin-spi.md)) |
-| johnson-hsdd | Johnson & Graham, High-Speed Digital Design | OCR done, distillation pending (plan phase 0) |
-| ott-emc | Ott, Electromagnetic Compatibility Engineering | distilled ([notes](ott-emc.md)) |
-| montrose-emc | Montrose, PCB Design Techniques for EMC Compliance, 2nd ed. | distilled ([notes](montrose-emc.md)) |
-| williams-cdc | Williams, The Circuit Designer's Companion (4th ed.) | distilled ([notes](williams-cdc.md)) |
-| ipc-2221b | IPC-2221B, Generic Standard on Printed Board Design | distilled ([notes](ipc-2221b.md)) |
-| ipc-7351 | IPC-7351, Land Pattern Standard | OCR done, distillation pending (plan phase 0) |
-| ipc-a-610 | IPC-A-610G, Acceptability of Electronic Assemblies | distilled ([notes](ipc-a-610.md)) |
-| coombs-pch | Coombs & Holden, Printed Circuits Handbook, 7th ed. | distilled ([notes](coombs-pch.md)) |
+| bogatin-spi | Bogatin, Signal and Power Integrity — Simplified, 3rd ed. | distilled + spot-verified 8/8 (1 correction applied: R17 100 kHz onset) |
+| johnson-hsdd | Johnson & Graham, High-Speed Digital Design | distilled ([notes](johnson-hsdd.md)); OCR source - 7 thresholds flagged OCR-uncertain |
+| ott-emc | Ott, Electromagnetic Compatibility Engineering | distilled + spot-verified 8/8 (1 false mismatch adjudicated: cache drops the micro glyph) |
+| montrose-emc | Montrose, PCB Design Techniques for EMC Compliance, 2nd ed. | distilled + spot-verified 8/8 |
+| williams-cdc | Williams, The Circuit Designer's Companion (4th ed.) | distilled + spot-verified 8/8 |
+| ipc-2221b | IPC-2221B, Generic Standard on Printed Board Design | distilled + spot-verified 8/8 (incl. Table 6-1 clearance cells) |
+| ipc-7351 | IPC-7351 (ORIGINAL, 2005 - not B!), Land Pattern Standard | distilled ([notes](ipc-7351.md)); exception tables need re-check vs a 7351B copy |
+| ipc-a-610 | IPC-A-610G, Acceptability of Electronic Assemblies | distilled + spot-verified 8/8 (1 correction: fillet top-or-side) |
+| coombs-pch | Coombs & Holden, Printed Circuits Handbook, 7th ed. | distilled + spot-verified 8/8 (1 locator corrected) |

@@ -709,3 +709,26 @@ the edge rate, not the clock fundamental.
 10. **OTT-GR5/OTT-R3 stitching-via rules** — ≥2 vias per critical
     ground transition, ground via adjacent to critical signal vias;
     countable at route time.
+
+---
+
+## Verification (2026-07-12, spot-check, sonnet)
+
+| rule | verdict | note |
+|------|---------|------|
+| OTT-GR1 (grid ≤12.7mm/0.5in cell) | VERIFIED | PDF p.413–414: Smith & Paul (1991) "grid spacing of 0.5 in. or less"; Table 10-2 German (1985) worst pair IC15-IC16 1000→100 mV; radiated emission 42.9→35.8 dB mV/m = 7.1 dB. All numbers match exactly. |
+| OTT-R1 (slot/hole slotting, 14 dB @1.5in) | VERIFIED | PDF p.650–651, Table 16-1: baseline (0 in) 15 mV → 1.5 in slot 75 mV (5×, 14 dB per note text); 1-in array of 15 non-overlapping 0.052-in holes = 15 mV (0% increase). Matches notes exactly, incl. ">20 dB" for slots/splits in general. |
+| OTT-D5 (decap mounting-inductance table + ≥2/≥4 caps) | VERIFIED | PDF p.481–482 Fig. 11-25: thin trace 2.8 nH, wide trace 2.1 nH, end via 1.1 nH, side via 0.7 nH, multiple vias 0.5/0.4 nH — matches. PDF p.478–479: two caps → 6 dB (current split) + ~12 dB (loop cancellation) = 18 dB total; book recommends min. 2 caps on a DIP (opposite ends), min. 4 on a quad flat pack (one per side) — matches notes. |
+| OTT-IO1 (Table 12-1 common-mode current limit) | VERIFIED (verifier's MISMATCH overturned on adjudication) | The spot-checker read the cache text literally: p0502 prints "100 mV/m" and "5 mA". That is a TEXT-EXTRACTION GLYPH LOSS: pypdf renders the µ glyph as "m" on this page. Proof from the SAME page's Eq. 12-8 (Icm = 0.8·E·r/(f·l), stated to yield MICROamps): FCC B 100 µV/m at 3 m, 50 MHz, 1 m cable → 0.8·100·3/50 = 4.8 ≈ 5 µA; FCC A → 14.4 ≈ 15; MIL-STD-461 16 µV/m at 1 m → 0.256 ≈ 0.25. All three table rows close EXACTLY in µA/µV; in mA the table would put FCC-B failure ~62 dB above the limit, contradicting the book's own µA-vs-mA CM/DM contrast (p.480). Original note value 5 µA stands. |
+| OTT-C3 (33 Ω series damping, ≥20 MHz) | VERIFIED | PDF p.648: "series damping resistors... to all clock output traces with a frequency of 20 MHz or more... A typical value resistor would be 33 Ω"; footnote: if trace length (in) ≥ 3× rise time (ns), use R = Z0 − driver output resistance. Matches exactly. |
+| OTT-C2 (guard return traces, 20+ dB) | VERIFIED | PDF p.496–497 §12.2.2, Fig. 12-8: single return loop vs. symmetric two-sided return traces — current splits (6 dB), loops cancel (additional, not perfect) → "will therefore radiate 20 + dB less." Matches exactly; also confirms OTT-L4 (one ground return trace per 8 bus bits, adjacent to LSB) on the same p.496. |
+| OTT-D3 (Zt = k·dV/dI, k=2, worked example) | VERIFIED | PDF p.468–470 Eq. 11-7/11-8: n = 2L/(Zt·tr); k=2 because "no more than about 50% of the current is contained in the frequencies below the 1/(π·tr) frequency." Worked example: 2 ns rise, 2.5 A, 5% of 5 V → Zt = 200 mΩ; 50 caps @ 10 nH each needed at 159 MHz. All values match exactly. |
+| OTT-C4 (13 mm / 0.5in crystal-to-I/O keepout) | VERIFIED | PDF p.646: "keeping these circuits at least 0.5 in. (13 mm) from the I/O area will minimize the parasitic coupling"; same page also gives the 20× layer-to-plane-spacing edge keep-out (OTT-L3) and the Fig. 16-1 zoning diagram (OTT-P1). Matches. |
+
+8/8 verified after adjudication (2026-07-12, fable): the one flagged
+mismatch (OTT-IO1) was a false positive caused by µ-glyph loss in the
+text cache — dimensional analysis against the page's own equation
+confirms the notes' 5 µA. Standing caveat for ALL verifications
+against this cache: pypdf drops the µ glyph as "m" on at least some
+pages; any µ/m-sensitive threshold must be closed by dimensional
+analysis, not by string comparison.

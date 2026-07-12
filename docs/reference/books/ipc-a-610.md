@@ -98,10 +98,12 @@ acceptable misplacement of both neighbors.
     (C1,2); G + 25%·H or G + 0.5 mm, whichever less (C3). H =
     termination height.
   - Max fillet height E: may overhang land / climb metallization but
-    must not touch component TOP body.
+    must not touch the component's top OR side body (Note 4, PDF
+    p.235; spot-check corrected 2026-07-12 — the notes originally
+    dropped the side-contact prohibition).
 - WHY: side overhang beyond 50% → insufficient joint area and
   clearance risk; missing end overlap → tombstone-prone, weak joint;
-  fillet touching chip top → crack path into ceramic body.
+  fillet touching chip body (top or side) → crack path into ceramic.
 - WHERE: PDF p.235 (8-15, Table 8-2); side overhang detail PDF p.236
   (8-16); chip bottom-only variant Table 8-1 PDF p.228 (8-8) with the
   stricter J = 50% R (C2) / 75% R (C3).
@@ -515,3 +517,20 @@ acceptable misplacement of both neighbors.
 10. **R17 — Axial bend radius + 0.8 mm seal-to-bend space (Table
     7-1)**: cheap deterministic footprint-span check that prevents
     picking too-short axial footprints at composition time.
+
+---
+
+## Verification (2026-07-12, spot-check, sonnet)
+
+| item | verdict | note |
+|------|---------|------|
+| R2 — Appendix A / Table 6-1 clearance values | VERIFIED | PDF p.429-430 confirms every cited figure exactly: B2 0-15/16-30=0.1mm, 31-50/51-100=0.64mm (notes' "31-100" correctly spans two identical-value rows), 101-150/151-170/171-250/251-300=0.64→1.25mm bands as stated, 301-500=2.5mm, ≥500=0.005mm/V; B1 and A6 columns also match digit-for-digit. |
+| R4 — Chip component side overhang 50%/25% (Table 8-2) | MISMATCH (minor) | PDF p.235 confirms overhang 50%(C1,2)/25%(C3), end overhang not permitted, end joint 50%/75%, end overlap Required(C1)/25%R(C2,3) — all exact. But notes' max-fillet claim "must not touch component TOP body" is incomplete: Note 4 (p.235) reads "does not touch the top **or side** of the component" — the side-contact prohibition is dropped from the notes' machine-form description. |
+| R15 — PTH 75% vertical fill + exceptions (Table 7-4) | VERIFIED | PDF p.184-187 confirms 75% fill / 25% max depression (C2,3), the 50%-or-1.2mm Class-2-only relaxation for thermal-plane leads (<14, needs 360° source-side wetting per Note 4) and for ≥14-lead parts, Class 1 not specified, circumferential wetting 270°/330° source and 180°/270° destination, 0% destination land coverage, ≥75% source land coverage. |
+| R20 — Bow/twist 0.75% SMT / 1.5% THT (§10.2.7) | VERIFIED | PDF p.367 confirms both percentages and the "defect only if it causes damage or affects form/fit/function" framing verbatim. Note: the cited page does not itself say "of the diagonal" — that measurement-basis phrase is the notes author's gloss (IPC-TM-650 2.4.22 territory), not present in the ipc-a-610 text; not a contradiction, just an unsourced addition. |
+| R24 — No general reflow-adhesive requirement (§8.1.1) | VERIFIED | PDF p.223 confirms the Defect-C1,2 (visible + sub-minimum joint) and Defect-C3 (any visible adhesive in termination area) clauses exactly. The "610G contains NO general requirement that bottom-side reflowed parts be glued" claim is an absence-inference; a full-cache grep for "surface tension" / "bottom side reflow" / "double-sided reflow" found zero hits, consistent with (not proof against) the claim. |
+| R8 — Gull wing side overhang + heel fillet (Table 8-5) | VERIFIED | PDF p.267 confirms overhang 50%W-or-0.5mm(C1,2)/25%W-or-0.5mm(C3), toe overhang conditionally not-permitted when L<3W (C2,3), end joint 50%/75%W, side joint length D formula, and heel fillet G+T / G+50%T split — matches known Table 8-5 structure though the raw PDF-text extraction merges some class columns (T>0.4mm row shows one unlabeled value), so the C2-only nuance rests partly on standard table convention rather than an unambiguous text string. |
+| R6 — MELF cylindrical end cap 25% overhang, all classes (Table 8-3) | VERIFIED | PDF p.253 confirms the 25% overhang figure is a single value spanning all classes (stricter than R4's rectangular-chip 50%/25% split), end overhang not permitted, end joint 50%W/P (C2,3), side joint 50%/75% (C2/C3), end overlap 50%R/75%R (C2/C3), fillet G+25%W-or-G+1mm (C3) — all exact. |
+| R21 — Edge margin (depanel 50%/2.5mm + haloing floor) | VERIFIED | PDF p.368 confirms "50% of the distance from the board edge to the nearest conductor or 2.5 mm, whichever is less" verbatim; PDF p.362 confirms haloing penetration must stay ≥ min lateral conductor spacing or 0.1mm if unspecified, verbatim. |
+
+7/8 verified; mismatches: R4 (max-fillet-height note omits that solder must not touch the component's SIDE as well as its top — machine-form guidance should say "top or side," not "top body").

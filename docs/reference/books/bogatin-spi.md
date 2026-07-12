@@ -228,9 +228,13 @@ carries its threshold so the checks stay valid when a faster part (edge < 1 ns) 
 **R17. Return current is directly under the trace; width matters.**
 - THRESHOLD: return conductor under the signal should be ≥ 3 × signal width — Z0 then
   within 1% of the infinite-plane value; equal-width return raises Z0 by 20%. Above
-  ~10 MHz return current flows in the plane surface directly beneath the trace.
+  about 100 kHz return current localizes in the plane surface directly beneath the
+  trace (spot-check corrected 2026-07-12: the note originally said ~10 MHz; §7.13
+  states ~100 kHz as the onset, 10 MHz was only an example point).
 - WHY: minimum-loop-inductance path; the current distribution self-selects it.
-- WHERE: 7.13; App B #41, #42; App A #10, #11 (route around, not across, plane gaps).
+- WHERE: localization onset 7.13; the 3×w / +20% figures are App B #41, #42 and
+  Fig 7-34 in 7.17 (locator corrected 2026-07-12); App A #10, #11 (route around,
+  not across, plane gaps).
 - MACHINE FORM: virtual check `return_path_continuity`: for each fast net, verify a
   same-direction GND copper corridor ≥ 3×w exists beneath/alongside within one
   dielectric height; flag crossings of GND pour gaps.
@@ -364,3 +368,18 @@ Handy constants, all App B unless noted:
 Explicit non-rule worth recording: **corner capacitance (2 fF/mil, R9)** ranks below
 all of these — at ≥3-ns edges a corner is ~0.5% of the C budget; right-angle avoidance
 stays a fab/aesthetics rule, not an SI rule.
+
+## Verification (2026-07-12, spot-check, sonnet)
+
+| rule | verdict | note |
+|------|---------|------|
+| R4 (unterminated line, `Lenmax[in] = RT[ns]`) | VERIFIED | c0015-ch08 §8.9 line ~509-531: "the maximum length of an unterminated line (in inches) is the rise time (in nsec)"; 20%-of-RT criterion matches exactly. |
+| R11 (crosstalk spacing floor, s ≥ 2w) | VERIFIED | c0017-ch10 §10.11 line ~856-859: "the edge-to-edge spacing of signal traces should be at least two times the line width" → NEXT < 2% per neighbor, < 5% worst-case bus, matches note verbatim. |
+| R13 (saturation length, Lensat = ½ RT × v) | VERIFIED | c0017-ch10 §10.8 line ~608-629: "Lensat = ... ½ nsec × 6 inches/nsec = 3 inches" for RT=1ns; linear scaling below saturation confirmed at line 794 ("NEXT × 4 inches/6 inches"). |
+| R17 (return path ≥ 3×w for Z0 within 1%; "above ~10 MHz" localization) | MISMATCH | Numeric core (equal-width → +20% Z0; ≥3×w → within 1%) is correct but is App B #41/#42 (c0003-app02 lines 125,127) and Fig 7-34, which lives in §7.17, not §7.13 as cited. Separately, the "above ~10 MHz" localization claim does not match the source: c0014-ch07 §7.13 line 854 states the current localizes "for frequencies above about 100 kHz" (100x lower than the note's figure); line 852 only uses 10 MHz as an example point, not the onset threshold. |
+| R19 (Ztarget = Vdd×ripple/Itransient; 100-MHz package barrier) | VERIFIED | c0020-ch13 §13.2/§13.4 (line ~93-298) gives the target-impedance formula and worked 3.3V/5%/example; §13.10 "The Package Barrier" (line 634-780) confirms the ~100-MHz board-effective-frequency assumption. |
+| R7 (lumped C budget, C ≤ 4 pF × RT[ns]; delay adder 0.5×Z0×C) | VERIFIED | c0015-ch08 §8.13 line 848: "keep the capacitance, in pF, less than four times the rise time"; §8.15 line 895: "1-pF pad will add about 0.5 × 50 × 1 pF = 25 psec" matches note's "1 pF on 50 Ω → 25 ps" exactly. |
+| R16 (shared-return: Lm < 2.5 nH×RT; fmax ≈ 250 MHz/(n×Lm)) | VERIFIED | c0017-ch10 §10.18 line 1506 ("Lm < 2.5 nH × RT") and line 1525-1528 ("highest usable clock frequency ... 250 MHz/Lm" and worked 5-aggressor example "250 MHz/5 = 50 MHz"), matching App B #90/#91 (c0003-app02 lines 238,240). |
+| R9 (corner capacitance, C_corner[fF] ≈ 2×w[mils]) | VERIFIED | c0015-ch08 §8.16 line 979: "the capacitance associated with a corner, in fF, is equal to 2 times the line width in mils"; worked 65-mil/200-fF-total example (line 966) and 5-mil/10-fF/~3-ps and 0.25-ps delay-adder figures (line 982) all match the note precisely. |
+
+7/8 verified; mismatches: R17 — the "above ~10 MHz" return-current-localization threshold should be "above about 100 kHz" per §7.13, and the 3×w/1% figure is sourced from §7.17 (Fig 7-34)/App B #41-42, not §7.13 as cited (the quantitative claim itself is otherwise numerically correct).

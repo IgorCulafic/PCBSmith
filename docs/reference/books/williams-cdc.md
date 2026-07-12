@@ -834,3 +834,20 @@ check/knob) · **APPLICABILITY**.
 10. **C2 derating check** — cap V_rated ≥ 2× applied (V⁵ law), resistor
     P_rated ≥ 2× dissipated, electrolytic temperature headroom (C1
     ×2/10 °C). BOM arithmetic with datasheet evidence.
+
+---
+
+## Verification (2026-07-12, spot-check, sonnet)
+
+| rule | verdict | note |
+|------|---------|------|
+| D1 — ground bounce budget | VERIFIED | p0269: "74AC-series gate with a dV/dt of around 1.6 V/ns will require a 50 mA current pulse when charging a 30 pF node capacitance"; "A pulse with a di/dt of 50 mA/ns through a track inductance of 20 nH (one inch of track) will generate a voltage pulse of 1 V peak, which is approaching the noise margin of fast logic." p0270: octal-latch #FF→#00 "current pulse — exceeding an amp in fast systems." All numbers match exactly. |
+| D2 — decoupling capacitor distance | VERIFIED | p0270-271: "'Close' in this context means less than half an inch for fast logic, such as 74AC or ECL... extending to several inches for low-current, slow devices such as 4000B-series CMOS." Matches 12.7 mm / relaxed-for-4000B threshold exactly. |
+| G7 — wire/track inductance (20 nH/in, 7 nH/cm) | VERIFIED | p0031: "the inductance of a 1 in. length of ordinary equipment wire is around 20 nH and that of a 1 cm length is around 7 nH." Exact match. (Note: the "1 m of 16/0.2 wire = 38 mΩ but 1.5 µH" worked example cited alongside was not located on p0030-31; not one of the 8 spot-checked claims per rule but flagged for a future pass.) |
+| P3 — voltage spacing 1 mm/200 V | VERIFIED | p0067: "For a benign environment — dry and free from conductive particles — a spacing of 1 mm per 200 V, allowing for manufacturing tolerances, is adequate for preventing breakdown... Spacings less than 0.5 mm risk solder bridging during wave soldering." Exact match, including the 0.5 mm bridging figure. |
+| P4 — crosstalk spacing 1 mm rule | VERIFIED | p0067-068: "a track spacing greater than 1 mm will result in cross talk voltages less than 10% of signal voltages for most board configurations... Cross talk can be reduced by routing ground conductors between pairs of signal lines." Exact match. |
+| C1 — electrolytic lifetime doubles per 10 °C | VERIFIED | p0131: "the life of these types can be doubled for each 10°C drop in operating temperature." p0130-131: temp range −40 to 85°C, extended −55 to 105/125°C; impedance ratio "usually around three or four" — all match. |
+| C6 — crystal circuit stray/component budget | VERIFIED | p0157: "circuit strays (amplifier input and pc track capacitance, amounting to at most 10 pF with good layout)... ratio C2:C1 should generally be of the order of 3:1... Rf... Generally 10–15 MΩ." p0158: AT-cut "maximum drive level of 0.5–1 mW"; "design the circuit for assured start-up with a three times higher R than quoted." p0159: "on no account route logic signals near or through the oscillator circuit"; 32.768 kHz tuning fork "−0.04 ppm/°C²," turnover "around 25°C." Every number matches exactly. |
+| C2 — reliability derating V⁵ law | VERIFIED | p0425: "failure rate increases as the fifth power of the voltage. Therefore, if you run the capacitor at half its rated voltage, you will observe a failure rate 32 times lower." Resistor "factor of 2, which is normally enough" matches "≥2× power derating." p0424: Arrhenius doubling ~10°C rise, activation energy "around 0.5 eV" — exact match. |
+
+8/8 verified; mismatches: none.

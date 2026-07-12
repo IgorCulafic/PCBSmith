@@ -1114,3 +1114,20 @@ Runners-up: connector ground-pin adjacency for clock pins
 adjacency lint (sect. 7), unconnected-via and
 soldermask-over-stitch artwork checks (sect. 9), 20-H plane inset
 as an opt-in generator knob (sect. 8).
+
+---
+
+## Verification (2026-07-12, spot-check, sonnet)
+
+| rule | verdict | note |
+|------|---------|------|
+| 1.1 3-W rule (centerline >= 3W, edge-to-edge > 2W; 70%/10-W 98% flux boundary; mandatory for high-threat nets) | VERIFIED | PDF p.150-151 quote matches verbatim, incl. the 6-mil/12-mil example and the "mandatory... only for high-threat signals, such as clock, differential pairs, video, audio, the reset line" list. |
+| 2.1 termination trigger closed form (k=9 cm / 3.49 in microstrip, k=7 cm / 2.75 in stripline at er=4.6) | VERIFIED | PDF p.132-134: text explicitly frames the constant as "k, (9 or 7)" and Example block gives "k = 8.87 for microstrip (in cm) or 3.49 (in inches); k = 6.99 for stripline (in cm) or 2.75 (in inches)" — the book itself rounds 8.87/6.99 to 9/7 for the named constant. |
+| 6.1 decoupling required for edges faster than 2 ns, provisioned for every component | VERIFIED | PDF p.96, sect. 3.5.3, verbatim: "Decoupling capacitors must be provided for devices with edges transition rates faster than 2 ns and should be provided, placement wise, for every component." |
+| 5.5 ESD guard band (1/8 in / 3.2 mm band, >=0.020 in / 0.5 mm clearance, via pitch every 1/2 in / 1.3 cm, segmented, no soldermask) | VERIFIED | PDF p.201-202 confirms all four numbers and the segmentation/no-soldermask/grounding-policy logic. Minor source-side inconsistency spotted (not a notes error): p.201 misprints the 0.020 in clearance as "(0.50 cm)" while p.202 correctly gives "0.020 in. (0.5 mm)" for the same dimension — notes file already uses the correct 0.5 mm. |
+| 5.2 critical-frequency table (Table 2.3, lambda/20 at 10 MHz...1000 MHz) | VERIFIED | PDF p.72 Table 2.3 values match the notes row-for-row exactly (1.5 m @10 MHz through 1.5 cm @1000 MHz). |
+| 5.4 two-layer grid loop area <= 1.5 sq in (unit-error errata: book prints "3.8 square cm") | VERIFIED | PDF p.43 verbatim: "total loop area formed by each grid square not exceeding 1.5 square in. (3.8 square cm)" — confirms both the 1.5 in^2 threshold and the book's own cm^2 unit error flagged in section 10 item 3. |
+| 8 20-H rule (10-H first noticeable, 20-H ~70% flux boundary, 100-H ~98%; worked example 0.006 in spacing -> 0.120 in / 3.0 mm inset; "no exceptions" on adjacent-layer routing) | VERIFIED | PDF p.227-228 matches all thresholds and the worked example numbers exactly, including the "no exceptions" wording for rerouting traces on the adjacent signal layer. |
+| 6.5 plane-pair capacitance (effective spacing < 0.010 in / 0.25 mm, 0.005 in / 0.13 mm preferred; k = 0.2249 in / 0.884 cm) | VERIFIED | PDF p.90-91 verbatim: "closely spaced—less than 0.010 in. (0.25 mm), with 0.005 in. (0.13 mm) preferred for high-speed applications" and Eq. 3.6 constant "k = conversion constant incorporating eo (0.2249 for in., 0.884 for cm)". |
+
+8/8 verified; mismatches: none. One source-side (not notes-side) print inconsistency noted under the ESD guard band row — the notes already carry the correct value.
