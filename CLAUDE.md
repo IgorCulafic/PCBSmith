@@ -312,7 +312,7 @@ ledger — read BEFORE touching the router or placements), and
   auto-memory), placement compatibility, dual-side placement as
   strategy. Follow `docs/routing-placement-plan.md`. Do NOT resume
   hand-iterating thermometer placements before bus routing exists.
-- **Thermometer challenge (2026-07-10, 10th topology, IN FLIGHT)**:
+- **Thermometer challenge (2026-07-10, 10th topology, BOARD FAILED)**:
   63 parts (ESP32-C3, SHT31 DFN, 2x74HC595, USB-C 16P, 16-LED mercury
   column) on a thermometer-shaped outline. It forced five GENERIC
   machinery upgrades, each regression-tested and rulebook'd (5.3-5.5):

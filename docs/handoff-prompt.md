@@ -59,13 +59,19 @@ claims too — he says so himself.
 
 **Where things stand (2026-07-12):**
 - Nine topologies regenerate terminal-clean in the golden suite.
-- The tenth (thermometer-shaped ESP32-C3 temp/humidity display) is
-  complete and committed EXCEPT the board layout: schematics (machine
-  + human-readable reader with netlist-equality proof), ngspice sim,
-  authority CLI, tests. Seven successive routing failures proved the
-  per-net A* router cannot shepherd 20+ nets through the narrow stem
-  — that is WHY the roadmap exists. Do NOT hand-iterate thermometer
-  placements; build plan phase 2 (bus routing) first.
+- The tenth challenge — a thermometer-shaped ESP32-C3 temperature/
+  humidity display, the first real end-to-end test — **FAILED at its
+  main goal: no routed board exists.** Over 2+ hours, seven routing
+  attempts each died on a different net and Igor called it off. What
+  survived and is committed: the machine schematic, the human-readable
+  reader schematic (live ERC + netlist-equality proven), the ngspice
+  simulation, the authority CLI command, the tests, and every
+  placement lesson encoded in the board module. The diagnosis — the
+  per-net sequential A* router cannot shepherd 20+ nets through the
+  24 mm stem, no matter the ordering — is the entire reason the
+  roadmap exists. Do NOT resume hand-iterating thermometer
+  placements; the board stays unroutable until plan phases 2-3 (bus
+  routing + placement engine) are built.
 - Book knowledge base: 7 of 9 sources distilled with page locators;
   `johnson-hsdd` and `ipc-7351` are OCR'd into `.book-cache/` but not
   yet distilled — that is plan phase 0, your likely first task, along
