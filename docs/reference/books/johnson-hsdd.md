@@ -436,7 +436,7 @@ are dormant.
 
 ### HSDD-D1 — Trace current capacity at a 10 °C rise
 - THRESHOLD: keep trace heating inside a digital product ≤ ~10 °C. At
-  that rise a **0.010 in-wide 1-oz trace (≈1.35e-3 in² area) carries
+  that rise a **0.010 in-wide 1-oz trace (≈1.35e-5 in² area; exponent corrected 2026-07-12 per spot-check, width x thickness arithmetic) carries
   ~750 mA** (Fig. 5.23); capacity scales with cross-sectional area.
 - WHY: temperature rise ∝ dissipated power for a given cross-section;
   hot traces are unreliable and heat neighbours.
@@ -553,3 +553,20 @@ are dormant.
 10. **HSDD-G2 two-layer ground hierarchy (grid default, fingers = finding)**
     — composition knob picking the return topology; carries the standing
     2-layer-ceiling advisory (CB6).
+
+---
+
+## Verification (2026-07-12, spot-check, sonnet)
+
+| rule | verdict | note |
+|------|---------|------|
+| HSDD-K1 | VERIFIED | `Fknee = 0.5/Tr`, Eq 1.1, PDF p11 (`Fknee = 0.5 / Tr`). "6.8 dB below the natural 20-dB/decade rolloff" and "hardly affects digital performance" both read cleanly on PDF p11-12. Exact match. |
+| HSDD-K2 | VERIFIED | `l = Tr/D` Eq 1.3 and "Circuits smaller than l/6 are lumped" Eq 1.4, PDF p16-17 — text reads verbatim, no OCR ambiguity. Derived `≈25·tr_ns mm` (v≈150 mm/ns outer trace) is consistent arithmetic, not itself a printed number. |
+| HSDD-X1 | VERIFIED | `Crosstalk < 1/(1+(D/H)²)` Eq 5.14/5.15, PDF p209, worked example D/H=8 → "=0.015" (1.5%) printed explicitly, matching the note's "D/H = 8 → 1.5%" exactly. "a crosstalk level of 1-3% between adjacent wires is fine" (assumes solid plane, sum contributions on hatch/fingers) reads verbatim on the same page. |
+| HSDD-G3 | VERIFIED | `L ~ 5Y·ln(X/W)` Eq 5.11 (grid, PDF p206) and the same `5Y ln(X/W)` form Eq 5.13 (fingers, PDF p208) — the constant "5" reads identically and unambiguously in TWO independently-OCR'd equations on different pages, which is strong corroboration despite the note's "OCR-uncertain" caution; no digit-swap candidate (0/O, 1/l, 3/5/8) fits both instances better. Downgrade the OCR-uncertain flag on the constant itself; the note's caveat that it's "a first-order estimate, not a precision value" is Johnson's own framing, still valid. |
+| HSDD-P1 | VERIFIED | Table 8.1 (PDF p291), item 8 row reads "8 0.1 0.1 1.1 SMT 1206" = lead-spacing 0.1 in / **ESR 0.1 Ω** / **lead inductance 1.1 nH** — matches the note's "SMT 1206 ≈ 1.1 nH, ESR ~0.1 Ω" exactly (columns confirmed against the header row and items 1-7, whose ESR 0.1-1.1 Ω and inductance 4-16 nH ranges also match the note). The "~8 dB" bonded-vs-socketed claim (items 6 vs 7) is stated verbatim on PDF p293 ("makes an 8-dB difference in the impedance above 10MHz"). |
+| HSDD-P2 | VERIFIED | PDF p266: "The effective radius within which this effect works is equal to l/12... All capacitors within the diameter of l/6 act in concert as a lumped circuit," worked to "l/12 = 0.5 in." for a 1 ns edge (l=6in). "a particular configuration of bypass capacitors that works at one frequency is eight times less effective when we halve the rise time" — exact match to the note's l/12 radius and "~8× less effective" claim. |
+| HSDD-C1 | VERIFIED | Eq 9.4 (PDF p304) reads "Coupling is proportional to: 1/(1+N²)" with caption "coupling is reduced by a factor of 2N+1" — exact match. Rule 5 (PDF p305): "Adding extra grounds at the end of a connector does almost nothing to reduce crosstalk" — verbatim. Fig 9.8 caption (PDF p309): "No signal lies more than 0.2 in. away from a ground pin" — exact match to the note's "~0.2 in" placement guide. |
+| HSDD-D1 | MISMATCH | The 750 mA / 10 °C / 0.010-in-wide-1-oz-trace claim itself is VERIFIED verbatim on PDF p221 ("a 0.010-in.-wide trace of 1-oz copper (0.00135 in. thick) can safely pass 750 mA of current at a temperature rise of 10° C"). But the note's parenthetical **"≈1.35e-3 in² area" is wrong by 100×**: 0.010 in × 0.00135 in = **1.35×10⁻⁵ in²**, not 1.35×10⁻³ in². This is not the cache's OCR garbling — the source page's own footnote gives the identical mantissa with only the exponent digit dropped ("cross-sectional area of 1.35×10- in.2" on PDF p221), and dimensional analysis (width × thickness) is unambiguous: the correct exponent is -5. This is an arithmetic slip introduced when the note was written, not a source disagreement or an OCR/glyph issue — flag for correction (1.35e-3 → 1.35e-5 in²). |
+
+7/8 verified; 1 mismatch (HSDD-D1's cross-sectional-area parenthetical is off by 100× — 1.35e-5 in² per width×thickness, not 1.35e-3 in² as written; the 750 mA/10 °C headline number itself is correct and verbatim-sourced). No UNFINDABLE rules; no case where the cache's OCR itself was shown to disagree with the physics once cross-checked against neighbouring pages/equations.
