@@ -264,6 +264,17 @@ ledger — read BEFORE touching the router or placements), and
 - The user values honest status over green lights: report failed
   steps, unsimulated stages, and assumption-level evidence exactly as
   they are.
+- Project context beyond the code: PCBSmith is the RESTART of an
+  earlier attempt (archived in `old_files/r8-pre-restructure-snapshot-
+  2026-05*` - browsable for history, never imported). The user has a
+  FUNDING angle: a separate session built a mockup chat GUI over old
+  board visuals for a funding-run presentation video; expect demo/
+  presentation asks, and keep renders/review packs presentation-
+  quality. Only one prior session transcript survives on this machine;
+  everything else from earlier chats lives ONLY in CLAUDE.md, the
+  rulebook, docs/project-history.md, the commit messages, and now
+  docs/architecture.md + docs/lessons-and-pitfalls.md - treat those as
+  the canonical memory and keep updating them.
 
 ## Current frontier (where to push next)
 
