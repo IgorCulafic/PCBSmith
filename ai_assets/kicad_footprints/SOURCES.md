@@ -12,3 +12,7 @@ a KiCad installation; `pcbsmith.kicad.library` falls back to the installed
 share directory for footprints not vendored here.
 
 - `Package_TO_SOT_SMD__SOT-23.kicad_mod`, `Connector_PinHeader_2.54mm__PinHeader_1x03_P2.54mm_Vertical.kicad_mod`, `NetTie__NetTie-2_SMD_Pad2.0mm.kicad_mod` - copied from the official KiCad 10.0 footprint library (share/kicad/footprints) for the metal detector slice (BJT, 3-pin header, coil-terminal net tie).
+- `Test__ReducedCapacityTwoStemTerminal.kicad_mod` - locally authored minimal
+  one-pad SMD fixture matching `tests/fixtures/routing/reduced_capacity_two_stem.py`;
+  used only to make the synthetic placement save/read-back acceptance test
+  deterministic without live KiCad library access.

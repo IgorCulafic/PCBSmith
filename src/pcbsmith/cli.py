@@ -1419,11 +1419,11 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
                 layout=layout,
                 design_review=design_review,
                 extra_findings=(
-                    "MAINS DESIGN: the isolation barrier (>=6.4mm creepage) "
-                    "is machine-checked (rule 10.1) and drawn on the silk; "
-                    "certification-level review and lab verification by a "
-                    "qualified engineer are required before connecting "
-                    "120VAC.",
+                    "MAINS DESIGN: a 6.4mm project copper-spacing target "
+                    "and barrier-side discipline are machine-checked and "
+                    "drawn on the silk. These geometry checks do not establish "
+                    "insulation clearance or creepage; qualified engineering "
+                    "review and lab verification are required before 120VAC.",
                 ),
             )
     artifacts = _authority_artifacts(

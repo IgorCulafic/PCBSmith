@@ -1,8 +1,15 @@
 from __future__ import annotations
 
+import re
 from collections import defaultdict
+from uuid import UUID
 
-from pcbsmith.kicad.board import BoardComponent, BoardNet, BoardNetlist
+from pcbsmith.kicad.board import (
+    BoardComponent,
+    BoardNet,
+    BoardNetlist,
+    render_board_from_layout,
+)
 from pcbsmith.kicad.clover_board import (
     BOARD_H,
     BOARD_W,
@@ -21,6 +28,7 @@ FOOTPRINTS = {
     **{f"D{i}": "LED_SMD:LED_0603_1608Metric" for i in range(1, 5)},
 }
 MOTTO = "Luck be with 'ye"
+UUID_PATTERN = re.compile(r'\(uuid\s+"?([0-9a-f-]{36})"?\)')
 
 # (reference, pin-1 net, pin-2 net) for the two-pin parts, mirroring the
 # schematic exporter's passives table (LED pin 1 = cathode, rule 8.4).
@@ -110,12 +118,17 @@ def test_outline_is_closed_simple_and_inside_the_sheet() -> None:
 
 
 def test_silk_art_has_four_leaves_a_stem_and_the_motto() -> None:
-    graphics = clover_silk_graphics(20.0, MOTTO)
+    first = clover_silk_graphics(20.0, MOTTO)
+    second = clover_silk_graphics(20.0, MOTTO)
 
-    polys = [g for g in graphics if "gr_poly" in g]
+    assert first == second
+    polys = [graphic for graphic in first if "gr_poly" in graphic]
     assert len(polys) == 12  # 4 leaves x (2 lobes + 1 wedge)
-    assert any("gr_line" in g for g in graphics)
-    assert any(MOTTO in g for g in graphics)
+    assert any("gr_line" in graphic for graphic in first)
+    assert any(MOTTO in graphic for graphic in first)
+    uuids = [UUID_PATTERN.search(graphic).group(1) for graphic in first]
+    assert len(uuids) == len(set(uuids))
+    assert all(UUID(value).version == 5 for value in uuids)
 
 
 def test_layout_places_backside_parts_and_routes_every_leaf() -> None:
@@ -140,3 +153,21 @@ def test_layout_places_backside_parts_and_routes_every_leaf() -> None:
     assert zone_nets.count("/VDD") == 2
     assert zone_nets.count("/GND") == 1
     assert layout.outline == clover_outline()
+
+
+def test_complete_clover_board_render_is_repeatable_with_unique_uuids() -> None:
+    netlist = _netlist()
+    first = render_board_from_layout(
+        netlist,
+        compute_clover_board_layout(netlist, MOTTO),
+    )
+    second = render_board_from_layout(
+        netlist,
+        compute_clover_board_layout(netlist, MOTTO),
+    )
+    uuids = UUID_PATTERN.findall(first)
+
+    assert first == second
+    assert uuids
+    assert len(uuids) == len(set(uuids))
+    assert all(UUID(value).version == 5 for value in uuids)

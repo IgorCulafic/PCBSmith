@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import re
+from uuid import UUID
+
 from tests.unit.kicad.test_led_art_board import _fixture
 
 from pcbsmith.kicad.board import (
@@ -70,9 +73,11 @@ def test_embedded_footprint_carries_nets_and_parity_path() -> None:
     )
 
     assert text.lstrip().startswith('(footprint "LED_SMD:LED_0603_1608Metric"')
-    assert '(net 3 "/S1_1")' in text
-    assert '(net 4 "/S1_2")' in text
-    assert '(path "/abcd-1234")' in text
+    assert '(net "/S1_1")' in text
+    assert '(net "/S1_2")' in text
+    path_match = re.search(r'\(path "(/[^"/]+)"\)', text)
+    assert path_match is not None
+    assert UUID(path_match.group(1).strip("/")).version == 5
     assert '"Sim.Device"' in text
     assert "(version" not in text
     assert "(generator" not in text

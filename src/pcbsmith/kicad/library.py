@@ -15,7 +15,10 @@ import math
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
-from uuid import uuid4
+from uuid import UUID
+
+from pcbsmith.hole_geometry import HoleGeometry, HolePlating, HoleShape
+from pcbsmith.kicad.identity import stable_kicad_uuid
 
 
 class FootprintLibraryError(RuntimeError):
@@ -149,6 +152,29 @@ def _safe_head(node: SList) -> str | None:
 
 
 @dataclass(frozen=True)
+class PadSourceAnchor:
+    """Unmodified KiCad pad anchor before any routing-bbox folding."""
+
+    x_mm: float
+    y_mm: float
+    width_mm: float
+    height_mm: float
+
+
+@dataclass(frozen=True)
+class CustomPadSource:
+    """Canonical custom-pad source retained for a future exact parser.
+
+    The current routing model folds custom primitives into a bounding box.
+    Keeping the geometry-affecting source clauses separate prevents a later
+    mask checker from accidentally treating that box as an exact aperture.
+    """
+
+    canonical_clauses: tuple[str, ...]
+    unsupported_reason: str
+
+
+@dataclass(frozen=True)
 class PadSpec:
     name: str
     x_mm: float
@@ -163,7 +189,49 @@ class PadSpec:
     # KiCad pad shape ("circle", "oval", "rect", "roundrect", ...).
     # Rect-family corners stick out past the stadium model; the router
     # inflates them as obstacles (kicad-cli DRC caught the corner cuts).
+    # Canonical physical drill/slot geometry. ``drill_mm`` remains the
+    # max-axis compatibility projection until every consumer is migrated.
+    hole: HoleGeometry | None = None
+
+    def __post_init__(self) -> None:
+        if self.hole is None and self.drill_mm > 0:
+            plating = (
+                HolePlating.PLATED
+                if self.kind in {"tht", "thru_hole"}
+                else HolePlating.NON_PLATED
+            )
+            object.__setattr__(
+                self,
+                "hole",
+                HoleGeometry(
+                    shape=HoleShape.ROUND,
+                    width_mm=self.drill_mm,
+                    height_mm=self.drill_mm,
+                    rotation_deg=self.angle_deg,
+                    plating=plating,
+                ),
+            )
+        elif self.hole is not None:
+            if self.drill_mm > 0 and not math.isclose(
+                self.drill_mm,
+                self.hole.major_mm,
+                rel_tol=0.0,
+                abs_tol=1e-12,
+            ):
+                raise ValueError("drill_mm must equal the hole's maximum axis")
+            object.__setattr__(self, "drill_mm", self.hole.major_mm)
     shape: str = ""
+    # Source fields are defaulted so manually constructed/legacy PadSpecs keep
+    # their existing meaning. An empty layer tuple means unknown/unparsed,
+    # not "no layers"; parser-created specs always preserve the source clause.
+    source_anchor: PadSourceAnchor | None = None
+    layers: tuple[str, ...] = ()
+    roundrect_rratio: float | None = None
+    chamfer_ratio: float | None = None
+    chamfer_positions: tuple[str, ...] = ()
+    solder_mask_margin_mm: float | None = None
+    solder_mask_margin_ratio: float | None = None
+    custom_source: CustomPadSource | None = None
 
 
 @dataclass(frozen=True)
@@ -261,6 +329,33 @@ class ImportedFootprint:
     tree: SList = field(hash=False, compare=False, default_factory=list)
 
 
+CUSTOM_PAD_MASK_UNSUPPORTED_REASON = (
+    "custom pad mask geometry requires exact anchor/primitive union parsing"
+)
+
+
+def _optional_float_clause(node: SList, name: str) -> float | None:
+    clauses = _children(node, name)
+    if not clauses:
+        return None
+    clause = clauses[0]
+    if len(clause) < 2 or isinstance(clause[1], list):
+        raise FootprintLibraryError(f"Malformed {name} clause: {clause!r}")
+    return float(_atom(clause[1]))
+
+
+def _custom_pad_source(pad: SList) -> CustomPadSource:
+    geometry_clauses = [
+        child
+        for child in pad
+        if isinstance(child, list) and _safe_head(child) in {"options", "primitives"}
+    ]
+    return CustomPadSource(
+        canonical_clauses=tuple(serialize_sexpr(clause) for clause in geometry_clauses),
+        unsupported_reason=CUSTOM_PAD_MASK_UNSUPPORTED_REASON,
+    )
+
+
 def _footprint_file(library_id: str) -> Path:
     try:
         library, name = library_id.split(":", 1)
@@ -324,14 +419,37 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
         )
         width = float(_atom(size[0][1])) if size else 0.0
         height = float(_atom(size[0][2])) if size else width
-        drill = 0.0
-        if drill_nodes:
-            drill_values = [
-                float(_atom(child))
-                for child in drill_nodes[0][1:]
-                if not isinstance(child, list) and _is_number(_atom(child))
-            ]
-            drill = max(drill_values) if drill_values else 0.0
+        source_anchor = PadSourceAnchor(
+            x_mm=x_mm,
+            y_mm=y_mm,
+            width_mm=width,
+            height_mm=height,
+        )
+        layer_names = tuple(
+            _atom(layer)
+            for layers_node in _children(pad, "layers")
+            for layer in layers_node[1:]
+            if not isinstance(layer, list)
+        )
+        roundrect_rratio = _optional_float_clause(pad, "roundrect_rratio")
+        chamfer_ratio = _optional_float_clause(pad, "chamfer_ratio")
+        chamfer_positions = tuple(
+            _atom(position)
+            for chamfer_node in _children(pad, "chamfer")
+            for position in chamfer_node[1:]
+            if not isinstance(position, list)
+        )
+        solder_mask_margin = _optional_float_clause(pad, "solder_mask_margin")
+        solder_mask_margin_ratio = _optional_float_clause(
+            pad, "solder_mask_margin_ratio"
+        )
+        custom_source = _custom_pad_source(pad) if pad_shape == "custom" else None
+        hole = (
+            _parse_hole_geometry(drill_nodes[0], kind, angle_deg)
+            if drill_nodes
+            else None
+        )
+        drill = hole.major_mm if hole is not None else 0.0
         if kind == "np_thru_hole":
             # Keep NPTH distinct: no copper, but the HOLE is a physical
             # obstacle (kicad-cli hole_clearance caught routed tracks
@@ -366,7 +484,16 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
                 height_mm=height,
                 drill_mm=drill,
                 angle_deg=angle_deg,
+                hole=hole,
                 shape=pad_shape,
+                source_anchor=source_anchor,
+                layers=layer_names,
+                roundrect_rratio=roundrect_rratio,
+                chamfer_ratio=chamfer_ratio,
+                chamfer_positions=chamfer_positions,
+                solder_mask_margin_mm=solder_mask_margin,
+                solder_mask_margin_ratio=solder_mask_margin_ratio,
+                custom_source=custom_source,
             )
         )
 
@@ -581,11 +708,56 @@ def _is_number(token: str) -> bool:
         return False
     return True
 
+def _parse_hole_geometry(
+    drill_node: SList,
+    pad_kind: str,
+    angle_deg: float,
+) -> HoleGeometry:
+    """Preserve KiCad ``drill`` axes and metadata before pad-kind folding."""
+    atoms = [
+        _atom(child)
+        for child in drill_node[1:]
+        if not isinstance(child, list)
+    ]
+    shape = HoleShape.OVAL if atoms and atoms[0] == "oval" else HoleShape.ROUND
+    dimensions = [float(atom) for atom in atoms if _is_number(atom)]
+    needed = 2 if shape is HoleShape.OVAL else 1
+    if len(dimensions) < needed:
+        raise FootprintLibraryError(
+            f"Malformed {shape.value} drill geometry: {drill_node!r}"
+        )
+    width = dimensions[0]
+    height = dimensions[1] if shape is HoleShape.OVAL else width
+    offset_nodes = _children(drill_node, "offset")
+    offset_x = float(_atom(offset_nodes[0][1])) if offset_nodes else 0.0
+    offset_y = float(_atom(offset_nodes[0][2])) if offset_nodes else 0.0
+    plating = (
+        HolePlating.PLATED
+        if pad_kind == "thru_hole"
+        else HolePlating.NON_PLATED
+    )
+    return HoleGeometry(
+        shape=shape,
+        width_mm=width,
+        height_mm=height,
+        rotation_deg=angle_deg,
+        plating=plating,
+        offset_x_mm=offset_x,
+        offset_y_mm=offset_y,
+    )
+
 
 # --------------------------------------------------------------------------
 # Embedding an imported footprint into a generated board.
 
-_STRIP_TOKENS = {"version", "generator", "generator_version", "embedded_fonts"}
+_STRIP_TOKENS = {
+    "version",
+    "generator",
+    "generator_version",
+    "embedded_fonts",
+    "uuid",
+    "tstamp",
+}
 
 
 def render_embedded_footprint(
@@ -604,9 +776,16 @@ def render_embedded_footprint(
     flip: bool = False,
     hide_reference: bool = False,
     reference_at: tuple[float, float, float] | None = None,
+    identity_occurrence: int = 0,
 ) -> str:
     tree = _as_list(_deep_copy(imported.tree))
     tree[1] = QuotedString(imported.library_id)
+    footprint_uuid = stable_kicad_uuid(
+        "board-footprint",
+        uuid_path.strip("/"),
+        reference,
+        str(identity_occurrence),
+    )
     if flip:
         _flip_tree(tree)
     body = [
@@ -619,10 +798,11 @@ def render_embedded_footprint(
     if rotation:
         at_clause.append(_fmt(rotation))
     head: list[SExpr] = [
-        ["uuid", QuotedString(str(uuid4()))],
+        ["uuid", QuotedString(footprint_uuid)],
         at_clause,
     ]
 
+    pad_occurrences: dict[str, int] = {}
     for child in body:
         if isinstance(child, list) and _safe_head(child) == "property":
             prop_name = _atom(child[1])
@@ -642,11 +822,26 @@ def render_embedded_footprint(
                 child.insert(1, "board_only")
         if isinstance(child, list) and _safe_head(child) == "pad":
             pad_name = _atom(child[1])
+            pad_occurrence = pad_occurrences.get(pad_name, 0)
+            pad_occurrences[pad_name] = pad_occurrence + 1
             bound = pad_nets.get(pad_name)
             if bound is not None:
-                number, net_name = bound
-                child.append(["net", str(number), QuotedString(net_name)])
-            child.append(["uuid", QuotedString(str(uuid4()))])
+                _number, net_name = bound
+                # KiCad 10's canonical board grammar binds every board item,
+                # including pads, by net name.  It still accepts the legacy
+                # numbered pad form, but rewrites it to this named-only form
+                # on save.
+                child.append(["net", QuotedString(net_name)])
+            _set_uuid(
+                child,
+                stable_kicad_uuid(
+                    "board-footprint-child",
+                    footprint_uuid,
+                    "pad",
+                    pad_name,
+                    str(pad_occurrence),
+                ),
+            )
             if rotation:
                 _add_rotation(child, rotation)
         if (
@@ -674,19 +869,212 @@ def render_embedded_footprint(
                             _fmt(reference_at[2]),
                         ]
 
+    _ensure_board_standard_properties(body, rotation)
+    standard_field_values = {
+        name: field_value
+        for name, field_value in extra_fields
+        if name in {"Datasheet", "Description"}
+    }
+    for child in body:
+        if (
+            isinstance(child, list)
+            and _safe_head(child) == "property"
+            and len(child) > 2
+            and _atom(child[1]) in standard_field_values
+        ):
+            child[2] = QuotedString(standard_field_values[_atom(child[1])])
+
     if force_board_only and not _children_named(body, "attr"):
         body.append(["attr", "board_only", "exclude_from_pos_files", "exclude_from_bom"])
 
     silk_text_nodes: list[SExpr] = [
-        _silk_text_node(text, x, y, angle) for text, x, y, angle in extra_silk_texts
+        _silk_text_node(
+            text,
+            x,
+            y,
+            angle,
+            stable_kicad_uuid(
+                "board-footprint-child",
+                footprint_uuid,
+                "extra-silk",
+                str(index),
+            ),
+        )
+        for index, (text, x, y, angle) in enumerate(extra_silk_texts)
     ]
     field_properties: list[SExpr] = [
-        _hidden_property(name, field_value) for name, field_value in extra_fields
+        _hidden_property(
+            name,
+            field_value,
+            stable_kicad_uuid(
+                "board-footprint-child",
+                footprint_uuid,
+                "extra-field",
+                name,
+                str(index),
+            ),
+        )
+        for index, (name, field_value) in enumerate(extra_fields)
+        if name not in {"Reference", "Value", "Footprint", "Datasheet", "Description"}
     ]
-    path_clause: list[SExpr] = [["path", QuotedString("/" + uuid_path.strip("/"))]]
+    final_children = [*body, *silk_text_nodes, *field_properties]
+    _assign_footprint_child_uuids(final_children, footprint_uuid=footprint_uuid)
+    path_clause: list[SExpr] = [
+        ["path", QuotedString(_stable_schematic_path(uuid_path, footprint_uuid))]
+    ]
 
-    tree[2:] = [*head, *body, *silk_text_nodes, *field_properties, *path_clause]
+    tree[2:] = [*head, *final_children, *path_clause]
     return "  " + serialize_sexpr(tree, indent=1)
+
+
+def _ensure_board_standard_properties(body: SList, rotation: float) -> None:
+    """Emit standard empty fields that KiCad otherwise creates with UUID4s."""
+    property_names = {
+        _atom(child[1])
+        for child in body
+        if isinstance(child, list)
+        and _safe_head(child) == "property"
+        and len(child) > 1
+    }
+    insertion = next(
+        (
+            index + 1
+            for index, child in enumerate(body)
+            if isinstance(child, list)
+            and _safe_head(child) == "property"
+            and len(child) > 1
+            and _atom(child[1]) == "Value"
+        ),
+        len(body),
+    )
+    missing: list[SExpr] = []
+    for name in ("Datasheet", "Description"):
+        if name in property_names:
+            continue
+        missing.append(
+            [
+                "property",
+                QuotedString(name),
+                QuotedString(""),
+                ["at", "0", "0", _fmt(rotation % 360)],
+                ["layer", QuotedString("F.Fab")],
+                ["hide", "yes"],
+                ["effects", ["font", ["size", "1.27", "1.27"]]],
+            ]
+        )
+    body[insertion:insertion] = missing
+
+
+def _set_uuid(node: SList, value: str) -> None:
+    """Replace every legacy identity clause on one KiCad object with one UUID."""
+    node[:] = [
+        child
+        for child in node
+        if not (
+            isinstance(child, list)
+            and child
+            and _safe_head(child) in {"uuid", "tstamp"}
+        )
+    ]
+    node.append(["uuid", QuotedString(value)])
+
+
+_FOOTPRINT_IDENTITY_HEADS = frozenset(
+    {
+        "property",
+        "fp_arc",
+        "fp_bezier",
+        "fp_circle",
+        "fp_curve",
+        "fp_line",
+        "fp_poly",
+        "fp_rect",
+        "fp_text",
+        "fp_text_box",
+        "group",
+        "pad",
+        "zone",
+    }
+)
+
+
+def _identityless_copy(node: SList) -> SList:
+    """Copy one object while removing identity clauses at every depth."""
+    copied: SList = []
+    for child in node:
+        if isinstance(child, list):
+            if child and _safe_head(child) in {"uuid", "tstamp"}:
+                continue
+            copied.append(_identityless_copy(child))
+        elif isinstance(child, QuotedString):
+            copied.append(QuotedString(child.value))
+        else:
+            copied.append(child)
+    return copied
+
+
+def _assign_footprint_child_uuids(
+    children: SList,
+    *,
+    footprint_uuid: str,
+) -> None:
+    """Assign every placed footprint object a final-semantic UUID5.
+
+    KiCad 10 creates UUID4 values when old or externally generated footprint
+    properties and graphics omit identities.  The occurrence index keeps
+    byte-identical duplicate objects distinct without depending on source
+    library UUIDs, which may themselves collide between placed instances.
+    """
+    occurrences: dict[tuple[str, str], int] = {}
+    for child in children:
+        if not isinstance(child, list) or not child:
+            continue
+        child_head = _safe_head(child)
+        if child_head not in _FOOTPRINT_IDENTITY_HEADS:
+            continue
+        semantic = serialize_sexpr(_identityless_copy(child))
+        identity = (child_head, semantic)
+        occurrence = occurrences.get(identity, 0)
+        occurrences[identity] = occurrence + 1
+        _set_uuid(
+            child,
+            stable_kicad_uuid(
+                "board-footprint-child-v2",
+                footprint_uuid,
+                child_head,
+                semantic,
+                str(occurrence),
+            ),
+        )
+
+
+def _stable_schematic_path(uuid_path: str, footprint_uuid: str) -> str:
+    """Return a KiCad-valid deterministic schematic instance path.
+
+    Real schematic paths already consist of UUID atoms and must remain intact
+    for schematic-parity checks.  Synthetic/fallback path atoms are encoded
+    independently so KiCad does not replace them with random UUID4 values on
+    save.
+    """
+    atoms = tuple(atom for atom in uuid_path.strip("/").split("/") if atom)
+    if not atoms:
+        return "/" + stable_kicad_uuid(
+            "board-footprint-path-v1", footprint_uuid, "0", "empty"
+        )
+    stable_atoms: list[str] = []
+    for index, atom in enumerate(atoms):
+        try:
+            stable_atoms.append(str(UUID(atom)))
+        except ValueError:
+            stable_atoms.append(
+                stable_kicad_uuid(
+                    "board-footprint-path-v1",
+                    footprint_uuid,
+                    str(index),
+                    atom,
+                )
+            )
+    return "/" + "/".join(stable_atoms)
 
 
 def _add_rotation(node: SList, rotation: float) -> None:
@@ -745,14 +1133,20 @@ def _children_named(nodes: SList, name: str) -> list[SList]:
     ]
 
 
-def _silk_text_node(text: str, x: float, y: float, angle: float) -> SList:
+def _silk_text_node(
+    text: str,
+    x: float,
+    y: float,
+    angle: float,
+    uuid_value: str,
+) -> SList:
     return [
         "fp_text",
         "user",
         QuotedString(text),
         ["at", _fmt(x), _fmt(y), _fmt(angle)],
         ["layer", QuotedString("F.SilkS")],
-        ["uuid", QuotedString(str(uuid4()))],
+        ["uuid", QuotedString(uuid_value)],
         [
             "effects",
             ["font", ["size", "1", "1"], ["thickness", "0.15"]],
@@ -760,7 +1154,7 @@ def _silk_text_node(text: str, x: float, y: float, angle: float) -> SList:
     ]
 
 
-def _hidden_property(name: str, value: str) -> SList:
+def _hidden_property(name: str, value: str, uuid_value: str) -> SList:
     return [
         "property",
         QuotedString(name),
@@ -768,7 +1162,7 @@ def _hidden_property(name: str, value: str) -> SList:
         ["at", "0", "0", "0"],
         ["layer", QuotedString("F.Fab")],
         ["hide", "yes"],
-        ["uuid", QuotedString(str(uuid4()))],
+        ["uuid", QuotedString(uuid_value)],
         [
             "effects",
             ["font", ["size", "0.5", "0.5"], ["thickness", "0.06"]],

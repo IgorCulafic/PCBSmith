@@ -5,29 +5,44 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from itertools import permutations
 from pathlib import Path
-from uuid import uuid4
 
+from pcbsmith.kicad.board_mask import (
+    mask_aperture_render_identity,
+    render_board_mask_aperture,
+)
+from pcbsmith.kicad.board_region import BoardCutoutPolygon, validate_cutouts
 from pcbsmith.kicad.cli import (
     KiCadInstall,
     KiCadProcessResult,
     find_kicad_cli,
     run_kicad_process,
 )
+from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.library import (
     FootprintLibraryError,
     FootprintSpec,
     PadSpec,
+    QuotedString,
     SilkLine,
     SilkText,
+    SList,
     build_footprint_library,
     load_footprint,
+    parse_sexpr,
     render_embedded_footprint,
     rotate_offset,
+    serialize_sexpr,
 )
+from pcbsmith.mask_geometry import (
+    MaskAperture,
+    ViaMaskIntent,
+)
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
 
 __all__ = [
     "PadSpec",
     "FootprintSpec",
+    "canonical_kicad_netlist_xml_text",
     "SilkLine",
     "SilkText",
     "rotate_offset",
@@ -39,6 +54,7 @@ __all__ = [
     "TrackSegment",
     "ViaSpec",
     "BoardLayout",
+    "BoardCutoutPolygon",
     "placement_y",
     "placement_rotation",
     "rotated_bounds",
@@ -54,12 +70,12 @@ __all__ = [
 ]
 
 KICAD_BOARD_VERSION = 20241229
-SIGNAL_TRACK_WIDTH_MM = 0.3
-POWER_TRACK_WIDTH_MM = 0.8
-SIGNAL_VIA_SIZE_MM = 0.6
-SIGNAL_VIA_DRILL_MM = 0.3
-POWER_VIA_SIZE_MM = 0.8
-POWER_VIA_DRILL_MM = 0.4
+SIGNAL_TRACK_WIDTH_MM = DEFAULT_PCB_RULE_PROFILE.geometry.default_signal_trace_width_mm
+POWER_TRACK_WIDTH_MM = DEFAULT_PCB_RULE_PROFILE.geometry.default_power_trace_width_mm
+SIGNAL_VIA_SIZE_MM = DEFAULT_PCB_RULE_PROFILE.geometry.routing_via_diameter_mm
+SIGNAL_VIA_DRILL_MM = DEFAULT_PCB_RULE_PROFILE.geometry.routing_via_drill_mm
+POWER_VIA_SIZE_MM = DEFAULT_PCB_RULE_PROFILE.geometry.power_via_diameter_mm
+POWER_VIA_DRILL_MM = DEFAULT_PCB_RULE_PROFILE.geometry.power_via_drill_mm
 MIN_PARTS_ROW_Y_MM = 4.5
 PARTS_ROW_TOP_MARGIN_MM = 3.0
 LANE_START_OFFSET_MM = 9.5
@@ -114,7 +130,11 @@ def mounting_hole_placements(
                 reference=f"H{index}",
                 value="M3",
                 footprint=MOUNTING_HOLE_FOOTPRINT,
-                uuid_path=str(uuid4()),
+                uuid_path=stable_kicad_uuid(
+                    "board-component-path",
+                    "mounting-hole",
+                    f"H{index}",
+                ),
             ),
             x,
             y,
@@ -169,6 +189,10 @@ class ViaSpec:
     net_name: str
     size_mm: float = SIGNAL_VIA_SIZE_MM
     drill_mm: float = SIGNAL_VIA_DRILL_MM
+    # Inherit serializes as KiCad "none" so the editor, downstream readers,
+    # and semantic identity all see the same process-default intent.
+    front_mask: ViaMaskIntent = ViaMaskIntent.INHERIT
+    back_mask: ViaMaskIntent = ViaMaskIntent.INHERIT
 
 
 @dataclass(frozen=True)
@@ -198,9 +222,23 @@ class BoardLayout:
     # Per-reference label repositioning: footprint-local (x, y, total
     # angle) for the Reference property, for dense layouts where the
     # default spot lands on a neighbour.
-    part_reference_at: tuple[
-        tuple[str, tuple[float, float, float]], ...
-    ] = ()
+    part_reference_at: tuple[tuple[str, tuple[float, float, float]], ...] = ()
+    # Typed board-level solder-mask apertures. Raw graphics remain supported
+    # as opaque KiCad strings and are deliberately not interpreted.
+    mask_apertures: tuple[MaskAperture, ...] = ()
+    # Exact internal board voids rendered as closed Edge.Cuts polygons.
+    cutouts: tuple[BoardCutoutPolygon, ...] = ()
+
+    def __post_init__(self) -> None:
+        if not self.cutouts:
+            return
+        outer = self.outline or (
+            (0.0, 0.0),
+            (self.width_mm, 0.0),
+            (self.width_mm, self.height_mm),
+            (0.0, self.height_mm),
+        )
+        object.__setattr__(self, "cutouts", validate_cutouts(outer, self.cutouts))
 
 
 def placement_y(layout: BoardLayout, reference: str) -> float:
@@ -217,9 +255,7 @@ def placement_rotation(layout: BoardLayout, reference: str) -> float:
     return 0.0
 
 
-def rotated_bounds(
-    spec: FootprintSpec, rotation: float
-) -> tuple[float, float, float, float]:
+def rotated_bounds(spec: FootprintSpec, rotation: float) -> tuple[float, float, float, float]:
     """Footprint bounds (x_min, x_max, y_min, y_max) after rotation."""
     corners = (
         rotate_offset(spec.x_min, spec.y_min, rotation),
@@ -238,14 +274,10 @@ def export_kicad_netlist_xml(
     finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
     runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
 ) -> Path:
-    netlist_file = (
-        schematic_file.parent / ".pcbsmith" / "kicad" / f"{schematic_file.stem}.net.xml"
-    )
+    netlist_file = schematic_file.parent / ".pcbsmith" / "kicad" / f"{schematic_file.stem}.net.xml"
     install = finder()
     if install is None:
-        raise BoardGenerationError(
-            "KiCad CLI was not found; the board netlist export was not run."
-        )
+        raise BoardGenerationError("KiCad CLI was not found; the board netlist export was not run.")
     command = (
         str(install.path),
         "sch",
@@ -269,6 +301,39 @@ def export_kicad_netlist_xml(
     if not netlist_file.exists():
         raise BoardGenerationError("KiCad netlist export did not write an output file.")
     return netlist_file
+
+
+def canonical_kicad_netlist_xml_text(xml_text: str) -> str:
+    """Canonicalize KiCad netlist XML without host paths or wall-clock time.
+
+    The root project and hierarchical sheet identities remain as file names;
+    only their machine-specific directory prefixes are removed.
+    """
+
+    try:
+        root = ET.fromstring(xml_text)
+    except ET.ParseError as error:
+        raise BoardGenerationError(f"KiCad netlist XML could not be parsed: {error}") from error
+
+    design = root.find("design")
+    if design is not None:
+        source = design.find("source")
+        if source is not None and source.text:
+            source.text = Path(source.text.replace("\\", "/")).name
+        date = design.find("date")
+        if date is not None:
+            design.remove(date)
+    for prop in root.iter("property"):
+        if prop.get("name") == "Sheetfile" and prop.get("value"):
+            prop.set("value", Path(prop.get("value", "").replace("\\", "/")).name)
+    for element in root.iter():
+        if element.text is not None and not element.text.strip():
+            element.text = None
+        if element.tail is not None and not element.tail.strip():
+            element.tail = None
+    ET.indent(root, space="  ")
+    body = ET.tostring(root, encoding="unicode", short_empty_elements=True)
+    return '<?xml version="1.0" encoding="UTF-8"?>\n' + body + "\n"
 
 
 def parse_board_netlist(xml_text: str) -> BoardNetlist:
@@ -296,14 +361,17 @@ def parse_board_netlist(xml_text: str) -> BoardNetlist:
                 reference=reference,
                 value=_element_text(comp, "value") or reference,
                 footprint=footprint,
-                uuid_path=_element_text(comp, "tstamps") or str(uuid4()),
+                uuid_path=_element_text(comp, "tstamps")
+                or stable_kicad_uuid(
+                    "board-component-path",
+                    "netlist-fallback",
+                    reference,
+                ),
                 fields=tuple(fields),
             )
         )
     if not components:
-        raise BoardGenerationError(
-            "KiCad netlist contained no board components with footprints."
-        )
+        raise BoardGenerationError("KiCad netlist contained no board components with footprints.")
 
     placed = {component.reference for component in components}
     nets: list[BoardNet] = []
@@ -330,6 +398,7 @@ def generate_board(
     sensitive_net_names: frozenset[str] = frozenset(),
     ground_pour: bool = False,
     thermal_pour_references: tuple[str, ...] = (),
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
     finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
     runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
 ) -> BoardNetlist:
@@ -341,8 +410,11 @@ def generate_board(
         sensitive_net_names,
         ground_pour=ground_pour,
         thermal_pour_references=thermal_pour_references,
+        profile=profile,
     )
-    board_file.write_text(render_board_from_layout(netlist, layout), encoding="utf-8")
+    board_file.write_text(
+        render_board_from_layout(netlist, layout, profile=profile), encoding="utf-8"
+    )
     return netlist
 
 
@@ -408,6 +480,7 @@ def compute_board_layout(
     ground_pour: bool = False,
     thermal_pour_references: tuple[str, ...] = (),
     mounting_holes: bool = True,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> BoardLayout:
     unknown = sorted(
         {
@@ -427,9 +500,7 @@ def compute_board_layout(
         if _row_rotation(component)
     }
     placements = _place_components(netlist.components, netlist.nets, power_net_names)
-    top_extent = max(
-        -_bounds_for(component, rotations)[2] for component, _ in placements
-    )
+    top_extent = max(-_bounds_for(component, rotations)[2] for component, _ in placements)
     parts_row_y = max(
         MOUNTING_HOLE_ROW_MIN_Y_MM if mounting_holes else MIN_PARTS_ROW_Y_MM,
         PARTS_ROW_TOP_MARGIN_MM + top_extent,
@@ -441,11 +512,7 @@ def compute_board_layout(
         floor = TOP_CHANNEL_FLOOR_MM if mounting_holes else 1.5
         parts_row_y = max(
             parts_row_y,
-            floor
-            + 0.8
-            + TOP_LANE_GAP_MM
-            + (north_nets - 1) * LANE_PITCH_MM
-            + top_extent,
+            floor + 0.8 + TOP_LANE_GAP_MM + (north_nets - 1) * LANE_PITCH_MM + top_extent,
         )
     segments, vias, lane_bottom_y = _route_channel(
         netlist,
@@ -454,6 +521,7 @@ def compute_board_layout(
         parts_row_y=parts_row_y,
         power_net_names=power_net_names,
         sensitive_net_names=sensitive_net_names,
+        profile=profile,
     )
     last_component, last_anchor = placements[-1]
     last_spec = FOOTPRINT_LIBRARY[last_component.footprint]
@@ -461,10 +529,7 @@ def compute_board_layout(
     if last_spec.is_connector and len(placements) > 1:
         # A trailing connector hugs the right board edge, mirroring the lead.
         last_rotation = rotations.get(last_component.reference, 0.0)
-        pad_xs = [
-            rotate_offset(pad.x_mm, pad.y_mm, last_rotation)[0]
-            for pad in last_spec.pads
-        ]
+        pad_xs = [rotate_offset(pad.x_mm, pad.y_mm, last_rotation)[0] for pad in last_spec.pads]
         board_width = last_anchor + max(pad_xs) + CONNECTOR_EDGE_PAD_OFFSET_MM
         if mounting_holes:
             # Push the right edge out so the corner holes clear the last
@@ -486,9 +551,7 @@ def compute_board_layout(
             for component, anchor_x in placements
         ),
     )
-    board_height = lane_bottom_y + (
-        MOUNTING_HOLE_BAND_MM if mounting_holes else BOARD_MARGIN_MM
-    )
+    board_height = lane_bottom_y + (MOUNTING_HOLE_BAND_MM if mounting_holes else BOARD_MARGIN_MM)
     part_y: list[tuple[str, float]] = []
     if mounting_holes:
         holes = mounting_hole_placements(board_width, board_height)
@@ -530,13 +593,9 @@ def _pour_zones(
 ) -> tuple[tuple[str, str, tuple[float, float, float, float]], ...]:
     if not ground_pour and not thermal_pour_references:
         return ()
-    ground_nets = [
-        net.name for net in netlist.nets if net_name_in(net.name, frozenset({"GND"}))
-    ]
+    ground_nets = [net.name for net in netlist.nets if net_name_in(net.name, frozenset({"GND"}))]
     if not ground_nets:
-        raise BoardGenerationError(
-            "A ground pour was requested but the netlist has no GND net."
-        )
+        raise BoardGenerationError("A ground pour was requested but the netlist has no GND net.")
     ground = ground_nets[0]
     zones: list[tuple[str, str, tuple[float, float, float, float]]] = []
     if ground_pour:
@@ -560,9 +619,7 @@ def _pour_zones(
             raise BoardGenerationError(
                 f"Thermal pour requested for {reference}, which is not placed."
             )
-        bounds = rotated_bounds(
-            FOOTPRINT_LIBRARY[specs[reference]], rotations.get(reference, 0.0)
-        )
+        bounds = rotated_bounds(FOOTPRINT_LIBRARY[specs[reference]], rotations.get(reference, 0.0))
         anchor_x = anchors[reference]
         # Dissipation copper around the power tab (rule 3.5).
         zones.append(
@@ -616,25 +673,26 @@ def render_board(
     netlist: BoardNetlist,
     power_net_names: frozenset[str] = frozenset(),
     sensitive_net_names: frozenset[str] = frozenset(),
+    *,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> str:
-    layout = compute_board_layout(netlist, power_net_names, sensitive_net_names)
-    return render_board_from_layout(netlist, layout)
+    layout = compute_board_layout(netlist, power_net_names, sensitive_net_names, profile=profile)
+    return render_board_from_layout(netlist, layout, profile=profile)
 
 
-def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
+def render_board_from_layout(
+    netlist: BoardNetlist,
+    layout: BoardLayout,
+    *,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
+) -> str:
     net_numbers = {net.name: index for index, net in enumerate(netlist.nets, start=1)}
-    pad_nets = {
-        (reference, pin): net.name
-        for net in netlist.nets
-        for reference, pin in net.nodes
-    }
+    pad_nets = {(reference, pin): net.name for net in netlist.nets for reference, pin in net.nodes}
     board_width = layout.width_mm
     board_height = layout.height_mm
 
-    sections: list[str] = [_render_header()]
-    sections.append('  (net 0 "")')
-    for net in netlist.nets:
-        sections.append(f'  (net {net_numbers[net.name]} {_q(net.name)})')
+    sections: list[str] = [_render_header(profile)]
+    footprint_occurrences: dict[tuple[str, str], int] = {}
     for component, anchor_x in layout.placements:
         spec = FOOTPRINT_LIBRARY[component.footprint]
         rotation = placement_rotation(layout, component.reference)
@@ -651,6 +709,9 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
             if isinstance(mark, SilkText)
         )
         _bind_unnamed_pads(spec, bindings)
+        footprint_identity = (component.uuid_path.strip("/"), component.reference)
+        footprint_occurrence = footprint_occurrences.get(footprint_identity, 0)
+        footprint_occurrences[footprint_identity] = footprint_occurrence + 1
         try:
             sections.append(
                 render_embedded_footprint(
@@ -658,8 +719,7 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
                     reference=component.reference,
                     value=component.value,
                     x_mm=anchor_x + BOARD_SHEET_ORIGIN_MM,
-                    y_mm=placement_y(layout, component.reference)
-                    + BOARD_SHEET_ORIGIN_MM,
+                    y_mm=placement_y(layout, component.reference) + BOARD_SHEET_ORIGIN_MM,
                     rotation=rotation,
                     uuid_path=component.uuid_path,
                     pad_nets=bindings,
@@ -668,23 +728,70 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
                     force_board_only=spec.board_only,
                     flip=component.reference in layout.part_flip,
                     hide_reference=component.reference in layout.hide_references,
-                    reference_at=dict(layout.part_reference_at).get(
-                        component.reference
-                    ),
+                    reference_at=dict(layout.part_reference_at).get(component.reference),
+                    identity_occurrence=footprint_occurrence,
                 )
             )
         except FootprintLibraryError as exc:
             raise BoardGenerationError(str(exc)) from exc
+    segment_occurrences: dict[tuple[str, ...], int] = {}
     for segment in layout.segments:
-        sections.append(_segment(segment, net_numbers))
+        identity = _segment_identity(segment)
+        occurrence = _take_occurrence(identity, segment_occurrences)
+        sections.append(_segment(segment, net_numbers, occurrence))
+    via_occurrences: dict[tuple[str, ...], int] = {}
     for via in layout.vias:
-        sections.append(_via(via, net_numbers))
+        identity = _via_identity(via)
+        occurrence = _take_occurrence(identity, via_occurrences)
+        sections.append(_via(via, net_numbers, occurrence))
+    zone_occurrences: dict[tuple[str, ...], int] = {}
     for zone_index, (zone_net, zone_layer, zone_rect) in enumerate(layout.zones):
+        identity = _zone_identity(zone_net, zone_layer, zone_rect)
+        occurrence = _take_occurrence(identity, zone_occurrences)
         sections.append(
-            _zone(zone_net, zone_layer, zone_rect, net_numbers, zone_index)
+            _zone(
+                zone_net,
+                zone_layer,
+                zone_rect,
+                net_numbers,
+                zone_index,
+                occurrence,
+            )
         )
     origin = BOARD_SHEET_ORIGIN_MM
-    sections.extend(layout.graphics)
+    mask_occurrences: dict[tuple[str, ...], int] = {}
+    graphic_occurrences: dict[tuple[str, str], int] = {}
+    for aperture in layout.mask_apertures:
+        identity = mask_aperture_render_identity(aperture)
+        occurrence = _take_occurrence(identity, mask_occurrences)
+        # Typed apertures cross the same final serialization boundary as the
+        # legacy raw graphic they replace.  Besides preserving byte parity,
+        # sharing this normalizer and occurrence ledger prevents a typed
+        # aperture and an equivalent raw graphic from receiving the same
+        # rendered-object identity.
+        sections.append(
+            _render_raw_board_graphic(
+                render_board_mask_aperture(aperture, origin, occurrence=occurrence),
+                graphic_occurrences,
+            )
+        )
+    for graphic in layout.graphics:
+        sections.append(_render_raw_board_graphic(graphic, graphic_occurrences))
+    for cutout in layout.cutouts:
+        points = "\n          ".join(
+            f"(xy {_mm(x + origin)} {_mm(y + origin)})" for x, y in cutout.points
+        )
+        sections.append(
+            f"""  (gr_poly
+    (pts
+          {points}
+    )
+    (stroke (width {_mm(EDGE_STROKE_MM)}) (type default))
+    (fill none)
+    (layer "Edge.Cuts")
+    (uuid {stable_kicad_uuid("board-cutout", cutout.semantic_fingerprint())})
+  )"""
+        )
     if layout.outline is not None:
         points = "\n          ".join(
             f"(xy {_mm(x + origin)} {_mm(y + origin)})" for x, y in layout.outline
@@ -697,7 +804,7 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
     (stroke (width {_mm(EDGE_STROKE_MM)}) (type default))
     (fill none)
     (layer "Edge.Cuts")
-    (uuid {uuid4()})
+    (uuid {stable_kicad_uuid("board-outline", "polygon")})
   )"""
         )
     else:
@@ -708,7 +815,7 @@ def render_board_from_layout(netlist: BoardNetlist, layout: BoardLayout) -> str:
     (stroke (width {_mm(EDGE_STROKE_MM)}) (type default))
     (fill none)
     (layer "Edge.Cuts")
-    (uuid {uuid4()})
+    (uuid {stable_kicad_uuid("board-outline", "rectangle")})
   )"""
         )
     return "\n".join(("\n".join(sections), ")", ""))
@@ -758,10 +865,7 @@ def _anchor_row(
         x_min, x_max, _, _ = rotated_bounds(spec, rotation)
         left_reserve, right_reserve = _escape_reserve(spec, rotation)
         if spec.is_connector:
-            stacked = max(
-                len(column)
-                for column in _connector_pad_columns(spec, rotation).values()
-            )
+            stacked = max(len(column) for column in _connector_pad_columns(spec, rotation).values())
             connector_reserve = (
                 CONNECTOR_ESCAPE_PITCH_MM * (stacked - 1) + 0.6 if stacked > 1 else 0.0
             )
@@ -772,9 +876,7 @@ def _anchor_row(
         if index == 0 and spec.is_connector:
             # The leading connector hugs the board corner so off-board wiring
             # lands at the edge, matching hand-layout convention.
-            first_pad = rotate_offset(
-                spec.pads[0].x_mm, spec.pads[0].y_mm, rotation
-            )
+            first_pad = rotate_offset(spec.pads[0].x_mm, spec.pads[0].y_mm, rotation)
             anchor_x = CONNECTOR_EDGE_PAD_OFFSET_MM - first_pad[0]
         else:
             anchor_x = max(cursor, BOARD_MARGIN_MM) - x_min + left_reserve
@@ -794,9 +896,7 @@ def _order_components(
     # parts take the order that minimises the net span, weighted towards
     # power nets so the switching path stays physically tight.
     connectors = tuple(
-        component
-        for component in components
-        if FOOTPRINT_LIBRARY[component.footprint].is_connector
+        component for component in components if FOOTPRINT_LIBRARY[component.footprint].is_connector
     )
     others = tuple(
         component
@@ -851,19 +951,12 @@ def _row_net_span(
     nets: tuple[BoardNet, ...],
     power_net_names: frozenset[str] = frozenset(),
 ) -> float:
-    positions = {
-        component.reference: anchor_x
-        for component, anchor_x in _anchor_row(ordered)
-    }
+    positions = {component.reference: anchor_x for component, anchor_x in _anchor_row(ordered)}
     total = 0.0
     for net in nets:
         xs = [positions[reference] for reference, _ in net.nodes if reference in positions]
         if len(xs) > 1:
-            weight = (
-                POWER_NET_SPAN_WEIGHT
-                if is_power_net(net.name, power_net_names)
-                else 1.0
-            )
+            weight = POWER_NET_SPAN_WEIGHT if is_power_net(net.name, power_net_names) else 1.0
             total += (max(xs) - min(xs)) * weight
     return total
 
@@ -879,9 +972,7 @@ def _pad_side(dx: float, dy: float) -> str:
     return "south"
 
 
-def _side_escapes(
-    spec: FootprintSpec, rotation: float
-) -> dict[str, tuple[str, float, int]]:
+def _side_escapes(spec: FootprintSpec, rotation: float) -> dict[str, tuple[str, float, int]]:
     """East/west pads of a multi-side package (QFN) share an x column, so
     each detours outward into its own drop column: pad name -> (side, offset
     from the anchor). Connectors keep their dedicated escape scheme."""
@@ -920,9 +1011,7 @@ def _side_escapes(
         group = [
             (pad.name, rotate_offset(pad.x_mm, pad.y_mm, rotation)[0])
             for pad in spec.pads
-            if pad.name
-            and _pad_side(*rotate_offset(pad.x_mm, pad.y_mm, rotation))
-            == vertical_side
+            if pad.name and _pad_side(*rotate_offset(pad.x_mm, pad.y_mm, rotation)) == vertical_side
         ]
         if len(group) < 2:
             continue
@@ -962,8 +1051,7 @@ def _north_net_count(
 ) -> int:
     """How many nets need a top-channel lane (any pad on a north side)."""
     spec_by_reference = {
-        component.reference: FOOTPRINT_LIBRARY[component.footprint]
-        for component, _ in placements
+        component.reference: FOOTPRINT_LIBRARY[component.footprint] for component, _ in placements
     }
     count = 0
     for net in netlist.nets:
@@ -977,8 +1065,7 @@ def _north_net_count(
             except KeyError:
                 continue
             if any(
-                _pad_side(*rotate_offset(pad.x_mm, pad.y_mm, rotation)) == "north"
-                for pad in pads
+                _pad_side(*rotate_offset(pad.x_mm, pad.y_mm, rotation)) == "north" for pad in pads
             ):
                 count += 1
                 break
@@ -993,6 +1080,7 @@ def _route_channel(
     parts_row_y: float = MIN_PARTS_ROW_Y_MM,
     power_net_names: frozenset[str] = frozenset(),
     sensitive_net_names: frozenset[str] = frozenset(),
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> tuple[tuple[TrackSegment, ...], tuple[ViaSpec, ...], float]:
     anchor_by_reference = {
         component.reference: (anchor_x, FOOTPRINT_LIBRARY[component.footprint])
@@ -1038,9 +1126,19 @@ def _route_channel(
     )
     for net in routed_nets:
         power = is_power_net(net.name, power_net_names)
-        track_width = POWER_TRACK_WIDTH_MM if power else SIGNAL_TRACK_WIDTH_MM
-        via_size = POWER_VIA_SIZE_MM if power else SIGNAL_VIA_SIZE_MM
-        via_drill = POWER_VIA_DRILL_MM if power else SIGNAL_VIA_DRILL_MM
+        track_width = (
+            profile.geometry.default_power_trace_width_mm
+            if power
+            else profile.geometry.default_signal_trace_width_mm
+        )
+        via_size = (
+            profile.geometry.power_via_diameter_mm
+            if power
+            else profile.geometry.routing_via_diameter_mm
+        )
+        via_drill = (
+            profile.geometry.power_via_drill_mm if power else profile.geometry.routing_via_drill_mm
+        )
 
         # One drop per distinct pad column; when several same-net pads share a
         # column (for example a TO-263 tab over its GND pin), the drop from the
@@ -1066,9 +1164,7 @@ def _route_channel(
                 dx, dy = rotate_offset(pad.x_mm, pad.y_mm, rotation)
                 pad_x = round(anchor_x + dx, 6)
                 pad_y = parts_row_y + dy
-                pad_track_width = min(
-                    track_width, min(pad.width_mm, pad.height_mm)
-                )
+                pad_track_width = min(track_width, min(pad.width_mm, pad.height_mm))
                 stub_x = escape_x.get((reference, pin))
                 side_escape = side_escapes.get(pin)
                 if side_escape is not None and side_escape[0] in ("north", "south"):
@@ -1080,10 +1176,7 @@ def _route_channel(
                         if abs(dy) >= abs(dx)
                         else min(pad.width_mm, pad.height_mm) / 2
                     )
-                    reach = (
-                        pad_half + FANOUT_JOG_CLEAR_MM
-                        + side_escape[2] * FANOUT_JOG_PITCH_MM
-                    )
+                    reach = pad_half + FANOUT_JOG_CLEAR_MM + side_escape[2] * FANOUT_JOG_PITCH_MM
                     jog_y = pad_y - reach if side_escape[0] == "north" else pad_y + reach
                     segments.append(
                         TrackSegment(
@@ -1141,11 +1234,7 @@ def _route_channel(
                     if pad_x not in down_columns or pad_y < down_columns[pad_x]:
                         down_columns[pad_x] = pad_y
                     continue
-                if (
-                    side_escapes
-                    and side_escape is None
-                    and _pad_side(dx, dy) == "north"
-                ):
+                if side_escapes and side_escape is None and _pad_side(dx, dy) == "north":
                     if pad_x not in up_columns or pad_y > up_columns[pad_x]:
                         up_columns[pad_x] = pad_y
                 elif pad_x not in down_columns or pad_y < down_columns[pad_x]:
@@ -1209,7 +1298,11 @@ def _route_channel(
                         layer="F.Cu",
                         net_name=net.name,
                         width_mm=column_widths.get(
-                            pad_x, min(track_width, SIGNAL_TRACK_WIDTH_MM)
+                            pad_x,
+                            min(
+                                track_width,
+                                profile.geometry.default_signal_trace_width_mm,
+                            ),
                         ),
                     )
                 )
@@ -1228,9 +1321,7 @@ def _route_channel(
                 # starts HIGHEST (a row-level pad): joining from a deep pad,
                 # such as a stacked connector pin, would cross every pad and
                 # stub above it (live DRC caught SDA slicing through P1).
-                join_x = min(
-                    down_columns, key=lambda x: (down_columns[x], x)
-                )
+                join_x = min(down_columns, key=lambda x: (down_columns[x], x))
                 segments.append(
                     TrackSegment(
                         x1=join_x,
@@ -1303,11 +1394,7 @@ def _connector_escapes(
             for column_x, pads in _connector_pad_columns(spec, rotation).items()
         }
         # Trailing (right-edge) connectors escape leftwards into the board.
-        direction = (
-            -1.0
-            if (component.reference == last_reference and index > 0)
-            else 1.0
-        )
+        direction = -1.0 if (component.reference == last_reference and index > 0) else 1.0
         for column_x, pads in columns.items():
             if len(pads) < 2:
                 continue
@@ -1319,22 +1406,160 @@ def _connector_escapes(
     return escapes
 
 
-def _segment(segment: TrackSegment, net_numbers: dict[str, int]) -> str:
+def _take_occurrence(
+    identity: tuple[str, ...],
+    occurrences: dict[tuple[str, ...], int],
+) -> int:
+    occurrence = occurrences.get(identity, 0)
+    occurrences[identity] = occurrence + 1
+    return occurrence
+
+
+def _raw_graphic_head(node: SList) -> str:
+    if not node:
+        raise BoardGenerationError("A raw board graphic cannot be empty.")
+    head = node[0]
+    if isinstance(head, QuotedString):
+        return head.value
+    if isinstance(head, str):
+        return head
+    raise BoardGenerationError("A raw board graphic has no object head.")
+
+
+def _render_raw_board_graphic(
+    graphic: str,
+    occurrences: dict[tuple[str, str], int],
+) -> str:
+    """Normalize one opaque board object with a semantic, stable UUID."""
+    try:
+        node = parse_sexpr(graphic)
+    except FootprintLibraryError as exc:
+        raise BoardGenerationError(f"Malformed raw board graphic: {exc}") from exc
+    head = _raw_graphic_head(node)
+    node[:] = [
+        child
+        for child in node
+        if not (
+            isinstance(child, list)
+            and child
+            and _raw_graphic_head(child) in {"uuid", "tstamp"}
+        )
+    ]
+    semantic = serialize_sexpr(node)
+    identity = (head, semantic)
+    occurrence = occurrences.get(identity, 0)
+    occurrences[identity] = occurrence + 1
+    node.append(
+        [
+            "uuid",
+            QuotedString(
+                stable_kicad_uuid(
+                    "board-raw-graphic-v1",
+                    head,
+                    semantic,
+                    str(occurrence),
+                )
+            ),
+        ]
+    )
+    return "  " + serialize_sexpr(node, indent=1)
+
+
+def _canonical_segment_endpoints(
+    segment: TrackSegment,
+) -> tuple[tuple[str, str], tuple[str, str]]:
+    first = (_mm(segment.x1), _mm(segment.y1))
+    second = (_mm(segment.x2), _mm(segment.y2))
+    return (first, second) if first <= second else (second, first)
+
+
+def _segment_identity(segment: TrackSegment) -> tuple[str, ...]:
+    start, end = _canonical_segment_endpoints(segment)
+    return (
+        "segment",
+        segment.net_name,
+        segment.layer,
+        _mm(segment.width_mm),
+        *start,
+        *end,
+    )
+
+
+def _via_identity(via: ViaSpec) -> tuple[str, ...]:
+    return (
+        "via",
+        via.net_name,
+        _mm(via.x),
+        _mm(via.y),
+        _mm(via.size_mm),
+        _mm(via.drill_mm),
+        via.front_mask.value,
+        via.back_mask.value,
+    )
+
+
+def _zone_identity(
+    net_name: str,
+    layer: str,
+    rect: tuple[float, float, float, float],
+) -> tuple[str, ...]:
+    x1, y1, x2, y2 = rect
+    return (
+        "zone",
+        net_name,
+        layer,
+        _mm(min(x1, x2)),
+        _mm(min(y1, y2)),
+        _mm(max(x1, x2)),
+        _mm(max(y1, y2)),
+    )
+
+
+def _segment(
+    segment: TrackSegment,
+    _net_numbers: dict[str, int],
+    occurrence: int,
+) -> str:
     origin = BOARD_SHEET_ORIGIN_MM
+    item_uuid = stable_kicad_uuid(
+        "board-copper",
+        *_segment_identity(segment),
+        str(occurrence),
+    )
     return (
         f"  (segment (start {_mm(segment.x1 + origin)} {_mm(segment.y1 + origin)}) "
         f"(end {_mm(segment.x2 + origin)} {_mm(segment.y2 + origin)}) "
         f'(width {_mm(segment.width_mm)}) (layer "{segment.layer}") '
-        f"(net {net_numbers[segment.net_name]}) (uuid {uuid4()}))"
+        f"(net {_q(segment.net_name)}) (uuid {item_uuid}))"
     )
 
 
-def _via(via: ViaSpec, net_numbers: dict[str, int]) -> str:
+def _via_mask_token(intent: ViaMaskIntent) -> str:
+    return {
+        ViaMaskIntent.INHERIT: "none",
+        ViaMaskIntent.OPEN: "no",
+        ViaMaskIntent.TENTED: "yes",
+    }[intent]
+
+
+def _via(
+    via: ViaSpec,
+    _net_numbers: dict[str, int],
+    occurrence: int,
+) -> str:
     origin = BOARD_SHEET_ORIGIN_MM
+    front_mask = _via_mask_token(via.front_mask)
+    back_mask = _via_mask_token(via.back_mask)
+    item_uuid = stable_kicad_uuid(
+        "board-copper",
+        *_via_identity(via),
+        str(occurrence),
+    )
     return (
         f"  (via (at {_mm(via.x + origin)} {_mm(via.y + origin)}) (size {_mm(via.size_mm)}) "
         f'(drill {_mm(via.drill_mm)}) (layers "F.Cu" "B.Cu") '
-        f"(net {net_numbers[via.net_name]}) (uuid {uuid4()}))"
+        f"(tenting (front {front_mask}) (back {back_mask})) "
+        f"(net {_q(via.net_name)}) (uuid {item_uuid}))"
     )
 
 
@@ -1344,19 +1569,24 @@ def _zone(
     rect: tuple[float, float, float, float],
     net_numbers: dict[str, int],
     priority: int = 0,
+    occurrence: int = 0,
 ) -> str:
     origin = BOARD_SHEET_ORIGIN_MM
     x1, y1, x2, y2 = rect
+    item_uuid = stable_kicad_uuid(
+        "board-copper",
+        *_zone_identity(net_name, layer, rect),
+        str(occurrence),
+    )
     points = "\n          ".join(
         f"(xy {_mm(x + origin)} {_mm(y + origin)})"
         for x, y in ((x1, y1), (x2, y1), (x2, y2), (x1, y2))
     )
+    priority_clause = "" if priority == 0 else f"\n    (priority {priority})"
     return f"""  (zone
-    (net {net_numbers[net_name]})
-    (net_name {_q(net_name)})
+    (net {_q(net_name)})
     (layer "{layer}")
-    (uuid {uuid4()})
-    (priority {priority})
+    (uuid {item_uuid}){priority_clause}
     (hatch edge 0.5)
     (connect_pads yes
       (clearance 0.5))
@@ -1374,13 +1604,21 @@ def _zone(
   )"""
 
 
-def _render_header() -> str:
+def _render_header(profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE) -> str:
+    expansion = profile.geometry.default_pad_solder_mask_expansion_mm
+    mask_setup = (
+        ""
+        if expansion is None
+        else f"""\n\n  (setup
+    (pad_to_mask_clearance {_mm(expansion)})
+  )"""
+    )
     return f"""(kicad_pcb
   (version {KICAD_BOARD_VERSION})
   (generator "PCBSmith")
 
   (general
-    (thickness 1.6)
+    (thickness {profile.geometry.board_thickness_mm:g})
   )
 
   (paper "A4")
@@ -1397,7 +1635,7 @@ def _render_header() -> str:
     (38 "B.Mask" user)
     (39 "F.Mask" user)
     (44 "Edge.Cuts" user)
-  )"""
+  ){mask_setup}"""
 
 
 def _element_text(parent: ET.Element, tag: str) -> str | None:

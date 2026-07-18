@@ -7,7 +7,6 @@ LEDs (bottom net GND), joined column-wise by the branch nets D{n}_A.
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.circuit.models import CircuitObject
 from pcbsmith.kicad.export_divider_highpass_led import (
@@ -24,6 +23,7 @@ from pcbsmith.kicad.export_divider_highpass_led import (
     _wire,
 )
 from pcbsmith.kicad.export_mpu6050 import render_connector_library_symbol
+from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.pear_board import P1_PIN_NETS, ring_unit_counts
 
 SUPPORTED_TOPOLOGY_ID = "pear_led_rings"
@@ -112,7 +112,12 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
-  (uuid {uuid4()})
+  (uuid {stable_kicad_uuid(
+      "schematic-root",
+      "machine",
+      project_name,
+      circuit.topology.topology_id,
+  )})
   (paper "A3")
 
   (lib_symbols

@@ -526,7 +526,10 @@ def flyback_test_steps(outputs: dict[str, object]) -> tuple[TestStep, ...]:
                 "debris/solder; verify Y-caps and X-cap are the "
                 "safety-rated parts on the BOM."
             ),
-            expected=">=6.4mm clean creepage channel; certified parts",
+            expected=(
+                ">=6.4mm declared copper-free geometry channel; qualified "
+                "clearance/creepage review still required"
+            ),
             safety="Unpowered.",
         ),
         TestStep(

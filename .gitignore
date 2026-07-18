@@ -41,3 +41,5 @@ ai_assets/models/
 ai_assets/koboldcpp/
 /Books/
 .book-cache/
+/Old Chat Logs/
+/tmp/

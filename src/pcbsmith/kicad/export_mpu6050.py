@@ -9,7 +9,6 @@ marker so ERC accounts for all 24 QFN pins.
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.circuit.models import CircuitObject
 from pcbsmith.kicad.export_divider_highpass_led import (
@@ -23,10 +22,12 @@ from pcbsmith.kicad.export_divider_highpass_led import (
     _render_symbol_table,
     _render_two_pin_box_library_symbol,
     _resistor_symbol_drawing,
+    _schematic_item_uuid,
     _symbol,
     _validate_project_name,
     _wire,
 )
+from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.symbols import (
     load_symbol,
     pin_stub,
@@ -195,7 +196,12 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
-  (uuid {uuid4()})
+  (uuid {stable_kicad_uuid(
+      "schematic-root",
+      "machine",
+      project_name,
+      circuit.topology.topology_id,
+  )})
   (paper "A3")
 
   (lib_symbols
@@ -209,12 +215,21 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
 """
 
 
-def _no_connect(x_mm: float, y_mm: float) -> str:
-    from uuid import uuid4 as _uuid4
-
+def _no_connect(
+    x_mm: float,
+    y_mm: float,
+    *,
+    occurrence: int = 0,
+) -> str:
+    marker_uuid = _schematic_item_uuid(
+        "no-connect",
+        f"{x_mm:g}",
+        f"{y_mm:g}",
+        occurrence=occurrence,
+    )
     return f"""  (no_connect
     (at {x_mm:g} {y_mm:g})
-    (uuid "{_uuid4()}")
+    (uuid "{marker_uuid}")
   )"""
 
 

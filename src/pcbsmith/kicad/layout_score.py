@@ -27,12 +27,13 @@ from pcbsmith.kicad.board import (
 from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
 from pcbsmith.kicad.library import rotate_offset
 from pcbsmith.kicad.virtual_drc import (
-    CLEARANCE_MM,
     _collect_items,
     _grid_cells,
+    _PhysicalItemKind,
     _seg_seg_distance,
     run_virtual_drc,
 )
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
 
 # Soft-cost weight: one via costs as much as this many mm of track.
 VIA_TRACK_EQUIV_MM = 5.0
@@ -74,14 +75,20 @@ class LayoutScore:
         }
 
 
-def _min_cross_net_margin(layout: BoardLayout, netlist: BoardNetlist) -> float:
+def _min_cross_net_margin(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
+) -> float:
     """Smallest cross-net copper gap above the required clearance -
     the layout's electrical headroom. Uses the same stadium model and
     spatial grid as the virtual DRC."""
-    items = _collect_items(layout, netlist)
+    items = _collect_items(layout, netlist, profile=profile)
     grid: dict[tuple[int, int], list[int]] = {}
     for index, item in enumerate(items):
-        for cell in _grid_cells(item, CLEARANCE_MM):
+        for cell in _grid_cells(
+            item, profile.fab_spacing.minimum_copper_clearance_mm
+        ):
             grid.setdefault(cell, []).append(index)
     margin = math.inf
     seen: set[tuple[int, int]] = set()
@@ -94,11 +101,18 @@ def _min_cross_net_margin(layout: BoardLayout, netlist: BoardNetlist) -> float:
                     continue
                 seen.add(pair)
                 two = items[index_two]
-                if one.net == two.net or one.layer != two.layer:
+                if (
+                    one.kind is not _PhysicalItemKind.COPPER
+                    or two.kind is not _PhysicalItemKind.COPPER
+                    or one.net == two.net
+                    or one.layer != two.layer
+                ):
                     continue
                 gap = (
                     _seg_seg_distance(one.a, one.b, two.a, two.b)
-                    - one.radius - two.radius - CLEARANCE_MM
+                    - one.radius
+                    - two.radius
+                    - profile.fab_spacing.minimum_copper_clearance_mm
                 )
                 margin = min(margin, gap)
     return margin if margin != math.inf else 0.0
@@ -129,14 +143,15 @@ def score_layout(
     layout: BoardLayout,
     netlist: BoardNetlist,
     spec: DesignChecksSpec | None = None,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> LayoutScore:
     drc_findings = tuple(
         f"{finding.check}: {finding.message}"
-        for finding in run_virtual_drc(layout, netlist)
+        for finding in run_virtual_drc(layout, netlist, profile)
     )
     blockers: tuple[str, ...] = ()
     if spec is not None:
-        report = run_design_checks(layout, netlist, spec)
+        report = run_design_checks(layout, netlist, spec, profile)
         blockers = tuple(
             f"{finding.rule}: {finding.evidence}"
             for finding in report.findings
@@ -147,7 +162,7 @@ def score_layout(
         math.dist((seg.x1, seg.y1), (seg.x2, seg.y2))
         for seg in layout.segments
     )
-    margin = _min_cross_net_margin(layout, netlist)
+    margin = _min_cross_net_margin(layout, netlist, profile)
     bbox = _parts_bbox_mm2(layout)
     return LayoutScore(
         hard_violations=len(drc_findings) + len(blockers),
@@ -170,11 +185,12 @@ def rank_candidates(
     candidates: Sequence[tuple[str, BoardLayout]],
     netlist: BoardNetlist,
     spec: DesignChecksSpec | None = None,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> tuple[tuple[str, LayoutScore], ...]:
     """Score every candidate and return them best-first. Non-viable
     candidates sort after every viable one."""
     scored = [
-        (name, score_layout(layout, netlist, spec))
+        (name, score_layout(layout, netlist, spec, profile))
         for name, layout in candidates
     ]
     scored.sort(key=lambda pair: pair[1].sort_key())

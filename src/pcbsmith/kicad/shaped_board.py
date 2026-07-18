@@ -27,7 +27,6 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from dataclasses import dataclass
-from uuid import uuid4
 
 from pcbsmith.kicad.board import (
     FOOTPRINT_LIBRARY,
@@ -37,6 +36,13 @@ from pcbsmith.kicad.board import (
     ViaSpec,
     rotate_offset,
 )
+from pcbsmith.kicad.board_mask import (
+    mask_opening_disc_aperture as mask_opening_disc_aperture,
+)
+from pcbsmith.kicad.board_mask import (
+    render_board_mask_aperture,
+)
+from pcbsmith.kicad.identity import stable_kicad_uuid
 
 Point = tuple[float, float]
 
@@ -255,9 +261,48 @@ def ellipse_points(
     ]
 
 
-def silk_poly(points: Sequence[Point], origin: float) -> str:
+def _absolute_identity_point(point: Point, origin: float) -> tuple[str, str]:
+    return (f"{point[0] + origin:.3f}", f"{point[1] + origin:.3f}")
+
+
+def _identity_number(value: float) -> str:
+    return format(value, ".12g")
+
+
+def _graphic_uuid(
+    kind: str,
+    identity: tuple[str, ...],
+    occurrence: int,
+) -> str:
+    if occurrence < 0:
+        raise ValueError("Graphic occurrence must be non-negative.")
+    return stable_kicad_uuid(
+        "board-graphic",
+        kind,
+        *identity,
+        str(occurrence),
+    )
+
+
+def silk_poly(
+    points: Sequence[Point],
+    origin: float,
+    *,
+    occurrence: int = 0,
+) -> str:
+    absolute = tuple(_absolute_identity_point(point, origin) for point in points)
     rendered = "\n          ".join(
-        f"(xy {x + origin:.3f} {y + origin:.3f})" for x, y in points
+        f"(xy {x} {y})" for x, y in absolute
+    )
+    item_uuid = _graphic_uuid(
+        "filled-polygon",
+        (
+            "F.SilkS",
+            "stroke:0.12",
+            "fill:yes",
+            *(f"{x},{y}" for x, y in absolute),
+        ),
+        occurrence,
     )
     return f"""  (gr_poly
     (pts
@@ -266,34 +311,67 @@ def silk_poly(points: Sequence[Point], origin: float) -> str:
     (stroke (width 0.12) (type solid))
     (fill yes)
     (layer "F.SilkS")
-    (uuid {uuid4()})
+    (uuid {item_uuid})
   )"""
 
 
 def silk_line(
     a: Point, b: Point, origin: float, width: float = 0.3,
     layer: str = "F.SilkS",
+    *,
+    occurrence: int = 0,
 ) -> str:
+    rendered_a = _absolute_identity_point(a, origin)
+    rendered_b = _absolute_identity_point(b, origin)
+    canonical_start, canonical_end = sorted((rendered_a, rendered_b))
+    item_uuid = _graphic_uuid(
+        "line",
+        (
+            layer,
+            f"stroke:{_identity_number(width)}",
+            f"{canonical_start[0]},{canonical_start[1]}",
+            f"{canonical_end[0]},{canonical_end[1]}",
+        ),
+        occurrence,
+    )
     return f"""  (gr_line
-    (start {a[0] + origin:.3f} {a[1] + origin:.3f})
-    (end {b[0] + origin:.3f} {b[1] + origin:.3f})
+    (start {rendered_a[0]} {rendered_a[1]})
+    (end {rendered_b[0]} {rendered_b[1]})
     (stroke (width {width}) (type solid))
     (layer "{layer}")
-    (uuid {uuid4()})
+    (uuid {item_uuid})
   )"""
 
 
 def silk_text(
-    text: str, at: Point, origin: float, size: float = 0.8
+    text: str,
+    at: Point,
+    origin: float,
+    size: float = 0.8,
+    *,
+    occurrence: int = 0,
 ) -> str:
+    rendered_at = _absolute_identity_point(at, origin)
+    thickness = f"{size * 0.18:.2f}"
+    item_uuid = _graphic_uuid(
+        "text",
+        (
+            "F.SilkS",
+            text,
+            f"{rendered_at[0]},{rendered_at[1]}",
+            f"size:{_identity_number(size)}",
+            f"thickness:{thickness}",
+        ),
+        occurrence,
+    )
     return f"""  (gr_text "{text}"
-    (at {at[0] + origin:.3f} {at[1] + origin:.3f} 0)
+    (at {rendered_at[0]} {rendered_at[1]} 0)
     (layer "F.SilkS")
-    (uuid {uuid4()})
+    (uuid {item_uuid})
     (effects
       (font
         (size {size} {size})
-        (thickness {size * 0.18:.2f})
+        (thickness {thickness})
       )
     )
   )"""
@@ -326,22 +404,24 @@ def clipped_circle_outline(
     return lines
 
 
-def mask_opening_disc(center: Point, radius: float, origin: float) -> str:
+def mask_opening_disc(
+    center: Point,
+    radius: float,
+    origin: float,
+    *,
+    occurrence: int = 0,
+) -> str:
     """Filled polygon on F.Mask = soldermask opening (rule 9.3)."""
-    rendered = "\n          ".join(
-        f"(xy {center[0] + radius * math.cos(a) + origin:.3f} "
-        f"{center[1] + radius * math.sin(a) + origin:.3f})"
-        for a in (2 * math.pi * s / 96 for s in range(96))
+    aperture = mask_opening_disc_aperture(
+        center,
+        radius,
+        occurrence=occurrence,
     )
-    return f"""  (gr_poly
-    (pts
-          {rendered}
+    return render_board_mask_aperture(
+        aperture,
+        origin,
+        occurrence=occurrence,
     )
-    (stroke (width 0) (type solid))
-    (fill yes)
-    (layer "F.Mask")
-    (uuid {uuid4()})
-  )"""
 
 
 # ---------------------------------------------------------------------------

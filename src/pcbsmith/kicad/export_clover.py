@@ -10,7 +10,6 @@ explicit no-connect markers.
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.circuit.models import CircuitObject
 from pcbsmith.kicad.export_divider_highpass_led import (
@@ -22,6 +21,7 @@ from pcbsmith.kicad.export_divider_highpass_led import (
     _wire,
 )
 from pcbsmith.kicad.export_mpu6050 import _no_connect
+from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.symbols import (
     instance_pin_position,
     load_symbol,
@@ -200,7 +200,12 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
-  (uuid {uuid4()})
+  (uuid {stable_kicad_uuid(
+      "schematic-root",
+      "machine",
+      project_name,
+      circuit.topology.topology_id,
+  )})
   (paper "A3")
 
   (lib_symbols

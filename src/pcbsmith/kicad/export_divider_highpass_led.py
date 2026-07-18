@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.circuit.models import CircuitObject
+from pcbsmith.kicad.identity import stable_kicad_uuid
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
 
 NM_PER_MM = 1_000_000
 SUPPORTED_TOPOLOGY_ID = "divider_highpass_led_indicator"
@@ -24,6 +25,7 @@ def export_divider_highpass_led_to_kicad(
     output_dir: Path,
     *,
     project_name: str,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> dict[str, str]:
     if circuit.topology.topology_id != SUPPORTED_TOPOLOGY_ID:
         raise ValueError("Unsupported circuit for KiCad export")
@@ -35,7 +37,7 @@ def export_divider_highpass_led_to_kicad(
     symbol_library = output_dir / "PCBSmith.kicad_sym"
     symbol_table = output_dir / "sym-lib-table"
 
-    project_file.write_text(_render_project(), encoding="utf-8")
+    project_file.write_text(_render_project(profile=profile), encoding="utf-8")
     symbol_table.write_text(_render_symbol_table(), encoding="utf-8")
     symbol_library.write_text(_render_symbol_library(), encoding="utf-8")
     schematic_file.write_text(_render_schematic(circuit, project_name), encoding="utf-8")
@@ -60,22 +62,61 @@ def _validate_project_name(project_name: str) -> str:
     return name
 
 
-def _render_project(*, min_through_hole_mm: float | None = None) -> str:
-    """The KiCad project next to the board carries the DRC constraints
-    kicad-cli reads. ``min_through_hole_mm`` relaxes the 0.3mm default
-    when an official footprint legitimately drills smaller (the
-    ESP32-C3-WROOM-02 thermal vias are 0.2mm; typical fab minimum is
-    0.15-0.2mm mechanical)."""
-    rules = ""
-    if min_through_hole_mm is not None:
-        rules = (
-            '\n      "rules": {\n'
-            f'        "min_through_hole_diameter": {min_through_hole_mm}\n'
-            "      },"
+def _render_project(
+    *,
+    min_through_hole_mm: float | None = None,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
+) -> str:
+    """Render KiCad 10 project constraints from the selected fab profile.
+
+    ``min_through_hole_mm`` remains a footprint-specific override for an
+    official library part with smaller drills. It does not mutate or claim a
+    selected-fabricator capability.
+    Solder-mask values here are project constraints for the editor. Empirical
+    KiCad 10 plotting uses the board file's pad_to_mask_clearance setup
+    value as the authoritative global aperture expansion.
+    """
+    through_hole = (
+        min_through_hole_mm
+        if min_through_hole_mm is not None
+        else profile.geometry.routing_via_drill_mm
+    )
+    rule_lines = [
+        f'"min_clearance": {profile.fab_spacing.minimum_copper_clearance_mm:g}',
+        f'"min_copper_edge_clearance": '
+        f'{profile.fab_spacing.minimum_copper_to_edge_mm:g}',
+        f'"min_hole_clearance": {profile.fab_spacing.minimum_hole_to_copper_mm:g}',
+        f'"min_through_hole_diameter": {through_hole:g}',
+        f'"min_track_width": {profile.geometry.minimum_trace_width_mm:g}',
+        f'"min_via_diameter": {profile.geometry.routing_via_diameter_mm:g}',
+    ]
+    if profile.geometry.minimum_annular_ring_mm is not None:
+        rule_lines.append(
+            f'"min_via_annular_width": '
+            f'{profile.geometry.minimum_annular_ring_mm:g}'
         )
+    if profile.geometry.minimum_hole_to_hole_web_mm is not None:
+        rule_lines.append(
+            f'"min_hole_to_hole": '
+            f'{profile.geometry.minimum_hole_to_hole_web_mm:g}'
+        )
+    if profile.geometry.default_pad_solder_mask_expansion_mm is not None:
+        rule_lines.append(
+            f'"solder_mask_clearance": '
+            f'{profile.geometry.default_pad_solder_mask_expansion_mm:g}'
+        )
+    if profile.geometry.minimum_solder_mask_web_mm is not None:
+        rule_lines.append(
+            f'"solder_mask_min_width": '
+            f'{profile.geometry.minimum_solder_mask_web_mm:g}'
+        )
+    rendered_rules = ",\n".join(f"        {line}" for line in rule_lines)
     return f"""{{
   "board": {{
-    "design_settings": {{{rules}
+    "design_settings": {{
+      "rules": {{
+{rendered_rules}
+      }},
       "rule_severities": {{
         "lib_footprint_mismatch": "ignore"
       }}
@@ -84,7 +125,6 @@ def _render_project(*, min_through_hole_mm: float | None = None) -> str:
   "meta": {{"version": 1}}
 }}
 """
-
 
 def _render_symbol_table() -> str:
     return """(sym_lib_table
@@ -302,7 +342,12 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
-  (uuid {uuid4()})
+  (uuid {stable_kicad_uuid(
+      "schematic-root",
+      "machine",
+      project_name,
+      circuit.topology.topology_id,
+  )})
   (paper "A4")
 
   {_render_embedded_symbol_library()}
@@ -362,15 +407,31 @@ def _symbol(
         *(value_at or (x_mm, y_mm + 2.54)),
         angle=upright if value_at else 0,
     )
-    instance_pins = "\n".join(
-        f"""    (pin "{pin_number}"
-      (uuid "{uuid4()}")
-    )"""
-        for pin_number in (
-            pin_numbers
-            or tuple(str(number) for number in range(1, pin_count + 1))
-        )
+    symbol_uuid = stable_kicad_uuid(
+        "schematic-symbol",
+        project_name,
+        reference,
+        lib_id,
     )
+    rendered_pins: list[str] = []
+    pin_occurrences: dict[str, int] = {}
+    for pin_number in (
+        pin_numbers
+        or tuple(str(number) for number in range(1, pin_count + 1))
+    ):
+        occurrence = pin_occurrences.get(pin_number, 0)
+        pin_occurrences[pin_number] = occurrence + 1
+        pin_uuid = stable_kicad_uuid(
+            "schematic-pin",
+            symbol_uuid,
+            pin_number,
+            str(occurrence),
+        )
+        rendered_pins.append(f"""    (pin "{pin_number}"
+      (uuid "{pin_uuid}")
+    )"""
+        )
+    instance_pins = "\n".join(rendered_pins)
     return f"""  (symbol
     (lib_id "{lib_id}")
     (at {_format_mm(x_mm)} {_format_mm(y_mm)} {rotation})
@@ -379,7 +440,7 @@ def _symbol(
     (in_bom {bom_flag})
     (on_board {board_flag})
     (dnp no)
-    (uuid "{uuid4()}")
+    (uuid "{symbol_uuid}")
     {reference_property}
     {value_property}
     {_property("Footprint", footprint, x_mm, y_mm, hidden=True)}
@@ -438,7 +499,34 @@ def _render_power_flag_library_symbol(name: str) -> str:
   )"""
 
 
-def _wire(start: tuple[float, float], end: tuple[float, float]) -> str:
+def _schematic_item_uuid(
+    kind: str,
+    *identity: str,
+    occurrence: int = 0,
+) -> str:
+    if not isinstance(occurrence, int) or occurrence < 0:
+        raise ValueError("Schematic item occurrence must be a non-negative integer")
+    return stable_kicad_uuid(
+        "schematic-item", kind, *identity, str(occurrence)
+    )
+
+
+def _wire(
+    start: tuple[float, float],
+    end: tuple[float, float],
+    *,
+    occurrence: int = 0,
+) -> str:
+    endpoints = sorted((
+        (_format_mm(start[0]), _format_mm(start[1])),
+        (_format_mm(end[0]), _format_mm(end[1])),
+    ))
+    wire_uuid = _schematic_item_uuid(
+        "wire",
+        *endpoints[0],
+        *endpoints[1],
+        occurrence=occurrence,
+    )
     return f"""  (wire
     (pts
       (xy {_format_mm(start[0])} {_format_mm(start[1])})
@@ -448,11 +536,24 @@ def _wire(start: tuple[float, float], end: tuple[float, float]) -> str:
       (width 0)
       (type solid)
     )
-    (uuid "{uuid4()}")
+    (uuid "{wire_uuid}")
   )"""
 
 
-def _label(name: str, x_mm: float, y_mm: float) -> str:
+def _label(
+    name: str,
+    x_mm: float,
+    y_mm: float,
+    *,
+    occurrence: int = 0,
+) -> str:
+    label_uuid = _schematic_item_uuid(
+        "label",
+        name,
+        _format_mm(x_mm),
+        _format_mm(y_mm),
+        occurrence=occurrence,
+    )
     return f"""  (label "{_escape(name)}"
     (at {_format_mm(x_mm)} {_format_mm(y_mm)} 0)
     (effects
@@ -460,12 +561,20 @@ def _label(name: str, x_mm: float, y_mm: float) -> str:
         (size 1.27 1.27)
       )
     )
-    (uuid "{uuid4()}")
+    (uuid "{label_uuid}")
   )"""
 
 
-def _spice_directives() -> str:
+def _spice_directives(*, occurrence: int = 0) -> str:
     directives = ".op\n.ac dec 20 10 100k\n.print ac v(/HP_OUT)"
+    text_uuid = _schematic_item_uuid(
+        "text",
+        directives,
+        "20",
+        "85",
+        "0",
+        occurrence=occurrence,
+    )
     return f"""  (text "{_escape(directives)}"
     (at 20 85 0)
     (effects
@@ -473,7 +582,7 @@ def _spice_directives() -> str:
         (size 1.27 1.27)
       )
     )
-    (uuid "{uuid4()}")
+    (uuid "{text_uuid}")
   )"""
 
 

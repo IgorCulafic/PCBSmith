@@ -6,6 +6,8 @@ from collections import defaultdict
 from tests.unit.kicad.test_clover_board import _segments_intersect
 
 from pcbsmith.kicad.board import BoardComponent, BoardNet, BoardNetlist
+from pcbsmith.kicad.copper_exposure import exposure_index
+from pcbsmith.kicad.copper_identity import track_copper_source_id, via_copper_source_id
 from pcbsmith.kicad.metal_detector_board import (
     BOARD_H,
     BOARD_W,
@@ -22,6 +24,7 @@ from pcbsmith.kicad.metal_detector_board import (
     spiral_inner_radius,
     spiral_points,
 )
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE
 
 FOOTPRINTS = {
     "P1": "Connector_PinHeader_2.54mm:PinHeader_1x03_P2.54mm_Vertical",
@@ -66,6 +69,11 @@ def _netlist() -> BoardNetlist:
             for name, pins in sorted(nodes.items())
         ),
     )
+
+
+def detector_netlist() -> BoardNetlist:
+    """Publicly named production fixture while preserving legacy `_netlist` imports."""
+    return _netlist()
 
 
 def test_outline_is_closed_simple_and_inside_the_sheet() -> None:
@@ -133,8 +141,10 @@ def test_layout_wires_the_oscillator_and_keeps_the_coil_area_clean() -> None:
     assert (zone_net, zone_layer) == ("/GND", "B.Cu")
     assert zone_rect[3] < COIL_CENTER[1] - SPIRAL_OUTER_RADIUS + 0.5
 
-    # The mask-opening graphic exists on F.Mask.
-    assert any('(layer "F.Mask")' in graphic for graphic in layout.graphics)
+    # The mask opening is typed; raw graphics remain opaque silk strings.
+    assert not any('(layer "F.Mask")' in graphic for graphic in layout.graphics)
+    assert len(layout.mask_apertures) == 1
+    assert layout.mask_apertures[0].geometry is not None
     assert layout.outline == detector_outline()
     # Everything on the handle hides its reference (art-face style).
     assert set(PLACEMENTS) == set(layout.hide_references)
@@ -143,3 +153,69 @@ def test_layout_wires_the_oscillator_and_keeps_the_coil_area_clean() -> None:
 def test_spiral_turn_count_matches_the_advertised_inductor() -> None:
     # ~180 samples per turn at the default step.
     assert len(spiral_points()) == SPIRAL_TURNS * 180 + 1
+
+
+def test_production_spiral_exposure_is_side_specific_and_conservative() -> None:
+    netlist = detector_netlist()
+    layout = compute_detector_board_layout(netlist)
+    profile = DEFAULT_PCB_RULE_PROFILE.model_copy(
+        update={
+            "geometry": DEFAULT_PCB_RULE_PROFILE.geometry.model_copy(
+                update={"default_pad_solder_mask_expansion_mm": 0.0}
+            )
+        }
+    )
+    indexed = exposure_index(layout, netlist, profile)
+
+    spiral_indices = [
+        index
+        for index, segment in enumerate(layout.segments)
+        if segment.net_name == "/COL"
+        and segment.layer == "F.Cu"
+        and math.isclose(segment.width_mm, SPIRAL_TRACE_W, abs_tol=1e-12)
+    ]
+    assert spiral_indices
+    spiral_results = [indexed[track_copper_source_id(index)] for index in spiral_indices]
+    assert all(result.state == "fully_exposed" for result in spiral_results)
+    assert all(result.role == "routed_conductor" for result in spiral_results)
+    # Full exposure is monotonic: unresolved inherit apertures cannot cover copper
+    # that the exact typed front opening already proves fully exposed.
+    assert all(result.unresolved_aperture_source_ids for result in spiral_results)
+
+    inner_end = spiral_points()[-1]
+    inner_via_indices = [
+        index
+        for index, via in enumerate(layout.vias)
+        if via.net_name == "/COL"
+        and math.isclose(via.x, inner_end[0], abs_tol=1e-9)
+        and math.isclose(via.y, inner_end[1], abs_tol=1e-9)
+    ]
+    assert len(inner_via_indices) == 1
+    inner_via_index = inner_via_indices[0]
+    front_land = indexed[via_copper_source_id(inner_via_index, "F.Cu")]
+    back_land = indexed[via_copper_source_id(inner_via_index, "B.Cu")]
+    assert front_land.state == "fully_exposed"
+    assert front_land.role == "via_land"
+    assert front_land.unresolved_aperture_source_ids
+    assert back_land.state == "unknown"
+    assert back_land.role == "via_land"
+    assert back_land.unresolved_aperture_source_ids
+
+    return_indices = [
+        index
+        for index, segment in enumerate(layout.segments)
+        if segment.net_name == "/COL" and segment.layer == "B.Cu"
+    ]
+    assert return_indices
+    return_results = [indexed[track_copper_source_id(index)] for index in return_indices]
+    assert all(result.state == "unknown" for result in return_results)
+    assert all(result.role == "routed_conductor" for result in return_results)
+    assert all(not result.aperture_source_ids for result in return_results)
+
+    zone_results = [
+        result for source_id, result in indexed.items() if source_id.startswith("zone:")
+    ]
+    assert len(zone_results) == 1
+    assert zone_results[0].state == "unknown"
+    assert zone_results[0].role == "copper_pour"
+    assert zone_results[0].reason == "copper geometry is unsupported"
