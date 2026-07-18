@@ -166,39 +166,51 @@ ledger — read BEFORE touching the router or placements), and
   checks; pruning is provably safe ONLY for area containment
   (centerline coverage changes the copper point-set).
 
-## The book knowledge base (2026-07-11, read this before layout work)
+## The reference knowledge base (reconciled 2026-07-14; read before layout work)
 
-- Nine reference books/standards live in `Books/` (gitignored), text
-  cache in `.book-cache/` (gitignored, sha-pinned manifest).
+- Thirty-one exact sources live in `Books/` (gitignored), with text
+  caches in `.book-cache/` and hashes in its manifest. The collection
+  comprises the original nine, a historical sixteen-source second wave,
+  and six later standards/status sources.
   `tools/book_extract.py` (pypdf/EPUB) extracted seven;
   `tools/book_ocr.py` (pypdfium2+RapidOCR, ~7 s/page, resumable)
-  OCR'd the two scanned ones (johnson-hsdd, ipc-7351 — cached but NOT
-  yet distilled).
-- The durable form is `docs/reference/books/*.md` — seven
-  distillations (Bogatin, Ott, Montrose, Williams, IPC-2221B,
-  IPC-A-610, Coombs), every rule with THRESHOLD/WHY/WHERE(page)/
-  MACHINE FORM/APPLICABILITY. All NINE sources are distilled and
+  OCR'd the two scanned ones (johnson-hsdd, ipc-7351). All nine are now
+  distilled.
+- The durable form is `docs/reference/books/*.md` - every rule carries
+  THRESHOLD/WHY/WHERE(page)/MACHINE FORM/APPLICABILITY. All NINE sources
+  are distilled and
   spot-verified (72 rules checked 2026-07-12; corrections and two
   honest ambiguities recorded in each file's Verification section).
-  docs/reference/books/CONSOLIDATED.md is the deduplicated cross-book
-  table with the contradiction-docket resolutions - START THERE.
+  `docs/reference/current-materials-knowledge-base-2026-07-14.md` plus
+  `docs/reference/standards-table-reverification-2026-07-14.md` are the
+  current entry point: they preserve source authority, applicability,
+  edition status, policy holds, and visual table verification.
+  `docs/reference/books/CONSOLIDATED.md` remains historical first-wave
+  candidate data; do not promote from it without reconciling the July 14
+  do-not-encode docket.
   Text-cache hazard: pypdf/OCR drop the Greek mu glyph; close any
   unit-sensitive verification by dimensional analysis, never string
   match. NEVER re-read the books wholesale.
 - `docs/routing-placement-plan.md` is THE roadmap (user directive:
   research-first, bus routing, placement compatibility, dual-side
   gate, thermometer r002). Execute its phases in order; phase 0 is
-  distilling the two OCR'd sources + the consolidated rule table.
+  complete. Before implementing Phase 1, reconcile its older thresholds
+  against the July 14 authority/applicability decisions.
 - Headline audit results already known: our trace-current formula is
-  IPC-2221A's (citation fix due; 2221B defers to IPC-2152); flat
-  CLEARANCE_MM 0.2 needs voltage-aware classes above 15 V; flyback
-  6.4 mm barrier value confirmed but rulebook cites nonexistent
-  "pollution-degree tables"; corners at 90 degrees are NOT an SI issue
+  IPC-2221A's and must be labeled as such; IPC-2152 is useful historical
+  measured data but is no longer maintained. Flat `CLEARANCE_MM = 0.2`
+  is inadequate, but a bare voltage-to-distance lookup is also unsafe:
+  ordinary PCB/fab spacing and IEC/product insulation coordination need
+  separate profiles. The flyback rulebook now correctly labels 6.4 mm as
+  a conservative project minimum rather than a universal IPC mandate.
+  Corners at 90 degrees are NOT an SI issue
   below multi-GHz (2 fF/mil — keep 45-degree as craft, honestly
   labeled); decap PROXIMITY is weak, routed loop area is first-order;
   Ott caps 2-layer boards at ~10 MHz clocks (standing advisory vs our
   50 MHz class); thermometer r001 violates the Espressif antenna rule
-  (U1 antenna over bulb copper) and wants a >= 1.0 mm sensor moat.
+  (U1 antenna over bulb copper). Sensirion's current guide is text-verified
+  online and supports thermal isolation, but is not locally pinned and does
+  not specify a universal moat width or bridge geometry.
 
 ## Environment pitfalls (Windows, this machine)
 
@@ -319,13 +331,20 @@ ledger — read BEFORE touching the router or placements), and
   angles are PROBED convention (angle=rotation for 90/270, 0 for
   180). Next: buck/detector backfill (INSTANCES tables exist); the
   role-driven column/rail placer.
-- **LAYOUT-CRAFT REBUILD IS THE CURRENT TRACK (2026-07-11)**: the
-  user halted thermometer board iteration ("call it a failure") and
-  redirected to research-first craft: BUS ROUTING (bundles at constant
-  pitch with matched bends — see the user's example-image lesson in
-  auto-memory), placement compatibility, dual-side placement as
-  strategy. Follow `docs/routing-placement-plan.md`. Do NOT resume
-  hand-iterating thermometer placements before bus routing exists.
+- **R2-R6 GENERIC MACHINERY EXISTS; REAL THERMOMETER APPLICATION IS THE
+  CURRENT TRACK (2026-07-18)**: the research-first rebuild now includes
+  negotiated congestion and shaped capacity, fine/ordinary exchange, generated
+  bus escapes and transition vias, physical-swap and cost-aware LCS authority,
+  atomic exact checked commit, placement probes/candidates/detail/exact
+  envelopes, live reduced-stem KiCad and reader/ERC producers, and generic R6
+  semantic/process authorities. The accepted R4 consumer exposes only an
+  in-memory exact-accepted `BoardLayout`; it does not save or render a board.
+  Do not resume hand iteration. Close real thermometer geometry, escape,
+  BusGroup/order, policy/budget, live-ngspice, and semantic declarations, then
+  apply the accepted chain through an explicitly persisted/read-back artifact.
+  `docs/circuit-intelligence-review-supplement-5-2026-07-17.md` records the
+  accepted bounds; `docs/r5-thermometer-pilot-prerequisite-audit-2026-07-17.md`
+  records the remaining prerequisites.
 - **Thermometer challenge (2026-07-10, 10th topology, BOARD FAILED)**:
   63 parts (ESP32-C3, SHT31 DFN, 2x74HC595, USB-C 16P, 16-LED mercury
   column) on a thermometer-shaped outline. It forced five GENERIC
@@ -347,12 +366,27 @@ ledger — read BEFORE touching the router or placements), and
   through the 24 mm stem; every failure became a committed placement/
   machinery fix. Machine schematic, reader schematic (live ERC +
   netlist equality), ngspice sim, authority CLI, tests and golden
-  entry are DONE and committed — only the board layout remains, gated
-  on bus routing (plan phase 2) and the placement engine (phase 3).
-  Board-runner pattern: build the netlist from INSTANCES + composition
-  footprints, call compute_thermometer_board_layout, run both judges,
-  write the board (~40 lines; see tests/unit/kicad/
-  test_thermometer_board.py `_netlist` for the netlist half).
+  entry are DONE. The full board remains unrouted and is gated
+  on the missing real-thermometer declarations and authority application.
+  The old board-runner path through `compute_thermometer_board_layout` is a
+  legacy failure baseline, not the next implementation recipe. The isolated
+  production-derived R17/D17 `/PWLED` offline micro-pilot now proves exact
+  vendored R0603/LED0805 body/courtyard input, one reviewed R17 -0.5 mm
+  `LEGAL_EXACT` move, a 56-cell/82-portal zero-overuse R3 plan in 202 expansions,
+  and an explicitly authorized ordinary-R2 fallback in 271 expansions. The
+  exact guide is truthfully `INCOMPATIBLE` because of conservative bounded
+  roundrect issues; the fallback emits five F.Cu segments and zero vias.
+  Serialization proves only the R17 pose and `/PWLED` segments changed, and the
+  offline virtual-DRC/design-check aggregate plus replay/tamper gates pass.
+  Boundary tests pin graph 120/82 success against 119/81 failure, R3 49 against
+  48 expansions, and R2 271 against 270. A separate opt-in live KiCad 10 gate
+  passes exact read-back, byte-identical repeated save, and clean DRC with zero
+  findings; the offline wrapper remains truthfully `kicad_live_checked=False`.
+  These isolated results do not establish full-template/fixed-neighbor
+  preservation, circuit equivalence, reader, simulation, thermometer readiness,
+  routing superiority, or R7 completion. No full
+  thermometer declaration set, persisted accepted board, default migration, or
+  routed full-board golden exists.
 - Polygon-exact pour analysis; pear/led-art/divider exporter
   migrations to official symbols; live forge-topology run (user must
   start KoboldCpp); more registry blocks (rcd-clamp,
