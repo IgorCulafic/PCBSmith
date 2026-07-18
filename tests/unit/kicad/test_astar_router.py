@@ -2,10 +2,16 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
+
+import pytest
 from tests.unit.kicad.test_flyback_board import _routed as flyback_routed
 
 from pcbsmith.kicad.astar_router import (
+    GridRouter,
+    RoutingError,
     clearance_groups_from_spec,
+    route_board,
     route_net,
     strip_net,
     with_route,
@@ -16,9 +22,17 @@ from pcbsmith.kicad.board import (
     BoardNet,
     BoardNetlist,
     TrackSegment,
+    ViaSpec,
 )
+from pcbsmith.kicad.design_checks import DesignChecksSpec
 from pcbsmith.kicad.layout_score import score_layout
-from pcbsmith.kicad.virtual_drc import run_virtual_drc
+from pcbsmith.kicad.virtual_drc import (
+    _PhysicalSourceRole,
+    _Stadium,
+    run_virtual_drc,
+)
+from pcbsmith.routing_ir import RoutingFailureReason
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
 
 RESISTOR = "Resistor_SMD:R_0603_1608Metric"
 
@@ -259,3 +273,220 @@ def test_smoothing_straightens_the_clear_fixture() -> None:
         if ((s.x1 - s.x2) ** 2 + (s.y1 - s.y2) ** 2) ** 0.5 > 0.5
     ]
     assert len(long_segments) == 1
+
+
+def test_spec_adapter_excludes_legacy_isolation_barrier() -> None:
+    ordinary = ("project gap", ("/A",), ("/B",), 1.25, ("U1",))
+    spec = DesignChecksSpec(
+        isolation_barrier=(15.0, 9.0, ("/A",), ("/B",), ("T1",)),
+        net_group_clearances=(ordinary,),
+    )
+
+    assert clearance_groups_from_spec(spec) == (
+        (("/A",), ("/B",), 1.25, ("U1",)),
+    )
+
+def test_router_blocks_foreign_via_drill_by_hole_profile_spacing() -> None:
+    layout = BoardLayout(
+        placements=(),
+        segments=(),
+        vias=(
+            ViaSpec(
+                x=5.0,
+                y=5.0,
+                net_name="/FOREIGN",
+                size_mm=0.4,
+                drill_mm=0.36,
+            ),
+        ),
+        width_mm=10.0,
+        height_mm=10.0,
+    )
+    netlist = BoardNetlist(
+        components=(),
+        nets=(
+            BoardNet(name="/SIG", nodes=()),
+            BoardNet(name="/FOREIGN", nodes=()),
+        ),
+    )
+    cell = (28, 25)  # (5.6, 5.0) on the default 0.2 mm grid
+    ordinary = GridRouter(
+        layout,
+        netlist,
+        net_name="/SIG",
+        track_width_mm=0.2,
+    )
+    assert cell not in ordinary.blocked["F.Cu"]
+
+    spacing = DEFAULT_PCB_RULE_PROFILE.fab_spacing.model_copy(
+        update={"minimum_hole_to_copper_mm": 0.4}
+    )
+    profile = DEFAULT_PCB_RULE_PROFILE.model_copy(
+        update={"fab_spacing": spacing}
+    )
+    strict = GridRouter(
+        layout,
+        netlist,
+        net_name="/SIG",
+        track_width_mm=0.2,
+        profile=profile,
+    )
+    assert cell in strict.blocked["F.Cu"]
+
+
+def test_route_run_telemetry_and_fingerprint_are_deterministic() -> None:
+    layout, netlist = _fixture()
+
+    first = route_board(layout, netlist)
+    second = route_board(layout, netlist)
+
+    assert first.run_result.semantic_fingerprint() == second.run_result.semantic_fingerprint()
+    assert first.run_result == second.run_result
+    assert first.results[0].expansion_count > 0
+    assert first.results[0].expansion_count == second.results[0].expansion_count
+    assert first.run_result.passes[0].expansion_count == first.results[0].expansion_count
+
+
+def test_tiny_expansion_cap_is_a_typed_terminal_failure() -> None:
+    layout, netlist = _fixture()
+
+    with pytest.raises(RoutingError) as caught:
+        route_net(layout, netlist, "/SIG", max_expansions=0)
+    assert caught.value.reason is RoutingFailureReason.EXPANSION_BUDGET
+    assert caught.value.expansion_count == 0
+
+    outcome = route_board(
+        layout,
+        netlist,
+        max_expansions=0,
+        max_expansions_per_net=0,
+    )
+    assert outcome.failed == ("/SIG",)
+    assert outcome.run_result.failure_reason is RoutingFailureReason.EXPANSION_BUDGET
+    assert outcome.run_result.passes[0].net_telemetry[0].expansion_count == 0
+
+
+def test_unroutable_board_has_typed_result_without_overuse_claims() -> None:
+    walls = (
+        TrackSegment(
+            x1=15.0,
+            y1=0.8,
+            x2=15.0,
+            y2=11.2,
+            layer="F.Cu",
+            net_name="/WALL",
+            width_mm=0.4,
+        ),
+        TrackSegment(
+            x1=15.0,
+            y1=0.8,
+            x2=15.0,
+            y2=11.2,
+            layer="B.Cu",
+            net_name="/WALL",
+            width_mm=0.4,
+        ),
+    )
+    layout, netlist = _fixture(walls)
+
+    outcome = route_board(layout, netlist, max_restarts=0)
+
+    assert outcome.failed == ("/SIG",)
+    assert outcome.run_result.failure_reason is RoutingFailureReason.UNROUTABLE
+    assert outcome.run_result.unresolved_net_names == ("/SIG",)
+    assert outcome.run_result.resource_overuse == ()
+    assert outcome.run_result.passes[-1].resource_overuse == ()
+    assert outcome.run_result.passes[-1].net_telemetry[-1].exact_check_accepted is None
+
+
+def test_pass_budget_is_distinct_and_preserves_legacy_fields() -> None:
+    layout, netlist = _fixture()
+
+    exhausted = route_board(layout, netlist, max_passes=0)
+    assert exhausted.failed == ("/SIG",)
+    assert exhausted.order == ("/SIG",)
+    assert exhausted.restarts == 0
+    assert exhausted.run_result.failure_reason is RoutingFailureReason.PASS_BUDGET
+    assert exhausted.run_result.passes == ()
+
+    success = route_board(layout, netlist)
+    assert success.failed == ()
+    assert success.order == ("/SIG",)
+    assert success.restarts == 0
+    assert success.run_result.success
+    assert success.run_result.exact_check_accepted is None
+    assert not success.run_result.accepted
+    assert success.run_result.unresolved_net_names == ()
+    assert success.run_result.resource_overuse == ()
+    assert success.run_result.failure_reason is None
+
+
+def test_router_source_selection_and_through_layers_ignore_labels(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pcbsmith.kicad import astar_router
+
+    layout, netlist = _fixture()
+    baseline = route_net(layout, netlist, "/SIG")
+    original_collect = astar_router._collect_items
+
+    def relabel(
+        layout_arg: BoardLayout,
+        netlist_arg: BoardNetlist,
+        *,
+        cover_rect_pads: bool = False,
+        profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
+    ) -> list[_Stadium]:
+        return [
+            replace(item, label=f"misleading diagnostic {index}")
+            for index, item in enumerate(
+                original_collect(
+                    layout_arg,
+                    netlist_arg,
+                    cover_rect_pads=cover_rect_pads,
+                    profile=profile,
+                )
+            )
+        ]
+
+    monkeypatch.setattr(astar_router, "_collect_items", relabel)
+    assert route_net(layout, netlist, "/SIG") == baseline
+
+    header = "Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical"
+    components = (
+        BoardComponent("P1", "header", header, "p1"),
+        BoardComponent("P2", "header", header, "p2"),
+    )
+    through_netlist = BoardNetlist(
+        components=components,
+        nets=(
+            BoardNet(name="/SIG", nodes=(("P1", "1"), ("P2", "1"))),
+            BoardNet(name="/A", nodes=(("P1", "2"),)),
+            BoardNet(name="/B", nodes=(("P2", "2"),)),
+        ),
+    )
+    through_layout = BoardLayout(
+        placements=((components[0], 5.0), (components[1], 25.0)),
+        segments=(),
+        vias=(),
+        width_mm=30.0,
+        height_mm=12.0,
+        part_y_mm=(("P1", 6.0), ("P2", 6.0)),
+    )
+    router = GridRouter(
+        through_layout,
+        through_netlist,
+        net_name="/SIG",
+        track_width_mm=0.3,
+    )
+    pads = [
+        item
+        for item in router.own_items
+        if item.source_role is _PhysicalSourceRole.PAD
+    ]
+    assert pads
+    assert all(router._is_through(pad) for pad in pads)
+    assert all(
+        {layer for layer, *_ in router._pad_nodes(pad)} == {"F.Cu", "B.Cu"}
+        for pad in pads
+    )
