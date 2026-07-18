@@ -22,16 +22,21 @@ from pcbsmith.kicad.virtual_drc import (
     _check_silkscreen,
     _collect_items,
 )
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
 
 
-def _pre_gate(layout: BoardLayout, netlist: BoardNetlist) -> str:
+def _pre_gate(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
+) -> str:
     """Cheap candidate gate before routing is paid for: courtyards
     and the silkscreen model (labels move with their parts and can
     land on a moved neighbour)."""
     overlaps = _check_courtyards(layout)
     if overlaps:
         return f"courtyards: {overlaps[0].message}"
-    silk = _check_silkscreen(layout, _collect_items(layout, netlist))
+    silk = _check_silkscreen(layout, _collect_items(layout, netlist, profile=profile))
     if silk:
         return f"silk: {silk[0].message}"
     return ""
@@ -181,6 +186,7 @@ def search_placements(
         tuple[Collection[str], Collection[str], float, Collection[str]]
     ] = (),
     spec: object | None = None,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
     step_mm: float = 1.0,
     max_steps: int = 2,
     proposal_tries: int = 20,
@@ -220,7 +226,7 @@ def search_placements(
                 part_reference_at=part_reference_at,
                 part_flip=prop_flipped,
             )
-            if not _pre_gate(probe, netlist):
+            if not _pre_gate(probe, netlist, profile):
                 return proposal, prop_flipped
         return None
 
@@ -239,7 +245,7 @@ def search_placements(
             part_reference_at=part_reference_at,
             part_flip=flipped,
         )
-        rejection = _pre_gate(layout, netlist)
+        rejection = _pre_gate(layout, netlist, profile)
         if rejection:
             evaluated.append(
                 PlacementCandidate(
@@ -253,7 +259,7 @@ def search_placements(
         try:
             outcome = route_board(
                 layout, netlist,
-                net_widths=net_widths,
+                net_widths=net_widths, profile=profile,
                 clearance_groups=clearance_groups,
             )
         except RoutingError as exc:
@@ -276,7 +282,7 @@ def search_placements(
             if on_progress:
                 on_progress(f"{name}: unroutable ({outcome.failed[0]})")
             continue
-        score = score_layout(outcome.layout, netlist, spec)  # type: ignore[arg-type]
+        score = score_layout(outcome.layout, netlist, spec, profile)  # type: ignore[arg-type]
         evaluated.append(
             PlacementCandidate(
                 name=name, placements=placements, score=score,
@@ -316,6 +322,7 @@ def climb_placements(
         tuple[Collection[str], Collection[str], float, Collection[str]]
     ] = (),
     spec: object | None = None,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
     step_mm: float = 1.0,
     max_steps: int = 2,
     part_reference_at: tuple[
@@ -339,7 +346,7 @@ def climb_placements(
             base_flipped=flipped,
             candidates=candidates, seed=seed + round_index,
             net_widths=net_widths, clearance_groups=clearance_groups,
-            spec=spec, step_mm=step_mm, max_steps=max_steps,
+            spec=spec, profile=profile, step_mm=step_mm, max_steps=max_steps,
             part_reference_at=part_reference_at,
             on_progress=on_progress,
         )
