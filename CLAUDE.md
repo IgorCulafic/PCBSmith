@@ -10,6 +10,10 @@ reference material; you build, verify, and harden.
 
 A detailed narrative of everything built so far is in
 `docs/project-history.md`. Read it once before your first real task.
+Then: `docs/architecture.md` (what every module does and how the
+pipeline flows), `docs/lessons-and-pitfalls.md` (the complete mistake
+ledger — read BEFORE touching the router or placements), and
+`docs/routing-placement-plan.md` (the active roadmap).
 
 ## The five laws (learned the hard way, in force everywhere)
 
@@ -42,7 +46,8 @@ A detailed narrative of everything built so far is in
    locators. `assumption` is an honest status — mark it, don't hide it.
    Component cards (`ai_assets/components/*.json`) are the durable form.
 
-## How to build a new topology (the proven sequence)
+## How to build a new topology (the sequence - proven through
+## schematics on 10/10 topologies, through boards on only 9/10)
 
 1. **Datasheets first.** Fetch, pin, read; extract the WORST-CASE
    limits table into the calculator's defaults.
@@ -161,6 +166,40 @@ A detailed narrative of everything built so far is in
   checks; pruning is provably safe ONLY for area containment
   (centerline coverage changes the copper point-set).
 
+## The book knowledge base (2026-07-11, read this before layout work)
+
+- Nine reference books/standards live in `Books/` (gitignored), text
+  cache in `.book-cache/` (gitignored, sha-pinned manifest).
+  `tools/book_extract.py` (pypdf/EPUB) extracted seven;
+  `tools/book_ocr.py` (pypdfium2+RapidOCR, ~7 s/page, resumable)
+  OCR'd the two scanned ones (johnson-hsdd, ipc-7351 — cached but NOT
+  yet distilled).
+- The durable form is `docs/reference/books/*.md` — seven
+  distillations (Bogatin, Ott, Montrose, Williams, IPC-2221B,
+  IPC-A-610, Coombs), every rule with THRESHOLD/WHY/WHERE(page)/
+  MACHINE FORM/APPLICABILITY. All NINE sources are distilled and
+  spot-verified (72 rules checked 2026-07-12; corrections and two
+  honest ambiguities recorded in each file's Verification section).
+  docs/reference/books/CONSOLIDATED.md is the deduplicated cross-book
+  table with the contradiction-docket resolutions - START THERE.
+  Text-cache hazard: pypdf/OCR drop the Greek mu glyph; close any
+  unit-sensitive verification by dimensional analysis, never string
+  match. NEVER re-read the books wholesale.
+- `docs/routing-placement-plan.md` is THE roadmap (user directive:
+  research-first, bus routing, placement compatibility, dual-side
+  gate, thermometer r002). Execute its phases in order; phase 0 is
+  distilling the two OCR'd sources + the consolidated rule table.
+- Headline audit results already known: our trace-current formula is
+  IPC-2221A's (citation fix due; 2221B defers to IPC-2152); flat
+  CLEARANCE_MM 0.2 needs voltage-aware classes above 15 V; flyback
+  6.4 mm barrier value confirmed but rulebook cites nonexistent
+  "pollution-degree tables"; corners at 90 degrees are NOT an SI issue
+  below multi-GHz (2 fF/mil — keep 45-degree as craft, honestly
+  labeled); decap PROXIMITY is weak, routed loop area is first-order;
+  Ott caps 2-layer boards at ~10 MHz clocks (standing advisory vs our
+  50 MHz class); thermometer r001 violates the Espressif antenna rule
+  (U1 antenna over bulb copper) and wants a >= 1.0 mm sensor moat.
+
 ## Environment pitfalls (Windows, this machine)
 
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` always; add `-p no:cacheprovider`
@@ -181,7 +220,18 @@ A detailed narrative of everything built so far is in
   by `BOARD_SHEET_ORIGIN_MM` (20, 20) from board-local coordinates.
 - No poppler/pdftoppm: PDFs are read via pypdf TEXT extraction (works
   well on vector PDFs — Altium/TI). `python -X utf8` for anything that
-  prints datasheet text.
+  prints datasheet text. Scanned PDFs: `tools/book_ocr.py` pattern
+  (pypdfium2 render + RapidOCR). SVG schematics: rasterize with
+  resvg_py (installed; convert the mm width/height attrs to px first)
+  and Read the PNG. Board images: `kicad-cli pcb render --side
+  top|bottom`. kicad-cli ERC JSON positions decode at x100 to sheet mm
+  (lengths /100); DRC JSON stays mm with the (20,20) origin. Heredocs
+  also mangle regex character classes — use the Write tool for any
+  nontrivial patch/probe script.
+- Session rate limits KILL mid-flight agent fleets (the deep-research
+  verify phase lost 75 agents; one book agent died after writing its
+  file). Fan out in waves, make outputs land in files early, and
+  salvage from `subagents/workflows/*/journal.jsonl` before rerunning.
 - No Nexar credentials, no ANTHROPIC_API_KEY, no local llama-server in
   this environment — the evidence-extraction LLM path and live BOM
   pricing stay dormant until the user provides them.
@@ -221,16 +271,31 @@ A detailed narrative of everything built so far is in
 - The user values honest status over green lights: report failed
   steps, unsimulated stages, and assumption-level evidence exactly as
   they are.
+- Project context beyond the code: PCBSmith is the RESTART of an
+  earlier attempt (archived in `old_files/r8-pre-restructure-snapshot-
+  2026-05*` - browsable for history, never imported). The user has a
+  FUNDING angle: a separate session built a mockup chat GUI over old
+  board visuals for a funding-run presentation video; expect demo/
+  presentation asks, and keep renders/review packs presentation-
+  quality. Only one prior session transcript survives on this machine;
+  everything else from earlier chats lives ONLY in CLAUDE.md, the
+  rulebook, docs/project-history.md, the commit messages, and now
+  docs/architecture.md + docs/lessons-and-pitfalls.md - treat those as
+  the canonical memory and keep updating them.
 
 ## Current frontier (where to push next)
 
-- **Automation-first boards are proven**: the servo555 tester (9th
+- **Automation-first boards work at SMALL scale only**: the servo555
+  tester (9th
   golden topology) is the first board where `route_board` produced
   every trace from coarse placements — placement + probe + route +
   live DRC loop converged in 3 iterations and the fixes it forced
   (rect-pad cover, per-physical-pad connectivity, silk height/edge
-  checks) are now permanent machinery.
-- **flyback dual-side compaction DEMONSTRATED (2026-07-10)**:
+  checks) are now permanent machinery. SCOPE LIMIT, learned the
+  hard way: that was 9 parts on an open rectangle; the same router
+  failed outright at 63 parts in a narrow corridor (thermometer).
+  "Proven" means proven AT THAT SCALE, nothing more.
+- **flyback dual-side compaction (2026-07-10, one data point)**:
   `tools/flyback_compaction.py` produced an 80×42 dual-side flyback
   (whole SMD control circuit on the back, FLBACK-001-style), 100%
   auto-routed, live kicad-cli DRC 0 violations / 0 unconnected.
@@ -240,7 +305,10 @@ A detailed narrative of everything built so far is in
   `docs/reference-comparisons/flyback-dual-side-compaction.md`. The
   42 mm height floor is the TEZ-22x24 transformer; matching the
   reference's 36.8 mm needs an EFD20-class part (component change).
-- **Human-readable schematics (Track 9.1, user requirement)**: LANDED
+- **Human-readable schematics (Track 9.1, user requirement)**:
+  working with live gates on 3 of 10 topologies (servo555,
+  flyback, thermometer) — the other SEVEN still lack reader
+  schematics. LANDED
   on servo555 AND the flyback (31 parts, custom symbols via
   ReaderSpec.customs) — `kicad/reader_schematic.py` (conventional
   drawing renderer + offline wire-connectivity validator that rejects
@@ -251,6 +319,40 @@ A detailed narrative of everything built so far is in
   angles are PROBED convention (angle=rotation for 90/270, 0 for
   180). Next: buck/detector backfill (INSTANCES tables exist); the
   role-driven column/rail placer.
+- **LAYOUT-CRAFT REBUILD IS THE CURRENT TRACK (2026-07-11)**: the
+  user halted thermometer board iteration ("call it a failure") and
+  redirected to research-first craft: BUS ROUTING (bundles at constant
+  pitch with matched bends — see the user's example-image lesson in
+  auto-memory), placement compatibility, dual-side placement as
+  strategy. Follow `docs/routing-placement-plan.md`. Do NOT resume
+  hand-iterating thermometer placements before bus routing exists.
+- **Thermometer challenge (2026-07-10, 10th topology, BOARD FAILED)**:
+  63 parts (ESP32-C3, SHT31 DFN, 2x74HC595, USB-C 16P, 16-LED mercury
+  column) on a thermometer-shaped outline. It forced five GENERIC
+  machinery upgrades, each regression-tested and rulebook'd (5.3-5.5):
+  custom-pad primitive extents (SHT31 EP anchors 1.0x1.0, copper
+  1.0x1.7 - a via parked on the unmodelled lobe), NPTH/unnamed drilled
+  pads as net-less `~hole:` obstacles (hole-to-copper 0.25), via edge
+  margin on shaped outlines, `min_through_hole` project constraint
+  (module thermal vias drill 0.2), and `route_board(fine_pitch_nets=)`
+  - 0.1mm-grid pre-routing WITH rip-up-by-reordering (0.5mm-pitch pads
+  cannot center tracks on the 0.2 grid; corridor priority decides
+  feasibility). Reader schematic (63 parts) validates clean + live ERC
+  + netlist equality; no-connect crosses are now first-class in the
+  reader machinery. Placement lesson: put each register IN its load
+  zone - the inverted U2/U3 arrangement made all 16 SEG nets cross the
+  other register's zone and /SEG9 unroutable. BOARD STATUS: unrouted —
+  seven successive single-net failures (VBUS/DM/CAS/SEG9/SEG6/SEG5/
+  LK4/SER/SRCLK) proved per-net A* + rip-up cannot shepherd 20+ nets
+  through the 24 mm stem; every failure became a committed placement/
+  machinery fix. Machine schematic, reader schematic (live ERC +
+  netlist equality), ngspice sim, authority CLI, tests and golden
+  entry are DONE and committed — only the board layout remains, gated
+  on bus routing (plan phase 2) and the placement engine (phase 3).
+  Board-runner pattern: build the netlist from INSTANCES + composition
+  footprints, call compute_thermometer_board_layout, run both judges,
+  write the board (~40 lines; see tests/unit/kicad/
+  test_thermometer_board.py `_netlist` for the netlist half).
 - Polygon-exact pour analysis; pear/led-art/divider exporter
   migrations to official symbols; live forge-topology run (user must
   start KoboldCpp); more registry blocks (rcd-clamp,

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import os
 import re
@@ -81,6 +82,10 @@ from pcbsmith.generation.servo555 import (
     compose_servo555,
     write_servo555_project,
 )
+from pcbsmith.generation.thermometer import (
+    compose_thermometer,
+    write_thermometer_project,
+)
 from pcbsmith.kicad.board import (
     BoardGenerationError,
     BoardLayout,
@@ -104,6 +109,7 @@ from pcbsmith.kicad.export_mpu6050 import (
 )
 from pcbsmith.kicad.export_pear import export_pear_to_kicad
 from pcbsmith.kicad.export_servo555 import export_servo555_to_kicad
+from pcbsmith.kicad.export_thermometer import export_thermometer_to_kicad
 from pcbsmith.kicad.flyback_board import (
     flyback_checks_spec,
     generate_flyback_board,
@@ -114,6 +120,10 @@ from pcbsmith.kicad.pear_board import generate_pear_board, ring_unit_counts
 from pcbsmith.kicad.preview import plot_board_review
 from pcbsmith.kicad.servo555_board import generate_servo555_board
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
+from pcbsmith.kicad.thermometer_board import (
+    generate_thermometer_board,
+    thermometer_checks_spec,
+)
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
 from pcbsmith.reporting.review_pack import TestStep as ReviewTestStep
@@ -142,6 +152,9 @@ from pcbsmith.simulation.ngspice_metal_detector import run_detector_simulation
 from pcbsmith.simulation.ngspice_mpu6050 import run_mpu6050_simulation
 from pcbsmith.simulation.ngspice_pear import run_pear_simulation
 from pcbsmith.simulation.ngspice_servo555 import run_servo555_simulation
+from pcbsmith.simulation.ngspice_thermometer import (
+    run_thermometer_simulation,
+)
 
 GENERIC_EVIDENCE_FINDING = "Generic passive and LED components are not datasheet-backed yet."
 
@@ -1670,6 +1683,218 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_design_thermometer_authority(args: argparse.Namespace) -> int:
+    output_dir = Path(args.output)
+    _prepare_output_dir(output_dir, overwrite=args.overwrite)
+    intent = classify_circuit_intent(args.request)
+    if intent.status != "supported":
+        raise ValueError("; ".join(intent.unsupported_reasons))
+    if intent.intent_id != "thermometer_env_display":
+        raise ValueError(
+            "The request classified as a different intent; use the matching "
+            "design command instead."
+        )
+    topology = select_topology(intent)
+    circuit = compose_thermometer(intent, topology)
+    evidence = EvidenceReport(
+        status="needs_human_review",
+        findings=(
+            "ESP32-C3-WROOM-02, SHT31-DIS, SN74HC595, AP2112 and the "
+            "Kingbright LED facts come from fetched, sha-pinned "
+            "datasheets with page-level locators.",
+            "ASSUMPTION: J2/J3 accept 4-pin 0.49in I2C SSD1306 OLED "
+            "modules (GND/VCC/SCL/SDA pin order) - verify against the "
+            "purchased modules before soldering the sockets.",
+            "FIRMWARE CONTRACT: the LED thresholds, I2C addresses and "
+            "display roles are documented composition findings; the "
+            "board is inert without firmware honouring them.",
+            "The AP2112 WiFi-burst dissipation finding requires review "
+            "before continuous-WiFi firmware is flashed.",
+        ),
+    )
+
+    write_thermometer_project(circuit, output_dir, project_name=args.name)
+
+    from pcbsmith.calculators.electronics import solve_thermometer_display
+    from pcbsmith.generation.thermometer import thermometer_test_steps
+
+    design_outputs = solve_thermometer_display()["outputs"]
+
+    kicad_artifacts = export_thermometer_to_kicad(
+        circuit, output_dir, project_name=args.name
+    )
+    schematic_file = Path(kicad_artifacts["schematic_file"])
+
+    erc_report = run_kicad_erc(schematic_file)
+    schematic_svg, _svg_findings = export_schematic_svg(schematic_file)
+    simulation = run_thermometer_simulation(circuit, output_dir)
+
+    # Track 9.1: the human-readable schematic (offline-validated at
+    # export, then live ERC + netlist-export equality).
+    from pcbsmith.kicad.export_thermometer_reader import (
+        export_thermometer_reader_schematic,
+    )
+
+    reader_erc, reader_svg, reader_artifacts, equality_findings, reader_ok = (
+        _reader_schematic_checks(
+            circuit, output_dir, args.name, schematic_file,
+            erc_report.status, export_thermometer_reader_schematic,
+        )
+    )
+    kicad = erc_report.model_copy(
+        update={
+            "status": erc_report.status if reader_ok else "failed",
+            "findings": (
+                *erc_report.findings,
+                f"Reader (human) schematic ERC: {reader_erc.status}.",
+                *reader_erc.findings,
+                *(
+                    equality_findings
+                    or (
+                        "Netlist equality: the reader schematic exports "
+                        "the same components and net partition as the "
+                        "machine schematic.",
+                    )
+                ),
+                "KiCad SPICE export was intentionally skipped; the LED "
+                "branches are simulated from a PCBSmith netlist and "
+                "everything digital is datasheet-limit verified by the "
+                "calculator.",
+            ),
+        }
+    )
+    reconciliation = ReconciliationReport(
+        status="warning",
+        checks=(
+            "PCBSmith circuit object and KiCad schematic were generated "
+            "before authority checks.",
+            "ngspice ran the LED segment and power-indicator branches "
+            "only.",
+            "The silkscreen graduations and the LED column positions "
+            "derive from the same thermometer_scale_fraction - one "
+            "scale truth for copper and ink.",
+        ),
+        findings=(
+            "The registers, MCU, I2C bus, sensor, USB and regulator are "
+            "verified against datasheet worst-case limits by the "
+            "calculator, not by SPICE.",
+        ),
+    )
+
+    board: BoardReport
+    design_review: DesignReviewReport | None
+    if (
+        erc_report.status != "passed"
+        or simulation.status != "passed"
+        or not reader_ok
+    ):
+        board = BoardReport(
+            status="not_run",
+            findings=(
+                "Board generation was skipped because KiCad ERC (machine "
+                "and reader schematics), netlist equality, and ngspice "
+                "simulation must pass before a board is generated.",
+            ),
+        )
+        design_review = None
+    else:
+        board_file = output_dir / f"{args.name}.kicad_pcb"
+        try:
+            board_netlist, layout = generate_thermometer_board(
+                schematic_file=schematic_file,
+                board_file=board_file,
+            )
+        except BoardGenerationError as exc:
+            board = BoardReport(
+                status="failed",
+                board_file=str(board_file),
+                findings=(str(exc),),
+            )
+            design_review = None
+        else:
+            checks_spec = thermometer_checks_spec()
+            design_review = run_design_checks(
+                layout,
+                board_netlist,
+                dataclasses.replace(
+                    checks_spec,
+                    composition_roles=tuple(
+                        c.role for c in circuit.components
+                    ),
+                ),
+            )
+            board, design_review = _finish_board_authority(
+                review_components=circuit.components,
+                review_cards=checks_spec.component_cards,
+                review_test_steps=thermometer_test_steps(design_outputs),
+                board_file=board_file,
+                output_dir=output_dir,
+                project_name=args.name,
+                board_netlist=board_netlist,
+                layout=layout,
+                design_review=design_review,
+                extra_findings=(
+                    "AUTOMATION-ROUTED SHAPED BOARD: every trace was "
+                    "produced by route_board (fine-pitch pre-routing on "
+                    "a 0.1mm grid for the USB-C/DFN/cascade nets, then "
+                    "the 0.2mm main pass) inside the thermometer "
+                    "outline; the layout passed the same virtual DRC, "
+                    "kicad-cli DRC, and design checks as every board.",
+                ),
+            )
+    artifacts = _authority_artifacts(
+        output_dir=output_dir,
+        kicad_artifacts=kicad_artifacts,
+        erc_report=erc_report,
+        spice_report=KiCadReport(status="not_run"),
+        simulation=simulation,
+        board=board,
+    )
+    # Track 9.1: the human-readable schematic is the SVG the bundle
+    # links; the row/label-net drawing stays as the machine artifact.
+    _add_existing_artifact(artifacts, "kicad_schematic_svg", reader_svg)
+    _add_existing_artifact(
+        artifacts, "kicad_schematic_machine_svg", schematic_svg
+    )
+    _add_existing_artifact(
+        artifacts,
+        "kicad_reader_schematic",
+        reader_artifacts["schematic_file"],
+    )
+    revisions = _authority_revisions(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+    )
+    bundle_path = write_authority_review_bundle(
+        circuit,
+        output_dir,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+        revisions=revisions,
+        artifacts=artifacts,
+    )
+    status = _authority_bundle_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+    )
+    print(f"Review bundle: {bundle_path}")
+    print(f"Status: {status}")
+    return 0
+
+
 def _cmd_forge_topology(args: argparse.Namespace) -> int:
     from pcbsmith.ai.topology_forge import (
         forge_topology,
@@ -2899,6 +3124,18 @@ def build_parser() -> argparse.ArgumentParser:
     servo_parser.add_argument("--name", required=True)
     servo_parser.add_argument("--overwrite", action="store_true")
     servo_parser.set_defaults(func=_cmd_design_servo555_authority)
+
+    thermo_parser = subparsers.add_parser(
+        "design-thermometer-authority",
+        help="generate the thermometer-shaped ESP32-C3 temperature/"
+        "humidity display (USB-C, SHT31, 16-LED mercury column, shaped "
+        "outline, automation-routed) with authority evidence",
+    )
+    thermo_parser.add_argument("output")
+    thermo_parser.add_argument("--request", required=True)
+    thermo_parser.add_argument("--name", required=True)
+    thermo_parser.add_argument("--overwrite", action="store_true")
+    thermo_parser.set_defaults(func=_cmd_design_thermometer_authority)
 
     board_diff_parser = subparsers.add_parser(
         "board-diff",
