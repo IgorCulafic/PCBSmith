@@ -1,0 +1,17 @@
+diff --git a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
+index 2a46970..c83abcc 100644
+--- a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
++++ b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
+@@ -71,6 +71,12 @@
+ 
+     (pad "NO_FMASK" smd circle (at 50 10) (size 2 2)
+       (layers "F.Cu" "F.Paste"))
++    (pad "C_ZERO" smd circle (at 50 20) (size 2 2)
++      (layers "F.Cu" "F.Mask")
++      (solder_mask_margin 0))
++    (pad "C_NEG" smd circle (at 60 20) (size 2 2)
++      (layers "F.Cu" "F.Mask")
++      (solder_mask_margin -0.2))
+     (pad "WEB1" smd circle (at 70 40) (size 1 1)
+       (layers "F.Cu" "F.Mask"))
+     (pad "WEB2" smd circle (at 71.5 40) (size 1 1)

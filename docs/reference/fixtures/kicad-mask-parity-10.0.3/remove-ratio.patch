@@ -1,0 +1,65 @@
+diff --git a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
+index 1f62d02..14ad98b 100644
+--- a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
++++ b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
+@@ -27,12 +27,10 @@
+       (layers "F.Cu" "F.Paste" "F.Mask")
+       (solder_mask_margin 0.4))
+     (pad "C_RATIO" smd circle (at 30 10) (size 2 2)
+-      (layers "F.Cu" "F.Paste" "F.Mask")
+-      (solder_mask_margin_ratio 25))
++      (layers "F.Cu" "F.Paste" "F.Mask"))
+     (pad "C_BOTH" smd circle (at 40 10) (size 2 2)
+       (layers "F.Cu" "F.Paste" "F.Mask")
+-      (solder_mask_margin 0.1)
+-      (solder_mask_margin_ratio 25))
++      (solder_mask_margin 0.1))
+ 
+     (pad "O_DEF" smd oval (at 10 20) (size 4 2)
+       (layers "F.Cu" "F.Paste" "F.Mask"))
+@@ -40,12 +38,10 @@
+       (layers "F.Cu" "F.Paste" "F.Mask")
+       (solder_mask_margin 0.4))
+     (pad "O_RATIO" smd oval (at 30 20) (size 4 2)
+-      (layers "F.Cu" "F.Paste" "F.Mask")
+-      (solder_mask_margin_ratio 25))
++      (layers "F.Cu" "F.Paste" "F.Mask"))
+     (pad "O_BOTH" smd oval (at 40 20) (size 4 2)
+       (layers "F.Cu" "F.Paste" "F.Mask")
+-      (solder_mask_margin 0.1)
+-      (solder_mask_margin_ratio 25))
++      (solder_mask_margin 0.1))
+ 
+     (pad "R_DEF" smd rect (at 10 30) (size 4 2)
+       (layers "F.Cu" "F.Paste" "F.Mask"))
+@@ -53,12 +49,10 @@
+       (layers "F.Cu" "F.Paste" "F.Mask")
+       (solder_mask_margin 0.4))
+     (pad "R_RATIO" smd rect (at 30 30) (size 4 2)
+-      (layers "F.Cu" "F.Paste" "F.Mask")
+-      (solder_mask_margin_ratio 25))
++      (layers "F.Cu" "F.Paste" "F.Mask"))
+     (pad "R_BOTH" smd rect (at 40 30) (size 4 2)
+       (layers "F.Cu" "F.Paste" "F.Mask")
+-      (solder_mask_margin 0.1)
+-      (solder_mask_margin_ratio 25))
++      (solder_mask_margin 0.1))
+ 
+     (pad "RR_DEF" smd roundrect (at 10 40) (size 4 2)
+       (layers "F.Cu" "F.Paste" "F.Mask")
+@@ -69,13 +63,11 @@
+       (solder_mask_margin 0.4))
+     (pad "RR_RATIO" smd roundrect (at 30 40) (size 4 2)
+       (layers "F.Cu" "F.Paste" "F.Mask")
+-      (roundrect_rratio 0.25)
+-      (solder_mask_margin_ratio 25))
++      (roundrect_rratio 0.25))
+     (pad "RR_BOTH" smd roundrect (at 40 40) (size 4 2)
+       (layers "F.Cu" "F.Paste" "F.Mask")
+       (roundrect_rratio 0.25)
+-      (solder_mask_margin 0.1)
+-      (solder_mask_margin_ratio 25))
++      (solder_mask_margin 0.1))
+ 
+     (pad "NO_FMASK" smd circle (at 50 10) (size 2 2)
+       (layers "F.Cu" "F.Paste"))

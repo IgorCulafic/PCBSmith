@@ -1,0 +1,25 @@
+diff --git a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
+index 90295b6..6b6677d 100644
+--- a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
++++ b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
+@@ -90,6 +90,20 @@
+       (layers "B.Cu" "B.Paste"))
+   )
+ 
++  (footprint "THT-Probe"
++    (layer "F.Cu")
++    (at 0 0)
++    (attr through_hole)
++    (pad "T_BOTH" thru_hole circle (at 60 55) (size 2 2) (drill 1)
++      (layers "*.Cu" "*.Mask"))
++    (pad "T_FRONT" thru_hole circle (at 70 55) (size 2 2) (drill 1)
++      (layers "*.Cu" "F.Mask"))
++    (pad "T_BACK" thru_hole circle (at 80 55) (size 2 2) (drill 1)
++      (layers "*.Cu" "B.Mask"))
++    (pad "T_NONE" thru_hole circle (at 90 55) (size 2 2) (drill 1)
++      (layers "*.Cu"))
++  )
++
+   (via (at 10 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu")
+     (tenting (front none) (back none)) (net 0))
+   (via (at 20 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu")

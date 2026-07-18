@@ -1,0 +1,23 @@
+diff --git a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
+index 14ad98b..5fc7996 100644
+--- a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
++++ b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pcb
+@@ -86,8 +86,16 @@
+       (layers "B.Cu" "B.Paste"))
+   )
+ 
+-  (via (at 10 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu") (net 0))
+-  (via (at 20 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu") (net 0))
++  (via (at 10 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu")
++    (tenting (front none) (back none)) (net 0))
++  (via (at 20 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu")
++    (tenting (front yes) (back yes)) (net 0))
++  (via (at 30 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu")
++    (tenting (front no) (back no)) (net 0))
++  (via (at 40 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu")
++    (tenting (front yes) (back no)) (net 0))
++  (via (at 50 55) (size 2) (drill 1) (layers "F.Cu" "B.Cu")
++    (tenting (front no) (back yes)) (net 0))
+ 
+   (gr_rect (start 0 0) (end 100 70)
+     (stroke (width 0.1) (type default)) (fill none) (layer "Edge.Cuts"))

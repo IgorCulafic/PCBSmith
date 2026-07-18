@@ -1,5 +1,11 @@
 # Routing & placement craft — research digest (2026-07-11)
 
+> **Pinned-source correction (2026-07-12):** use this digest for discovery,
+> not final thresholds. The later source audit found that Espressif's 15 mm
+> value is housing/object clearance, not blanket PCB copper keepout; module
+> edge/overhang/cutout geometry comes from the pinned module guide/drawing.
+> The SHT3x numeric humidity-error claim is still unpinned. See
+> `books/SECOND-WAVE-2026-07.md` for current confidence and applicability.
 Provenance: deep-research harness over ~15 technical sources (5 search
 angles, 29 extraction agents, 114 claims). The adversarial verification
 phase was cut short by session rate limits, so each claim below was
@@ -92,22 +98,16 @@ CONTRADICTS the electrical framing at our speeds:
   routed away from the switch node/inductor; unbroken plane under the
   loop. Machine form: hot-loop area check for buck/flyback topologies +
   FB-to-SW clearance class.
-- Temperature/humidity sensors (SHT3x — directly relevant to the
-  thermometer): **[HIGH]** Sensirion's design-in rules: 1 degree C of
-  parasitic heating = ~5 %RH error at 90 %RH; heat arrives via PCB
-  copper; mitigations = distance from heat sources (LDO, WiFi module),
-  MINIMAL copper to the sensor (thin traces), milled SLOTS/moats around
-  the sensor, sensor at board corner/edge, remove unneeded copper.
-  Machine form: (a) sensor-class components declare heat-source
-  keepout distance; (b) trace width entering the sensor capped at
-  signal minimum; (c) slot/moat as outline feature around the bulb
-  sensor (candidate for thermometer r002).
-- Antennas: **[HIGH]** Espressif: module antenna at/over the board
-  edge, >= 15 mm clearance, no copper/traces under the antenna zone.
-  Our thermometer has U1's antenna end pointing INTO the bulb over
-  copper — a real finding for r002 (rotate module so the antenna faces
-  the bulb edge, or cut copper under it).
-- **[LOW]** One source claims vendor app notes are usually poor layout
+- Temperature/humidity sensors (SHT3x): **[UNPINNED]** the digest reported
+  `1 degree C ~= 5 %RH at 90 %RH` and recommended distance from heat sources,
+  minimal copper/thin traces, and slot/moat isolation. Treat these as design
+  hypotheses until the current Sensirion guide is pinned. A sensor card may
+  declare heat isolation and low-copper entry now; numeric thresholds wait.
+- Antennas: **[PINNED CORRECTION]** Espressif prefers the module antenna
+  beyond the baseboard edge with feed near the edge, or a module-specific
+  cutout on both sides and below. The 15 mm value is final housing/object
+  clearance, not blanket PCB copper clearance. Thermometer r001 still points
+  U1 into the interior over bulb copper and violates the placement intent.- **[LOW]** One source claims vendor app notes are usually poor layout
   guidance. Rejected as a blanket rule — but it supports the project's
   law: never encode a rule without its WHY and applicability range.
 
