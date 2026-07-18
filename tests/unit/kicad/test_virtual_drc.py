@@ -1,11 +1,16 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
+import pytest
 from tests.unit.kicad.test_clover_board import MOTTO
 from tests.unit.kicad.test_clover_board import _netlist as clover_netlist
 from tests.unit.kicad.test_metal_detector_board import _netlist as detector_netlist
 from tests.unit.kicad.test_pear_board import _netlist as pear_netlist
 
+from pcbsmith.hole_geometry import HoleGeometry, HolePlating, HoleShape
 from pcbsmith.kicad.board import (
+    FOOTPRINT_LIBRARY,
     BoardComponent,
     BoardLayout,
     BoardNet,
@@ -15,17 +20,39 @@ from pcbsmith.kicad.board import (
 )
 from pcbsmith.kicad.clover_board import compute_clover_board_layout
 from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
+from pcbsmith.kicad.library import PadSpec
 from pcbsmith.kicad.metal_detector_board import compute_detector_board_layout
 from pcbsmith.kicad.pear_board import compute_pear_board_layout
-from pcbsmith.kicad.virtual_drc import run_virtual_drc
+from pcbsmith.kicad.virtual_drc import (
+    _check_edge_clearance,
+    _collect_items,
+    _iter_physical_holes,
+    _physical_hole_key,
+    _PhysicalItemKind,
+    _PhysicalSourceRole,
+    run_virtual_drc,
+)
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE
 
 RESISTOR = "Resistor_SMD:R_0603_1608Metric"
+USB_C = "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal"
 
 
 def _resistor(reference: str) -> BoardComponent:
     return BoardComponent(
-        reference=reference, value="1k", footprint=RESISTOR,
+        reference=reference,
+        value="1k",
+        footprint=RESISTOR,
         uuid_path=reference.lower(),
+    )
+
+
+def _usb_connector() -> BoardComponent:
+    return BoardComponent(
+        reference="J1",
+        value="USB",
+        footprint=USB_C,
+        uuid_path="j1",
     )
 
 
@@ -42,8 +69,9 @@ def _two_part_netlist() -> BoardNetlist:
 def _layout(**overrides: object) -> BoardLayout:
     netlist = _two_part_netlist()
     base = dict(
-        placements=tuple((component, 10.0 + 10.0 * i) for i, component in
-                         enumerate(netlist.components)),
+        placements=tuple(
+            (component, 10.0 + 10.0 * i) for i, component in enumerate(netlist.components)
+        ),
         segments=(),
         vias=(),
         width_mm=50.0,
@@ -55,42 +83,45 @@ def _layout(**overrides: object) -> BoardLayout:
 
 
 def test_clean_challenge_boards_have_zero_findings() -> None:
-    assert run_virtual_drc(
-        compute_detector_board_layout(detector_netlist()), detector_netlist()
-    ) == ()
-    assert run_virtual_drc(
-        compute_pear_board_layout(pear_netlist()), pear_netlist()
-    ) == ()
-    assert run_virtual_drc(
-        compute_clover_board_layout(clover_netlist(), MOTTO), clover_netlist()
-    ) == ()
+    assert (
+        run_virtual_drc(compute_detector_board_layout(detector_netlist()), detector_netlist()) == ()
+    )
+    assert run_virtual_drc(compute_pear_board_layout(pear_netlist()), pear_netlist()) == ()
+    assert (
+        run_virtual_drc(compute_clover_board_layout(clover_netlist(), MOTTO), clover_netlist())
+        == ()
+    )
 
 
 def test_cross_net_track_short_is_flagged() -> None:
     layout = _layout(
         segments=(
-            TrackSegment(x1=5.0, y1=5.0, x2=45.0, y2=5.0,
-                         layer="F.Cu", net_name="/A", width_mm=0.3),
-            TrackSegment(x1=25.0, y1=2.0, x2=25.0, y2=8.0,
-                         layer="F.Cu", net_name="/B", width_mm=0.3),
+            TrackSegment(
+                x1=5.0, y1=5.0, x2=45.0, y2=5.0, layer="F.Cu", net_name="/A", width_mm=0.3
+            ),
+            TrackSegment(
+                x1=25.0, y1=2.0, x2=25.0, y2=8.0, layer="F.Cu", net_name="/B", width_mm=0.3
+            ),
         ),
     )
     findings = run_virtual_drc(layout, _two_part_netlist())
     assert any(
-        finding.check == "copper_clearance" and "short" in finding.message
-        for finding in findings
+        finding.check == "copper_clearance" and "short" in finding.message for finding in findings
     )
 
 
 def test_same_net_and_cross_layer_tracks_are_not_flagged() -> None:
     layout = _layout(
         segments=(
-            TrackSegment(x1=5.0, y1=5.0, x2=45.0, y2=5.0,
-                         layer="F.Cu", net_name="/A", width_mm=0.3),
-            TrackSegment(x1=25.0, y1=2.0, x2=25.0, y2=8.0,
-                         layer="F.Cu", net_name="/A", width_mm=0.3),
-            TrackSegment(x1=25.0, y1=2.0, x2=25.0, y2=8.0,
-                         layer="B.Cu", net_name="/B", width_mm=0.3),
+            TrackSegment(
+                x1=5.0, y1=5.0, x2=45.0, y2=5.0, layer="F.Cu", net_name="/A", width_mm=0.3
+            ),
+            TrackSegment(
+                x1=25.0, y1=2.0, x2=25.0, y2=8.0, layer="F.Cu", net_name="/A", width_mm=0.3
+            ),
+            TrackSegment(
+                x1=25.0, y1=2.0, x2=25.0, y2=8.0, layer="B.Cu", net_name="/B", width_mm=0.3
+            ),
         ),
     )
     # The synthetic tracks do not reach the pads; only the (correct)
@@ -105,8 +136,9 @@ def test_track_grazing_a_foreign_pad_is_flagged() -> None:
     # does not.
     tight = _layout(
         segments=(
-            TrackSegment(x1=5.0, y1=15.55, x2=15.0, y2=15.55,
-                         layer="F.Cu", net_name="/B", width_mm=0.2),
+            TrackSegment(
+                x1=5.0, y1=15.55, x2=15.0, y2=15.55, layer="F.Cu", net_name="/B", width_mm=0.2
+            ),
         ),
     )
     findings = run_virtual_drc(tight, _two_part_netlist())
@@ -114,8 +146,9 @@ def test_track_grazing_a_foreign_pad_is_flagged() -> None:
 
     roomy = _layout(
         segments=(
-            TrackSegment(x1=5.0, y1=16.3, x2=15.0, y2=16.3,
-                         layer="F.Cu", net_name="/B", width_mm=0.2),
+            TrackSegment(
+                x1=5.0, y1=16.3, x2=15.0, y2=16.3, layer="F.Cu", net_name="/B", width_mm=0.2
+            ),
         ),
     )
     roomy_findings = run_virtual_drc(roomy, _two_part_netlist())
@@ -146,8 +179,9 @@ def test_copper_outside_the_outline_is_flagged() -> None:
         outline=((5.0, 5.0), (45.0, 5.0), (45.0, 25.0), (5.0, 25.0)),
         part_y_mm=(("R1", 15.0), ("R2", 15.0)),
         segments=(
-            TrackSegment(x1=46.0, y1=15.0, x2=48.0, y2=15.0,
-                         layer="F.Cu", net_name="/A", width_mm=0.3),
+            TrackSegment(
+                x1=46.0, y1=15.0, x2=48.0, y2=15.0, layer="F.Cu", net_name="/A", width_mm=0.3
+            ),
         ),
     )
     findings = run_virtual_drc(layout, _two_part_netlist())
@@ -171,20 +205,22 @@ def test_design_check_flags_zone_and_track_in_a_keepout() -> None:
     offender = _layout(
         zones=(("/GND", "B.Cu", (5.0, 5.0, 45.0, 25.0)),),
         segments=(
-            TrackSegment(x1=20.0, y1=15.0, x2=30.0, y2=15.0,
-                         layer="B.Cu", net_name="/B", width_mm=0.3),
+            TrackSegment(
+                x1=20.0, y1=15.0, x2=30.0, y2=15.0, layer="B.Cu", net_name="/B", width_mm=0.3
+            ),
         ),
     )
     report = run_design_checks(offender, _two_part_netlist(), spec)
     nine_one = [f for f in report.findings if f.rule == "9.1"]
     assert any(f.scope == "region" for f in nine_one)  # the zone
-    assert any(f.scope == "net" for f in nine_one)     # the /B track
+    assert any(f.scope == "net" for f in nine_one)  # the /B track
     assert report.status == "failed"
 
     allowed = _layout(
         segments=(
-            TrackSegment(x1=20.0, y1=15.0, x2=30.0, y2=15.0,
-                         layer="B.Cu", net_name="/A", width_mm=0.3),
+            TrackSegment(
+                x1=20.0, y1=15.0, x2=30.0, y2=15.0, layer="B.Cu", net_name="/A", width_mm=0.3
+            ),
         ),
     )
     report = run_design_checks(allowed, _two_part_netlist(), spec)
@@ -197,8 +233,7 @@ def test_design_check_flags_an_undersized_power_trace() -> None:
     spec = DesignChecksSpec(net_currents=(("/A", 3.0),))
     layout = _layout(
         segments=(
-            _Seg(x1=5.0, y1=5.0, x2=45.0, y2=5.0,
-                 layer="F.Cu", net_name="/A", width_mm=0.3),
+            _Seg(x1=5.0, y1=5.0, x2=45.0, y2=5.0, layer="F.Cu", net_name="/A", width_mm=0.3),
         ),
     )
     report = run_design_checks(layout, _two_part_netlist(), spec)
@@ -214,8 +249,10 @@ def test_design_check_flags_a_forgotten_ic_pin() -> None:
     from pcbsmith.kicad.board import BoardComponent as _Component
 
     transistor = _Component(
-        reference="Q1", value="MMBT3904",
-        footprint="Package_TO_SOT_SMD:SOT-23", uuid_path="q1",
+        reference="Q1",
+        value="MMBT3904",
+        footprint="Package_TO_SOT_SMD:SOT-23",
+        uuid_path="q1",
     )
     # Pin 3 (collector) is silently missing from every net.
     netlist = BoardNetlist(
@@ -227,7 +264,10 @@ def test_design_check_flags_a_forgotten_ic_pin() -> None:
     )
     layout = BoardLayout(
         placements=((transistor, 25.0),),
-        segments=(), vias=(), width_mm=50.0, height_mm=30.0,
+        segments=(),
+        vias=(),
+        width_mm=50.0,
+        height_mm=30.0,
         part_y_mm=(("Q1", 15.0),),
     )
     report = run_design_checks(layout, netlist, DesignChecksSpec())
@@ -244,11 +284,10 @@ def test_sealed_pour_cell_with_a_stranded_via_is_flagged() -> None:
     # A thick foreign-net ring walls off a corner of the GND zone with a
     # GND via inside: the fill strands it.
     ring = [
-        TrackSegment(x1=x1, y1=y1, x2=x2, y2=y2,
-                     layer="B.Cu", net_name="/A", width_mm=1.0)
+        TrackSegment(x1=x1, y1=y1, x2=x2, y2=y2, layer="B.Cu", net_name="/A", width_mm=1.0)
         for x1, y1, x2, y2 in (
-            (2.0, 10.0, 15.0, 10.0),   # horizontal wall from the left edge
-            (15.0, 10.0, 15.0, 2.0),   # vertical wall to the top edge
+            (2.0, 10.0, 15.0, 10.0),  # horizontal wall from the left edge
+            (15.0, 10.0, 15.0, 2.0),  # vertical wall to the top edge
         )
     ]
     layout = _layout(
@@ -273,10 +312,7 @@ def test_sealed_pour_cell_with_a_stranded_via_is_flagged() -> None:
         vias=(ViaSpec(x=30.0, y=20.0, net_name="/GND"),),
         zones=(("/GND", "B.Cu", (1.5, 1.5, 48.5, 28.5)),),
     )
-    assert not [
-        f for f in run_virtual_drc(fine, netlist)
-        if f.check == "pour_connectivity"
-    ]
+    assert not [f for f in run_virtual_drc(fine, netlist) if f.check == "pour_connectivity"]
 
 
 def test_circle_courtyards_measure_as_dense_hulls() -> None:
@@ -284,9 +320,7 @@ def test_circle_courtyards_measure_as_dense_hulls() -> None:
     naive parse degenerates to a line and the bbox overreaches corners)."""
     from pcbsmith.kicad.library import load_footprint
 
-    spec = load_footprint(
-        "Capacitor_THT:CP_Radial_D10.0mm_P5.00mm"
-    ).spec
+    spec = load_footprint("Capacitor_THT:CP_Radial_D10.0mm_P5.00mm").spec
     hull = spec.courtyard_hull
     assert hull is not None and len(hull) >= 12
     xs = [x for x, _ in hull]
@@ -307,15 +341,11 @@ def test_silk_reference_label_collision_is_flagged() -> None:
     its body) lands inside R2's body must trip the silk model."""
     netlist = _two_part_netlist()
     layout = _layout(
-        placements=tuple(
-            (component, 10.0) for component in netlist.components
-        ),
+        placements=tuple((component, 10.0) for component in netlist.components),
         part_y_mm=(("R1", 15.0), ("R2", 12.8)),
         segments=(
-            TrackSegment(x1=9.2, y1=15.0, x2=9.2, y2=12.8,
-                         layer="F.Cu", net_name="/A"),
-            TrackSegment(x1=10.8, y1=15.0, x2=10.8, y2=12.8,
-                         layer="F.Cu", net_name="/B"),
+            TrackSegment(x1=9.2, y1=15.0, x2=9.2, y2=12.8, layer="F.Cu", net_name="/A"),
+            TrackSegment(x1=10.8, y1=15.0, x2=10.8, y2=12.8, layer="F.Cu", net_name="/B"),
         ),
     )
     findings = run_virtual_drc(layout, netlist)
@@ -343,10 +373,7 @@ def test_board_silk_line_through_body_is_flagged() -> None:
 
     netlist = _two_part_netlist()
     layout = _layout(
-        graphics=(
-            silk_line((10.0, 13.0), (10.0, 17.0), BOARD_SHEET_ORIGIN_MM,
-                      width=0.4),
-        ),
+        graphics=(silk_line((10.0, 13.0), (10.0, 17.0), BOARD_SHEET_ORIGIN_MM, width=0.4),),
     )
     findings = run_virtual_drc(layout, netlist)
     assert any(
@@ -360,14 +387,7 @@ def test_track_across_an_npth_hole_is_flagged() -> None:
     # and no net, but the HOLE is a physical obstacle: kicad-cli's
     # hole_clearance caught six routed tracks crossing them on the
     # thermometer board while the model skipped every unnamed pad.
-    usb = BoardComponent(
-        reference="J1", value="USB",
-        footprint=(
-            "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P"
-            "_TopMnt_Horizontal"
-        ),
-        uuid_path="j1",
-    )
+    usb = _usb_connector()
     netlist = BoardNetlist(
         components=(_resistor("R1"), usb),
         nets=(BoardNet(name="/A", nodes=(("R1", "1"), ("R1", "2"))),),
@@ -376,8 +396,9 @@ def test_track_across_an_npth_hole_is_flagged() -> None:
     layout = BoardLayout(
         placements=((_resistor("R1"), 10.0), (usb, 25.0)),
         segments=(
-            TrackSegment(x1=20.0, y1=12.395, x2=30.0, y2=12.395,
-                         layer="F.Cu", net_name="/A", width_mm=0.3),
+            TrackSegment(
+                x1=20.0, y1=12.395, x2=30.0, y2=12.395, layer="F.Cu", net_name="/A", width_mm=0.3
+            ),
         ),
         vias=(),
         width_mm=50.0,
@@ -385,10 +406,36 @@ def test_track_across_an_npth_hole_is_flagged() -> None:
         part_y_mm=(("R1", 15.0), ("J1", 15.0)),
     )
     findings = run_virtual_drc(layout, netlist)
+    items = _collect_items(layout, netlist)
+    holes = [item for item in items if item.kind is _PhysicalItemKind.BARE_HOLE]
+    track = next(item for item in items if item.label.startswith("track "))
+    assert len(holes) == 4
+    assert {item.net for item in holes} == {"~hole:J1"}
+    assert all(item.mask_state is None for item in holes)
+    assert all(item.role is None for item in holes)
+    assert track.kind is _PhysicalItemKind.COPPER
+    assert track.mask_state == "unknown"
+    assert track.role == "routed_conductor"
     assert any(
         finding.check == "copper_clearance" and "~hole:J1" in finding.message
         for finding in findings
     )
+
+
+def test_bare_hole_is_not_treated_as_copper_at_board_edge() -> None:
+    usb = _usb_connector()
+    netlist = BoardNetlist(components=(usb,), nets=())
+    layout = BoardLayout(
+        placements=((usb, 2.89),),
+        segments=(),
+        vias=(),
+        width_mm=50.0,
+        height_mm=30.0,
+        part_y_mm=(("J1", 15.0),),
+    )
+    findings = _check_edge_clearance(_collect_items(layout, netlist), layout)
+    assert any(finding.check == "edge_clearance" for finding in findings)
+    assert all("~hole:J1" not in finding.message for finding in findings)
 
 
 def test_custom_pad_true_extents_are_modelled() -> None:
@@ -396,11 +443,9 @@ def test_custom_pad_true_extents_are_modelled() -> None:
     # the old 1.0x1.0 anchor model, shorted on the real board
     # (kicad-cli shorting_items, thermometer U4).
     sensor = BoardComponent(
-        reference="U4", value="SHT31",
-        footprint=(
-            "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm"
-            "_EP1.1x1.7mm"
-        ),
+        reference="U4",
+        value="SHT31",
+        footprint=("Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm"),
         uuid_path="u4",
     )
     netlist = BoardNetlist(
@@ -412,8 +457,9 @@ def test_custom_pad_true_extents_are_modelled() -> None:
     layout = BoardLayout(
         placements=((_resistor("R1"), 10.0), (sensor, 25.0)),
         segments=(
-            TrackSegment(x1=24.4, y1=14.0, x2=25.6, y2=14.0,
-                         layer="F.Cu", net_name="/A", width_mm=0.2),
+            TrackSegment(
+                x1=24.4, y1=14.0, x2=25.6, y2=14.0, layer="F.Cu", net_name="/A", width_mm=0.2
+            ),
         ),
         vias=(),
         width_mm=50.0,
@@ -422,6 +468,340 @@ def test_custom_pad_true_extents_are_modelled() -> None:
     )
     findings = run_virtual_drc(layout, netlist)
     assert any(
-        finding.check == "copper_clearance" and "U4.9" in finding.message
+        finding.check == "copper_clearance" and "U4.9" in finding.message for finding in findings
+    )
+
+
+def test_trace_current_check_uses_profile_copper_and_model_provenance() -> None:
+    from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE
+
+    spec = DesignChecksSpec(net_currents=(("/A", 1.2),))
+    layout = _layout(
+        segments=(
+            TrackSegment(
+                x1=5.0,
+                y1=5.0,
+                x2=45.0,
+                y2=5.0,
+                layer="F.Cu",
+                net_name="/A",
+                width_mm=0.3,
+            ),
+        )
+    )
+    netlist = _two_part_netlist()
+
+    default_report = run_design_checks(layout, netlist, spec)
+    assert any(
+        item.rule == "5.3" and item.severity == "blocker" for item in default_report.findings
+    )
+    assert any("legacy IPC-2221A Figure 6-4" in item.evidence for item in default_report.findings)
+
+    thick_geometry = DEFAULT_PCB_RULE_PROFILE.geometry.model_copy(
+        update={"outer_copper_thickness_um": 70.0}
+    )
+    thick_profile = DEFAULT_PCB_RULE_PROFILE.model_copy(update={"geometry": thick_geometry})
+    thick_report = run_design_checks(layout, netlist, spec, thick_profile)
+    assert not [item for item in thick_report.findings if item.rule == "5.3"]
+
+    unknown_geometry = thick_geometry.model_copy(update={"trace_thermal_model_id": "not_declared"})
+    unknown_profile = DEFAULT_PCB_RULE_PROFILE.model_copy(update={"geometry": unknown_geometry})
+    unknown_report = run_design_checks(layout, netlist, spec, unknown_profile)
+    hits = [item for item in unknown_report.findings if item.rule == "5.3"]
+    assert len(hits) == 1
+    assert hits[0].severity == "warning"
+    assert "no registered deterministic evaluator" in hits[0].evidence
+
+
+SLOT_FOOTPRINT = "Test:AsymmetricSlot"
+
+
+def _slot_layout(
+    monkeypatch: pytest.MonkeyPatch,
+    *,
+    plated: bool,
+    flipped: bool = False,
+    track_y: float | None = None,
+) -> tuple[BoardLayout, BoardNetlist]:
+    pad = PadSpec(
+        name="1" if plated else "",
+        x_mm=0.0,
+        y_mm=0.0,
+        kind="tht" if plated else "npth",
+        width_mm=3.4,
+        height_mm=1.4,
+        angle_deg=90.0,
+        shape="oval",
+        hole=HoleGeometry(
+            shape=HoleShape.OVAL,
+            width_mm=3.0,
+            height_mm=1.0,
+            rotation_deg=90.0,
+            plating=(HolePlating.PLATED if plated else HolePlating.NON_PLATED),
+            offset_x_mm=0.4,
+            offset_y_mm=0.2,
+        ),
+    )
+    spec = replace(
+        FOOTPRINT_LIBRARY[RESISTOR],
+        pads=(pad,),
+        board_only=True,
+    )
+    monkeypatch.setitem(FOOTPRINT_LIBRARY, SLOT_FOOTPRINT, spec)
+    component = BoardComponent(
+        reference="J1",
+        value="slot probe",
+        footprint=SLOT_FOOTPRINT,
+        uuid_path="slot-probe",
+    )
+    nets = (BoardNet(name="/PAD", nodes=(("J1", "1"),)),) if plated else ()
+    netlist = BoardNetlist(components=(component,), nets=nets)
+    segments = (
+        (
+            TrackSegment(
+                x1=8.0,
+                y1=track_y,
+                x2=11.0,
+                y2=track_y,
+                layer="F.Cu",
+                net_name="/FOREIGN",
+                width_mm=0.2,
+            ),
+        )
+        if track_y is not None
+        else ()
+    )
+    return (
+        BoardLayout(
+            placements=((component, 10.0),),
+            segments=segments,
+            vias=(),
+            width_mm=20.0,
+            height_mm=20.0,
+            part_y_mm=(("J1", 10.0),),
+            part_rotation=(("J1", 90.0),),
+            part_flip=(("J1",) if flipped else ()),
+        ),
+        netlist,
+    )
+
+
+@pytest.mark.parametrize(
+    ("flipped", "expected_y"),
+    ((False, 9.8), (True, 10.2)),
+)
+def test_asymmetric_slot_transform_uses_axes_offset_rotation_and_flip(
+    monkeypatch: pytest.MonkeyPatch,
+    flipped: bool,
+    expected_y: float,
+) -> None:
+    layout, netlist = _slot_layout(
+        monkeypatch,
+        plated=False,
+        flipped=flipped,
+        track_y=expected_y + 1.2,
+    )
+    holes = [
+        item for item in _collect_items(layout, netlist) if item.kind is _PhysicalItemKind.BARE_HOLE
+    ]
+    front = next(item for item in holes if item.layer == "F.Cu")
+
+    assert len(holes) == 2
+    assert front.radius == 0.5
+    assert {(round(point[0], 3), round(point[1], 3)) for point in (front.a, front.b)} == {
+        (8.6, expected_y),
+        (10.6, expected_y),
+    }
+    assert front.source_id == "pad:J1:0:hole:F.Cu"
+    assert front.parent_source_id == "pad:J1:0"
+
+    # The exact slot has 0.6 mm edge-to-edge room to this track. The old
+    # max-axis circle occupied 1.5 mm in every direction and false-positive.
+    default_findings = run_virtual_drc(layout, netlist)
+    assert not [finding for finding in default_findings if finding.check == "copper_clearance"]
+
+    strict_spacing = DEFAULT_PCB_RULE_PROFILE.fab_spacing.model_copy(
+        update={"minimum_hole_to_copper_mm": 0.7}
+    )
+    strict_profile = DEFAULT_PCB_RULE_PROFILE.model_copy(update={"fab_spacing": strict_spacing})
+    strict_findings = run_virtual_drc(layout, netlist, strict_profile)
+    assert any(
+        finding.check == "copper_clearance" and "hole clearance" in finding.message
+        for finding in strict_findings
+    )
+
+
+def test_exact_slot_still_blocks_copper_that_crosses_it(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    layout, netlist = _slot_layout(
+        monkeypatch,
+        plated=False,
+        track_y=9.8,
+    )
+    findings = run_virtual_drc(layout, netlist)
+    assert any(
+        finding.check == "copper_clearance"
+        and "hole collision" in finding.message
+        and "bare hole J1." in finding.message
         for finding in findings
     )
+
+
+def test_plated_slot_emits_distinct_copper_and_self_exempt_hole(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    bare_layout, netlist = _slot_layout(monkeypatch, plated=True)
+    front_items = [item for item in _collect_items(bare_layout, netlist) if item.layer == "F.Cu"]
+    copper = next(item for item in front_items if item.kind is _PhysicalItemKind.COPPER)
+    hole = next(item for item in front_items if item.kind is _PhysicalItemKind.HOLE)
+
+    assert copper.parent_source_id == hole.parent_source_id == "pad:J1:0"
+    assert copper.source_id != hole.source_id
+    assert not [
+        finding
+        for finding in run_virtual_drc(bare_layout, netlist)
+        if finding.check == "copper_clearance"
+    ]
+
+    crossed, netlist = _slot_layout(
+        monkeypatch,
+        plated=True,
+        track_y=9.8,
+    )
+    assert any(
+        finding.check == "copper_clearance"
+        and "plated hole J1.1" in finding.message
+        and "track [/FOREIGN]" in finding.message
+        for finding in run_virtual_drc(crossed, netlist)
+    )
+
+
+def _via_hole_layout(
+    *,
+    size_mm: float = 0.4,
+    drill_mm: float = 0.36,
+    track_y: float | None = None,
+) -> tuple[BoardLayout, BoardNetlist]:
+    netlist = BoardNetlist(
+        components=(),
+        nets=(
+            BoardNet(name="/VIA", nodes=()),
+            BoardNet(name="/FOREIGN", nodes=()),
+        ),
+    )
+    segments = (
+        (
+            TrackSegment(
+                x1=3.0,
+                y1=track_y,
+                x2=7.0,
+                y2=track_y,
+                layer="F.Cu",
+                net_name="/FOREIGN",
+                width_mm=0.2,
+            ),
+        )
+        if track_y is not None
+        else ()
+    )
+    return (
+        BoardLayout(
+            placements=(),
+            segments=segments,
+            vias=(
+                ViaSpec(
+                    x=5.0,
+                    y=5.0,
+                    net_name="/VIA",
+                    size_mm=size_mm,
+                    drill_mm=drill_mm,
+                ),
+            ),
+            width_mm=10.0,
+            height_mm=10.0,
+        ),
+        netlist,
+    )
+
+
+def test_via_emits_distinct_copper_and_exact_unique_physical_hole() -> None:
+    layout, netlist = _via_hole_layout(size_mm=0.7, drill_mm=0.64)
+    items = _collect_items(layout, netlist)
+    copper = [item for item in items if item.kind is _PhysicalItemKind.COPPER]
+    holes = [item for item in items if item.kind is _PhysicalItemKind.HOLE]
+
+    assert len(copper) == len(holes) == 2
+    assert {item.radius for item in copper} == {0.35}
+    assert {item.radius for item in holes} == {0.32}
+    assert {item.parent_source_id for item in (*copper, *holes)} == {"via:0"}
+    assert {item.source_id for item in holes} == {
+        "via:0:hole:F.Cu",
+        "via:0:hole:B.Cu",
+    }
+    unique_holes = list(_iter_physical_holes(items))
+    assert len(unique_holes) == 1
+    assert _physical_hole_key(holes[0]) == _physical_hole_key(holes[1])
+
+    # The plated drill and its own annulus are one physical source, not a
+    # hole-to-copper violation even when the annular ring is intentionally
+    # tiny in this geometry-only fixture.
+    assert not [
+        finding
+        for finding in run_virtual_drc(layout, netlist)
+        if finding.check == "copper_clearance"
+    ]
+
+
+def test_via_hole_uses_profile_spacing_against_foreign_copper() -> None:
+    layout, netlist = _via_hole_layout(track_y=5.6)
+    assert not [
+        finding
+        for finding in run_virtual_drc(layout, netlist)
+        if finding.check == "copper_clearance"
+    ]
+
+    spacing = DEFAULT_PCB_RULE_PROFILE.fab_spacing.model_copy(
+        update={"minimum_hole_to_copper_mm": 0.4}
+    )
+    profile = DEFAULT_PCB_RULE_PROFILE.model_copy(update={"fab_spacing": spacing})
+    findings = run_virtual_drc(layout, netlist, profile)
+    assert any(
+        finding.check == "copper_clearance"
+        and "hole clearance" in finding.message
+        and "plated via hole [/VIA]" in finding.message
+        and "track [/FOREIGN]" in finding.message
+        for finding in findings
+    )
+
+
+def test_physical_source_roles_and_hole_identity_ignore_labels() -> None:
+    layout = _layout(
+        segments=(
+            TrackSegment(
+                x1=6.0,
+                y1=8.0,
+                x2=12.0,
+                y2=8.0,
+                layer="F.Cu",
+                net_name="/A",
+                width_mm=0.3,
+            ),
+        ),
+        vias=(ViaSpec(x=15.0, y=8.0, net_name="/A"),),
+    )
+
+    items = _collect_items(layout, _two_part_netlist())
+    assert {item.source_role for item in items if item.kind is _PhysicalItemKind.COPPER} == {
+        _PhysicalSourceRole.PAD,
+        _PhysicalSourceRole.TRACK,
+        _PhysicalSourceRole.VIA,
+    }
+    assert all(item.source_role is _PhysicalSourceRole.PAD for item in items if item.owner)
+
+    via_holes = [
+        item for item in items if item.source_role is _PhysicalSourceRole.VIA and item.is_hole
+    ]
+    assert len(via_holes) == 2
+    renamed = replace(via_holes[1], label="this wording is not an identity")
+    assert _physical_hole_key(via_holes[0]) == _physical_hole_key(renamed)

@@ -22,7 +22,9 @@ from __future__ import annotations
 
 import math
 import re
-from dataclasses import dataclass
+from collections.abc import Iterable, Iterator
+from dataclasses import dataclass, replace
+from enum import StrEnum
 
 from pcbsmith.kicad.board import (
     FOOTPRINT_LIBRARY,
@@ -32,14 +34,27 @@ from pcbsmith.kicad.board import (
     placement_y,
     rotate_offset,
 )
+from pcbsmith.kicad.copper_exposure import exposure_index
+from pcbsmith.kicad.copper_identity import (
+    pad_copper_source_id,
+    track_copper_source_id,
+    via_copper_source_id,
+)
+from pcbsmith.kicad.library import PadSpec
+from pcbsmith.rule_profiles import (
+    DEFAULT_PCB_RULE_PROFILE,
+    CopperRole,
+    OrdinaryClearanceRequirement,
+    OuterCopperMaskState,
+    PcbRuleProfile,
+    qualified_insulation_clearance_groups,
+)
 
-CLEARANCE_MM = 0.2
-EDGE_CLEARANCE_MM = 0.5
-VIA_RADIUS_MM = 0.3
-# KiCad's hole-to-copper rule is 0.25mm - 0.05 wider than the copper
-# clearance. Net-less hole obstacles carry the excess in their radius
-# so the ordinary clearance machinery enforces the stricter rule.
-HOLE_EXTRA_MM = 0.25 - CLEARANCE_MM
+CLEARANCE_MM = DEFAULT_PCB_RULE_PROFILE.fab_spacing.minimum_copper_clearance_mm
+EDGE_CLEARANCE_MM = DEFAULT_PCB_RULE_PROFILE.fab_spacing.minimum_copper_to_edge_mm
+VIA_RADIUS_MM = DEFAULT_PCB_RULE_PROFILE.geometry.routing_via_diameter_mm / 2
+
+
 # Modelling tolerance: only flag violations deeper than this, so roundrect
 # corner radii and float noise never produce a false positive.
 TOLERANCE_MM = 0.05
@@ -49,6 +64,25 @@ MIN_SILK_TEXT_SIZE_MM = 0.8
 _GRID_CELL_MM = 4.0
 
 Point = tuple[float, float]
+
+
+class _PhysicalItemKind(StrEnum):
+    """Physical role of a stadium in the virtual-DRC geometry model."""
+
+    COPPER = "copper"
+    HOLE = "hole"
+    BARE_HOLE = "bare_hole"
+    GEOMETRY_PROXY = "geometry_proxy"
+
+
+class _PhysicalSourceRole(StrEnum):
+    """Semantic source of an item, independent of diagnostic wording."""
+
+    UNKNOWN = "unknown"
+    PAD = "pad"
+    TRACK = "track"
+    VIA = "via"
+    BOARD_GRAPHIC = "board_graphic"
 
 
 @dataclass(frozen=True)
@@ -69,7 +103,7 @@ class VirtualDrcFinding:
 
 @dataclass(frozen=True)
 class _Stadium:
-    """A copper item: segment (a == b for circles) plus a radius."""
+    """A physical item: segment (a == b for circles) plus a radius."""
 
     a: Point
     b: Point
@@ -78,15 +112,58 @@ class _Stadium:
     layer: str  # "F.Cu" | "B.Cu"
     owner: str  # footprint reference for pads, "" for tracks/vias
     label: str
+    kind: _PhysicalItemKind = _PhysicalItemKind.COPPER
+    source_role: _PhysicalSourceRole = _PhysicalSourceRole.UNKNOWN
+    mask_state: OuterCopperMaskState | None = "unknown"
+    role: CopperRole | None = "unknown"
+    unresolved_aperture_source_ids: tuple[str, ...] = ()
+    exposure_reason: str | None = None
+    source_id: str = ""
+    parent_source_id: str | None = None
+
+    @property
+    def is_hole(self) -> bool:
+        return self.kind in {
+            _PhysicalItemKind.HOLE,
+            _PhysicalItemKind.BARE_HOLE,
+        }
+
+
+_PhysicalHoleKey = tuple[str, Point, Point, float, str]
+
+
+def _physical_hole_key(item: _Stadium) -> _PhysicalHoleKey:
+    """Stable layer-independent identity for one manufactured hole."""
+    if not item.is_hole:
+        raise ValueError("physical-hole key requested for a copper item")
+    first, second = sorted((item.a, item.b))
+    return (
+        item.parent_source_id or item.source_id,
+        first,
+        second,
+        item.radius,
+        item.owner,
+    )
+
+
+def _iter_physical_holes(items: Iterable[_Stadium]) -> Iterator[_Stadium]:
+    """Yield each physical hole once despite its per-copper-layer copies."""
+    seen: set[_PhysicalHoleKey] = set()
+    for item in items:
+        if not item.is_hole:
+            continue
+        key = _physical_hole_key(item)
+        if key in seen:
+            continue
+        seen.add(key)
+        yield item
 
 
 # ---------------------------------------------------------------------------
 # Scalar geometry.
 
 
-def _seg_seg_distance(
-    a1: Point, a2: Point, b1: Point, b2: Point
-) -> float:
+def _seg_seg_distance(a1: Point, a2: Point, b1: Point, b2: Point) -> float:
     if _segments_cross(a1, a2, b1, b2):
         return 0.0
     return min(
@@ -128,15 +205,10 @@ def _polygons_overlap(poly_a: list[Point], poly_b: list[Point]) -> bool:
             x1, y1 = polygon_one[index]
             x2, y2 = polygon_one[(index + 1) % count]
             axis = (y1 - y2, x2 - x1)
-            projections_one = [
-                axis[0] * x + axis[1] * y for x, y in polygon_one
-            ]
-            projections_two = [
-                axis[0] * x + axis[1] * y for x, y in polygon_two
-            ]
-            if (
-                max(projections_one) <= min(projections_two)
-                or max(projections_two) <= min(projections_one)
+            projections_one = [axis[0] * x + axis[1] * y for x, y in polygon_one]
+            projections_two = [axis[0] * x + axis[1] * y for x, y in polygon_two]
+            if max(projections_one) <= min(projections_two) or max(projections_two) <= min(
+                projections_one
             ):
                 return False
     return True
@@ -166,9 +238,7 @@ def _back_offset(local: Point, rotation: float) -> Point:
 # Item collection.
 
 
-def _placed(
-    anchor: Point, rotation: float, local: Point, flipped: bool
-) -> Point:
+def _placed(anchor: Point, rotation: float, local: Point, flipped: bool) -> Point:
     if flipped:
         dx, dy = _back_offset(local, rotation)
     else:
@@ -176,26 +246,69 @@ def _placed(
     return (anchor[0] + dx, anchor[1] + dy)
 
 
+def _hole_item(
+    pad: PadSpec,
+    *,
+    anchor: Point,
+    footprint_rotation: float,
+    flipped: bool,
+    net: str,
+    layer: str,
+    owner: str,
+    label: str,
+    kind: _PhysicalItemKind,
+    source_id: str,
+    parent_source_id: str,
+) -> _Stadium:
+    """Place a PadSpec hole as its exact round/oval stadium."""
+    hole = pad.hole
+    if hole is None:
+        raise ValueError("hole item requested for a pad without hole geometry")
+    offset = rotate_offset(
+        hole.offset_x_mm,
+        hole.offset_y_mm,
+        hole.rotation_deg,
+    )
+    center = (pad.x_mm + offset[0], pad.y_mm + offset[1])
+    half_long = (hole.major_mm - hole.minor_mm) / 2
+    axis = (half_long, 0.0) if hole.width_mm >= hole.height_mm else (0.0, half_long)
+    axis = rotate_offset(axis[0], axis[1], hole.rotation_deg)
+    ends_local = (
+        (center[0] - axis[0], center[1] - axis[1]),
+        (center[0] + axis[0], center[1] + axis[1]),
+    )
+    return _Stadium(
+        a=_placed(anchor, footprint_rotation, ends_local[0], flipped),
+        b=_placed(anchor, footprint_rotation, ends_local[1], flipped),
+        radius=hole.minor_mm / 2,
+        net=net,
+        layer=layer,
+        owner=owner,
+        label=label,
+        kind=kind,
+        source_role=_PhysicalSourceRole.PAD,
+        mask_state=None,
+        role=None,
+        source_id=source_id,
+        parent_source_id=parent_source_id,
+    )
+
+
 def _collect_items(
     layout: BoardLayout,
     netlist: BoardNetlist,
     *,
     cover_rect_pads: bool = False,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> list[_Stadium]:
-    """Model the board's copper as stadiums.
+    """Model copper and physical holes as distinct typed stadiums.
 
-    Default radii UNDERESTIMATE rect-family pads (their corners stick
-    out past the stadium), keeping the virtual DRC free of false
-    positives against KiCad's exact shapes. ``cover_rect_pads=True``
-    inflates rect/roundrect radii to min_dim/sqrt(2) so the corners are
-    fully covered - the router uses this for FOREIGN obstacles, after
-    kicad-cli caught corner-cutting routes the honest model allowed.
+    Pad copper retains the established underestimating/covering modes. Hole
+    items preserve the parsed drill axes, offset, pad rotation, placement
+    rotation, and front/back transform; clearance policy is applied later.
     """
-    net_of = {
-        (reference, pin): net.name
-        for net in netlist.nets
-        for reference, pin in net.nodes
-    }
+    del profile  # Geometry is nominal; profile distances belong to checks.
+    net_of = {(reference, pin): net.name for net in netlist.nets for reference, pin in net.nodes}
     items: list[_Stadium] = []
     for component, anchor_x in layout.placements:
         reference = component.reference
@@ -203,70 +316,81 @@ def _collect_items(
         rotation = placement_rotation(layout, reference)
         anchor = (anchor_x, placement_y(layout, reference))
         flipped = reference in layout.part_flip
-        for pad in spec.pads:
-            if not pad.name and pad.drill_mm <= 0:
+        for pad_index, pad in enumerate(spec.pads):
+            if not pad.name and pad.hole is None:
                 # Unnamed paste/thermal pads take the net of the named pad
                 # they overlap at embed time; the named pad models them.
-                # Unnamed DRILLED pads (USB-C shell alignment holes) fall
-                # through: the hole is a physical obstacle even without
-                # copper - kicad-cli caught tracks routed across them.
                 continue
-            if pad.kind == "npth" or not pad.name:
+            parent_source_id = f"pad:{reference}:{pad_index}"
+            is_bare_hole = pad.kind == "npth"
+            if is_bare_hole:
                 net = f"~hole:{reference}"
             else:
-                net = net_of.get(
-                    (reference, pad.name), f"~nc:{reference}.{pad.name}"
+                net = net_of.get((reference, pad.name), f"~nc:{reference}.{pad.name}")
+
+            if not is_bare_hole:
+                width_mm = pad.width_mm
+                height_mm = pad.height_mm
+                half_long = (max(width_mm, height_mm) - min(width_mm, height_mm)) / 2
+                radius = min(width_mm, height_mm) / 2
+                if cover_rect_pads and pad.shape in ("rect", "custom"):
+                    radius = min(width_mm, height_mm) / math.sqrt(2)
+                elif cover_rect_pads and pad.shape == "roundrect":
+                    short = min(width_mm, height_mm)
+                    corner = 0.25 * short
+                    radius = short / 2 + corner * (math.sqrt(2) - 1)
+                axis = (half_long, 0.0) if width_mm >= height_mm else (0.0, half_long)
+                axis = rotate_offset(axis[0], axis[1], pad.angle_deg)
+                ends_local = (
+                    (pad.x_mm - axis[0], pad.y_mm - axis[1]),
+                    (pad.x_mm + axis[0], pad.y_mm + axis[1]),
                 )
-            width_mm = pad.width_mm
-            height_mm = pad.height_mm
-            if net.startswith("~hole:"):
-                # The obstacle is the HOLE (plus slot copper if any),
-                # inflated so plain clearance math enforces KiCad's
-                # 0.25mm hole-to-copper rule.
-                width_mm = max(width_mm, pad.drill_mm) + 2 * HOLE_EXTRA_MM
-                height_mm = max(height_mm, pad.drill_mm) + 2 * HOLE_EXTRA_MM
-            half_long = (max(width_mm, height_mm) - min(
-                width_mm, height_mm
-            )) / 2
-            radius = min(width_mm, height_mm) / 2
-            # Custom pads carry primitive-bbox extents (library.py);
-            # official-library customs are solid EP polygons, so the
-            # stadium stays inside the copper like a plain rect.
-            if cover_rect_pads and pad.shape in ("rect", "custom"):
-                radius = min(width_mm, height_mm) / math.sqrt(2)
-            elif cover_rect_pads and pad.shape == "roundrect":
-                # A roundrect's corners are pulled in by the corner
-                # radius (KiCad default ratio 0.25 of the short side):
-                # exact extent = min/2 + rr*(sqrt(2)-1). The blanket
-                # rect formula over-covered by ~17% and walled the ONLY
-                # legal entry into 0.5mm-pitch USB-C data pads
-                # (measured on the thermometer board).
-                short = min(width_mm, height_mm)
-                corner = 0.25 * short
-                radius = short / 2 + corner * (math.sqrt(2) - 1)
-            axis = (half_long, 0.0) if width_mm >= height_mm else (0.0, half_long)
-            # The pad's own angle rotates its body within the footprint.
-            axis = rotate_offset(axis[0], axis[1], pad.angle_deg)
-            ends_local = (
-                (pad.x_mm - axis[0], pad.y_mm - axis[1]),
-                (pad.x_mm + axis[0], pad.y_mm + axis[1]),
-            )
-            a = _placed(anchor, rotation, ends_local[0], flipped)
-            b = _placed(anchor, rotation, ends_local[1], flipped)
-            layers: tuple[str, ...]
-            if pad.drill_mm > 0:
-                layers = ("F.Cu", "B.Cu")
-            else:
-                layers = ("B.Cu",) if flipped else ("F.Cu",)
-            for layer in layers:
-                items.append(
-                    _Stadium(
-                        a=a, b=b, radius=radius, net=net, layer=layer,
-                        owner=reference,
-                        label=f"pad {reference}.{pad.name} [{net}]",
+                a = _placed(anchor, rotation, ends_local[0], flipped)
+                b = _placed(anchor, rotation, ends_local[1], flipped)
+                copper_layers = (
+                    ("F.Cu", "B.Cu")
+                    if pad.hole is not None
+                    else (("B.Cu",) if flipped else ("F.Cu",))
+                )
+                for layer in copper_layers:
+                    items.append(
+                        _Stadium(
+                            a=a,
+                            b=b,
+                            radius=radius,
+                            net=net,
+                            layer=layer,
+                            owner=reference,
+                            label=f"pad {reference}.{pad.name} [{net}]",
+                            kind=_PhysicalItemKind.COPPER,
+                            source_role=_PhysicalSourceRole.PAD,
+                            mask_state="unknown",
+                            role="component_termination",
+                            source_id=pad_copper_source_id(reference, pad_index, layer),
+                            parent_source_id=parent_source_id,
+                        )
                     )
-                )
-    for segment in layout.segments:
+
+            if pad.hole is not None:
+                hole_kind = _PhysicalItemKind.BARE_HOLE if is_bare_hole else _PhysicalItemKind.HOLE
+                qualifier = "bare" if is_bare_hole else "plated"
+                for layer in ("F.Cu", "B.Cu"):
+                    items.append(
+                        _hole_item(
+                            pad,
+                            anchor=anchor,
+                            footprint_rotation=rotation,
+                            flipped=flipped,
+                            net=net,
+                            layer=layer,
+                            owner=reference,
+                            label=(f"{qualifier} hole {reference}.{pad.name} [{net}]"),
+                            kind=hole_kind,
+                            source_id=f"{parent_source_id}:hole:{layer}",
+                            parent_source_id=parent_source_id,
+                        )
+                    )
+    for segment_index, segment in enumerate(layout.segments):
         items.append(
             _Stadium(
                 a=(segment.x1, segment.y1),
@@ -276,16 +400,48 @@ def _collect_items(
                 layer=segment.layer,
                 owner="",
                 label=f"track [{segment.net_name}] on {segment.layer}",
+                kind=_PhysicalItemKind.COPPER,
+                source_role=_PhysicalSourceRole.TRACK,
+                mask_state="unknown",
+                role="routed_conductor",
+                source_id=track_copper_source_id(segment_index),
             )
         )
-    for via in layout.vias:
+    for via_index, via in enumerate(layout.vias):
+        parent_source_id = f"via:{via_index}"
         for layer in ("F.Cu", "B.Cu"):
-            items.append(
-                _Stadium(
-                    a=(via.x, via.y), b=(via.x, via.y),
-                    radius=VIA_RADIUS_MM, net=via.net_name, layer=layer,
-                    owner="",
-                    label=f"via [{via.net_name}]",
+            items.extend(
+                (
+                    _Stadium(
+                        a=(via.x, via.y),
+                        b=(via.x, via.y),
+                        radius=via.size_mm / 2,
+                        net=via.net_name,
+                        layer=layer,
+                        owner="",
+                        label=f"via [{via.net_name}]",
+                        kind=_PhysicalItemKind.COPPER,
+                        source_role=_PhysicalSourceRole.VIA,
+                        mask_state="unknown",
+                        role="via_land",
+                        source_id=via_copper_source_id(via_index, layer),
+                        parent_source_id=parent_source_id,
+                    ),
+                    _Stadium(
+                        a=(via.x, via.y),
+                        b=(via.x, via.y),
+                        radius=via.drill_mm / 2,
+                        net=via.net_name,
+                        layer=layer,
+                        owner="",
+                        label=f"plated via hole [{via.net_name}]",
+                        kind=_PhysicalItemKind.HOLE,
+                        source_role=_PhysicalSourceRole.VIA,
+                        mask_state=None,
+                        role=None,
+                        source_id=f"{parent_source_id}:hole:{layer}",
+                        parent_source_id=parent_source_id,
+                    ),
                 )
             )
     return items
@@ -303,9 +459,7 @@ def _grid_cells(item: _Stadium, inflate: float) -> list[tuple[int, int]]:
     x_lo, y_lo = _grid_key(x_min, y_min)
     x_hi, y_hi = _grid_key(x_max, y_max)
     return [
-        (cell_x, cell_y)
-        for cell_x in range(x_lo, x_hi + 1)
-        for cell_y in range(y_lo, y_hi + 1)
+        (cell_x, cell_y) for cell_x in range(x_lo, x_hi + 1) for cell_y in range(y_lo, y_hi + 1)
     ]
 
 
@@ -313,16 +467,23 @@ def _grid_cells(item: _Stadium, inflate: float) -> list[tuple[int, int]]:
 # Checks.
 
 
-def _check_copper_clearance(items: list[_Stadium]) -> list[VirtualDrcFinding]:
+def _check_copper_clearance(
+    items: list[_Stadium],
+    clearance_mm: float = CLEARANCE_MM,
+    hole_clearance_mm: float | None = None,
+) -> list[VirtualDrcFinding]:
+    """Check copper pairs and physical-hole-to-foreign-copper spacing."""
+    hole_clearance = clearance_mm if hole_clearance_mm is None else hole_clearance_mm
+    search_clearance = max(clearance_mm, hole_clearance)
     findings: list[VirtualDrcFinding] = []
     grid: dict[tuple[int, int], list[int]] = {}
     for index, item in enumerate(items):
-        for cell in _grid_cells(item, CLEARANCE_MM):
+        for cell in _grid_cells(item, search_clearance):
             grid.setdefault(cell, []).append(index)
     seen: set[tuple[int, int]] = set()
     for bucket in grid.values():
         for position, first in enumerate(bucket):
-            for second in bucket[position + 1:]:
+            for second in bucket[position + 1 :]:
                 pair = (min(first, second), max(first, second))
                 if pair in seen:
                     continue
@@ -330,23 +491,44 @@ def _check_copper_clearance(items: list[_Stadium]) -> list[VirtualDrcFinding]:
                 one, two = items[first], items[second]
                 if one.layer != two.layer or one.net == two.net:
                     continue
-                # KiCad does not check pad pairs within one footprint
-                # (net ties and multi-net packages are legal).
+                if (
+                    one.kind is _PhysicalItemKind.GEOMETRY_PROXY
+                    or two.kind is _PhysicalItemKind.GEOMETRY_PROXY
+                    or (one.is_hole and two.is_hole)
+                ):
+                    continue
+                # The copper land and drill belonging to one physical pad
+                # are not a clearance pair. Same-footprint pad pairs retain
+                # the established net-tie/multi-net-package exemption.
+                if (
+                    one.parent_source_id is not None
+                    and one.parent_source_id == two.parent_source_id
+                ):
+                    continue
                 if one.owner and one.owner == two.owner:
                     continue
-                required = one.radius + two.radius + CLEARANCE_MM
+                is_hole_pair = one.is_hole or two.is_hole
+                pair_clearance = hole_clearance if is_hole_pair else clearance_mm
+                required = one.radius + two.radius + pair_clearance
                 distance = _seg_seg_distance(one.a, one.b, two.a, two.b)
                 if distance < required - TOLERANCE_MM:
                     midpoint = (
                         (one.a[0] + one.b[0] + two.a[0] + two.b[0]) / 4,
                         (one.a[1] + one.b[1] + two.a[1] + two.b[1]) / 4,
                     )
-                    kind = "short" if distance < one.radius + two.radius else "clearance"
+                    if is_hole_pair:
+                        violation = (
+                            "hole collision"
+                            if distance < one.radius + two.radius
+                            else "hole clearance"
+                        )
+                    else:
+                        violation = "short" if distance < one.radius + two.radius else "clearance"
                     findings.append(
                         VirtualDrcFinding(
                             check="copper_clearance",
                             message=(
-                                f"{kind}: {one.label} vs {two.label}: "
+                                f"{violation}: {one.label} vs {two.label}: "
                                 f"{distance:.3f}mm (needs {required:.3f}mm)"
                             ),
                             x_mm=midpoint[0],
@@ -356,13 +538,172 @@ def _check_copper_clearance(items: list[_Stadium]) -> list[VirtualDrcFinding]:
     return findings
 
 
-def _courtyard_polygon(
-    layout: BoardLayout, reference: str, anchor: Point
-) -> list[Point] | None:
+def _check_group_clearances(
+    items: list[_Stadium],
+    groups: tuple[
+        tuple[str, tuple[str, ...], tuple[str, ...], float, tuple[str, ...]],
+        ...,
+    ],
+    *,
+    check: str,
+) -> list[VirtualDrcFinding]:
+    findings: list[VirtualDrcFinding] = []
+    for requirement_id, nets_a, nets_b, minimum_mm, exemptions in groups:
+        group_a = set(nets_a)
+        group_b = set(nets_b)
+        exempt = set(exemptions)
+        for index, one in enumerate(items):
+            if one.owner in exempt:
+                continue
+            for two in items[index + 1 :]:
+                if two.owner in exempt or one.layer != two.layer:
+                    continue
+                if (
+                    one.kind is not _PhysicalItemKind.COPPER
+                    or two.kind is not _PhysicalItemKind.COPPER
+                ):
+                    continue
+                paired = (one.net in group_a and two.net in group_b) or (
+                    one.net in group_b and two.net in group_a
+                )
+                if not paired:
+                    continue
+                required = one.radius + two.radius + minimum_mm
+                distance = _seg_seg_distance(one.a, one.b, two.a, two.b)
+                if distance >= required - TOLERANCE_MM:
+                    continue
+                midpoint = (
+                    (one.a[0] + one.b[0] + two.a[0] + two.b[0]) / 4,
+                    (one.a[1] + one.b[1] + two.a[1] + two.b[1]) / 4,
+                )
+                findings.append(
+                    VirtualDrcFinding(
+                        check=check,
+                        message=(
+                            f"{requirement_id}: {one.label} vs {two.label}: "
+                            f"{distance:.3f}mm (needs {required:.3f}mm)"
+                        ),
+                        x_mm=midpoint[0],
+                        y_mm=midpoint[1],
+                    )
+                )
+    return findings
+
+
+def _unresolved_scope_description(direction: str, item: _Stadium) -> str:
+    apertures = ", ".join(item.unresolved_aperture_source_ids) or "none"
+    reason = item.exposure_reason or "exposure classification unavailable"
+    return (
+        f"{direction} {item.source_id or '<missing>'} ({item.layer}) "
+        f"unresolved apertures [{apertures}], reason={reason}"
+    )
+
+
+def _check_pairwise_clearance(
+    items: list[_Stadium],
+    requirements: tuple[OrdinaryClearanceRequirement, ...],
+) -> list[VirtualDrcFinding]:
+    """Check directional ordinary net spacing and its declared surface scope."""
+    findings: list[VirtualDrcFinding] = []
+    for requirement in requirements:
+        group_a = set(requirement.nets_a)
+        group_b = set(requirement.nets_b)
+        exempt = set(requirement.exempt_component_refs)
+        for index, one in enumerate(items):
+            if one.owner in exempt:
+                continue
+            for two in items[index + 1 :]:
+                if two.owner in exempt or one.layer != two.layer:
+                    continue
+                if (
+                    one.kind is not _PhysicalItemKind.COPPER
+                    or two.kind is not _PhysicalItemKind.COPPER
+                ):
+                    continue
+                if one.net in group_a and two.net in group_b:
+                    item_a, item_b = one, two
+                elif one.net in group_b and two.net in group_a:
+                    item_a, item_b = two, one
+                else:
+                    continue
+
+                required = one.radius + two.radius + requirement.minimum_clearance_mm
+                distance = _seg_seg_distance(one.a, one.b, two.a, two.b)
+                if distance >= required - TOLERANCE_MM:
+                    continue
+                midpoint = (
+                    (one.a[0] + one.b[0] + two.a[0] + two.b[0]) / 4,
+                    (one.a[1] + one.b[1] + two.a[1] + two.b[1]) / 4,
+                )
+
+                if (requirement.roles_a and item_a.role not in requirement.roles_a) or (
+                    requirement.roles_b and item_b.role not in requirement.roles_b
+                ):
+                    continue
+
+                unresolved: list[tuple[str, _Stadium]] = []
+                mask_mismatch = False
+                for direction, item, selectors in (
+                    ("A", item_a, requirement.mask_states_a),
+                    ("B", item_b, requirement.mask_states_b),
+                ):
+                    if not selectors:
+                        continue
+                    state = item.mask_state or "unknown"
+                    if state == "unknown" and "unknown" not in selectors:
+                        unresolved.append((direction, item))
+                    elif state not in selectors:
+                        mask_mismatch = True
+                if mask_mismatch:
+                    continue
+                if unresolved:
+                    pair_description = (
+                        f"A {item_a.source_id or '<missing>'} ({item_a.layer}) "
+                        f"vs B {item_b.source_id or '<missing>'} ({item_b.layer})"
+                    )
+                    unresolved_description = "; ".join(
+                        _unresolved_scope_description(direction, item)
+                        for direction, item in unresolved
+                    )
+                    findings.append(
+                        VirtualDrcFinding(
+                            check=("ordinary_pairwise_clearance_scope_unverified"),
+                            message=(
+                                f"{requirement.requirement_id}: "
+                                f"{pair_description}; {unresolved_description}"
+                            ),
+                            x_mm=midpoint[0],
+                            y_mm=midpoint[1],
+                        )
+                    )
+                    continue
+
+                findings.append(
+                    VirtualDrcFinding(
+                        check="ordinary_pairwise_clearance",
+                        message=(
+                            f"{requirement.requirement_id}: "
+                            f"{one.label} vs {two.label}: "
+                            f"{distance:.3f}mm (needs {required:.3f}mm)"
+                        ),
+                        x_mm=midpoint[0],
+                        y_mm=midpoint[1],
+                    )
+                )
+    return findings
+
+
+def _check_qualified_insulation_clearance(
+    items: list[_Stadium], profile: PcbRuleProfile
+) -> list[VirtualDrcFinding]:
+    """Check reviewed air-clearance results; creepage needs path geometry."""
+    groups = qualified_insulation_clearance_groups(profile)
+    return _check_group_clearances(items, groups, check="insulation_clearance")
+
+
+def _courtyard_polygon(layout: BoardLayout, reference: str, anchor: Point) -> list[Point] | None:
     component = next(
-        component
-        for component, _x in layout.placements
-        if component.reference == reference
+        component for component, _x in layout.placements if component.reference == reference
     )
     spec = FOOTPRINT_LIBRARY[component.footprint]
     rotation = placement_rotation(layout, reference)
@@ -380,9 +721,7 @@ def _courtyard_polygon(
             distance = math.hypot(x - cx, y - cy)
             factor = max(0.0, 1.0 - shrink / distance) if distance else 0.0
             pulled.append((cx + (x - cx) * factor, cy + (y - cy) * factor))
-        return [
-            _placed(anchor, rotation, corner, flipped) for corner in pulled
-        ]
+        return [_placed(anchor, rotation, corner, flipped) for corner in pulled]
     # No courtyard drawn: FAB body plus the standard 0.25mm margin. The
     # measured bounds would include silk overhangs and false-positive;
     # underestimating is the pre-filter contract.
@@ -405,11 +744,9 @@ def _check_courtyards(layout: BoardLayout) -> list[VirtualDrcFinding]:
         anchor = (anchor_x, placement_y(layout, reference))
         polygon = _courtyard_polygon(layout, reference, anchor)
         if polygon is not None:
-            polys.append(
-                (reference, reference in layout.part_flip, polygon)
-            )
+            polys.append((reference, reference in layout.part_flip, polygon))
     for index, (ref_one, flip_one, poly_one) in enumerate(polys):
-        for ref_two, flip_two, poly_two in polys[index + 1:]:
+        for ref_two, flip_two, poly_two in polys[index + 1 :]:
             if flip_one != flip_two:
                 continue  # courtyards live on per-side layers
             if _polygons_overlap(poly_one, poly_two):
@@ -429,7 +766,9 @@ def _check_courtyards(layout: BoardLayout) -> list[VirtualDrcFinding]:
 
 
 def _check_edge_clearance(
-    items: list[_Stadium], layout: BoardLayout
+    items: list[_Stadium],
+    layout: BoardLayout,
+    edge_clearance_mm: float = EDGE_CLEARANCE_MM,
 ) -> list[VirtualDrcFinding]:
     if layout.outline:
         outline: tuple[Point, ...] = layout.outline
@@ -440,19 +779,27 @@ def _check_edge_clearance(
             (layout.width_mm, layout.height_mm),
             (0.0, layout.height_mm),
         )
-    edges = [
-        (outline[index], outline[(index + 1) % len(outline)])
-        for index in range(len(outline))
-    ]
+    edges = [(outline[index], outline[(index + 1) % len(outline)]) for index in range(len(outline))]
     edge_grid: dict[tuple[int, int], list[int]] = {}
     for index, (a, b) in enumerate(edges):
-        fake = _Stadium(a=a, b=b, radius=0.0, net="", layer="", owner="", label="")
-        for cell in _grid_cells(fake, EDGE_CLEARANCE_MM + 1.0):
+        fake = _Stadium(
+            a=a,
+            b=b,
+            radius=0.0,
+            net="",
+            layer="",
+            owner="",
+            label="",
+            kind=_PhysicalItemKind.GEOMETRY_PROXY,
+            mask_state=None,
+            role=None,
+        )
+        for cell in _grid_cells(fake, edge_clearance_mm + 1.0):
             edge_grid.setdefault(cell, []).append(index)
     findings: list[VirtualDrcFinding] = []
     reported: set[str] = set()
     for item in items:
-        if item.net.startswith("~hole:"):
+        if item.is_hole:
             # Copper-edge clearance governs COPPER; a bare hole near
             # (or straddling) the outline is the footprint's business.
             continue
@@ -474,9 +821,9 @@ def _check_edge_clearance(
                 )
             continue
         candidates: set[int] = set()
-        for cell in _grid_cells(item, EDGE_CLEARANCE_MM):
+        for cell in _grid_cells(item, edge_clearance_mm):
             candidates.update(edge_grid.get(cell, ()))
-        required = item.radius + EDGE_CLEARANCE_MM
+        required = item.radius + edge_clearance_mm
         for edge_index in candidates:
             a, b = edges[edge_index]
             distance = _seg_seg_distance(item.a, item.b, a, b)
@@ -499,9 +846,7 @@ def _check_edge_clearance(
     return findings
 
 
-def _check_pour_connectivity(
-    items: list[_Stadium], layout: BoardLayout
-) -> list[VirtualDrcFinding]:
+def _check_pour_connectivity(items: list[_Stadium], layout: BoardLayout) -> list[VirtualDrcFinding]:
     """The sealed-pour-cell class (most expensive live-DRC lesson): a
     zone region walled off by foreign copper that still contains
     same-net pads/vias fills as an island and strands them.
@@ -518,10 +863,7 @@ def _check_pour_connectivity(
         columns = max(2, int((x2 - x1) / GRID))
         rows = max(2, int((y2 - y1) / GRID))
         blocked = [[False] * columns for _ in range(rows)]
-        blockers = [
-            item for item in items
-            if item.layer == zone_layer and item.net != zone_net
-        ]
+        blockers = [item for item in items if item.layer == zone_layer and item.net != zone_net]
         for item in blockers:
             reach = item.radius + ZONE_CLEARANCE - 0.35
             min_col = max(0, int((min(item.a[0], item.b[0]) - reach - x1) / GRID))
@@ -550,8 +892,10 @@ def _check_pour_connectivity(
                     for dr, dc in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                         nr, nc = r + dr, c + dc
                         if (
-                            0 <= nr < rows and 0 <= nc < columns
-                            and not blocked[nr][nc] and region[nr][nc] == -1
+                            0 <= nr < rows
+                            and 0 <= nc < columns
+                            and not blocked[nr][nc]
+                            and region[nr][nc] == -1
                         ):
                             region[nr][nc] = region_count
                             stack.append((nr, nc))
@@ -566,14 +910,16 @@ def _check_pour_connectivity(
         # conduct through the barrel, so contact on either layer copy
         # clears the physical pad.
         tracks = [
-            item for item in items
-            if item.net == zone_net and not item.owner
+            item
+            for item in items
+            if (item.kind is _PhysicalItemKind.COPPER and item.net == zone_net and not item.owner)
         ]
         segments_only = [t for t in tracks if t.a != t.b]
         trace_connected = {
             (item.label, item.a)
             for item in items
-            if item.net == zone_net
+            if item.kind is _PhysicalItemKind.COPPER
+            and item.net == zone_net
             and (item.owner or item.a == item.b)  # pads and vias
             and any(
                 track.layer == item.layer
@@ -585,7 +931,11 @@ def _check_pour_connectivity(
 
         # Zone-net items in a non-main region are stranded.
         for item in items:
-            if item.layer != zone_layer or item.net != zone_net:
+            if (
+                item.kind is not _PhysicalItemKind.COPPER
+                or item.layer != zone_layer
+                or item.net != zone_net
+            ):
                 continue
             if (item.label, item.a) in trace_connected:
                 continue
@@ -616,9 +966,7 @@ def _check_pour_connectivity(
     return findings
 
 
-def _check_pad_connectivity(
-    items: list[_Stadium], layout: BoardLayout
-) -> list[VirtualDrcFinding]:
+def _check_pad_connectivity(items: list[_Stadium], layout: BoardLayout) -> list[VirtualDrcFinding]:
     """Every physical pad of a multi-pad net must touch same-net copper
     (track, via, abutting pad, or a same-net zone under it).
 
@@ -631,14 +979,18 @@ def _check_pad_connectivity(
 
     copper: dict[tuple[str, str], list[_Stadium]] = {}
     for item in items:
-        if item.net.startswith("~"):
+        if item.kind is not _PhysicalItemKind.COPPER or item.net.startswith("~"):
             continue
         copper.setdefault((item.net, item.layer), []).append(item)
 
-    pad_counts: dict[str, set[tuple[str, Point]]] = {}
+    pad_counts: dict[str, set[str]] = {}
     for item in items:
-        if item.owner and not item.net.startswith("~"):
-            pad_counts.setdefault(item.net, set()).add((item.label, item.a))
+        if (
+            item.kind is _PhysicalItemKind.COPPER
+            and item.source_role is _PhysicalSourceRole.PAD
+            and not item.net.startswith("~")
+        ):
+            pad_counts.setdefault(item.net, set()).add(item.parent_source_id or item.source_id)
 
     def _pad_connected(pad: _Stadium) -> bool:
         for rect in zone_rects.get((pad.net, pad.layer), ()):
@@ -647,7 +999,7 @@ def _check_pad_connectivity(
         for other in copper.get((pad.net, pad.layer), ()):
             if other is pad:
                 continue
-            if other.label == pad.label and other.a == pad.a:
+            if other.parent_source_id == pad.parent_source_id and pad.parent_source_id is not None:
                 continue  # the THT twin is the same physical pad
             distance = _seg_seg_distance(pad.a, pad.b, other.a, other.b)
             if distance <= pad.radius + other.radius + TOLERANCE_MM:
@@ -657,12 +1009,19 @@ def _check_pad_connectivity(
     findings: list[VirtualDrcFinding] = []
     # Group the per-layer copies of each physical pad: connected on any
     # layer is connected.
-    by_pad: dict[tuple[str, Point], list[_Stadium]] = {}
+    by_pad: dict[str, list[_Stadium]] = {}
     for item in items:
-        if item.owner and not item.net.startswith("~"):
-            by_pad.setdefault((item.label, item.a), []).append(item)
-    for (label, anchor), copies in sorted(by_pad.items()):
+        if (
+            item.kind is _PhysicalItemKind.COPPER
+            and item.source_role is _PhysicalSourceRole.PAD
+            and not item.net.startswith("~")
+        ):
+            pad_id = item.parent_source_id or item.source_id
+            by_pad.setdefault(pad_id, []).append(item)
+    for _pad_id, copies in sorted(by_pad.items()):
         net = copies[0].net
+        label = copies[0].label
+        anchor = copies[0].a
         if len(pad_counts.get(net, ())) < 2:
             continue  # single-pad nets have nothing to reach
         if any(_pad_connected(copy) for copy in copies):
@@ -688,8 +1047,8 @@ def _check_pad_connectivity(
 # extents are ESTIMATED (stroke font), so boxes are deliberately shrunk —
 # underestimating is the pre-filter contract.
 
-_TEXT_CHAR_HALF_W = 0.4   # per character, x font size (KiCad advance ~1.0)
-_TEXT_HALF_H = 0.55       # x font size
+_TEXT_CHAR_HALF_W = 0.4  # per character, x font size (KiCad advance ~1.0)
+_TEXT_HALF_H = 0.55  # x font size
 _DEFAULT_REF_SIZE = 1.27
 
 _Rect = tuple[float, float, float, float]  # x1, y1, x2, y2
@@ -724,16 +1083,16 @@ _GR_LINE_RE = re.compile(
 )
 
 
-def _text_box(
-    center: Point, text: str, size: float, upright_swap: bool
-) -> _Rect:
+def _text_box(center: Point, text: str, size: float, upright_swap: bool) -> _Rect:
     half_w = max(len(text), 1) * size * _TEXT_CHAR_HALF_W
     half_h = size * _TEXT_HALF_H
     if upright_swap:
         half_w, half_h = half_h, half_w
     return (
-        center[0] - half_w, center[1] - half_h,
-        center[0] + half_w, center[1] + half_h,
+        center[0] - half_w,
+        center[1] - half_h,
+        center[0] + half_w,
+        center[1] + half_h,
     )
 
 
@@ -755,12 +1114,13 @@ def _seg_rect_distance(a: Point, b: Point, rect: _Rect) -> float:
     if rect[0] <= b[0] <= rect[2] and rect[1] <= b[1] <= rect[3]:
         return 0.0
     corners = (
-        (rect[0], rect[1]), (rect[2], rect[1]),
-        (rect[2], rect[3]), (rect[0], rect[3]),
+        (rect[0], rect[1]),
+        (rect[2], rect[1]),
+        (rect[2], rect[3]),
+        (rect[0], rect[3]),
     )
     return min(
-        _seg_seg_distance(a, b, corners[index], corners[(index + 1) % 4])
-        for index in range(4)
+        _seg_seg_distance(a, b, corners[index], corners[(index + 1) % 4]) for index in range(4)
     )
 
 
@@ -780,11 +1140,7 @@ def _collect_silk_texts(layout: BoardLayout) -> list[_SilkText]:
         if override is not None:
             local = (override[0], override[1])
             total_angle = override[2]
-            size = (
-                spec.reference_label[2]
-                if spec.reference_label
-                else _DEFAULT_REF_SIZE
-            )
+            size = spec.reference_label[2] if spec.reference_label else _DEFAULT_REF_SIZE
         elif spec.reference_label is not None:
             local = (spec.reference_label[0], spec.reference_label[1])
             total_angle = rotation
@@ -793,12 +1149,16 @@ def _collect_silk_texts(layout: BoardLayout) -> list[_SilkText]:
             continue
         center = _placed(
             (anchor_x, placement_y(layout, reference)),
-            rotation, local, flipped,
+            rotation,
+            local,
+            flipped,
         )
         texts.append(
             _SilkText(
                 box=_text_box(
-                    center, reference, size,
+                    center,
+                    reference,
+                    size,
                     upright_swap=round(total_angle) % 180 == 90,
                 ),
                 side="B" if flipped else "F",
@@ -878,10 +1238,7 @@ def _body_polys(layout: BoardLayout) -> list[tuple[str, str, list[Point]]]:
             (
                 reference,
                 "B" if flipped else "F",
-                [
-                    _placed(anchor, rotation, point, flipped)
-                    for point in local_points
-                ],
+                [_placed(anchor, rotation, point, flipped) for point in local_points],
             )
         )
     return polys
@@ -891,8 +1248,10 @@ def _rect_poly_overlap_depth(rect: _Rect, poly: list[Point]) -> float:
     """Positive when the rect penetrates the convex polygon; measured as
     the deepest rect corner/edge inside, approximated via SAT margins."""
     corners = [
-        (rect[0], rect[1]), (rect[2], rect[1]),
-        (rect[2], rect[3]), (rect[0], rect[3]),
+        (rect[0], rect[1]),
+        (rect[2], rect[1]),
+        (rect[2], rect[3]),
+        (rect[0], rect[3]),
     ]
     if not _polygons_overlap(corners, poly):
         return 0.0
@@ -922,31 +1281,21 @@ def _seg_poly_distance(a: Point, b: Point, poly: list[Point]) -> float:
         return 0.0
     count = len(poly)
     return min(
-        _seg_seg_distance(a, b, poly[index], poly[(index + 1) % count])
-        for index in range(count)
+        _seg_seg_distance(a, b, poly[index], poly[(index + 1) % count]) for index in range(count)
     )
 
 
-def _check_silkscreen(
-    layout: BoardLayout, items: list[_Stadium]
-) -> list[VirtualDrcFinding]:
+def _check_silkscreen(layout: BoardLayout, items: list[_Stadium]) -> list[VirtualDrcFinding]:
     texts = _collect_silk_texts(layout)
     lines = _collect_silk_lines(layout)
     bodies = _body_polys(layout)
-    # ~hole: items carry no copper/mask aperture in the model - keep
+    # Bare-hole items carry no copper/mask aperture in the model - keep
     # the silk checks strictly underestimating.
-    pads = [
-        item for item in items
-        if item.owner and not item.net.startswith("~hole:")
-    ]
+    pads = [item for item in items if item.owner and item.kind is _PhysicalItemKind.COPPER]
     findings: list[VirtualDrcFinding] = []
 
     def report(check: str, message: str, at: Point) -> None:
-        findings.append(
-            VirtualDrcFinding(
-                check=check, message=message, x_mm=at[0], y_mm=at[1]
-            )
-        )
+        findings.append(VirtualDrcFinding(check=check, message=message, x_mm=at[0], y_mm=at[1]))
 
     for text in texts:
         center = (
@@ -1000,7 +1349,7 @@ def _check_silkscreen(
                 )
                 break
     for index, text in enumerate(texts):
-        for other in texts[index + 1:]:
+        for other in texts[index + 1 :]:
             if other.side != text.side:
                 continue
             if _rects_overlap_depth(text.box, other.box) > TOLERANCE_MM:
@@ -1016,10 +1365,7 @@ def _check_silkscreen(
         for reference, side, poly in bodies:
             if side != line.side:
                 continue
-            if (
-                _seg_poly_distance(line.a, line.b, poly)
-                < line.half_width - TOLERANCE_MM
-            ):
+            if _seg_poly_distance(line.a, line.b, poly) < line.half_width - TOLERANCE_MM:
                 report(
                     "silk_overlap",
                     f"{line.label} crosses the body of {reference}",
@@ -1028,10 +1374,7 @@ def _check_silkscreen(
         for text in texts:
             if text.side != line.side:
                 continue
-            if (
-                _seg_rect_distance(line.a, line.b, text.box)
-                < line.half_width - TOLERANCE_MM
-            ):
+            if _seg_rect_distance(line.a, line.b, text.box) < line.half_width - TOLERANCE_MM:
                 report(
                     "silk_overlap",
                     f"{line.label} crosses {text.label}",
@@ -1052,14 +1395,52 @@ def _check_silkscreen(
 
 
 def run_virtual_drc(
-    layout: BoardLayout, netlist: BoardNetlist
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> tuple[VirtualDrcFinding, ...]:
     """Run all virtual checks; returns findings (empty = clean)."""
-    items = _collect_items(layout, netlist)
+    items = _collect_items(layout, netlist, profile=profile)
+    pairwise_requirements = profile.fab_spacing.pairwise_clearances
+    if any(
+        requirement.mask_states_a or requirement.mask_states_b
+        for requirement in pairwise_requirements
+    ):
+        indexed_exposure = exposure_index(layout, netlist, profile)
+        annotated_items: list[_Stadium] = []
+        for item in items:
+            if item.kind is not _PhysicalItemKind.COPPER:
+                annotated_items.append(item)
+                continue
+            result = indexed_exposure.get(item.source_id)
+            if result is None:
+                annotated_items.append(
+                    replace(
+                        item,
+                        exposure_reason="copper source has no exposure result",
+                    )
+                )
+                continue
+            annotated_items.append(
+                replace(
+                    item,
+                    mask_state=result.state,
+                    role=result.role,
+                    unresolved_aperture_source_ids=(result.unresolved_aperture_source_ids),
+                    exposure_reason=result.reason,
+                )
+            )
+        items = annotated_items
     findings = [
-        *_check_copper_clearance(items),
+        *_check_copper_clearance(
+            items,
+            profile.fab_spacing.minimum_copper_clearance_mm,
+            profile.fab_spacing.minimum_hole_to_copper_mm,
+        ),
+        *_check_pairwise_clearance(items, pairwise_requirements),
+        *_check_qualified_insulation_clearance(items, profile),
         *_check_courtyards(layout),
-        *_check_edge_clearance(items, layout),
+        *_check_edge_clearance(items, layout, profile.fab_spacing.minimum_copper_to_edge_mm),
         *_check_pour_connectivity(items, layout),
         *_check_pad_connectivity(items, layout),
         *_check_silkscreen(layout, items),
