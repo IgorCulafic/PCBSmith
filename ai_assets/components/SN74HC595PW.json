@@ -1,0 +1,145 @@
+{
+ "schema_id": "pcbsmith-component-card-v1",
+ "mpn": "SN74HC595PW",
+ "manufacturer": "Texas Instruments",
+ "description": "8-bit shift register with output latches, 2-6V, TSSOP-16",
+ "symbol": "74xx:74HC595",
+ "footprint": "Package_SO:TSSOP-16_4.4x5mm_P0.65mm",
+ "datasheet": {
+  "local_path": "ai_assets/datasheets/sn74hc595.pdf",
+  "sha256": "0f692d1315826486598b661ff982237572c44d8942d191ce27c1fdb154d10722",
+  "source_url": "https://www.ti.com/lit/gpn/sn74hc595"
+ },
+ "support_status": "reviewed",
+ "pins": [
+  {
+   "number": "1",
+   "name": "QB",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Parallel output B.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "2",
+   "name": "QC",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Parallel output C.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "3",
+   "name": "QD",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Parallel output D.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "4",
+   "name": "QE",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Parallel output E.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "5",
+   "name": "QF",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Parallel output F.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "6",
+   "name": "QG",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Parallel output G.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "7",
+   "name": "QH",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Parallel output H.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "8",
+   "name": "GND",
+   "function": "power_in",
+   "requirement": "required",
+   "note": "Ground.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "9",
+   "name": "QH'",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Serial cascade output to the next stage's SER.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "10",
+   "name": "SRCLR",
+   "function": "control_in",
+   "requirement": "must_tie",
+   "note": "Active-low shift-register clear; tie to VCC when unused.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)",
+   "tie_class": "VCC"
+  },
+  {
+   "number": "11",
+   "name": "SRCLK",
+   "function": "control_in",
+   "requirement": "required",
+   "note": "Shift clock.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "12",
+   "name": "RCLK",
+   "function": "control_in",
+   "requirement": "required",
+   "note": "Latch clock.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "13",
+   "name": "OE",
+   "function": "control_in",
+   "requirement": "required",
+   "note": "Active-low output enable; pull up so outputs stay blank until firmware drives it.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "14",
+   "name": "SER",
+   "function": "digital_io",
+   "requirement": "required",
+   "note": "Serial data in.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "15",
+   "name": "QA",
+   "function": "digital_out",
+   "requirement": "optional",
+   "note": "Parallel output A.",
+   "locator": "SN74HC595 datasheet pin table p3 (D/PW packages)"
+  },
+  {
+   "number": "16",
+   "name": "VCC",
+   "function": "power_in",
+   "requirement": "required",
+   "note": "2-6V; 100nF decoupling.",
+   "locator": "p1 (range), p3"
+  }
+ ]
+}

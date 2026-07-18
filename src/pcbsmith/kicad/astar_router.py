@@ -18,9 +18,10 @@ Deliberate MVP boundaries:
 
 from __future__ import annotations
 
+import functools
 import heapq
 import math
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 
 from pcbsmith.kicad.board import (
@@ -134,7 +135,14 @@ class GridRouter:
         edge_cells = self._edge_cells(layout)
         for layer in LAYERS:
             self.blocked[layer] |= edge_cells
+        # Vias owe the edge their OWN radius, not the track's half
+        # width (live edge_clearance findings on the thermometer's
+        # curved stem: a 0.2mm net's margin let vias sit 0.6mm out).
         self.via_blocked |= edge_cells
+        if VIA_RADIUS_MM > self.width / 2:
+            self.via_blocked |= self._edge_cells(
+                layout, margin=EDGE_CLEARANCE_MM + VIA_RADIUS_MM
+            )
         self.own_items = own
 
     # -- grid helpers -----------------------------------------------------
@@ -159,8 +167,19 @@ class GridRouter:
                 if _point_seg_distance(point, item.a, item.b) < reach:
                     into.add((ix, iy))
 
-    def _edge_cells(self, layout: BoardLayout) -> set[tuple[int, int]]:
-        margin = EDGE_CLEARANCE_MM + self.width / 2
+    def _edge_cells(
+        self, layout: BoardLayout, margin: float | None = None
+    ) -> set[tuple[int, int]]:
+        if margin is None:
+            margin = EDGE_CLEARANCE_MM + self.width / 2
+        if layout.outline:
+            # Shaped boards: the verifier measures against the OUTLINE
+            # polygon, so the router must too (a rectangle-only edge
+            # model happily routes outside a thermometer's stem).
+            return _outline_blocked_cells(
+                tuple(layout.outline), self.cols, self.rows, self.grid,
+                round(margin, 6),
+            )
         cells: set[tuple[int, int]] = set()
         for ix in range(self.cols):
             for iy in range(self.rows):
@@ -278,7 +297,21 @@ class GridRouter:
         # same-net copper: the union point-set is unchanged, so both
         # connectivity and clearance are exactly preserved (rule 11.2).
         merged = merge_collinear_segments(segments)
-        pruned = prune_redundant_segments(merged, self.own_items)
+        # The route's OWN new vias are covers too: junction slivers
+        # sitting entirely inside a fresh via's barrel escaped pruning
+        # and tripped rule 11.2 (thermometer board, live).
+        via_covers = [
+            _Stadium(
+                a=(via.x, via.y), b=(via.x, via.y),
+                radius=VIA_RADIUS_MM, net=self.net_name, layer=layer,
+                owner="", label="via",
+            )
+            for via in vias
+            for layer in LAYERS
+        ]
+        pruned = prune_redundant_segments(
+            merged, (*self.own_items, *via_covers)
+        )
         return RouteResult(
             net_name=self.net_name,
             segments=pruned,
@@ -623,6 +656,55 @@ def merge_collinear_segments(
     return tuple(merged)
 
 
+@functools.lru_cache(maxsize=8)
+def _outline_blocked_cells(
+    outline: tuple[tuple[float, float], ...],
+    cols: int,
+    rows: int,
+    grid: float,
+    margin: float,
+) -> set[tuple[int, int]]:
+    """Grid cells a track center may NOT occupy on a shaped board:
+    outside the outline polygon, or within ``margin`` of an outline
+    edge. Scanline fill for inside/outside (O(rows x edges)) plus an
+    exact-distance band walked only along the edges - the same
+    complexity trick the virtual DRC's edge check uses, cached because
+    every net's router rebuilds the grid."""
+    blocked: set[tuple[int, int]] = set()
+    edges = [
+        (outline[index], outline[(index + 1) % len(outline)])
+        for index in range(len(outline))
+    ]
+    # Scanline: cells whose center is outside the polygon.
+    for iy in range(rows):
+        y = iy * grid
+        crossings: list[float] = []
+        for (x1, y1), (x2, y2) in edges:
+            if (y1 <= y < y2) or (y2 <= y < y1):
+                crossings.append(x1 + (y - y1) * (x2 - x1) / (y2 - y1))
+        crossings.sort()
+        inside: list[tuple[float, float]] = list(
+            zip(crossings[0::2], crossings[1::2], strict=False)
+        )
+        for ix in range(cols):
+            x = ix * grid
+            if not any(lo <= x <= hi for lo, hi in inside):
+                blocked.add((ix, iy))
+    # Near-edge band: exact distances, only around the edges.
+    for a, b in edges:
+        x_lo = int((min(a[0], b[0]) - margin) / grid) - 1
+        x_hi = int((max(a[0], b[0]) + margin) / grid) + 2
+        y_lo = int((min(a[1], b[1]) - margin) / grid) - 1
+        y_hi = int((max(a[1], b[1]) + margin) / grid) + 2
+        for ix in range(max(x_lo, 0), min(x_hi, cols)):
+            for iy in range(max(y_lo, 0), min(y_hi, rows)):
+                if (ix, iy) in blocked:
+                    continue
+                if _point_seg_distance((ix * grid, iy * grid), a, b) < margin:
+                    blocked.add((ix, iy))
+    return blocked
+
+
 # Coverage sampling: fine enough that no sliver of a "covered" segment
 # can poke past its covers between samples at PCB scales.
 COVER_SAMPLE_MM = 0.05
@@ -798,6 +880,9 @@ def _routable_nets(
     return estimates
 
 
+FINE_GRID_MM = 0.1
+
+
 def route_board(
     layout: BoardLayout,
     netlist: BoardNetlist,
@@ -810,12 +895,73 @@ def route_board(
     net_order: Sequence[str] | None = None,
     max_restarts: int = 8,
     grid_mm: float = GRID_MM,
+    skip_nets: Collection[str] = (),
+    fine_pitch_nets: Mapping[str, float] | None = None,
+    fine_grid_mm: float = FINE_GRID_MM,
 ) -> BoardRouteResult:
     """Route every multi-pad net sequentially; when a net cannot be
     routed, promote it to the front of the order and restart (rip-up by
-    reordering - the MVP alternative to true rip-up)."""
+    reordering - the MVP alternative to true rip-up).
+
+    ``fine_pitch_nets`` maps net -> width for nets that must ENTER
+    sub-grid pad pitches (0.5mm USB-C/DFN rows: a 0.2mm grid cannot
+    center a track on alternating pads). They route FIRST, in declared
+    order, on ``fine_grid_mm``; the main pass then treats their copper
+    as existing routes. Declaration order is priority - put contested
+    corridors' nets first. ``skip_nets`` excludes nets a caller routed
+    itself."""
     widths = net_widths or {}
-    estimates = _routable_nets(layout, netlist)
+    fine = dict(fine_pitch_nets or {})
+    fine_order = list(fine)
+    fine_results: list[RouteResult] = []
+    restarts = 0
+    while fine_order:
+        working = layout
+        fine_results = []
+        fine_failed: str | None = None
+        for net in fine_order:
+            try:
+                result = route_net(
+                    working, netlist, net,
+                    track_width_mm=fine[net], grid_mm=fine_grid_mm,
+                    clearance_groups=clearance_groups,
+                )
+            except RoutingError:
+                fine_failed = net
+                break
+            fine_results.append(result)
+            working = with_route(working, result)
+        if fine_failed is None:
+            layout = working
+            break
+        # Same rip-up-by-reordering as the main pass: the failed net
+        # routes first next attempt. Fine corridors are the scarcest
+        # copper on the board (USB-C hole belts), so which net claims
+        # a window first genuinely decides feasibility - the initial
+        # declaration order is a hint, not a verdict.
+        if restarts >= max_restarts or fine_order[0] == fine_failed:
+            return BoardRouteResult(
+                layout=working,
+                results=tuple(fine_results),
+                order=tuple(fine_order),
+                restarts=restarts,
+                failed=(fine_failed,),
+            )
+        fine_order.remove(fine_failed)
+        fine_order.insert(0, fine_failed)
+        restarts += 1
+    # The main pass gets its own restart budget: fine-corridor
+    # reordering must not starve stem-congestion reordering (the /CAS
+    # lesson - fine restarts consumed the shared budget and the main
+    # pass failed on its first try).
+    fine_restarts = restarts
+    restarts = 0
+    skip = set(skip_nets) | set(fine)
+    estimates = {
+        net: estimate
+        for net, estimate in _routable_nets(layout, netlist).items()
+        if net not in skip
+    }
     if net_order is not None:
         order = [net for net in net_order if net in estimates]
         order += sorted(
@@ -825,7 +971,6 @@ def route_board(
     else:
         order = sorted(estimates, key=lambda net: estimates[net])
 
-    restarts = 0
     while True:
         working = layout
         results: list[RouteResult] = []
@@ -846,17 +991,17 @@ def route_board(
         if failed is None:
             return BoardRouteResult(
                 layout=working,
-                results=tuple(results),
-                order=tuple(order),
-                restarts=restarts,
+                results=(*fine_results, *results),
+                order=(*fine_order, *order),
+                restarts=fine_restarts + restarts,
                 failed=(),
             )
         if restarts >= max_restarts or order[0] == failed:
             return BoardRouteResult(
                 layout=working,
-                results=tuple(results),
-                order=tuple(order),
-                restarts=restarts,
+                results=(*fine_results, *results),
+                order=(*fine_order, *order),
+                restarts=fine_restarts + restarts,
                 failed=(failed,),
             )
         order.remove(failed)

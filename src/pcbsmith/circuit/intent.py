@@ -80,6 +80,23 @@ def classify_circuit_intent(raw_request: str) -> CircuitIntent:
                 "supply_voltage_v": supply_v,
             },
         )
+    if "thermometer" in normalized and (
+        "humidity" in normalized or "temperature" in normalized
+    ):
+        return CircuitIntent(
+            raw_request=raw_request,
+            intent_id="thermometer_env_display",
+            status="supported",
+            assumptions={
+                # USB-C VBUS in, 3.3V rail; the printed scale spans the
+                # brief's 0-50C markings across 16 LEDs.
+                "vbus_v": 5.0,
+                "vcc_v": 3.3,
+                "led_count": 16.0,
+                "scale_min_c": 0.0,
+                "scale_max_c": 50.0,
+            },
+        )
     if "servo" in normalized:
         return CircuitIntent(
             raw_request=raw_request,

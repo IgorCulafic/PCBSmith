@@ -41,6 +41,12 @@ to future, more complex designs.
     stacks its pins along the edge, and the row channel gives each stacked
     pad its own escape column (`_connector_escapes`) so drops never pass
     through a neighbouring pad.
+  - Exemption: connector-footprint parts that carry ON-BOARD modules
+    (display headers, module sockets) are not off-board wiring; they are
+    exempt **by declaration** via `connector_edge_exempt_refs` on the
+    checks spec, so the exemption stays visible and reviewable.
+    (`SESSION` — thermometer J2/J3 OLED sockets sit mid-stem by design.)
+    Status: **implemented** (`kicad/design_checks.py`).
 - **1.2 Single-pin solder pads at corners are a valid connector style for
   modules.** (`REF-BC2596` J1–J4.) Status: **pending** (footprint library has
   no 1-pin pad entry yet).
@@ -131,6 +137,29 @@ grounding."
   parity ignores them; the parts row and board bands reserve hole clearance.
 - **5.2 The board outline sits inside the drawing-sheet frame** and wraps the
   design with a small uniform margin. (`SESSION`.) Status: **implemented**.
+- **5.3 Holes are physical obstacles even without copper.** Unnamed NPTH
+  pads (USB-C shell alignment holes) and slotted shield holes repel copper
+  by KiCad's 0.25 mm hole-to-copper rule, 0.05 mm wider than the copper
+  clearance; vias owe edges and other holes their OWN radius. (`SESSION` —
+  kicad-cli caught six tracks and a via crossing the thermometer's USB-C
+  shell holes that the model skipped as "unnamed pads", plus two vias at
+  0.6-0.7 mm from the shaped stem edge.) Status: **implemented** — NPTH/
+  unnamed drilled pads become net-less `~hole:` obstacles in
+  `virtual_drc._collect_items` (radius carries the +0.05 excess) which the
+  router inherits as foreign obstacles; via edge margin in
+  `astar_router`; fixture tests prove both fire.
+- **5.4 A custom pad's copper is its primitives, not its anchor.** KiCad
+  custom pads record an anchor `(size w h)` plus primitive polygons; the
+  true copper extents come from the primitive bbox. (`SESSION` — the
+  SHT31 EP anchors at 1.0x1.0 but spans 1.0x1.7; kicad-cli caught a via
+  parked on the unmodelled lobe, shorting /SCL1 to GND.) Status:
+  **implemented** (`library._custom_pad_extents`, regression-pinned).
+- **5.5 Board-setup DRC constraints ship with the board.** When an official
+  footprint legitimately drills below KiCad's 0.3 mm default minimum
+  (ESP32-C3-WROOM-02 EP thermal vias: 0.2 mm; typical fab minimum is
+  0.15-0.2 mm mechanical), the exported `.kicad_pro` declares
+  `min_through_hole_diameter` so kicad-cli judges against the design's
+  real constraint set. Status: **implemented** (`_render_project`).
 
 ## 6. Verification ritual (applies to every design)
 

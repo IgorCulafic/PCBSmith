@@ -1,0 +1,152 @@
+{
+  "schema": "pcbsmith-evidence-manifest-v1",
+  "components": [
+    {
+      "manufacturer": "Sensirion",
+      "part_number": "SHT31-DIS-B",
+      "role": "humidity_temperature_sensor",
+      "symbol_id": "stdlib:SHT31",
+      "value": "SHT31-DIS",
+      "footprint": "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm",
+      "files": [
+        {
+          "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\sht3x-dis.pdf",
+          "sha256": "095b1853e7f4328f5897c9ca6c392a7dd8b0202eda66b0a2629f9cb840dd496d",
+          "source_url": "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf",
+          "retrieved_at": "2026-07-10",
+          "license_status": "local_cache_only"
+        }
+      ],
+      "facts": []
+    },
+    {
+      "manufacturer": "Espressif",
+      "part_number": "ESP32-C3-WROOM-02",
+      "role": "microcontroller_module",
+      "symbol_id": "stdlib:ESP32C3WROOM02",
+      "value": "ESP32-C3-WROOM-02",
+      "footprint": "RF_Module:ESP32-C3-WROOM-02",
+      "files": [
+        {
+          "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\esp32-c3-wroom-02.pdf",
+          "sha256": "2375b1be75ebbfcffa050e6a26c3ee7957bc7171b319066081a491d1b2e21161",
+          "source_url": "https://www.espressif.com/sites/default/files/documentation/esp32-c3-wroom-02_datasheet_en.pdf",
+          "retrieved_at": "2026-07-10",
+          "license_status": "local_cache_only"
+        }
+      ],
+      "facts": []
+    },
+    {
+      "manufacturer": "TI",
+      "part_number": "SN74HC595PW",
+      "role": "led_shift_register",
+      "symbol_id": "stdlib:74HC595",
+      "value": "74HC595",
+      "footprint": "Package_SO:TSSOP-16_4.4x5mm_P0.65mm",
+      "files": [
+        {
+          "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\sn74hc595.pdf",
+          "sha256": "0f692d1315826486598b661ff982237572c44d8942d191ce27c1fdb154d10722",
+          "source_url": "https://www.ti.com/lit/gpn/sn74hc595",
+          "retrieved_at": "2026-07-10",
+          "license_status": "local_cache_only"
+        }
+      ],
+      "facts": []
+    },
+    {
+      "manufacturer": "DiodesInc",
+      "part_number": "AP2112K-3.3",
+      "role": "ldo_regulator",
+      "symbol_id": "stdlib:AP2112K",
+      "value": "AP2112K-3.3",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-5",
+      "files": [
+        {
+          "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\ap2112.pdf",
+          "sha256": "ef8d376f2ec356e29172eb9e053819a0ebdcc576dba7fc9ab0505c568427920f",
+          "source_url": "https://www.diodes.com/assets/Datasheets/AP2112.pdf",
+          "retrieved_at": "2026-07-10",
+          "license_status": "local_cache_only"
+        }
+      ],
+      "facts": []
+    },
+    {
+      "manufacturer": "Kingbright",
+      "part_number": "APT2012SRCPRV",
+      "role": "mercury_led",
+      "symbol_id": "stdlib:LED",
+      "value": "RED-0805",
+      "footprint": "LED_SMD:LED_0805_2012Metric",
+      "files": [
+        {
+          "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\kingbright-apt2012srcprv.pdf",
+          "sha256": "492bea88374496479b995665c08871af3445e1ae3fd51d09cecc0ad5853a4130",
+          "source_url": "https://www.kingbrightusa.com/images/catalog/SPEC/APT2012SRCPRV.pdf",
+          "retrieved_at": "2026-07-10",
+          "license_status": "local_cache_only"
+        }
+      ],
+      "facts": []
+    }
+  ],
+  "extraction_jobs": [
+    {
+      "status": "pending_extraction",
+      "component_manufacturer": "Sensirion",
+      "component_part_number": "SHT31-DIS-B",
+      "role": "humidity_temperature_sensor",
+      "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\sht3x-dis.pdf",
+      "sha256": "095b1853e7f4328f5897c9ca6c392a7dd8b0202eda66b0a2629f9cb840dd496d",
+      "source_url": "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf",
+      "created_at": "2026-07-10",
+      "findings": []
+    },
+    {
+      "status": "pending_extraction",
+      "component_manufacturer": "Espressif",
+      "component_part_number": "ESP32-C3-WROOM-02",
+      "role": "microcontroller_module",
+      "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\esp32-c3-wroom-02.pdf",
+      "sha256": "2375b1be75ebbfcffa050e6a26c3ee7957bc7171b319066081a491d1b2e21161",
+      "source_url": "https://www.espressif.com/sites/default/files/documentation/esp32-c3-wroom-02_datasheet_en.pdf",
+      "created_at": "2026-07-10",
+      "findings": []
+    },
+    {
+      "status": "pending_extraction",
+      "component_manufacturer": "TI",
+      "component_part_number": "SN74HC595PW",
+      "role": "led_shift_register",
+      "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\sn74hc595.pdf",
+      "sha256": "0f692d1315826486598b661ff982237572c44d8942d191ce27c1fdb154d10722",
+      "source_url": "https://www.ti.com/lit/gpn/sn74hc595",
+      "created_at": "2026-07-10",
+      "findings": []
+    },
+    {
+      "status": "pending_extraction",
+      "component_manufacturer": "DiodesInc",
+      "component_part_number": "AP2112K-3.3",
+      "role": "ldo_regulator",
+      "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\ap2112.pdf",
+      "sha256": "ef8d376f2ec356e29172eb9e053819a0ebdcc576dba7fc9ab0505c568427920f",
+      "source_url": "https://www.diodes.com/assets/Datasheets/AP2112.pdf",
+      "created_at": "2026-07-10",
+      "findings": []
+    },
+    {
+      "status": "pending_extraction",
+      "component_manufacturer": "Kingbright",
+      "component_part_number": "APT2012SRCPRV",
+      "role": "mercury_led",
+      "local_path": "D:\\AI\\PCB designer\\ai_assets\\datasheets\\kingbright-apt2012srcprv.pdf",
+      "sha256": "492bea88374496479b995665c08871af3445e1ae3fd51d09cecc0ad5853a4130",
+      "source_url": "https://www.kingbrightusa.com/images/catalog/SPEC/APT2012SRCPRV.pdf",
+      "created_at": "2026-07-10",
+      "findings": []
+    }
+  ]
+}

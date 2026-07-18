@@ -117,3 +117,30 @@ def test_fp_rect_courtyards_produce_full_hulls() -> None:
         xs = [x for x, _ in hull]
         ys = [y for _, y in hull]
         assert (min(xs), min(ys), max(xs), max(ys)) == (x1, y1, x2, y2)
+
+
+def test_custom_pads_and_npth_holes_parse_their_real_geometry() -> None:
+    # A custom pad's (size w h) is only its anchor; the copper is the
+    # primitives (the SHT31 EP anchors at 1.0x1.0 but spans 1.0x1.7 -
+    # kicad-cli caught a via parked on the unmodelled lobe). NPTH shell
+    # holes must stay distinct from copper-carrying THT pads (routed
+    # tracks crossed the USB-C alignment holes while they were
+    # collapsed into "tht").
+    from pcbsmith.kicad.board import FOOTPRINT_LIBRARY
+
+    sensor = FOOTPRINT_LIBRARY[
+        "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm"
+        "_EP1.1x1.7mm"
+    ]
+    ep = next(pad for pad in sensor.pads if pad.name == "9")
+    assert (ep.width_mm, ep.height_mm) == (1.0, 1.7)
+
+    usb = FOOTPRINT_LIBRARY[
+        "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P"
+        "_TopMnt_Horizontal"
+    ]
+    npth = [pad for pad in usb.pads if pad.kind == "npth"]
+    assert [(pad.x_mm, pad.y_mm, pad.drill_mm) for pad in npth] == [
+        (-2.89, -2.605, 0.65),
+        (2.89, -2.605, 0.65),
+    ]

@@ -744,3 +744,152 @@ def solve_555_servo_tester(
             "variant (SERVO CONTROLLER page).",
         ],
     }
+
+
+def thermometer_scale_fraction(
+    temperature_c: float,
+    *,
+    scale_min_c: float = 0.0,
+    scale_max_c: float = 50.0,
+) -> float:
+    """Where a temperature sits on the thermometer scale, 0.0 at the
+    bottom of the scale to 1.0 at the top. ONE function feeds the
+    firmware thresholds, the LED column placement, and the silkscreen
+    tick marks, so the mercury column and the printed graduations can
+    never drift apart."""
+    span = scale_max_c - scale_min_c
+    if span <= 0:
+        raise ValueError("scale_max_c must exceed scale_min_c")
+    return (temperature_c - scale_min_c) / span
+
+
+def solve_thermometer_display(
+    *,
+    vbus_v: float = 5.0,
+    vcc_v: float = 3.3,
+    led_count: int = 16,
+    led_vf_typ_v: float = 1.85,
+    led_vf_dim_v: float = 2.2,
+    led_series_ohms: float = 270.0,
+    scale_min_c: float = 0.0,
+    scale_max_c: float = 50.0,
+    module_current_a: float = 0.30,
+    display_current_a: float = 0.04,
+    i2c_bus_capacitance_f: float = 50e-12,
+    i2c_rise_time_max_s: float = 1000e-9,
+    i2c_pullup_ohms: float = 4.7e3,
+    i2c_sink_current_a: float = 3e-3,
+    i2c_vol_v: float = 0.4,
+    hc595_supply_abs_max_a: float = 0.070,
+    ldo_current_min_a: float = 0.6,
+    ldo_theta_ja_c_per_w: float = 250.0,
+) -> dict[str, Any]:
+    """Design chain for the thermometer-shaped SHT31 + ESP32-C3 display.
+
+    LED chain per the Kingbright APT2012SRCPRV datasheet (Vf 1.85V typ /
+    2.5V max at 20mA, p2; the p3 V-I curve puts the dim-corner Vf near
+    2.2V at the low currents used here). Per-device current against the
+    SN74HC595 absolute continuous VCC/GND limit (70mA). I2C pull-up
+    window per the standard-mode rise-time budget (t_r <= 0.8473*R*Cb).
+    AP2112K-3.3 dissipation from the worst-case rail current (module
+    WiFi TX burst + both OLEDs + full LED column).
+    """
+    errors: list[str] = []
+    warnings: list[str] = []
+    if led_count < 2 or led_count % 8:
+        errors.append(
+            f"led_count {led_count} must be a positive multiple of 8 "
+            "(whole 74HC595 stages)."
+        )
+    if not 3.0 <= vcc_v <= 3.6:
+        errors.append(
+            f"VCC {vcc_v:g}V outside the ESP32-C3-WROOM-02 supply range "
+            "3.0-3.6V (datasheet p3)."
+        )
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": [], "errors": errors}
+
+    led_current_typ_a = (vcc_v - led_vf_typ_v) / led_series_ohms
+    led_current_dim_a = max(0.0, (vcc_v - led_vf_dim_v) / led_series_ohms)
+    per_register_a = 8 * led_current_typ_a
+    if per_register_a > hc595_supply_abs_max_a:
+        errors.append(
+            f"Per-74HC595 supply current {per_register_a * 1e3:.1f}mA "
+            f"exceeds the {hc595_supply_abs_max_a * 1e3:.0f}mA absolute "
+            "continuous VCC/GND limit (SN74HC595 abs max table)."
+        )
+    if led_current_dim_a < 1.5e-3:
+        warnings.append(
+            f"Dim-corner LED current {led_current_dim_a * 1e3:.1f}mA may "
+            "be hard to see through a diffuser; consider a smaller "
+            "series resistor."
+        )
+
+    degrees_per_led = (scale_max_c - scale_min_c) / led_count
+    # 4 decimals keeps the default 3.125C steps EXACT: these numbers
+    # are the shared truth for firmware, LED placement, and silk ticks.
+    led_on_thresholds_c = [
+        round(scale_min_c + step * degrees_per_led, 4)
+        for step in range(1, led_count + 1)
+    ]
+
+    pullup_max_ohms = i2c_rise_time_max_s / (0.8473 * i2c_bus_capacitance_f)
+    pullup_min_ohms = (vcc_v - i2c_vol_v) / i2c_sink_current_a
+    if not pullup_min_ohms <= i2c_pullup_ohms <= pullup_max_ohms:
+        errors.append(
+            f"I2C pull-up {i2c_pullup_ohms:g} ohm outside the "
+            f"{pullup_min_ohms:.0f}-{pullup_max_ohms:.0f} ohm window."
+        )
+
+    total_led_a = led_count * led_current_typ_a
+    rail_current_a = module_current_a + display_current_a + total_led_a
+    if rail_current_a > ldo_current_min_a:
+        errors.append(
+            f"Worst-case rail current {rail_current_a * 1e3:.0f}mA "
+            f"exceeds the AP2112 guaranteed {ldo_current_min_a * 1e3:.0f}mA."
+        )
+    ldo_dissipation_w = (vbus_v - vcc_v) * rail_current_a
+    ldo_rise_c = ldo_dissipation_w * ldo_theta_ja_c_per_w
+    if ldo_rise_c > 80.0:
+        warnings.append(
+            f"LDO temperature rise {ldo_rise_c:.0f}C at the worst-case "
+            f"{rail_current_a * 1e3:.0f}mA rail (module WiFi TX burst): "
+            "keep the radio off or duty-cycled in firmware - the display "
+            "workload itself draws a small fraction of this."
+        )
+
+    if errors:
+        return {"status": "error", "outputs": {}, "warnings": warnings, "errors": errors}
+    return {
+        "status": "warning" if warnings else "ok",
+        "outputs": {
+            "led_current_typ_ma": round(led_current_typ_a * 1e3, 2),
+            "led_current_dim_ma": round(led_current_dim_a * 1e3, 2),
+            "per_register_supply_ma": round(per_register_a * 1e3, 1),
+            "total_led_current_ma": round(total_led_a * 1e3, 1),
+            "degrees_per_led_c": round(degrees_per_led, 3),
+            "led_on_thresholds_c": led_on_thresholds_c,
+            "i2c_pullup_min_ohms": round(pullup_min_ohms, 0),
+            "i2c_pullup_max_ohms": round(pullup_max_ohms, 0),
+            "i2c_pullup_ohms": i2c_pullup_ohms,
+            "rail_current_worst_ma": round(rail_current_a * 1e3, 1),
+            "ldo_dissipation_w": round(ldo_dissipation_w, 3),
+            "ldo_temperature_rise_c": round(ldo_rise_c, 1),
+        },
+        "warnings": warnings,
+        "errors": [],
+        "references": [
+            "Kingbright APT2012SRCPRV (ai_assets/datasheets/"
+            "kingbright-apt2012srcprv.pdf) p2 (Vf 1.85 typ / 2.5 max at "
+            "20mA), p3 (V-I curve for the dim corner).",
+            "TI SN74HC595 (ai_assets/datasheets/sn74hc595.pdf) p1 "
+            "(2-6V), p4 (absolute maximum continuous VCC/GND current).",
+            "Espressif ESP32-C3-WROOM-02 (ai_assets/datasheets/"
+            "esp32-c3-wroom-02.pdf) p3 (3.0-3.6V supply).",
+            "Diodes AP2112 (ai_assets/datasheets/ap2112.pdf) p1 (600mA "
+            "min), p2 (1uF X7R in/out).",
+            "Sensirion SHT3x-DIS (ai_assets/datasheets/sht3x-dis.pdf) "
+            "p6 (supply), p8 (pinout), p9 (I2C addresses).",
+            "I2C rise-time budget t_r = 0.8473*Rp*Cb (NXP UM10204).",
+        ],
+    }
