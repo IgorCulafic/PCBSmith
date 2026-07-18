@@ -19,7 +19,6 @@ import math
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.kicad.board import (
     BOARD_SHEET_ORIGIN_MM,
@@ -44,6 +43,7 @@ from pcbsmith.kicad.shaped_board import (
     polyline_from_pieces,
     splice_rect_tab,
 )
+from pcbsmith.kicad.shaped_board import silk_line as _silk_line
 from pcbsmith.kicad.shaped_board import silk_poly as _silk_poly
 from pcbsmith.kicad.shaped_board import silk_text as _silk_text
 
@@ -238,28 +238,8 @@ def _clipped_circle_outline(
         if not (visible[index] and visible[following]):
             continue
         (x1, y1), (x2, y2) = points[index], points[following]
-        lines.append(
-            f"""  (gr_line
-    (start {x1 + origin:.3f} {y1 + origin:.3f})
-    (end {x2 + origin:.3f} {y2 + origin:.3f})
-    (stroke (width {width}) (type solid))
-    (layer "F.SilkS")
-    (uuid {uuid4()})
-  )"""
-        )
+        lines.append(_silk_line((x1, y1), (x2, y2), origin, width=width))
     return lines
-
-
-def _silk_line(
-    a: tuple[float, float], b: tuple[float, float], origin: float, width: float = 0.3
-) -> str:
-    return f"""  (gr_line
-    (start {a[0] + origin:.3f} {a[1] + origin:.3f})
-    (end {b[0] + origin:.3f} {b[1] + origin:.3f})
-    (stroke (width {width}) (type solid))
-    (layer "F.SilkS")
-    (uuid {uuid4()})
-  )"""
 
 
 # Worm anatomy in board coordinates. Everything stays within 12.5 mm of the

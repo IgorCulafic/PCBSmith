@@ -1,5 +1,16 @@
 # Source wishlist — NEW references beyond what we own & beyond the phase-0 addendum
 
+> **Acquisition/status update (2026-07-14):** This ranking is a historical scout
+> report, not the current source inventory. Espressif, USB-C R2.5, SOT-223
+> thermal notes, TI ESD, JESD51-2A/-7, Brooks book/paper, panelization guides,
+> and NASA EEE-INST-002 are now cached and distilled in
+> docs/reference/books/SECOND-WAVE-2026-07.md. KLC v3.0.67 is cached but
+> lacks an upstream commit pin. Sensirion v2 and the SMTA QFN paper are
+> online-verified but locally unpinned. IPC-7093A, IPC-2231A, and
+> IPC-7525C remain absent. Use the second-wave note for corrected technical
+> interpretation; in particular, 15 mm is Espressif housing clearance and
+> USB-C reference footprints are informative.
+
 Written 2026-07-12 by a research subagent. Scope: sources PCBSmith does
 **not** already own (`docs/reference/books/README.md`) and that are
 **not** already in the `docs/routing-placement-plan.md` phase-0 addendum
@@ -16,8 +27,9 @@ store URL is given, not a pirate mirror.
 
 Every entry ends with the same discipline the books notes use: a rule
 in here becomes a machine check or a knob, or it stays a wish
-(law 1). None of these has been read yet — these are acquisition
-targets, not distillations.
+(law 1). At the time this scout was written none had been read. The dated
+acquisition update above and `SECOND-WAVE-2026-07.md` now govern the sources
+that were subsequently obtained and distilled.
 
 ---
 
@@ -43,15 +55,15 @@ targets, not distillations.
   text behind two roadmap items and a known live violation — highest
   value-per-effort on the list.
 
-### 2. IPC-7093(A) "Design and Assembly Process Implementation for Bottom Termination Components (BTCs)" — PAID (~$300)
+### 2. IPC-7093A "Design and Assembly Process Implementation for Bottom Termination Components (BTCs)" — PAID, ABSENT
 - **Covers:** Land-pattern, thermal-pad (windowed/segmented paste),
   paste-coverage %, thermal-via array, mask-defined vs paste-defined
   pad, and voiding rules for QFN / DFN / LGA / SON leadless parts.
-- **Closes:** A gap IPC-7351 (which we own but is leaded-land-focused)
-  does **not** cover: the thermometer's real parts are a **SHT31 DFN**
-  and an **ESP32-C3 QFN**, and the flyback control IC is leadless-ish.
+- **Closes:** IPC-7352 does not settle BTC paste, voiding, solder wicking,
+  exposed-pad stencil design, or thermal-via assembly. Live direct cases are
+  **SHT31 DFN** and **MPU6050 QFN**; ESP32-C3-WROOM is a module.
   Lessons-ledger already records live-DRC pain from the SHT31 exposed-
-  pad copper lobe and a via parked on it (rulebook 5.3). This standard
+  pad copper lobe and a via parked on it (rulebook 5.4). This standard
   is the authority for exposed-pad paste windowing and the thermal-via
   drill/placement rules that the `min_through_hole` / custom-pad-extent
   machinery currently guesses.
@@ -252,7 +264,6 @@ targets, not distillations.
   #11 panelization pages; #9 papers free / book paid).
 - **Paid: 4** (#2 IPC-7093 ~$300, #10 IPC-2231A ~$300, #12 IPC-7525C
   ~$128, #9 Brooks book ~$40 optional).
-- **Buy-first recommendation:** grab the free set immediately (Espressif
-  and USB-C are drop-in for known violations/blind footprints); of the
-  paid, **IPC-7093 first** — it governs the DFN/QFN parts we already
-  ship and are currently improvising.
+- **Next acquisition:** the free set is already cached. Within this historical
+  wishlist, **IPC-7093A is the first absent paid BTC source**; overall order
+  follows the July-14 current-materials knowledge base.

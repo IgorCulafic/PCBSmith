@@ -23,7 +23,6 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Mapping
 from dataclasses import dataclass
-from uuid import uuid4
 
 from pcbsmith.circuit.models import CircuitObject
 from pcbsmith.kicad.board import BoardNetlist
@@ -31,8 +30,10 @@ from pcbsmith.kicad.export_divider_highpass_led import (
     KICAD_SCHEMATIC_VERSION,
     _format_mm,
     _label,
+    _schematic_item_uuid,
     _symbol,
 )
+from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.symbols import (
     _QUARTER_TURNS,
     instance_pin_position_rotated,
@@ -452,8 +453,22 @@ def analyze_reader_spec(
     )
 
 
-def _wire_sexpr(segment: Segment) -> str:
+def _wire_sexpr(
+    segment: Segment,
+    *,
+    occurrence: int = 0,
+) -> str:
     (ax, ay), (bx, by) = segment
+    endpoints = sorted((
+        (_format_mm(ax), _format_mm(ay)),
+        (_format_mm(bx), _format_mm(by)),
+    ))
+    wire_uuid = _schematic_item_uuid(
+        "reader-wire",
+        *endpoints[0],
+        *endpoints[1],
+        occurrence=occurrence,
+    )
     return f"""  (wire
     (pts
       (xy {_format_mm(ax)} {_format_mm(ay)})
@@ -463,23 +478,43 @@ def _wire_sexpr(segment: Segment) -> str:
       (width 0)
       (type solid)
     )
-    (uuid "{uuid4()}")
+    (uuid "{wire_uuid}")
   )"""
 
 
-def _no_connect_sexpr(point: Point) -> str:
+def _no_connect_sexpr(
+    point: Point,
+    *,
+    occurrence: int = 0,
+) -> str:
+    marker_uuid = _schematic_item_uuid(
+        "reader-no-connect",
+        f"{point[0]:g}",
+        f"{point[1]:g}",
+        occurrence=occurrence,
+    )
     return f"""  (no_connect
     (at {point[0]:g} {point[1]:g})
-    (uuid {uuid4()})
+    (uuid {marker_uuid})
   )"""
 
 
-def _junction_sexpr(point: Point) -> str:
+def _junction_sexpr(
+    point: Point,
+    *,
+    occurrence: int = 0,
+) -> str:
+    junction_uuid = _schematic_item_uuid(
+        "reader-junction",
+        _format_mm(point[0]),
+        _format_mm(point[1]),
+        occurrence=occurrence,
+    )
     return f"""  (junction
     (at {_format_mm(point[0])} {_format_mm(point[1])})
     (diameter 0)
     (color 0 0 0 0)
-    (uuid "{uuid4()}")
+    (uuid "{junction_uuid}")
   )"""
 
 
@@ -591,7 +626,12 @@ def render_reader_schematic(
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
-  (uuid {uuid4()})
+  (uuid {stable_kicad_uuid(
+      "schematic-root",
+      "reader",
+      project_name,
+      circuit.topology.topology_id,
+  )})
   (paper "{spec.paper}")
 
   (lib_symbols

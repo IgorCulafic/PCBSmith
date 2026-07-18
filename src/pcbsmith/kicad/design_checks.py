@@ -8,9 +8,16 @@ handles what cannot be computed.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
+from typing import Literal
 
 from pcbsmith.circuit.models import DesignReviewReport, ReviewFinding
+from pcbsmith.copper_exposure import (
+    CopperExposureResult,
+    OuterCopperRegion,
+    classify_outer_copper_exposure,
+)
 from pcbsmith.kicad.board import (
     FOOTPRINT_LIBRARY,
     PART_GAP_MM,
@@ -21,6 +28,30 @@ from pcbsmith.kicad.board import (
     rotate_offset,
     rotated_bounds,
 )
+from pcbsmith.kicad.copper_exposure import collect_outer_copper_regions
+from pcbsmith.kicad.mask_apertures import collect_mask_apertures
+from pcbsmith.kicad.virtual_drc import (
+    _collect_items,
+    _iter_physical_holes,
+    _PhysicalItemKind,
+    _seg_seg_distance,
+)
+from pcbsmith.kicad.virtual_drc import (
+    _Stadium as _PhysicalStadium,
+)
+from pcbsmith.mask_geometry import (
+    ApertureRelation,
+    MaskAperture,
+    MaskVerification,
+    measure_apertures,
+)
+from pcbsmith.rule_profiles import (
+    DEFAULT_PCB_RULE_PROFILE,
+    OrdinaryClearanceRequirement,
+    PcbRuleProfile,
+)
+
+_FAB_EPSILON_MM = 1e-9
 
 CONNECTOR_EDGE_ZONE_MM = 6.0
 SWITCHING_CLUSTER_SLACK_MM = 6.0
@@ -41,8 +72,8 @@ class DesignChecksSpec:
     copper_keepouts: tuple[
         tuple[float, float, float, tuple[str, ...]], ...
     ] = ()
-    # Rule 5.3: (net name, load current in amps) pairs; every segment of
-    # the net must carry the current per IPC-2221 at a 10 C rise.
+    # Rule 5.3: (net name, load current in amps) pairs. The selected
+    # profile names the thermal model, copper thickness, and temperature rise.
     net_currents: tuple[tuple[str, float], ...] = ()
     # Rule 7.3: (reference, pad name) pairs that are REVIEWED no-connects
     # (datasheet-documented RESV/unused pins). Any other unconnected pad
@@ -56,8 +87,10 @@ class DesignChecksSpec:
     # Rule 7.5: composition roles present in the circuit, for validating
     # the cards' required support parts.
     composition_roles: tuple[str, ...] = ()
-    # Rule 10.1: (barrier_x, gap_mm, primary nets, secondary nets,
-    # straddle refs whose pads are exempt - certified isolation parts).
+    # Legacy barrier-line placement review: (barrier_x, legacy_gap_mm,
+    # left-side nets, right-side nets, straddle refs). ``legacy_gap_mm`` is
+    # retained for call/serialization compatibility but is not enforced here.
+    # This declaration cannot establish insulation clearance or creepage.
     isolation_barrier: tuple[
         float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]
     ] | None = None
@@ -78,6 +111,8 @@ class DesignChecksSpec:
     # modules (display headers) rather than off-board wiring; declared
     # per reference so the exemption is visible.
     connector_edge_exempt_refs: tuple[str, ...] = ()
+    # Profile-scoped body-edge exceptions (connectors, breakaways, intentional overhang).
+    body_edge_exempt_refs: tuple[str, ...] = ()
     extra_model_findings: tuple[ReviewFinding, ...] = field(default=())
 
 
@@ -85,6 +120,7 @@ def run_design_checks(
     layout: BoardLayout,
     netlist: BoardNetlist,
     spec: DesignChecksSpec,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> DesignReviewReport:
     checks_run: list[str] = []
     findings: list[ReviewFinding] = []
@@ -93,6 +129,91 @@ def run_design_checks(
     findings.extend(
         _check_connector_edges(layout, spec.connector_edge_exempt_refs)
     )
+
+    body_edge_mm = profile.geometry.minimum_component_body_to_edge_mm
+    if body_edge_mm is not None:
+        checks_run.append("component_body_to_edge")
+        findings.extend(
+            _check_component_body_to_edge(
+                layout,
+                body_edge_mm,
+                spec.body_edge_exempt_refs,
+            )
+        )
+
+    geometry = profile.geometry
+    if any(
+        value is not None
+        for value in (
+            geometry.minimum_finished_hole_mm,
+            geometry.minimum_annular_ring_mm,
+            geometry.minimum_hole_to_hole_web_mm,
+        )
+    ):
+        physical_items = _collect_items(layout, netlist, profile=profile)
+        if geometry.minimum_finished_hole_mm is not None:
+            checks_run.append("finished_hole")
+            findings.extend(
+                _check_finished_holes(
+                    physical_items,
+                    geometry.minimum_finished_hole_mm,
+                    profile,
+                )
+            )
+        if geometry.minimum_annular_ring_mm is not None:
+            checks_run.append("annular_ring")
+            findings.extend(
+                _check_annular_rings(
+                    layout,
+                    physical_items,
+                    geometry.minimum_annular_ring_mm,
+                    profile,
+                )
+            )
+        if geometry.minimum_hole_to_hole_web_mm is not None:
+            checks_run.append("hole_to_hole_web")
+            findings.extend(
+                _check_hole_to_hole_webs(
+                    physical_items,
+                    geometry.minimum_hole_to_hole_web_mm,
+                    profile,
+                )
+            )
+
+    exposure_requirements = tuple(
+        requirement
+        for requirement in profile.fab_spacing.pairwise_clearances
+        if requirement.mask_states_a or requirement.mask_states_b
+    )
+    minimum_mask_web_mm = geometry.minimum_solder_mask_web_mm
+    apertures = (
+        collect_mask_apertures(layout, netlist, profile)
+        if exposure_requirements or minimum_mask_web_mm is not None
+        else None
+    )
+    if exposure_requirements:
+        checks_run.append("outer_copper_exposure")
+        copper_regions = collect_outer_copper_regions(layout, netlist)
+        assert apertures is not None
+        findings.extend(
+            _check_outer_copper_exposure(
+                copper_regions,
+                classify_outer_copper_exposure(copper_regions, apertures),
+                apertures,
+                exposure_requirements,
+                profile,
+            )
+        )
+    if minimum_mask_web_mm is not None:
+        checks_run.append("solder_mask_web")
+        assert apertures is not None
+        findings.extend(
+            _check_solder_mask_webs(
+                apertures,
+                minimum_mask_web_mm,
+                profile,
+            )
+        )
 
     if spec.switching_cluster_refs:
         checks_run.append("switching_cluster")
@@ -122,7 +243,9 @@ def run_design_checks(
 
     if spec.net_currents:
         checks_run.append("trace_current")
-        findings.extend(_check_trace_currents(layout, spec.net_currents))
+        findings.extend(
+            _check_trace_currents(layout, spec.net_currents, profile)
+        )
 
     allowed_unconnected = set(spec.allowed_unconnected_pins)
     if spec.component_cards:
@@ -153,9 +276,11 @@ def run_design_checks(
             findings.extend(_check_net_group_clearance(layout, netlist, group))
 
     if spec.isolation_barrier is not None:
-        checks_run.append("isolation_barrier")
+        checks_run.append("barrier_side_review")
         findings.extend(
-            _check_isolation_barrier(layout, netlist, spec.isolation_barrier)
+            _check_barrier_side_discipline(
+                layout, netlist, spec.isolation_barrier
+            )
         )
 
     checks_run.append("ic_pin_connectivity")
@@ -370,18 +495,30 @@ def _check_net_group_clearance(
 ) -> tuple[ReviewFinding, ...]:
     """Rule 10.4: minimum copper distance between two net groups, with
     the declared bridging parts (certified safety components) exempt."""
-    from pcbsmith.kicad.virtual_drc import _collect_items, _seg_seg_distance
+    from pcbsmith.kicad.virtual_drc import (
+        _collect_items,
+        _PhysicalItemKind,
+        _seg_seg_distance,
+    )
 
     label, nets_a, nets_b, gap_mm, exempt = group
     items = _collect_items(layout, netlist)
     exempt_set = set(exempt)
     group_a = [
         item for item in items
-        if item.net in nets_a and item.owner not in exempt_set
+        if (
+            item.kind is _PhysicalItemKind.COPPER
+            and item.net in nets_a
+            and item.owner not in exempt_set
+        )
     ]
     group_b = [
         item for item in items
-        if item.net in nets_b and item.owner not in exempt_set
+        if (
+            item.kind is _PhysicalItemKind.COPPER
+            and item.net in nets_b
+            and item.owner not in exempt_set
+        )
     ]
     findings: list[ReviewFinding] = []
     worst_distance = 1e9
@@ -418,107 +555,104 @@ def _check_net_group_clearance(
     return tuple(findings)
 
 
-def _check_isolation_barrier(
+def _check_barrier_side_discipline(
     layout: BoardLayout,
     netlist: BoardNetlist,
     barrier: tuple[
         float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]
     ],
 ) -> tuple[ReviewFinding, ...]:
-    # Rule 10.1: mains isolation. Every piece of primary-net copper must
-    # stay >= gap away from every piece of secondary-net copper, except
-    # the pads of the declared straddle parts (transformer, optocoupler,
-    # Y-capacitor - parts whose internal isolation is a certified rating).
-    from pcbsmith.kicad.virtual_drc import (
-        _collect_items,
-        _seg_seg_distance,
-        _Stadium,
-    )
+    """Review a declared placement divider without claiming safety approval.
 
-    barrier_x, gap_mm, primary_nets, secondary_nets, straddle = barrier
+    Euclidean copper distance is air distance, not creepage. The legacy gap
+    value is therefore ignored; qualified air-clearance enforcement belongs
+    exclusively to ``PcbRuleProfile.insulation``.
+    """
+    from pcbsmith.kicad.virtual_drc import _collect_items, _PhysicalItemKind
+
+    barrier_x, _legacy_gap_mm, left_nets, right_nets, straddle = barrier
     items = _collect_items(layout, netlist)
-    primary = [
+    left = [
         item for item in items
-        if item.net in primary_nets and item.owner not in straddle
+        if (
+            item.kind is _PhysicalItemKind.COPPER
+            and item.net in left_nets
+            and item.owner not in straddle
+        )
     ]
-    secondary = [
+    right = [
         item for item in items
-        if item.net in secondary_nets and item.owner not in straddle
+        if (
+            item.kind is _PhysicalItemKind.COPPER
+            and item.net in right_nets
+            and item.owner not in straddle
+        )
     ]
     findings: list[ReviewFinding] = []
-    worst_distance = 1e9
-    worst_pair: tuple[_Stadium, _Stadium] | None = None
-    for one in primary:
-        for two in secondary:
-            distance = (
-                _seg_seg_distance(one.a, one.b, two.a, two.b)
-                - one.radius - two.radius
-            )
-            if distance < worst_distance:
-                worst_distance = distance
-                worst_pair = (one, two)
-    if worst_pair is not None and worst_distance < gap_mm:
-        distance = worst_distance
-        one, two = worst_pair
+    for item, side in (
+        *((item, "left") for item in left),
+        *((item, "right") for item in right),
+    ):
+        max_x = max(item.a[0], item.b[0]) + item.radius
+        min_x = min(item.a[0], item.b[0]) - item.radius
+        crossed = (side == "left" and max_x > barrier_x) or (
+            side == "right" and min_x < barrier_x
+        )
+        if not crossed:
+            continue
+        extent = (
+            f"x max {max_x:.1f} > {barrier_x:g}"
+            if side == "left"
+            else f"x min {min_x:.1f} < {barrier_x:g}"
+        )
         findings.append(
             ReviewFinding(
-                rule="10.1",
-                severity="blocker",
-                scope="global",
-                where="isolation barrier",
+                rule="geometry.barrier_side",
+                severity="warning",
+                scope="net",
+                where=item.net,
                 evidence=(
-                    f"Creepage between {one.label} and {two.label} is "
-                    f"{distance:.2f}mm; the barrier at x={barrier_x:g} "
-                    f"requires >= {gap_mm:g}mm."
+                    f"{item.label} crosses the declared {side}-side placement "
+                    f"divider ({extent}). This geometry review does not "
+                    "establish insulation clearance or creepage."
                 ),
                 suggested_action=(
-                    "Move the copper away from the barrier or route it "
-                    "through a certified straddle part."
+                    "Restore the intended side discipline, then evaluate any "
+                    "safety spacing through a qualified insulation profile."
                 ),
                 source="check",
             )
         )
-    # Also verify side discipline: primary copper stays left of the
-    # barrier, secondary right (straddle pads exempt).
-    for item, side in (
-        *((item, "primary") for item in primary),
-        *((item, "secondary") for item in secondary),
-    ):
-        max_x = max(item.a[0], item.b[0]) + item.radius
-        min_x = min(item.a[0], item.b[0]) - item.radius
-        if side == "primary" and max_x > barrier_x:
-            findings.append(
-                ReviewFinding(
-                    rule="10.1", severity="blocker", scope="net",
-                    where=item.net,
-                    evidence=f"{item.label} crosses the barrier "
-                    f"(x max {max_x:.1f} > {barrier_x:g}).",
-                    suggested_action="Keep primary copper on the primary side.",
-                    source="check",
-                )
-            )
-        if side == "secondary" and min_x < barrier_x:
-            findings.append(
-                ReviewFinding(
-                    rule="10.1", severity="blocker", scope="net",
-                    where=item.net,
-                    evidence=f"{item.label} crosses the barrier "
-                    f"(x min {min_x:.1f} < {barrier_x:g}).",
-                    suggested_action="Keep secondary copper on the secondary side.",
-                    source="check",
-                )
-            )
     return tuple(findings)
-
 
 def _check_trace_currents(
     layout: BoardLayout,
     net_currents: tuple[tuple[str, float], ...],
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> tuple[ReviewFinding, ...]:
     # Rule 5.3: the narrowest segment of a power net limits the whole net.
     from pcbsmith.calculators.electronics import solve_trace_current_capacity
 
     findings: list[ReviewFinding] = []
+    model_id = profile.geometry.trace_thermal_model_id
+    if model_id != "legacy_ipc_2221a_external_fit":
+        return (
+            ReviewFinding(
+                rule="5.3",
+                severity="warning",
+                scope="global",
+                where=profile.profile_id,
+                evidence=(
+                    f"Trace-current model {model_id!r} has no registered "
+                    "deterministic evaluator."
+                ),
+                suggested_action=(
+                    "Register and fixture-test the selected profile-table model "
+                    "before treating trace-current capacity as checked."
+                ),
+                source="check",
+            ),
+        )
     for net_name, current_a in net_currents:
         widths = [
             segment.width_mm
@@ -529,7 +663,11 @@ def _check_trace_currents(
             continue
         narrowest_mm = min(widths)
         capacity = solve_trace_current_capacity(
-            trace_width_m=narrowest_mm / 1000.0
+            trace_width_m=narrowest_mm / 1000.0,
+            copper_thickness_m=(
+                profile.geometry.outer_copper_thickness_um * 1e-6
+            ),
+            temperature_rise_c=profile.geometry.trace_temperature_rise_c,
         )
         capacity_a = float(capacity["outputs"]["capacity_a"])
         if capacity_a < current_a:
@@ -542,7 +680,9 @@ def _check_trace_currents(
                     evidence=(
                         f"The narrowest {net_name} segment is "
                         f"{narrowest_mm:g}mm, good for {capacity_a:.2f}A at "
-                        f"a 10C rise (IPC-2221), but the net carries "
+                        f"a {profile.geometry.trace_temperature_rise_c:g}C rise "
+                        "(legacy IPC-2221A Figure 6-4 external fit), "
+                        "but the net carries "
                         f"{current_a:g}A."
                     ),
                     suggested_action=(
@@ -550,6 +690,510 @@ def _check_trace_currents(
                         "current."
                     ),
                     source="check",
+                )
+            )
+    return tuple(findings)
+
+
+def _check_component_body_to_edge(
+    layout: BoardLayout,
+    minimum_mm: float,
+    exempt_references: tuple[str, ...],
+) -> tuple[ReviewFinding, ...]:
+    """Check exact placed fab-body polygons against the board outline."""
+    from pcbsmith.kicad.virtual_drc import (
+        _body_polys,
+        _point_in_polygon,
+        _seg_seg_distance,
+    )
+
+    outline = layout.outline or (
+        (0.0, 0.0),
+        (layout.width_mm, 0.0),
+        (layout.width_mm, layout.height_mm),
+        (0.0, layout.height_mm),
+    )
+    outline_edges = [
+        (outline[index], outline[(index + 1) % len(outline)])
+        for index in range(len(outline))
+    ]
+    exempt = set(exempt_references)
+    findings: list[ReviewFinding] = []
+    for reference, _side, body in _body_polys(layout):
+        if reference in exempt:
+            continue
+        body_edges = [
+            (body[index], body[(index + 1) % len(body)])
+            for index in range(len(body))
+        ]
+        outside = any(
+            not _point_in_polygon(point, tuple(outline)) for point in body
+        )
+        crossing = any(
+            _segments_intersect(*body_edge, *outline_edge)
+            for body_edge in body_edges
+            for outline_edge in outline_edges
+        )
+        distance = min(
+            _seg_seg_distance(*body_edge, *outline_edge)
+            for body_edge in body_edges
+            for outline_edge in outline_edges
+        )
+        if not outside and not crossing and distance >= minimum_mm:
+            continue
+        condition = (
+            "crosses or lies outside the board outline"
+            if outside or crossing
+            else f"is {distance:.2f}mm from the board edge"
+        )
+        findings.append(
+            ReviewFinding(
+                rule="fab.body_to_edge",
+                severity="blocker",
+                scope="component",
+                where=reference,
+                evidence=(
+                    f"{reference} fab body {condition}; profile requires "
+                    f">= {minimum_mm:g}mm."
+                ),
+                suggested_action=(
+                    "Move the component inward or declare a reviewed connector/"
+                    "breakaway/overhang exception for this reference."
+                ),
+                source="check",
+                component_refs=(reference,),
+                constraint_ids=("minimum_component_body_to_edge_mm",),
+            )
+        )
+    return tuple(findings)
+
+
+def _geometry_object_id(item: _PhysicalStadium) -> str:
+    return item.parent_source_id or item.source_id
+
+
+def _geometry_component_refs(*items: _PhysicalStadium) -> tuple[str, ...]:
+    return tuple(sorted({item.owner for item in items if item.owner}))
+
+
+def _geometry_net_refs(*items: _PhysicalStadium) -> tuple[str, ...]:
+    return tuple(sorted({item.net for item in items if not item.net.startswith("~")}))
+
+
+def _mask_component_refs(*apertures: MaskAperture) -> tuple[str, ...]:
+    return tuple(sorted({item.owner_ref for item in apertures if item.owner_ref}))
+
+
+def _check_outer_copper_exposure(
+    regions: tuple[OuterCopperRegion, ...],
+    results: tuple[CopperExposureResult, ...],
+    apertures: tuple[MaskAperture, ...],
+    requirements: tuple[OrdinaryClearanceRequirement, ...],
+    profile: PcbRuleProfile,
+) -> tuple[ReviewFinding, ...]:
+    """Report unknown exposure only when it prevents requirement scoping."""
+    regions_by_id = {region.source_id: region for region in regions}
+    apertures_by_id = {aperture.source_id: aperture for aperture in apertures}
+    findings: list[ReviewFinding] = []
+    for result in results:
+        if result.state != "unknown":
+            continue
+        region = regions_by_id.get(result.copper_source_id)
+        if region is None:
+            continue
+        requirement_ids: set[str] = set()
+        for requirement in requirements:
+            if (
+                requirement.mask_states_a
+                and "unknown" not in requirement.mask_states_a
+                and region.net_name in requirement.nets_a
+                and (not requirement.roles_a or region.role in requirement.roles_a)
+            ):
+                requirement_ids.add(requirement.requirement_id)
+            if (
+                requirement.mask_states_b
+                and "unknown" not in requirement.mask_states_b
+                and region.net_name in requirement.nets_b
+                and (not requirement.roles_b or region.role in requirement.roles_b)
+            ):
+                requirement_ids.add(requirement.requirement_id)
+        if not requirement_ids:
+            continue
+        sorted_requirement_ids = tuple(sorted(requirement_ids))
+        unresolved_ids = tuple(sorted(result.unresolved_aperture_source_ids))
+        unresolved_details = tuple(
+            f"{source_id} ({apertures_by_id[source_id].unsupported_reason or 'reason unavailable'})"
+            if source_id in apertures_by_id
+            else f"{source_id} (source unavailable)"
+            for source_id in unresolved_ids
+        )
+        unresolved_text = ", ".join(unresolved_details) if unresolved_details else "none reported"
+        findings.append(
+            ReviewFinding(
+                rule="fab.copper_exposure_unverified",
+                severity="warning",
+                scope="component" if region.owner_ref is not None else "net",
+                where=(f"{region.side.value} outer copper {region.source_id} on {region.net_name}"),
+                evidence=(
+                    f"Outer copper {region.source_id} has unknown solder-mask exposure; "
+                    f"side={region.side.value}, net={region.net_name}, role={region.role}. "
+                    f"Unresolved aperture sources: {unresolved_text}. Reason: {result.reason}. "
+                    "Exposure scope cannot be decided for ordinary requirements "
+                    f"{', '.join(sorted_requirement_ids)}."
+                ),
+                suggested_action=(
+                    "Resolve the relevant solder-mask geometry or explicitly include "
+                    "unknown in the reviewed requirement selector before relying on "
+                    "exposure-scoped clearance."
+                ),
+                source="check",
+                phase="fabrication_geometry",
+                category="solder_mask",
+                object_ids=(region.source_id, *unresolved_ids),
+                component_refs=((region.owner_ref,) if region.owner_ref is not None else ()),
+                net_refs=(region.net_name,),
+                constraint_ids=sorted_requirement_ids,
+                evidence_refs=profile.fab_spacing.evidence,
+            )
+        )
+    return tuple(findings)
+
+
+def _mask_pair_scope(
+    first: MaskAperture, second: MaskAperture
+) -> Literal["component", "region"]:
+    if first.owner_ref is not None and first.owner_ref == second.owner_ref:
+        return "component"
+    return "region"
+
+
+def _mask_pair_where(first: MaskAperture, second: MaskAperture) -> str:
+    return f"{first.side.value} mask: {first.source_id} / {second.source_id}"
+
+
+def _check_solder_mask_webs(
+    apertures: tuple[MaskAperture, ...],
+    minimum_mm: float,
+    profile: PcbRuleProfile,
+) -> tuple[ReviewFinding, ...]:
+    """Check exact same-side openings and surface every unverified source."""
+    findings: list[ReviewFinding] = []
+    seen_unsupported: set[str] = set()
+    exact_by_side: dict[str, list[MaskAperture]] = {"front": [], "back": []}
+
+    for aperture in apertures:
+        if aperture.verification is MaskVerification.EXACT:
+            exact_by_side[aperture.side.value].append(aperture)
+            continue
+        if aperture.source_id in seen_unsupported:
+            continue
+        seen_unsupported.add(aperture.source_id)
+        reason = aperture.unsupported_reason or (
+            "bounded-approximation mask geometry is not accepted by the exact web check"
+        )
+        findings.append(
+            ReviewFinding(
+                rule="fab.solder_mask_web_unverified",
+                severity="warning",
+                scope=(
+                    "component"
+                    if aperture.owner_ref is not None
+                    else "region"
+                    if aperture.geometry is not None
+                    else "global"
+                ),
+                where=f"{aperture.side.value} mask aperture {aperture.source_id}",
+                evidence=(
+                    "Exact solder-mask-web validation is unavailable for this "
+                    f"source because {reason}; profile requires >= {minimum_mm:g}mm."
+                ),
+                suggested_action=(
+                    "Resolve the mask process/geometry intent or have the fabricator "
+                    "or a human reviewer validate this opening and its neighboring webs."
+                ),
+                source="check",
+                phase="fabrication_geometry",
+                category="solder_mask",
+                object_ids=(aperture.source_id,),
+                component_refs=_mask_component_refs(aperture),
+                constraint_ids=("minimum_solder_mask_web_mm",),
+                evidence_refs=profile.geometry.evidence,
+            )
+        )
+
+    for side in ("front", "back"):
+        side_apertures = sorted(exact_by_side[side], key=lambda item: item.source_id)
+        for index, first in enumerate(side_apertures):
+            for second in side_apertures[index + 1 :]:
+                measurement = measure_apertures(first, second)
+                if measurement.relation is ApertureRelation.IGNORED_SAME_PARENT:
+                    continue
+                object_ids = tuple(sorted((first.source_id, second.source_id)))
+                component_refs = _mask_component_refs(first, second)
+                if measurement.relation in {
+                    ApertureRelation.TOUCHING,
+                    ApertureRelation.OVERLAP,
+                }:
+                    if (
+                        first.merge_group_id is not None
+                        and first.merge_group_id == second.merge_group_id
+                    ):
+                        continue
+                    findings.append(
+                        ReviewFinding(
+                            rule="fab.mask_aperture_merge",
+                            severity="blocker",
+                            scope=_mask_pair_scope(first, second),
+                            where=_mask_pair_where(first, second),
+                            evidence=(
+                                f"The two {side} mask openings "
+                                f"{measurement.relation.value}; they form one connected "
+                                "opening without a reviewed common merge group."
+                            ),
+                            suggested_action=(
+                                "Increase spacing or reduce mask expansion, or declare a "
+                                "reviewed common merge group for an intentional gang opening."
+                            ),
+                            source="check",
+                            phase="fabrication_geometry",
+                            category="solder_mask",
+                            object_ids=object_ids,
+                            component_refs=component_refs,
+                            constraint_ids=("minimum_solder_mask_web_mm",),
+                            evidence_refs=profile.geometry.evidence,
+                        )
+                    )
+                    continue
+                web_mm = measurement.web_mm
+                if web_mm is None or web_mm + _FAB_EPSILON_MM >= minimum_mm:
+                    continue
+                findings.append(
+                    ReviewFinding(
+                        rule="fab.solder_mask_web",
+                        severity="blocker",
+                        scope=_mask_pair_scope(first, second),
+                        where=_mask_pair_where(first, second),
+                        evidence=(
+                            f"Exact {side} solder-mask web is {web_mm:g}mm; profile "
+                            f"requires >= {minimum_mm:g}mm."
+                        ),
+                        suggested_action=(
+                            "Increase opening spacing, reduce mask expansion, or select a "
+                            "reviewed fabrication profile that supports the resulting web."
+                        ),
+                        source="check",
+                        phase="fabrication_geometry",
+                        category="solder_mask",
+                        object_ids=object_ids,
+                        component_refs=component_refs,
+                        constraint_ids=("minimum_solder_mask_web_mm",),
+                        evidence_refs=profile.geometry.evidence,
+                    )
+                )
+    return tuple(findings)
+
+
+def _check_finished_holes(
+    items: list[_PhysicalStadium],
+    minimum_mm: float,
+    profile: PcbRuleProfile,
+) -> tuple[ReviewFinding, ...]:
+    """Check the minor axis of every unique manufactured PTH/NPTH/via."""
+    findings: list[ReviewFinding] = []
+    for hole in _iter_physical_holes(items):
+        minor_axis_mm = 2 * hole.radius
+        if minor_axis_mm + _FAB_EPSILON_MM >= minimum_mm:
+            continue
+        findings.append(
+            ReviewFinding(
+                rule="fab.finished_hole",
+                severity="blocker",
+                scope="component" if hole.owner else "global",
+                where=hole.label,
+                evidence=(
+                    f"{hole.label} has a {minor_axis_mm:g}mm finished minor "
+                    f"axis; profile requires >= {minimum_mm:g}mm."
+                ),
+                suggested_action=(
+                    "Increase the finished drill/slot minor axis or select a "
+                    "reviewed manufacturing profile that supports it."
+                ),
+                source="check",
+                object_ids=(_geometry_object_id(hole),),
+                component_refs=_geometry_component_refs(hole),
+                net_refs=_geometry_net_refs(hole),
+                constraint_ids=("minimum_finished_hole_mm",),
+                evidence_refs=profile.geometry.evidence,
+            )
+        )
+    return tuple(findings)
+
+
+def _check_hole_to_hole_webs(
+    items: list[_PhysicalStadium],
+    minimum_mm: float,
+    profile: PcbRuleProfile,
+) -> tuple[ReviewFinding, ...]:
+    """Check exact residual material between unique physical hole stadia."""
+    holes = list(_iter_physical_holes(items))
+    findings: list[ReviewFinding] = []
+    for index, first in enumerate(holes):
+        for second in holes[index + 1 :]:
+            web_mm = (
+                _seg_seg_distance(first.a, first.b, second.a, second.b)
+                - first.radius
+                - second.radius
+            )
+            if web_mm + _FAB_EPSILON_MM >= minimum_mm:
+                continue
+            findings.append(
+                ReviewFinding(
+                    rule="fab.hole_to_hole_web",
+                    severity="blocker",
+                    scope=(
+                        "component" if first.owner and first.owner == second.owner else "region"
+                    ),
+                    where=f"{first.label} / {second.label}",
+                    evidence=(
+                        f"Residual material between {first.label} and "
+                        f"{second.label} is {web_mm:g}mm; profile requires "
+                        f">= {minimum_mm:g}mm."
+                    ),
+                    suggested_action=(
+                        "Increase hole spacing, reduce the drill/slot axes, or "
+                        "use a reviewed manufacturing profile that supports "
+                        "the resulting web."
+                    ),
+                    source="check",
+                    object_ids=tuple(
+                        sorted(
+                            {
+                                _geometry_object_id(first),
+                                _geometry_object_id(second),
+                            }
+                        )
+                    ),
+                    component_refs=_geometry_component_refs(first, second),
+                    net_refs=_geometry_net_refs(first, second),
+                    constraint_ids=("minimum_hole_to_hole_web_mm",),
+                    evidence_refs=profile.geometry.evidence,
+                )
+            )
+    return tuple(findings)
+
+
+def _stadium_center(item: _PhysicalStadium) -> tuple[float, float]:
+    return ((item.a[0] + item.b[0]) / 2, (item.a[1] + item.b[1]) / 2)
+
+
+def _exact_stadium_containment_margin(
+    copper: _PhysicalStadium, hole: _PhysicalStadium
+) -> float | None:
+    """Minimum boundary margin for concentric, parallel exact stadia."""
+    if math.dist(_stadium_center(copper), _stadium_center(hole)) > _FAB_EPSILON_MM:
+        return None
+    copper_length = math.dist(copper.a, copper.b)
+    hole_length = math.dist(hole.a, hole.b)
+    if copper_length > _FAB_EPSILON_MM and hole_length > _FAB_EPSILON_MM:
+        copper_axis = (
+            (copper.b[0] - copper.a[0]) / copper_length,
+            (copper.b[1] - copper.a[1]) / copper_length,
+        )
+        hole_axis = (
+            (hole.b[0] - hole.a[0]) / hole_length,
+            (hole.b[1] - hole.a[1]) / hole_length,
+        )
+        cross = copper_axis[0] * hole_axis[1] - copper_axis[1] * hole_axis[0]
+        if abs(cross) > _FAB_EPSILON_MM:
+            return None
+    side_margin = copper.radius - hole.radius
+    end_margin = copper_length / 2 + copper.radius - hole_length / 2 - hole.radius
+    return min(side_margin, end_margin)
+
+
+def _check_annular_rings(
+    layout: BoardLayout,
+    items: list[_PhysicalStadium],
+    minimum_mm: float,
+    profile: PcbRuleProfile,
+) -> tuple[ReviewFinding, ...]:
+    """Check exact via/simple-PTH annular containment, warning otherwise."""
+    copper_by_parent: dict[str, _PhysicalStadium] = {}
+    for item in items:
+        if item.kind is not _PhysicalItemKind.COPPER or item.parent_source_id is None:
+            continue
+        copper_by_parent.setdefault(item.parent_source_id, item)
+    pad_by_parent = {
+        f"pad:{component.reference}:{pad_index}": pad
+        for component, _anchor_x in layout.placements
+        for pad_index, pad in enumerate(FOOTPRINT_LIBRARY[component.footprint].pads)
+    }
+    findings: list[ReviewFinding] = []
+    for hole in _iter_physical_holes(items):
+        if hole.kind is _PhysicalItemKind.BARE_HOLE:
+            continue
+        parent_id = _geometry_object_id(hole)
+        copper = copper_by_parent.get(parent_id)
+        pad = pad_by_parent.get(parent_id)
+        unsupported_reason: str | None = None
+        if copper is None:
+            unsupported_reason = "matching copper geometry was not found"
+        elif parent_id.startswith("pad:") and (pad is None or pad.shape not in {"circle", "oval"}):
+            shape = "unknown" if pad is None else pad.shape or "unspecified"
+            unsupported_reason = f"the PTH pad uses {shape} copper"
+        margin_mm = (
+            None
+            if unsupported_reason is not None or copper is None
+            else _exact_stadium_containment_margin(copper, hole)
+        )
+        if unsupported_reason is None and margin_mm is None:
+            unsupported_reason = "the copper and hole are offset or their oval axes are nonparallel"
+        if unsupported_reason is not None:
+            findings.append(
+                ReviewFinding(
+                    rule="fab.annular_ring",
+                    severity="warning",
+                    scope="component" if hole.owner else "global",
+                    where=hole.label,
+                    evidence=(
+                        "Exact annular-ring validation is unsupported because "
+                        f"{unsupported_reason}; profile requires >= "
+                        f"{minimum_mm:g}mm."
+                    ),
+                    suggested_action=(
+                        "Have the fabricator or a human reviewer validate the "
+                        "minimum annular containment for this pad."
+                    ),
+                    source="check",
+                    object_ids=(parent_id,),
+                    component_refs=_geometry_component_refs(hole),
+                    net_refs=_geometry_net_refs(hole),
+                    constraint_ids=("minimum_annular_ring_mm",),
+                    evidence_refs=profile.geometry.evidence,
+                )
+            )
+        elif margin_mm is not None and margin_mm + _FAB_EPSILON_MM < minimum_mm:
+            findings.append(
+                ReviewFinding(
+                    rule="fab.annular_ring",
+                    severity="blocker",
+                    scope="component" if hole.owner else "global",
+                    where=hole.label,
+                    evidence=(
+                        f"{hole.label} has an exact minimum annular containment "
+                        f"of {margin_mm:g}mm; profile requires >= "
+                        f"{minimum_mm:g}mm."
+                    ),
+                    suggested_action=(
+                        "Increase the copper land or reduce the finished hole/"
+                        "slot within the reviewed manufacturing limits."
+                    ),
+                    source="check",
+                    object_ids=(parent_id,),
+                    component_refs=_geometry_component_refs(hole),
+                    net_refs=_geometry_net_refs(hole),
+                    constraint_ids=("minimum_annular_ring_mm",),
+                    evidence_refs=profile.geometry.evidence,
                 )
             )
     return tuple(findings)
@@ -770,6 +1414,8 @@ def _check_trace_corners(
 
     from pcbsmith.kicad.virtual_drc import (
         _collect_items,
+        _PhysicalItemKind,
+        _PhysicalSourceRole,
         _point_seg_distance,
         _Stadium,
     )
@@ -777,7 +1423,11 @@ def _check_trace_corners(
     items = _collect_items(layout, netlist)
     masks: dict[str, list[_Stadium]] = {}
     for item in items:
-        if item.label.startswith(("pad", "via")):
+        if (
+            item.kind is _PhysicalItemKind.COPPER
+            and item.source_role
+            in {_PhysicalSourceRole.PAD, _PhysicalSourceRole.VIA}
+        ):
             masks.setdefault(item.net, []).append(item)
 
     findings: list[ReviewFinding] = []
@@ -809,7 +1459,10 @@ def _check_trace_corners(
         if len(aways) < 2:
             continue
         masked = any(
-            (item.layer == layer or item.label.startswith("via"))
+            (
+                item.layer == layer
+                or item.source_role is _PhysicalSourceRole.VIA
+            )
             and _point_seg_distance(point, item.a, item.b) <= item.radius
             for item in masks.get(net, ())
         )
@@ -857,7 +1510,11 @@ def _check_redundant_copper(
     serves no electrical purpose (the covered region already conducts).
     The router prunes; this check keeps every pipeline honest."""
     from pcbsmith.kicad.astar_router import segment_covered_by
-    from pcbsmith.kicad.virtual_drc import _collect_items
+    from pcbsmith.kicad.virtual_drc import (
+        _collect_items,
+        _PhysicalItemKind,
+        _PhysicalSourceRole,
+    )
 
     items = _collect_items(layout, netlist)
     findings: list[ReviewFinding] = []
@@ -868,9 +1525,10 @@ def _check_redundant_copper(
         covers = [
             (item.a, item.b, item.radius, item.layer)
             for item in items
-            if item.net == segment.net_name
+            if item.kind is _PhysicalItemKind.COPPER
+            and item.net == segment.net_name
             and not (
-                item.label.startswith("track")
+                item.source_role is _PhysicalSourceRole.TRACK
                 and item.a == (segment.x1, segment.y1)
                 and item.b == (segment.x2, segment.y2)
                 and item.layer == segment.layer

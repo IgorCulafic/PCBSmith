@@ -84,6 +84,32 @@ def test_net_tie_pad_groups_survive_embedding() -> None:
     assert "net_tie_pad_groups" in rendered
 
 
+def test_netlist_standard_fields_merge_without_kicad_save_rewrites() -> None:
+    rendered = render_embedded_footprint(
+        load_footprint(RESISTOR),
+        reference="R1",
+        value="R",
+        x_mm=40.0,
+        y_mm=40.0,
+        rotation=0.0,
+        uuid_path="probe-r1-fields",
+        pad_nets={"1": (1, "/A"), "2": (2, "/B")},
+        extra_fields=(
+            ("Footprint", RESISTOR),
+            ("Datasheet", "datasheet.pdf"),
+            ("Description", "fixture resistor"),
+            ("Source", "fixture"),
+        ),
+    )
+
+    assert rendered.count('(property "Datasheet"') == 1
+    assert rendered.count('(property "Description"') == 1
+    assert '(property "Datasheet" "datasheet.pdf"' in rendered
+    assert '(property "Description" "fixture resistor"' in rendered
+    assert '(property "Footprint"' not in rendered
+    assert '(property "Source" "fixture"' in rendered
+
+
 def test_arbitrary_rotation_matches_the_right_angle_fast_paths() -> None:
     # The trig branch and the exact branch must agree at the boundaries.
     for angle in (90.0, 180.0, 270.0):

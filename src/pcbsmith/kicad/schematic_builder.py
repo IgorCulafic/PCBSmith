@@ -17,7 +17,6 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from uuid import uuid4
 
 from pcbsmith.circuit.models import CircuitObject
 from pcbsmith.kicad.export_divider_highpass_led import (
@@ -26,6 +25,7 @@ from pcbsmith.kicad.export_divider_highpass_led import (
     _symbol,
     _wire,
 )
+from pcbsmith.kicad.identity import stable_kicad_uuid
 
 COLUMN_PITCH_MM = 10.16
 FIRST_COLUMN_X_MM = 25.4
@@ -179,7 +179,12 @@ def render_ladder_schematic(
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
-  (uuid {uuid4()})
+  (uuid {stable_kicad_uuid(
+      "schematic-root",
+      "machine",
+      project_name,
+      circuit.topology.topology_id,
+  )})
   (paper "{paper}")
 
   (lib_symbols

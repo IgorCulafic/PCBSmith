@@ -34,7 +34,7 @@ from pcbsmith.kicad.board import (
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
 from pcbsmith.kicad.shaped_board import (
     NetLookup,
-    mask_opening_disc,
+    mask_opening_disc_aperture,
     placed_pad,
     splice_rect_tab,
 )
@@ -136,10 +136,6 @@ def spiral_inner_radius() -> float:
 
 def detector_graphics(origin: float) -> tuple[str, ...]:
     graphics: list[str] = []
-    # Soldermask opening: the exposed-detector disc over the spiral.
-    graphics.append(
-        mask_opening_disc(COIL_CENTER, MASK_OPENING_RADIUS, origin)
-    )
     # Connector pin labels on the handle.
     for index, label in enumerate(("V", "G", "F")):
         graphics.append(
@@ -269,6 +265,11 @@ def compute_detector_board_layout(netlist: BoardNetlist) -> BoardLayout:
         zones=(("/GND", "B.Cu", (30.5, 2.0, 49.5, 17.8)),),
         outline=detector_outline(),
         graphics=detector_graphics(BOARD_SHEET_ORIGIN_MM),
+        # Exact typed geometry; the renderer emits the legacy 96-point F.Mask
+        # polygon once, ahead of the still-opaque raw silk graphics.
+        mask_apertures=(
+            mask_opening_disc_aperture(COIL_CENTER, MASK_OPENING_RADIUS),
+        ),
         hide_references=(
             "P1", "L1", "Q1", "R1", "R2", "R3", "R4", "C1", "C2", "C3",
             "C4", "C5",

@@ -1,0 +1,22 @@
+** Drc report for probe-base.kicad_pcb **
+** Created on 2026-07-15T02:19:24 **
+** Report includes: Errors, Warnings **
+
+** Found 1 DRC violations **
+[copper_edge_clearance]: Board edge clearance violation (board setup constraints edge clearance 0.5000 mm; actual 0.0000 mm)
+    Rule: board setup constraints edge; error
+    @(0.0000 mm, 0.0000 mm): Rectangle on Edge.Cuts
+    @(70.0000 mm, 0.0000 mm): Pad B_NO_MASK [<no net>] of  on B.Cu
+
+** Found 0 unconnected pads **
+
+** Found 0 Footprint errors **
+
+** Ignored checks **
+    - Footprint has no courtyard defined
+    - Track endpoint not centered on via
+    - Tuning profile track geometries
+    - Footprint doesn't match symbol's footprint filters
+    - Footprint component type doesn't match footprint pads
+
+** End of Report **

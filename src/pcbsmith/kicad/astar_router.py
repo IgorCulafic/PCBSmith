@@ -9,7 +9,7 @@ construction, a path the verifier accepts (the round-trip is asserted
 in tests, and `layout_score` remains the judge of whole candidates).
 
 Deliberate MVP boundaries:
-- 4-connected moves (Manhattan) plus via hops; no 45s yet.
+- 8-direction H/V/45 moves plus via hops.
 - One track width per routed net; obstacle inflation covers
   clearance + half-width exactly like the stadium math.
 - Nets route sequentially; rip-up/retry and net ordering search belong
@@ -31,12 +31,23 @@ from pcbsmith.kicad.board import (
     ViaSpec,
 )
 from pcbsmith.kicad.virtual_drc import (
-    CLEARANCE_MM,
-    EDGE_CLEARANCE_MM,
-    VIA_RADIUS_MM,
     _collect_items,
+    _PhysicalItemKind,
+    _PhysicalSourceRole,
     _point_seg_distance,
     _Stadium,
+)
+from pcbsmith.routing_ir import (
+    NetRoutingTelemetry,
+    RoutingBudget,
+    RoutingFailureReason,
+    RoutingPassTelemetry,
+    RoutingRunResult,
+)
+from pcbsmith.rule_profiles import (
+    DEFAULT_PCB_RULE_PROFILE,
+    PcbRuleProfile,
+    qualified_insulation_clearance_groups,
 )
 
 GRID_MM = 0.2
@@ -48,10 +59,26 @@ VIA_COST_MM = 5.0
 # paths it selects the one with maximal straight runs (KiCad-style
 # corners), without materially changing route choices.
 TURN_PENALTY_MM = 0.1
+# Deterministic, caller-visible work budgets. These defaults are deliberately
+# generous so existing callers keep their routing behaviour; every run records
+# the effective values in `RoutingRunResult.budget`.
+DEFAULT_MAX_BOARD_EXPANSIONS = 100_000_000
+DEFAULT_MAX_EXPANSIONS_PER_NET = 5_000_000
 
 
 class RoutingError(RuntimeError):
-    pass
+    """Typed routing failure with deterministic work already consumed."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        reason: RoutingFailureReason = RoutingFailureReason.UNROUTABLE,
+        expansion_count: int = 0,
+    ) -> None:
+        super().__init__(message)
+        self.reason = reason
+        self.expansion_count = expansion_count
 
 
 @dataclass(frozen=True)
@@ -60,6 +87,7 @@ class RouteResult:
     segments: tuple[TrackSegment, ...]
     vias: tuple[ViaSpec, ...]
     length_mm: float
+    expansion_count: int = 0
 
 
 class GridRouter:
@@ -77,44 +105,73 @@ class GridRouter:
         net_name: str,
         track_width_mm: float,
         grid_mm: float = GRID_MM,
+        profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
         clearance_groups: Sequence[
-            tuple[
-                Collection[str], Collection[str], float, Collection[str]
-            ]
+            tuple[Collection[str], Collection[str], float, Collection[str]]
         ] = (),
+        max_expansions: int | None = None,
     ) -> None:
+        if max_expansions is not None and max_expansions < 0:
+            raise ValueError("max_expansions must be non-negative")
         self.net_name = net_name
         self.width = track_width_mm
         self.grid = grid_mm
+        self.profile = profile
+        self.clearance = profile.fab_spacing.minimum_copper_clearance_mm
+        self.edge_clearance = profile.fab_spacing.minimum_copper_to_edge_mm
+        self.via_radius = profile.geometry.routing_via_diameter_mm / 2
+        self.max_expansions = max_expansions
+        self.expansion_count = 0
         self.cols = int(layout.width_mm / grid_mm) + 1
         self.rows = int(layout.height_mm / grid_mm) + 1
-        self.blocked: dict[str, set[tuple[int, int]]] = {
-            layer: set() for layer in LAYERS
-        }
+        self.blocked: dict[str, set[tuple[int, int]]] = {layer: set() for layer in LAYERS}
         self.via_blocked: set[tuple[int, int]] = set()
 
         # Own-net items keep exact radii (sources/targets must touch the
         # real pad copper); foreign obstacles cover rect-pad corners so
         # routes cannot legally cut them (kicad-cli parity).
-        items = _collect_items(layout, netlist)
-        own = [item for item in items if item.net == net_name]
+        items = _collect_items(layout, netlist, profile=profile)
+        own = [
+            item
+            for item in items
+            if (item.net == net_name and item.kind is _PhysicalItemKind.COPPER)
+        ]
         foreign = [
             item
-            for item in _collect_items(
-                layout, netlist, cover_rect_pads=True
-            )
+            for item in _collect_items(layout, netlist, cover_rect_pads=True, profile=profile)
             if item.net != net_name
         ]
-        track_pad = self.width / 2 + CLEARANCE_MM
-        via_pad = VIA_RADIUS_MM + CLEARANCE_MM
         for item in foreign:
+            clearance = (
+                profile.fab_spacing.minimum_hole_to_copper_mm if item.is_hole else self.clearance
+            )
+            track_pad = self.width / 2 + clearance
+            via_pad = self.via_radius + clearance
             self._block(item, self.blocked[item.layer], track_pad)
             self._block(item, self.via_blocked, via_pad)
-        # Insulation-group keepouts (rules 10.1/10.4): when the routed
-        # net belongs to one side of a declared group, the OTHER side's
-        # copper repels it by the group gap on BOTH layers - creepage
-        # is layer-agnostic, exactly like the checks measure it.
-        for nets_a, nets_b, gap_mm, exempt in clearance_groups:
+        # Declared pairwise keepouts combine ordinary project geometry with
+        # qualified air-clearance results. A Euclidean copper halo is never
+        # treated as proof of a creepage surface path.
+        profile_groups = tuple(
+            (
+                requirement.nets_a,
+                requirement.nets_b,
+                requirement.minimum_clearance_mm,
+                requirement.exempt_component_refs,
+            )
+            for requirement in profile.fab_spacing.pairwise_clearances
+        )
+        insulation_groups = tuple(
+            (nets_a, nets_b, gap_mm, exempt)
+            for _barrier_id, nets_a, nets_b, gap_mm, exempt in (
+                qualified_insulation_clearance_groups(profile)
+            )
+        )
+        for nets_a, nets_b, gap_mm, exempt in (
+            *profile_groups,
+            *insulation_groups,
+            *clearance_groups,
+        ):
             if net_name in nets_a:
                 other_nets = set(nets_b)
             elif net_name in nets_b:
@@ -124,11 +181,15 @@ class GridRouter:
             exempt_set = set(exempt)
             keepout_pad = gap_mm + self.width / 2
             for item in foreign:
-                if item.net not in other_nets or item.owner in exempt_set:
+                if (
+                    item.kind is not _PhysicalItemKind.COPPER
+                    or item.net not in other_nets
+                    or item.owner in exempt_set
+                ):
                     continue
                 for layer in LAYERS:
                     self._block(item, self.blocked[layer], keepout_pad)
-                self._block(item, self.via_blocked, gap_mm + VIA_RADIUS_MM)
+                self._block(item, self.via_blocked, gap_mm + self.via_radius)
         # A via also may not land inside the routed net's PAD copper
         # (KiCad allows it, but a via in a pad surprises assembly);
         # tracks over own copper are fine.
@@ -139,9 +200,9 @@ class GridRouter:
         # width (live edge_clearance findings on the thermometer's
         # curved stem: a 0.2mm net's margin let vias sit 0.6mm out).
         self.via_blocked |= edge_cells
-        if VIA_RADIUS_MM > self.width / 2:
+        if self.via_radius > self.width / 2:
             self.via_blocked |= self._edge_cells(
-                layout, margin=EDGE_CLEARANCE_MM + VIA_RADIUS_MM
+                layout, margin=self.edge_clearance + self.via_radius
             )
         self.own_items = own
 
@@ -153,9 +214,7 @@ class GridRouter:
     def _point(self, cell: tuple[int, int]) -> tuple[float, float]:
         return (cell[0] * self.grid, cell[1] * self.grid)
 
-    def _block(
-        self, item: _Stadium, into: set[tuple[int, int]], padding: float
-    ) -> None:
+    def _block(self, item: _Stadium, into: set[tuple[int, int]], padding: float) -> None:
         reach = item.radius + padding
         x_lo = int((min(item.a[0], item.b[0]) - reach) / self.grid) - 1
         x_hi = int((max(item.a[0], item.b[0]) + reach) / self.grid) + 2
@@ -167,17 +226,18 @@ class GridRouter:
                 if _point_seg_distance(point, item.a, item.b) < reach:
                     into.add((ix, iy))
 
-    def _edge_cells(
-        self, layout: BoardLayout, margin: float | None = None
-    ) -> set[tuple[int, int]]:
+    def _edge_cells(self, layout: BoardLayout, margin: float | None = None) -> set[tuple[int, int]]:
         if margin is None:
-            margin = EDGE_CLEARANCE_MM + self.width / 2
+            margin = self.edge_clearance + self.width / 2
         if layout.outline:
             # Shaped boards: the verifier measures against the OUTLINE
             # polygon, so the router must too (a rectangle-only edge
             # model happily routes outside a thermometer's stem).
             return _outline_blocked_cells(
-                tuple(layout.outline), self.cols, self.rows, self.grid,
+                tuple(layout.outline),
+                self.cols,
+                self.rows,
+                self.grid,
                 round(margin, 6),
             )
         cells: set[tuple[int, int]] = set()
@@ -193,9 +253,7 @@ class GridRouter:
                     cells.add((ix, iy))
         return cells
 
-    def _cells_inside(
-        self, item: _Stadium
-    ) -> list[tuple[int, int]]:
+    def _cells_inside(self, item: _Stadium) -> list[tuple[int, int]]:
         cells: list[tuple[int, int]] = []
         reach = item.radius
         x_lo = int((min(item.a[0], item.b[0]) - reach) / self.grid) - 1
@@ -211,12 +269,10 @@ class GridRouter:
 
     # -- search ------------------------------------------------------------
 
-    def _pad_nodes(
-        self, pad: _Stadium
-    ) -> list[tuple[str, int, int]]:
+    def _pad_nodes(self, pad: _Stadium) -> list[tuple[str, int, int]]:
         layers = (
             LAYERS
-            if pad.label.startswith("pad") and self._is_through(pad)
+            if (pad.source_role is _PhysicalSourceRole.PAD and self._is_through(pad))
             else (pad.layer,)
         )
         nodes = [
@@ -228,7 +284,8 @@ class GridRouter:
         if not nodes:
             raise RoutingError(
                 f"No routable grid cell inside {pad.label}; the pad is "
-                "walled in at this grid pitch."
+                "walled in at this grid pitch.",
+                expansion_count=self.expansion_count,
             )
         return nodes
 
@@ -237,37 +294,65 @@ class GridRouter:
         # geometry; the cheap identity check is whether a twin exists.
         return any(
             other is not pad
-            and other.label == pad.label
+            and pad.parent_source_id is not None
+            and other.parent_source_id == pad.parent_source_id
             and other.layer != pad.layer
             for other in self.own_items
         )
 
     def route(self) -> RouteResult:
         """Connect all of the net's pads into one tree."""
-        pads = [
-            item for item in self.own_items if item.label.startswith("pad")
-        ]
+        ordered = self._ordered_physical_pads()
+        first = ordered[0]
+        return self._route_from_seed(
+            remaining_pads=ordered[1:],
+            tree=set(self._pad_nodes(first)),
+            segments=[],
+            vias=[],
+            first_stub_pad=first,
+        )
+
+    def _ordered_physical_pads(self) -> tuple[_Stadium, ...]:
+        """Return stable physical pads, preserving the legacy route order."""
+        pads = [item for item in self.own_items if item.source_role is _PhysicalSourceRole.PAD]
         # One node set per physical pad (dedupe the THT twins). Keyed by
-        # label AND position: switch footprints carry duplicate pad
+        # stable source identity: switch footprints carry duplicate pad
         # numbers (SW_PUSH has two "1" pads), and KiCad's ratsnest wants
         # copper to every physical pad - label-only dedupe left the twin
         # copies unrouted (caught live by kicad-cli on the servo board).
-        by_pad: dict[tuple[str, tuple[float, float]], _Stadium] = {}
+        by_pad: dict[str, _Stadium] = {}
         for pad in pads:
-            by_pad.setdefault((pad.label, pad.a), pad)
-        ordered = sorted(
-            by_pad.values(), key=lambda item: (item.label, item.a)
+            pad_id = pad.parent_source_id or pad.source_id
+            by_pad.setdefault(pad_id, pad)
+        ordered = tuple(
+            sorted(
+                by_pad.values(),
+                key=lambda item: (
+                    item.parent_source_id or item.source_id,
+                    item.a,
+                ),
+            )
         )
         if len(ordered) < 2:
-            raise RoutingError(f"Net {self.net_name} has fewer than 2 pads.")
+            raise RoutingError(
+                f"Net {self.net_name} has fewer than 2 pads.",
+                expansion_count=self.expansion_count,
+            )
+        return ordered
 
-        tree: set[tuple[str, int, int]] = set(self._pad_nodes(ordered[0]))
-        segments: list[TrackSegment] = []
-        vias: list[ViaSpec] = []
+    def _route_from_seed(
+        self,
+        *,
+        remaining_pads: Sequence[_Stadium],
+        tree: set[tuple[str, int, int]],
+        segments: list[TrackSegment],
+        vias: list[ViaSpec],
+        first_stub_pad: _Stadium | None,
+    ) -> RouteResult:
+        """Connect remaining pads to caller-owned seed copper and finalize it."""
         total = 0.0
-        first = ordered[0]
-        first_stubbed = False
-        for pad in ordered[1:]:
+        first_stubbed = first_stub_pad is None
+        for pad in remaining_pads:
             targets = set(self._pad_nodes(pad))
             path = self._smooth(self._astar(tree, targets))
             new_segments, new_vias, length = self._emit(path)
@@ -287,7 +372,8 @@ class GridRouter:
             if not first_stubbed:
                 # The first leg starts inside the FIRST pad; bridge that
                 # entry cell to its centre the same way.
-                total += self._stub(segments, path[0], first.a)
+                assert first_stub_pad is not None
+                total += self._stub(segments, path[0], first_stub_pad.a)
                 first_stubbed = True
         # Overlapping collinear copper (leg joins, staircase remnants,
         # stubs retracing a run) reads as broken micro-tracks in KiCad;
@@ -302,28 +388,28 @@ class GridRouter:
         # and tripped rule 11.2 (thermometer board, live).
         via_covers = [
             _Stadium(
-                a=(via.x, via.y), b=(via.x, via.y),
-                radius=VIA_RADIUS_MM, net=self.net_name, layer=layer,
-                owner="", label="via",
+                a=(via.x, via.y),
+                b=(via.x, via.y),
+                radius=self.via_radius,
+                net=self.net_name,
+                layer=layer,
+                owner="",
+                label="via",
+                source_role=_PhysicalSourceRole.VIA,
             )
             for via in vias
             for layer in LAYERS
         ]
-        pruned = prune_redundant_segments(
-            merged, (*self.own_items, *via_covers)
-        )
+        pruned = prune_redundant_segments(merged, (*self.own_items, *via_covers))
         return RouteResult(
             net_name=self.net_name,
             segments=pruned,
             vias=tuple(vias),
-            length_mm=sum(
-                math.dist((s.x1, s.y1), (s.x2, s.y2)) for s in pruned
-            ),
+            length_mm=sum(math.dist((s.x1, s.y1), (s.x2, s.y2)) for s in pruned),
+            expansion_count=self.expansion_count,
         )
 
-    def _smooth(
-        self, path: list[tuple[str, int, int]]
-    ) -> list[tuple[str, int, int]]:
+    def _smooth(self, path: list[tuple[str, int, int]]) -> list[tuple[str, int, int]]:
         """String-pulling constrained to H/V/45 (greedy farthest
         shortcut): grid A* wanders around inflated obstacles and the
         turn penalty cannot remove detours after the fact, so each
@@ -343,9 +429,7 @@ class GridRouter:
                 run_start = index
         return smoothed
 
-    def _smooth_run(
-        self, run: list[tuple[str, int, int]]
-    ) -> list[tuple[str, int, int]]:
+    def _smooth_run(self, run: list[tuple[str, int, int]]) -> list[tuple[str, int, int]]:
         result: list[tuple[str, int, int]] = []
         i = 0
         while i < len(run) - 1:
@@ -390,9 +474,7 @@ class GridRouter:
                 moves = straight_x + straight_y + slant
             blocked = self.blocked[layer]
             for move_x, move_y in moves:
-                if move_x and move_y and (
-                    (x + move_x, y) in blocked or (x, y + move_y) in blocked
-                ):
+                if move_x and move_y and ((x + move_x, y) in blocked or (x, y + move_y) in blocked):
                     return None
                 x, y = x + move_x, y + move_y
                 if not (0 <= x < self.cols and 0 <= y < self.rows):
@@ -415,8 +497,13 @@ class GridRouter:
             return 0.0
         segments.append(
             TrackSegment(
-                x1=point[0], y1=point[1], x2=anchor[0], y2=anchor[1],
-                layer=node[0], net_name=self.net_name, width_mm=self.width,
+                x1=point[0],
+                y1=point[1],
+                x2=anchor[0],
+                y2=anchor[1],
+                layer=node[0],
+                net_name=self.net_name,
+                width_mm=self.width,
             )
         )
         return math.dist(point, anchor)
@@ -444,9 +531,7 @@ class GridRouter:
         # + one straight run) instead of sawtooth micro-segments.
         counter = 0
         State = tuple[str, int, int]
-        open_heap: list[
-            tuple[float, int, State, tuple[int, int] | None]
-        ] = []
+        open_heap: list[tuple[float, int, State, tuple[int, int] | None]] = []
         g_score: dict[tuple[State, tuple[int, int] | None], float] = {}
         came: dict[
             tuple[State, tuple[int, int] | None],
@@ -470,12 +555,17 @@ class GridRouter:
                         path.append(state[0])
                 path.reverse()
                 return path
+            if self.max_expansions is not None and self.expansion_count >= self.max_expansions:
+                raise RoutingError(
+                    f"Expansion budget exhausted for {self.net_name}.",
+                    reason=RoutingFailureReason.EXPANSION_BUDGET,
+                    expansion_count=self.expansion_count,
+                )
             closed.add(state)
+            self.expansion_count += 1
             layer, ix, iy = node
             g_here = g_score[state]
-            neighbours: list[
-                tuple[tuple[str, int, int], float, tuple[int, int] | None]
-            ] = []
+            neighbours: list[tuple[tuple[str, int, int], float, tuple[int, int] | None]] = []
             for dx, dy in ((1, 0), (-1, 0), (0, 1), (0, -1)):
                 nx, ny = ix + dx, iy + dy
                 if not (0 <= nx < self.cols and 0 <= ny < self.rows):
@@ -497,21 +587,12 @@ class GridRouter:
                     or (ix, iy + dy) in self.blocked[layer]
                 ):
                     continue
-                neighbours.append(
-                    ((layer, nx, ny), self.grid * math.sqrt(2), (dx, dy))
-                )
+                neighbours.append(((layer, nx, ny), self.grid * math.sqrt(2), (dx, dy)))
             other = LAYERS[1] if layer == LAYERS[0] else LAYERS[0]
-            if (
-                (ix, iy) not in self.via_blocked
-                and (ix, iy) not in self.blocked[other]
-            ):
+            if (ix, iy) not in self.via_blocked and (ix, iy) not in self.blocked[other]:
                 neighbours.append(((other, ix, iy), VIA_COST_MM, None))
             for neighbour, cost, step in neighbours:
-                if (
-                    step is not None
-                    and came_dir is not None
-                    and step != came_dir
-                ):
+                if step is not None and came_dir is not None and step != came_dir:
                     cost += TURN_PENALTY_MM
                 next_state = (neighbour, step)
                 tentative = g_here + cost
@@ -529,7 +610,8 @@ class GridRouter:
                     )
                     counter += 1
         raise RoutingError(
-            f"No route found for {self.net_name} at grid {self.grid}mm."
+            f"No route found for {self.net_name} at grid {self.grid}mm.",
+            expansion_count=self.expansion_count,
         )
 
     def _emit(
@@ -546,12 +628,16 @@ class GridRouter:
                 # layer change: close the run, drop a via.
                 if previous != run_start:
                     segments.append(self._segment(run_start, previous))
-                    length += math.dist(
-                        self._point(run_start[1:]), self._point(previous[1:])
-                    )
+                    length += math.dist(self._point(run_start[1:]), self._point(previous[1:]))
                 point = self._point(previous[1:])
                 vias.append(
-                    ViaSpec(x=point[0], y=point[1], net_name=self.net_name)
+                    ViaSpec(
+                        x=point[0],
+                        y=point[1],
+                        net_name=self.net_name,
+                        size_mm=self.profile.geometry.routing_via_diameter_mm,
+                        drill_mm=self.profile.geometry.routing_via_drill_mm,
+                    )
                 )
                 run_start = node
                 direction = None
@@ -561,27 +647,26 @@ class GridRouter:
                     direction = step
                 elif step != direction:
                     segments.append(self._segment(run_start, previous))
-                    length += math.dist(
-                        self._point(run_start[1:]), self._point(previous[1:])
-                    )
+                    length += math.dist(self._point(run_start[1:]), self._point(previous[1:]))
                     run_start = previous
                     direction = step
             previous = node
         if previous != run_start:
             segments.append(self._segment(run_start, previous))
-            length += math.dist(
-                self._point(run_start[1:]), self._point(previous[1:])
-            )
+            length += math.dist(self._point(run_start[1:]), self._point(previous[1:]))
         return segments, vias, length
 
-    def _segment(
-        self, start: tuple[str, int, int], end: tuple[str, int, int]
-    ) -> TrackSegment:
+    def _segment(self, start: tuple[str, int, int], end: tuple[str, int, int]) -> TrackSegment:
         p1 = self._point(start[1:])
         p2 = self._point(end[1:])
         return TrackSegment(
-            x1=p1[0], y1=p1[1], x2=p2[0], y2=p2[1],
-            layer=start[0], net_name=self.net_name, width_mm=self.width,
+            x1=p1[0],
+            y1=p1[1],
+            x2=p2[0],
+            y2=p2[1],
+            layer=start[0],
+            net_name=self.net_name,
+            width_mm=self.width,
         )
 
 
@@ -598,9 +683,7 @@ def merge_collinear_segments(
     shared line, merged when they touch. T-junction branches live on a
     different line, so junctions are preserved."""
     Span = tuple[float, float, tuple[float, float], tuple[float, float]]
-    groups: dict[
-        tuple[str, str, float, float, float, float], list[Span]
-    ] = {}
+    groups: dict[tuple[str, str, float, float, float, float], list[Span]] = {}
     for segment in segments:
         dx = segment.x2 - segment.x1
         dy = segment.y2 - segment.y1
@@ -627,9 +710,7 @@ def merge_collinear_segments(
                 (segment.x2 * ux + segment.y2 * uy, (segment.x2, segment.y2)),
             )
         )
-        groups.setdefault(key, []).append(
-            (ends[0][0], ends[1][0], ends[0][1], ends[1][1])
-        )
+        groups.setdefault(key, []).append((ends[0][0], ends[1][0], ends[0][1], ends[1][1]))
     merged: list[TrackSegment] = []
     for (net, layer, width, _ux, _uy, _offset), spans in groups.items():
         spans.sort()
@@ -649,8 +730,13 @@ def merge_collinear_segments(
         for p_lo, p_hi in runs:
             merged.append(
                 TrackSegment(
-                    x1=p_lo[0], y1=p_lo[1], x2=p_hi[0], y2=p_hi[1],
-                    layer=layer, net_name=net, width_mm=width,
+                    x1=p_lo[0],
+                    y1=p_lo[1],
+                    x2=p_hi[0],
+                    y2=p_hi[1],
+                    layer=layer,
+                    net_name=net,
+                    width_mm=width,
                 )
             )
     return tuple(merged)
@@ -671,10 +757,7 @@ def _outline_blocked_cells(
     complexity trick the virtual DRC's edge check uses, cached because
     every net's router rebuilds the grid."""
     blocked: set[tuple[int, int]] = set()
-    edges = [
-        (outline[index], outline[(index + 1) % len(outline)])
-        for index in range(len(outline))
-    ]
+    edges = [(outline[index], outline[(index + 1) % len(outline)]) for index in range(len(outline))]
     # Scanline: cells whose center is outside the polygon.
     for iy in range(rows):
         y = iy * grid
@@ -732,8 +815,7 @@ def segment_covered_by(
     candidates = [
         (a, b, radius, layer)
         for a, b, radius, layer in covers
-        if layer == segment.layer
-        and radius >= half_width + margin_mm - 1e-9
+        if layer == segment.layer and radius >= half_width + margin_mm - 1e-9
     ]
     for index in range(steps + 1):
         t = index / steps
@@ -742,8 +824,7 @@ def segment_covered_by(
             segment.y1 + (segment.y2 - segment.y1) * t,
         )
         if not any(
-            _point_seg_distance(point, a, b)
-            <= radius - half_width - margin_mm
+            _point_seg_distance(point, a, b) <= radius - half_width - margin_mm
             for a, b, radius, _layer in candidates
         ):
             return False
@@ -770,9 +851,7 @@ def prune_redundant_segments(
         key=lambda s: math.dist((s.x1, s.y1), (s.x2, s.y2)),
     ):
         others: list[Stadium] = [
-            ((s.x1, s.y1), (s.x2, s.y2), s.width_mm / 2, s.layer)
-            for s in kept
-            if s is not segment
+            ((s.x1, s.y1), (s.x2, s.y2), s.width_mm / 2, s.layer) for s in kept if s is not segment
         ]
         if segment_covered_by(segment, others + pad_covers):
             kept.remove(segment)
@@ -786,33 +865,35 @@ def route_net(
     *,
     track_width_mm: float = 0.4,
     grid_mm: float = GRID_MM,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
     clearance_groups: Sequence[
         tuple[Collection[str], Collection[str], float, Collection[str]]
     ] = (),
+    max_expansions: int | None = None,
 ) -> RouteResult:
     """Route one net against the layout's existing copper."""
     return GridRouter(
-        layout, netlist, net_name=net_name,
-        track_width_mm=track_width_mm, grid_mm=grid_mm,
+        layout,
+        netlist,
+        net_name=net_name,
+        track_width_mm=track_width_mm,
+        grid_mm=grid_mm,
+        profile=profile,
         clearance_groups=clearance_groups,
+        max_expansions=max_expansions,
     ).route()
 
 
 def clearance_groups_from_spec(
     spec: object,
-) -> tuple[
-    tuple[tuple[str, ...], tuple[str, ...], float, tuple[str, ...]], ...
-]:
-    """The router's keepouts from a DesignChecksSpec - the same
-    isolation-barrier and net-group declarations the checks enforce."""
-    groups: list[
-        tuple[tuple[str, ...], tuple[str, ...], float, tuple[str, ...]]
-    ] = []
-    barrier = getattr(spec, "isolation_barrier", None)
-    if barrier is not None:
-        _x, gap_mm, primary, secondary, straddle = barrier
-        groups.append((tuple(primary), tuple(secondary), gap_mm,
-                       tuple(straddle)))
+) -> tuple[tuple[tuple[str, ...], tuple[str, ...], float, tuple[str, ...]], ...]:
+    """Ordinary project-geometry keepouts from a ``DesignChecksSpec``.
+
+    Legacy ``isolation_barrier`` declarations are intentionally excluded.
+    Qualified air-clearance constraints come from the router's rule profile.
+    """
+    groups: list[tuple[tuple[str, ...], tuple[str, ...], float, tuple[str, ...]]] = []
+
     for group in getattr(spec, "net_group_clearances", ()):
         _label, nets_a, nets_b, gap_mm, exempt = group
         groups.append((tuple(nets_a), tuple(nets_b), gap_mm, tuple(exempt)))
@@ -823,16 +904,9 @@ def strip_net(layout: BoardLayout, net_name: str) -> BoardLayout:
     """The layout with one net's copper removed - reroute fodder."""
     return layout.__class__(
         **{
-            **{
-                key: getattr(layout, key)
-                for key in layout.__dataclass_fields__
-            },
-            "segments": tuple(
-                seg for seg in layout.segments if seg.net_name != net_name
-            ),
-            "vias": tuple(
-                via for via in layout.vias if via.net_name != net_name
-            ),
+            **{key: getattr(layout, key) for key in layout.__dataclass_fields__},
+            "segments": tuple(seg for seg in layout.segments if seg.net_name != net_name),
+            "vias": tuple(via for via in layout.vias if via.net_name != net_name),
         }
     )
 
@@ -840,10 +914,7 @@ def strip_net(layout: BoardLayout, net_name: str) -> BoardLayout:
 def with_route(layout: BoardLayout, result: RouteResult) -> BoardLayout:
     return layout.__class__(
         **{
-            **{
-                key: getattr(layout, key)
-                for key in layout.__dataclass_fields__
-            },
+            **{key: getattr(layout, key) for key in layout.__dataclass_fields__},
             "segments": (*layout.segments, *result.segments),
             "vias": (*layout.vias, *result.vias),
         }
@@ -857,17 +928,20 @@ class BoardRouteResult:
     order: tuple[str, ...]
     restarts: int
     failed: tuple[str, ...]
+    run_result: RoutingRunResult
 
 
 def _routable_nets(
-    layout: BoardLayout, netlist: BoardNetlist
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> dict[str, float]:
     """Nets with 2+ physical pads, keyed to an estimated half-perimeter
     (the ordering heuristic: short, locally-constrained nets first)."""
-    items = _collect_items(layout, netlist)
+    items = _collect_items(layout, netlist, profile=profile)
     spans: dict[str, list[tuple[float, float]]] = {}
     for item in items:
-        if item.owner:
+        if item.owner and item.kind is _PhysicalItemKind.COPPER:
             spans.setdefault(item.net, []).append(item.a)
     estimates: dict[str, float] = {}
     for net, points in spans.items():
@@ -889,77 +963,43 @@ def route_board(
     *,
     net_widths: dict[str, float] | None = None,
     default_width_mm: float = 0.4,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
     clearance_groups: Sequence[
         tuple[Collection[str], Collection[str], float, Collection[str]]
     ] = (),
     net_order: Sequence[str] | None = None,
     max_restarts: int = 8,
+    max_passes: int | None = None,
+    max_expansions: int = DEFAULT_MAX_BOARD_EXPANSIONS,
+    max_expansions_per_net: int = DEFAULT_MAX_EXPANSIONS_PER_NET,
     grid_mm: float = GRID_MM,
     skip_nets: Collection[str] = (),
     fine_pitch_nets: Mapping[str, float] | None = None,
     fine_grid_mm: float = FINE_GRID_MM,
 ) -> BoardRouteResult:
-    """Route every multi-pad net sequentially; when a net cannot be
-    routed, promote it to the front of the order and restart (rip-up by
-    reordering - the MVP alternative to true rip-up).
+    """Route every multi-pad net with deterministic, audited work budgets.
 
-    ``fine_pitch_nets`` maps net -> width for nets that must ENTER
-    sub-grid pad pitches (0.5mm USB-C/DFN rows: a 0.2mm grid cannot
-    center a track on alternating pads). They route FIRST, in declared
-    order, on ``fine_grid_mm``; the main pass then treats their copper
-    as existing routes. Declaration order is priority - put contested
-    corridors' nets first. ``skip_nets`` excludes nets a caller routed
-    itself."""
+    Failed nets are promoted to the front of the next hard-blocking pass, as
+    before. ``run_result`` records every attempted net and pass without claiming
+    negotiated congestion, capacity overuse, or exact post-route acceptance.
+    """
+    if max_restarts < 0:
+        raise ValueError("max_restarts must be non-negative")
+    if max_expansions < 0:
+        raise ValueError("max_expansions must be non-negative")
+    if max_expansions_per_net < 0:
+        raise ValueError("max_expansions_per_net must be non-negative")
+    effective_max_passes = 2 * (max_restarts + 1) if max_passes is None else max_passes
+    if effective_max_passes < 0:
+        raise ValueError("max_passes must be non-negative")
+
     widths = net_widths or {}
     fine = dict(fine_pitch_nets or {})
     fine_order = list(fine)
-    fine_results: list[RouteResult] = []
-    restarts = 0
-    while fine_order:
-        working = layout
-        fine_results = []
-        fine_failed: str | None = None
-        for net in fine_order:
-            try:
-                result = route_net(
-                    working, netlist, net,
-                    track_width_mm=fine[net], grid_mm=fine_grid_mm,
-                    clearance_groups=clearance_groups,
-                )
-            except RoutingError:
-                fine_failed = net
-                break
-            fine_results.append(result)
-            working = with_route(working, result)
-        if fine_failed is None:
-            layout = working
-            break
-        # Same rip-up-by-reordering as the main pass: the failed net
-        # routes first next attempt. Fine corridors are the scarcest
-        # copper on the board (USB-C hole belts), so which net claims
-        # a window first genuinely decides feasibility - the initial
-        # declaration order is a hint, not a verdict.
-        if restarts >= max_restarts or fine_order[0] == fine_failed:
-            return BoardRouteResult(
-                layout=working,
-                results=tuple(fine_results),
-                order=tuple(fine_order),
-                restarts=restarts,
-                failed=(fine_failed,),
-            )
-        fine_order.remove(fine_failed)
-        fine_order.insert(0, fine_failed)
-        restarts += 1
-    # The main pass gets its own restart budget: fine-corridor
-    # reordering must not starve stem-congestion reordering (the /CAS
-    # lesson - fine restarts consumed the shared budget and the main
-    # pass failed on its first try).
-    fine_restarts = restarts
-    restarts = 0
     skip = set(skip_nets) | set(fine)
     estimates = {
         net: estimate
-        for net, estimate in _routable_nets(layout, netlist).items()
+        for net, estimate in _routable_nets(layout, netlist, profile).items()
         if net not in skip
     }
     if net_order is not None:
@@ -971,39 +1011,239 @@ def route_board(
     else:
         order = sorted(estimates, key=lambda net: estimates[net])
 
-    while True:
-        working = layout
+    budget = RoutingBudget(
+        max_passes=effective_max_passes,
+        max_expansions=max_expansions,
+        max_expansions_per_net=max_expansions_per_net,
+        max_stagnant_passes=effective_max_passes,
+        max_exact_check_rejections=0,
+    )
+    passes: list[RoutingPassTelemetry] = []
+    total_expansions = 0
+
+    def unique_names(names: Sequence[str]) -> tuple[str, ...]:
+        return tuple(dict.fromkeys(names))
+
+    def finish(
+        *,
+        current_layout: BoardLayout,
+        results: Sequence[RouteResult],
+        legacy_order: Sequence[str],
+        run_order: Sequence[str],
+        restarts: int,
+        failed: tuple[str, ...],
+        unresolved: Sequence[str],
+        reason: RoutingFailureReason | None,
+    ) -> BoardRouteResult:
+        unresolved_names = unique_names(unresolved)
+        success = not failed
+        run_result = RoutingRunResult(
+            producer="pcbsmith.kicad.astar_router",
+            budget=budget,
+            success=success,
+            exact_check_accepted=None,
+            failure_reason=reason,
+            route_order=unique_names(run_order),
+            unresolved_net_names=unresolved_names,
+            restart_count=restarts,
+            passes=tuple(passes),
+            resource_overuse=(),
+        )
+        return BoardRouteResult(
+            layout=current_layout,
+            results=tuple(results),
+            order=tuple(legacy_order),
+            restarts=restarts,
+            failed=failed,
+            run_result=run_result,
+        )
+
+    def run_pass(
+        base_layout: BoardLayout,
+        phase_order: Sequence[str],
+        phase_widths: Mapping[str, float],
+        phase_grid_mm: float,
+        unresolved_after_phase: Sequence[str],
+    ) -> tuple[BoardLayout, list[RouteResult], str | None, RoutingError | None]:
+        nonlocal total_expansions
+        working = base_layout
         results: list[RouteResult] = []
+        telemetry: list[NetRoutingTelemetry] = []
         failed: str | None = None
-        for net in order:
+        failure: RoutingError | None = None
+        unresolved: tuple[str, ...] = unique_names(unresolved_after_phase)
+        for attempt_index, net in enumerate(phase_order):
+            remaining = max_expansions - total_expansions
+            attempt_cap = min(max_expansions_per_net, remaining)
             try:
                 result = route_net(
-                    working, netlist, net,
-                    track_width_mm=widths.get(net, default_width_mm),
-                    grid_mm=grid_mm,
+                    working,
+                    netlist,
+                    net,
+                    track_width_mm=phase_widths[net],
+                    grid_mm=phase_grid_mm,
+                    profile=profile,
                     clearance_groups=clearance_groups,
+                    max_expansions=attempt_cap,
                 )
-            except RoutingError:
+            except RoutingError as error:
+                total_expansions += error.expansion_count
                 failed = net
+                failure = error
+                telemetry.append(
+                    NetRoutingTelemetry(
+                        net_name=net,
+                        pass_index=len(passes),
+                        attempt_index=attempt_index,
+                        expansion_count=error.expansion_count,
+                        routed=False,
+                        failure_reason=error.reason,
+                        exact_check_accepted=None,
+                    )
+                )
+                unresolved = unique_names((*phase_order[attempt_index:], *unresolved_after_phase))
                 break
+            total_expansions += result.expansion_count
+            telemetry.append(
+                NetRoutingTelemetry(
+                    net_name=net,
+                    pass_index=len(passes),
+                    attempt_index=attempt_index,
+                    expansion_count=result.expansion_count,
+                    segment_count=len(result.segments),
+                    via_count=len(result.vias),
+                    length_mm=result.length_mm,
+                    routed=True,
+                    exact_check_accepted=None,
+                )
+            )
             results.append(result)
             working = with_route(working, result)
+        passes.append(
+            RoutingPassTelemetry(
+                pass_index=len(passes),
+                net_telemetry=tuple(telemetry),
+                unresolved_net_names=unresolved,
+                resource_overuse=(),
+                expansion_count=sum(item.expansion_count for item in telemetry),
+                exact_check_rejection_count=0,
+                stagnant=False,
+            )
+        )
+        return working, results, failed, failure
+
+    fine_results: list[RouteResult] = []
+    fine_restarts = 0
+    while fine_order:
+        if len(passes) >= effective_max_passes:
+            fine_budget_failed = fine_order[0]
+            return finish(
+                current_layout=layout,
+                results=(),
+                legacy_order=fine_order,
+                run_order=(*fine_order, *order),
+                restarts=fine_restarts,
+                failed=(fine_budget_failed,),
+                unresolved=(*fine_order, *order),
+                reason=RoutingFailureReason.PASS_BUDGET,
+            )
+        working, fine_results, failed, failure = run_pass(
+            layout,
+            fine_order,
+            fine,
+            fine_grid_mm,
+            order,
+        )
         if failed is None:
-            return BoardRouteResult(
-                layout=working,
+            layout = working
+            break
+        if failure is None:
+            raise AssertionError("failed pass requires a RoutingError")
+        terminal_reason: RoutingFailureReason | None = None
+        if failure.reason is RoutingFailureReason.EXPANSION_BUDGET:
+            terminal_reason = RoutingFailureReason.EXPANSION_BUDGET
+        elif fine_order[0] == failed:
+            terminal_reason = RoutingFailureReason.UNROUTABLE
+        elif fine_restarts >= max_restarts or len(passes) >= effective_max_passes:
+            terminal_reason = RoutingFailureReason.PASS_BUDGET
+        if terminal_reason is not None:
+            return finish(
+                current_layout=working,
+                results=fine_results,
+                legacy_order=fine_order,
+                run_order=(*fine_order, *order),
+                restarts=fine_restarts,
+                failed=(failed,),
+                unresolved=passes[-1].unresolved_net_names,
+                reason=terminal_reason,
+            )
+        fine_order.remove(failed)
+        fine_order.insert(0, failed)
+        fine_restarts += 1
+
+    restarts = 0
+    while order:
+        if len(passes) >= effective_max_passes:
+            main_budget_failed = order[0]
+            return finish(
+                current_layout=layout,
+                results=fine_results,
+                legacy_order=(*fine_order, *order),
+                run_order=(*fine_order, *order),
+                restarts=fine_restarts + restarts,
+                failed=(main_budget_failed,),
+                unresolved=order,
+                reason=RoutingFailureReason.PASS_BUDGET,
+            )
+        working, results, failed, failure = run_pass(
+            layout,
+            order,
+            {net: widths.get(net, default_width_mm) for net in order},
+            grid_mm,
+            (),
+        )
+        if failed is None:
+            return finish(
+                current_layout=working,
                 results=(*fine_results, *results),
-                order=(*fine_order, *order),
+                legacy_order=(*fine_order, *order),
+                run_order=(*fine_order, *order),
                 restarts=fine_restarts + restarts,
                 failed=(),
+                unresolved=(),
+                reason=None,
             )
-        if restarts >= max_restarts or order[0] == failed:
-            return BoardRouteResult(
-                layout=working,
+        if failure is None:
+            raise AssertionError("failed pass requires a RoutingError")
+        terminal_reason = None
+        if failure.reason is RoutingFailureReason.EXPANSION_BUDGET:
+            terminal_reason = RoutingFailureReason.EXPANSION_BUDGET
+        elif order[0] == failed:
+            terminal_reason = RoutingFailureReason.UNROUTABLE
+        elif restarts >= max_restarts or len(passes) >= effective_max_passes:
+            terminal_reason = RoutingFailureReason.PASS_BUDGET
+        if terminal_reason is not None:
+            return finish(
+                current_layout=working,
                 results=(*fine_results, *results),
-                order=(*fine_order, *order),
+                legacy_order=(*fine_order, *order),
+                run_order=(*fine_order, *order),
                 restarts=fine_restarts + restarts,
                 failed=(failed,),
+                unresolved=passes[-1].unresolved_net_names,
+                reason=terminal_reason,
             )
         order.remove(failed)
         order.insert(0, failed)
         restarts += 1
+
+    return finish(
+        current_layout=layout,
+        results=fine_results,
+        legacy_order=fine_order,
+        run_order=fine_order,
+        restarts=fine_restarts,
+        failed=(),
+        unresolved=(),
+        reason=None,
+    )

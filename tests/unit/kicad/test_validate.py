@@ -143,6 +143,11 @@ def test_kicad_erc_reports_runner_exception_as_failed(tmp_path: Path) -> None:
 def test_kicad_erc_reports_missing_json_report_as_failed(tmp_path: Path) -> None:
     schematic = tmp_path / "Slice.kicad_sch"
     schematic.write_text("(kicad_sch)", encoding="utf-8")
+    stale_report = tmp_path / ".pcbsmith" / "kicad" / "erc.json"
+    stale_report.parent.mkdir(parents=True)
+    stale_report.write_text(
+        json.dumps({"sheets": [{"violations": []}]}), encoding="utf-8"
+    )
 
     def fake_runner(command: Sequence[str]) -> KiCadProcessResult:
         return KiCadProcessResult(command=tuple(command), returncode=0, stdout="", stderr="")
@@ -155,6 +160,7 @@ def test_kicad_erc_reports_missing_json_report_as_failed(tmp_path: Path) -> None
 
     assert report.status == "failed"
     assert report.findings == ("KiCad ERC report was not written.",)
+    assert not stale_report.exists()
 
 
 def test_kicad_erc_reports_invalid_json_as_failed(tmp_path: Path) -> None:

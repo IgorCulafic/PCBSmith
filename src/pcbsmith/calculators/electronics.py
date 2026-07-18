@@ -387,7 +387,7 @@ def solve_trace_current_capacity(
     copper_thickness_m: float = 35e-6,
     temperature_rise_c: float = 10.0,
 ) -> dict[str, Any]:
-    """IPC-2221 external-layer current capacity: I = k * dT^0.44 * A^0.725.
+    """Legacy IPC-2221A Figure 6-4 external fit: I = k*dT^0.44*A^0.725.
 
     k = 0.048 for external layers, A in square mils. At 10 C rise a 0.8 mm
     1 oz trace carries ~2 A, matching the published nomograph tables.
@@ -411,7 +411,7 @@ def solve_trace_current_capacity(
         "warnings": [],
         "errors": [],
         "references": [
-            "IPC-2221 external-layer chart fit: I = 0.048 * dT^0.44 * "
+            "Legacy IPC-2221A Figure 6-4 external fit: I = 0.048 * dT^0.44 * "
             "A^0.725 (A in sq mil).",
         ],
     }

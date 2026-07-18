@@ -50,6 +50,9 @@ def run_kicad_erc(
         str(schematic_file),
     )
     report_file.parent.mkdir(parents=True, exist_ok=True)
+    # A successful-looking invocation that fails to write its output must not
+    # be allowed to reuse an earlier report from the same run directory.
+    report_file.unlink(missing_ok=True)
     try:
         process = run_kicad_process(command) if runner is None else runner(command)
     except OSError as exc:
@@ -114,6 +117,9 @@ def run_kicad_drc(
         str(board_file),
     )
     report_file.parent.mkdir(parents=True, exist_ok=True)
+    # Match ERC fail-closed behavior: a zero/nonzero invocation must not be
+    # allowed to inherit a report from an earlier board in this directory.
+    report_file.unlink(missing_ok=True)
     try:
         process = run_kicad_process(command) if runner is None else runner(command)
     except OSError as exc:
@@ -208,8 +214,34 @@ def _process_failure_finding(process: KiCadProcessResult) -> str:
 def _erc_findings(report_file: Path) -> tuple[str, ...]:
     if not report_file.exists():
         return ("KiCad ERC report was not written.",)
+    return kicad_erc_findings_from_json_text(report_file.read_text(encoding="utf-8"))
+
+
+def canonical_kicad_erc_json_text(value: str) -> str:
+    """Return stable KiCad ERC JSON while removing wall-clock metadata."""
+
     try:
-        data = json.loads(report_file.read_text(encoding="utf-8"))
+        data = json.loads(value)
+    except JSONDecodeError as error:
+        raise ValueError("KiCad ERC report was not valid JSON") from error
+    if not isinstance(data, dict):
+        raise ValueError("KiCad ERC report root was not a JSON object")
+    normalized = dict(data)
+    normalized.pop("date", None)
+    return json.dumps(
+        normalized,
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+
+
+def kicad_erc_findings_from_json_text(value: str) -> tuple[str, ...]:
+    """Derive the complete blocking finding tuple from retained ERC JSON."""
+
+    try:
+        data = json.loads(value)
     except JSONDecodeError:
         return ("KiCad ERC report was not valid JSON.",)
     if not isinstance(data, dict):

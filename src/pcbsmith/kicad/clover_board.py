@@ -20,7 +20,6 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.kicad.board import (
     BOARD_SHEET_ORIGIN_MM,
@@ -36,8 +35,10 @@ from pcbsmith.kicad.board import (
     rotate_offset,
 )
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
+from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.shaped_board import Router as _Router
 from pcbsmith.kicad.shaped_board import circle_points as _circle_points
+from pcbsmith.kicad.shaped_board import silk_line as _silk_line
 from pcbsmith.kicad.shaped_board import silk_poly as _silk_poly
 
 CX = 21.0
@@ -231,21 +232,25 @@ def clover_silk_graphics(origin: float, motto: str) -> tuple[str, ...]:
         (art_center[0] + 0.3 * math.sin(t * 2.2), art_center[1] + 3.4 + t * 2.4)
         for t in (0.0, 0.35, 0.7, 1.0)
     ]
-    graphics.append(
-        f"""  (gr_line
-    (start {stem[0][0] + origin:.3f} {stem[0][1] + origin:.3f})
-    (end {stem[-1][0] + origin:.3f} {stem[-1][1] + origin:.3f})
-    (stroke (width 0.4) (type solid))
-    (layer "F.SilkS")
-    (uuid {uuid4()})
-  )"""
+    graphics.append(_silk_line(stem[0], stem[-1], origin, width=0.4))
+    motto_at = (CX + origin, CY + 11.0 + origin)
+    motto_uuid = stable_kicad_uuid(
+        "board-graphic",
+        "clover-motto",
+        motto,
+        f"{motto_at[0]:.3f},{motto_at[1]:.3f}",
+        "F.SilkS",
+        "size:1.3",
+        "thickness:0.22",
+        "italic:yes",
+        "0",
     )
     escaped = motto.replace("\\", "\\\\").replace('"', '\\"')
     graphics.append(
         f"""  (gr_text "{escaped}"
-    (at {CX + origin:.3f} {CY + 11.0 + origin:.3f} 0)
+    (at {motto_at[0]:.3f} {motto_at[1]:.3f} 0)
     (layer "F.SilkS")
-    (uuid {uuid4()})
+    (uuid {motto_uuid})
     (effects
       (font
         (size 1.3 1.3)

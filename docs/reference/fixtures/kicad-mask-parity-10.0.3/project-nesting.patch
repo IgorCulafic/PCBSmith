@@ -1,0 +1,17 @@
+diff --git a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pro b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pro
+index 918e4e4..d059ee5 100644
+--- a/.tmp/kicad-mask-parity-probe/probe-base.kicad_pro
++++ b/.tmp/kicad-mask-parity-probe/probe-base.kicad_pro
+@@ -1,8 +1,10 @@
+ {
+   "board": {
+     "design_settings": {
+-      "solder_mask_clearance": 0.7,
+-      "solder_mask_min_width": 0.3
++      "rules": {
++        "solder_mask_clearance": 0.7,
++        "solder_mask_min_width": 0.3
++      }
+     }
+   },
+   "meta": {

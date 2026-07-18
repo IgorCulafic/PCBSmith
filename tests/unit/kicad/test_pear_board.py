@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import math
+import re
 from collections import defaultdict
+from uuid import UUID
 
 from tests.unit.kicad.test_clover_board import _segments_intersect
 
@@ -15,6 +17,7 @@ from pcbsmith.kicad.pear_board import (
     RING_INSETS,
     compute_pear_board_layout,
     pear_outline,
+    pear_silk_graphics,
     ring_polyline,
     ring_unit_counts,
     ring_unit_sites,
@@ -22,6 +25,7 @@ from pcbsmith.kicad.pear_board import (
 
 LED_FOOTPRINT = "LED_SMD:LED_0603_1608Metric"
 RESISTOR_FOOTPRINT = "Resistor_SMD:R_0603_1608Metric"
+UUID_PATTERN = re.compile(r'\(uuid\s+"?([0-9a-f-]{36})"?\)')
 CONNECTOR_FOOTPRINT = "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical"
 
 
@@ -112,6 +116,19 @@ def test_unit_sites_avoid_sharp_curvature() -> None:
     for ring in range(len(RING_INSETS)):
         for site in ring_unit_sites(ring):
             assert site.piece.radius >= MIN_UNIT_RADIUS
+
+
+def test_pear_silk_graphics_are_repeatable_with_unique_uuids() -> None:
+    first = pear_silk_graphics(20.0)
+    second = pear_silk_graphics(20.0)
+    matches = [UUID_PATTERN.search(graphic) for graphic in first]
+
+    assert first == second
+    assert first
+    assert all(match is not None for match in matches)
+    uuids = [match.group(1) for match in matches if match is not None]
+    assert len(uuids) == len(set(uuids))
+    assert all(UUID(value).version == 5 for value in uuids)
 
 
 def test_layout_routes_every_ring_and_branch() -> None:

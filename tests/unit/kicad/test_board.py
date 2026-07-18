@@ -97,8 +97,8 @@ def test_render_board_produces_footprints_tracks_and_outline() -> None:
     text = render_board(netlist)
 
     assert text.startswith("(kicad_pcb")
-    assert '(net 0 "")' in text
-    assert '(net 2 "/VIN")' in text
+    assert '(net 0 "")' not in text
+    assert '(net "/VIN")' in text
     # Three netlist parts plus four corner mounting holes (rule 5.1).
     assert text.count("(footprint ") == 7
     assert text.count("MountingHole") >= 4
@@ -327,6 +327,32 @@ def test_run_kicad_drc_passes_with_clean_report(tmp_path: Path) -> None:
     assert report.status == "passed"
     assert "--schematic-parity" in report.command
     assert report.findings == ()
+
+
+def test_run_kicad_drc_cannot_reuse_a_stale_clean_report(tmp_path: Path) -> None:
+    board = tmp_path / "Board.kicad_pcb"
+    board.write_text("(kicad_pcb)", encoding="utf-8")
+    stale_report = tmp_path / ".pcbsmith" / "kicad" / "drc.json"
+    stale_report.parent.mkdir(parents=True)
+    stale_report.write_text(
+        json.dumps({"violations": [], "unconnected_items": []}),
+        encoding="utf-8",
+    )
+
+    def fake_runner(command: Sequence[str]) -> KiCadProcessResult:
+        return KiCadProcessResult(
+            command=tuple(command), returncode=0, stdout="", stderr=""
+        )
+
+    report = run_kicad_drc(
+        board,
+        finder=lambda: KiCadInstall(path=Path("kicad-cli.exe"), source="test"),
+        runner=fake_runner,
+    )
+
+    assert report.status == "failed"
+    assert report.findings == ("KiCad DRC report was not written.",)
+    assert not stale_report.exists()
 
 
 def test_run_kicad_drc_reports_violations_and_unconnected(tmp_path: Path) -> None:

@@ -20,7 +20,6 @@ from __future__ import annotations
 import math
 from collections.abc import Callable, Sequence
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.calculators.electronics import thermometer_scale_fraction
 from pcbsmith.kicad.astar_router import route_board
@@ -36,6 +35,7 @@ from pcbsmith.kicad.board import (
 )
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
 from pcbsmith.kicad.design_checks import DesignChecksSpec
+from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.shaped_board import (
     clipped_circle_outline,
     silk_line,
@@ -311,7 +311,11 @@ def _hanging_hole() -> tuple[BoardComponent, float, float]:
             reference="H1",
             value="M3",
             footprint="MountingHole:MountingHole_3.2mm_M3",
-            uuid_path=str(uuid4()),
+            uuid_path=stable_kicad_uuid(
+                "board-component-path",
+                "thermometer-hanging-hole",
+                "H1",
+            ),
         ),
         STEM_CX,
         13.5,

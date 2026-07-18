@@ -30,7 +30,7 @@ SUPPORTED_TOPOLOGY_ID = "thermometer_env_display"
 
 MODEL_NOTE = (
     "LED branch .op only: diode fit to the datasheet Vf point; the "
-    "registers, MCU, sensor and regulator are datasheet-limit verified "
+    "registers, MCU/radio, sensor and regulator are datasheet-limit verified "
     "by the calculator, NOT SPICE-simulated."
 )
 
@@ -87,9 +87,10 @@ def render_thermometer_netlist(circuit: CircuitObject) -> str:
     )
 
 
-def _evaluate(
+def evaluate_thermometer_measurements(
     measurements: dict[str, float], circuit: CircuitObject
 ) -> tuple[str, tuple[str, ...], dict[str, float]]:
+    """Purely evaluate parsed LED-branch measurements against the design point."""
     calc = circuit.math.calculations
     findings: list[str] = []
     i_seg = measurements.get("i_seg")
@@ -152,7 +153,7 @@ def run_thermometer_simulation(
             findings=result.findings,
             raw_output_path=str(result.raw_output_path),
         )
-    status, findings, measurements = _evaluate(
+    status, findings, measurements = evaluate_thermometer_measurements(
         parse_ngspice_meas_results(result.raw_output), circuit
     )
     return SimulationReport(

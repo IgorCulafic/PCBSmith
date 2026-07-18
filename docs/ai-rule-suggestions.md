@@ -22,6 +22,17 @@ Entry format:
 
 ---
 
+## 2026-07-14 Superseding policy holds
+- status: proposed (**HOLD**)
+- proposed_by: Codex source-policy reconciliation
+- rule: 11.1, proposed 11.6-11.8, proposed 12.x, proposed 4.x
+- suggestion: do not promote universal same-bus minimum spacing, fixed sensor
+  moat, universal QFN retention, global 0.25 mm courtyard, or a global corner
+  blocker. Require per-bus, design/fab, assembler-process, package-family, and
+  craft/fabricator/HV applicability respectively.
+- evidence: docs/reference/current-materials-knowledge-base-2026-07-14.md
+- decision_note:
+
 ## 2026-07-05 QFN fanout rules (MPU-6050 slice)
 - status: promoted (user-requested topology)
 - proposed_by: claude-fable-5, MPU-6050 slice live-DRC iteration
@@ -68,10 +79,10 @@ Entry format:
   edge-parallel (pins stacked along the edge).
 - evidence: KiCad's LED_0603_1608Metric closes its silk outline with a bar at
   the cathode pad; CP_Elec_8x10 draws a 1 mm "+" cross and chamfered corner;
-  the user's hand edit placed P1 at (at 22 40 -90). Reading the library also
-  exposed that our pad-numbering deviates from the KiCad convention
-  (diode pad1=cathode, CP pad1=positive) — documented as rule 8.4 hazard with
-  a queued alignment fix.
+  the user's hand edit placed P1 at (at 22 40 -90). Reading the library exposed that the then-current generated mapping deviated
+  from the KiCad convention (diode/LED pad 1 = cathode, CP pad 1 = positive).
+  Historical note: the 2026-07-05 official-footprint migration resolved this;
+  it is no longer a queued or current deviation.
 - decision_note: implemented via FootprintSpec.silk_marks + right-angle
   rotation support (rotate_offset), verified by DRC parity on r003.
 
@@ -196,19 +207,14 @@ candidates for review:
   - **11.8 Crosstalk spacing classes**: foreign-net-to-bundle spacing
     >= 3x width (3W) as the default class; clock/periodic nets get a
     wider class (50 mil per TI SPRAAR7). Intra-bundle pitch may be
-    manufacturing-minimum for same-bus members.
+    manufacturing-minimum only for a characterized bus; same-bus membership alone is not an exemption.
   - **12.x Placement compatibility engine**: component cards gain
-    optional declarations the placer/checks enforce: heat-source
-    keepout (SHT3x-class sensors: distance from LDO/module, thin-trace
-    entry, slot/moat candidate), antenna keepout (ESP32: antenna zone
-    over board edge, >= 15 mm clearance, no copper under), decoupling
-    proximity (cap within N mm of its pin, own connection), crystal
-    keepout (foreign traces out of oscillator zone), hot-loop area
-    metric for switching topologies.
-  - **4.x Dual-side placement as strategy**: FLIPPED_REFS is gated by
-    a mass-per-wetted-perimeter table (SAC305 ~0.0269 g/mm with 20%
-    margin; chip passives/SOT/TSSOP/QFN safe, heavy parts excluded)
-    instead of ad-hoc judgment.
+    optional declarations for heat-source isolation (numeric SHT3x error stays
+    unpinned), antenna placement (module-specific edge/overhang or cutout,
+    separate 15 mm enclosure/object clearance, final RF test), decoupling
+    connection quality, crystal zones, and switching hot-loop area.
+  - **4.x Dual-side placement as strategy**: use package and assembler-process
+    evidence; no universal QFN-safe list or ratio blocker.
 - evidence: thermometer stem congestion (7 failed route attempts from
   independent per-net A*); user-supplied bus-routing example image;
   research digest docs/reference/routing-placement-research-2026-07.md
@@ -220,18 +226,14 @@ candidates for review:
 
 
 ## 2026-07-12 Consolidated book-rule candidates (phase 0 complete)
-- status: proposed
+- status: proposed (**subject to the 2026-07-14 holds above**)
 - proposed_by: claude-fable-5 + opus consolidation agent, nine-source book KB
 - rule: candidates spanning 11.6-11.8, 12.x, 4.x, and phase-1 audit fixes
-- suggestion: docs/reference/books/CONSOLIDATED.md is the canonical
-  candidate list - ~48 consolidated rules organized by plan phase, each
-  with every supporting source, verification status, thresholds
-  EVALUATED for our board class, and machine form; the final section
-  lists the 12 highest-value promotion-ready entries. Headline
-  decision: three crosstalk spacing classes (same-bus at mfg minimum /
-  foreign 3W craft floor - explicitly NOT a coupling guarantee on our
-  1.6 mm 2-layer stack / sensitive victims 5.7h = 9.1 mm with pour, or
-  opposite-layer/guard without).
+- suggestion: docs/reference/books/CONSOLIDATED.md records the July-12
+  candidate synthesis. Its original headline used same-bus manufacturing-
+  minimum spacing and called the final entries promotion-ready. Historical
+  note: the 2026-07-14 holds supersede those claims; bus spacing now requires
+  a per-bus electrical/coupling budget and held entries are not promotion-ready.
 - evidence: 72-rule spot-verification campaign (5 corrections, 1 false
   mismatch overturned by dimensional analysis, 2 honest ambiguities);
   six-item contradiction docket resolved explicitly in the file.

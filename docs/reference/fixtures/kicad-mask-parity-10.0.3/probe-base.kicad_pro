@@ -1,0 +1,14 @@
+{
+  "board": {
+    "design_settings": {
+      "rules": {
+        "solder_mask_clearance": 0.7,
+        "solder_mask_min_width": 0.3
+      }
+    }
+  },
+  "meta": {
+    "filename": "probe-base.kicad_pro",
+    "version": 1
+  }
+}

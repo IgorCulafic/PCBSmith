@@ -12,6 +12,10 @@ status** (verified / unverified / OCR-uncertain), the threshold
 implementation STATUS against the rulebook (`docs/pcb-design-rules.md`)
 and `design_checks.py` / `virtual_drc.py`.
 
+> **2026-07-14 superseding hold:** do not promote universal courtyard,
+> same-bus minimum-spacing, fixed-moat, universal-QFN-retention, or global
+> corner claims. The July-14 current-materials knowledge base governs.
+
 Honesty rules obeyed here: contradicting numbers are NEVER averaged —
 they are reconciled by identifying what each bounds (see the
 Contradiction Docket). OCR-uncertain thresholds stay marked. Every
@@ -66,28 +70,32 @@ ever lands.
 - STATUS: **propose-new** (plan 1.2). Existing `CLEARANCE_MM`
   constant is the thing being upgraded.
 
-### P1-2. Trace-current formula citation + internal-layer k
-- SOURCES: ipc-2221b §6.2 (PDF p.68, **verified** that B defers to
-  IPC-2152, no chart in B); the fit `I = 0.048·dT^0.44·A^0.725`
-  (external) matches the **2221A Fig 6-4** curve exactly; coombs §22
-  (**verified**) confirms IPC-2152 supersedes the internal-×½ myth
-  (internal runs slightly cooler); ipc-a-610 R22 (**verified**) 20%
-  width-damage budget → multiply required width by 1.25.
-- THRESHOLD for our class: keep k=0.048, dT=10 °C, 35 µm; 0.3 mm ≈ 1 A,
-  0.8 mm ≈ 2 A (matches the buck authority's declared load). Add
-  k=0.024 branch the day internal layers appear. Do NOT derate internal
-  layers ×2 (coombs).
-- MACHINE FORM: relabel calculator references "IPC-2221A Fig 6-4 fit;
-  2221B defers to IPC-2152"; add k=0.024 constant; apply the ×1.25
-  damage multiplier as a calculator knob.
-- STATUS: **exists** (`trace_current` check, rule 5.3) — citation +
-  internal-k + damage-multiplier are the edits (plan 1.1).
+### P1-2. Trace-current model and citation
+- SOURCES: IPC-2221B section 6.2 (PDF p.68, **verified**) defers to
+  IPC-2152; the existing `I = 0.048*dT^0.44*A^0.725` external fit is the
+  legacy IPC-2221A Figure 6-4 curve. Brooks/Adam Ch.5 (second-wave SW-B1,
+  text-verified against `p0062`-`p0071` and mechanism at `p0116`) reports
+  IPC-2152's internal traces may run cooler than equivalent external traces
+  because dielectric conduction can exceed surface convection/radiation.
+  IPC-A-610 R22 (**verified**) supplies a separate 20% width-damage budget.
+- THRESHOLD for our class: the legacy external fit may remain only as a
+  labeled interim at dT=10 C and 35 um. Do not add k=0.024 as a future
+  internal authority. IPC-2152 is absent and no longer maintained; if later
+  acquired, use it only as historical measured validation while selecting a
+  separately versioned model with explicit layer, copper, environment,
+  stackup/plane and temperature-rise inputs.
+- MACHINE FORM: label current results legacy_ipc_2221a_external_fit; expose
+  model/profile and evidence; keep damage allowance separate. Unknown and
+  near-limit cases stay advisory/needs-review.
+- STATUS: the current trace_current check still needs the model-label change;
+  no evidence-backed replacement thermal model is implemented.
 
-### P1-3. Rulebook §10 barrier citation fix
-- SOURCES: ipc-2221b audit (**verified**): §10.1's "pollution-degree
-  tables" citation is wrong — IPC-2221B has **no** pollution-degree
-  table (that is IEC 60950/62368 territory). The 6.4 mm value is
-  correct = Table 6-1 **B3, 171–250 V**.
+### P1-3. Rulebook section 10 barrier citation fix
+- SOURCES: IPC-2221B audit (**verified**) shows section 10.1's
+  pollution-degree citation is wrong: IPC-2221B has no such table. Table 6-1
+  B3 gives 6.4 mm at 171-250 V specifically for uncoated operation above
+  3050 m. IEC 62368-1 or the applicable end-product safety standard must
+  determine pollution degree, CTI, insulation type, clearance, and creepage.
 - MACHINE FORM: text-only edit to rulebook §10.1 wording; value
   unchanged.
 - STATUS: **exists** (§10.1 value); citation is the fix (plan 1.3).
@@ -158,10 +166,9 @@ ever lands.
   digest, **[MED]**, unverified); coombs §6.2 NEXT/FEXT flatten
   ~7 mil (0.18 mm, **verified** direction).
 - THRESHOLD for our class — **three classes** (resolution of Docket #1):
-  - **Same-bus intra-bundle** (SEG1-16, register outputs same-cycle
-    driving LEDs): pitch = **manufacturing minimum** (width + clearance,
-    ~0.35–0.5 mm). No crosstalk constraint — functionally tolerant AND
-    sub-critical (runs < 76 mm, edges ≥ 3 ns; bogatin R4-R6, johnson K2).
+  - **Same-bus intra-bundle:** no global exemption. Manufacturing minimum
+    requires per-bus edge/switching/timing/noise/EMC/coupled-length and
+    stackup evaluation.
   - **Generic foreign logic net** near a bundle: **≥ 3W centerline**
     (0.6 mm at a 0.2 mm trace) as a CRAFT floor (montrose ~70% flux).
     Honesty caveat: on our thick 2-layer dielectric 3W does NOT prove
@@ -183,10 +190,8 @@ ever lands.
 - SOURCES: research digest §2 (**[HIGH]** craft, not SI); montrose §1.6
   parallelism discipline (**verified**); johnson HSDD-T3 (never bundle a
   bus away from its return, **verified** ratios).
-- THRESHOLD: declared bus members route as one bundle — leader by A*,
-  followers offset at constant pitch with matched 45° bends; check that
-  **>= X% (start ~70%) of each member's length runs within one pitch of
-  a neighbour** and bends occur at shared stations.
+- THRESHOLD: declared buses may route as bundles. Coherence remains a
+  reported metric until the bus supplies an evidence-backed threshold.
 - MACHINE FORM: `route_board(bus_groups=...)`; new `bundle_coherence`
   check; followers validated against the SAME blocked sets, A* fallback
   logged (no silent degradation).
@@ -229,10 +234,8 @@ ever lands.
   ONLY. **HV exception**: field concentration at sharp corners degrades
   creepage — keep sharp-corner avoidance on declared HV nets (flyback
   primary).
-- MACHINE FORM: keep `trace_corner_angle` (no acute joints); do NOT
-  cite EMI as its reason; do NOT add a 90°-corner ban.
-- STATUS: **exists** (rule 11.1). Rulebook candidate 11.7 documents the
-  honesty.
+- MACHINE FORM: enable only for declared craft/fabricator/HV applicability.
+- STATUS: global trace_corner_angle scope is **policy-held**.
 
 ---
 
@@ -294,29 +297,34 @@ ever lands.
 - STATUS: **propose-new** (plan 3.4).
 
 ### P3-5. Temperature/humidity sensor thermal isolation
-- SOURCES: williams T4 §9.6.4 (**verified**): hot parts to edge, away
-  from sensitive parts; digest Sensirion SHT3x (**[HIGH]**): 1 °C =
-  ~5 %RH error at 90 %RH, heat via copper, mitigate by distance +
-  minimal copper (thin traces) + milled slots/moat + sensor at edge;
-  coombs §4.1 (**verified**) milled slot floor 0.7 mm (use ≥1.0 mm),
-  rounded ends.
-- THRESHOLD for our class: sensor-class part declares heat-source
-  keep-out distance from LDO/module; entry trace width capped at signal
-  minimum; **milled moat slot ≥ 1.0 mm** around the bulb; minimal
-  copper. (Directly the thermometer r002 payload.)
-- MACHINE FORM: sensor-class card fields + placement penalty + slot
-  generator; `min_slot_width_mm = 1.0`.
-- STATUS: **propose-new** (plan 3.1, plan 5.2).
+- SOURCES: Williams T4 supports separating heat sources from sensitive parts.
+  Sensirion Design Guide v2 is verified online but not locally pinned and
+  supports the sensitivity/isolation mechanism, not a universal slot geometry.
+  Coombs supports rounded manufacturable slots only within a fab context.
+- THRESHOLD: none global. The sensor, board, housing, fabricator profile and
+  thermal-error target determine distance, copper and any slot/moat geometry;
+  validate the assembled design.
+- MACHINE FORM: sensor thermal/isolation objective with evidence and test
+  result; no fixed min_slot_width_mm.
+- STATUS: **proposed, policy-held** pending design-specific geometry and
+  validation.
 
-### P3-6. Module antenna keep-out
-- SOURCES: digest Espressif (**[HIGH]**): antenna over/at board edge,
-  **≥ 15 mm clearance, no copper under**; corroborated by ott P1
-  (high-speed/antenna far from I/O). Thermometer r001 **VIOLATES** this
-  — U1's antenna points into the bulb over copper.
-- THRESHOLD: module card declares antenna extent; check antenna over
-  edge, ≥15 mm clearance, no copper under the antenna zone.
-- MACHINE FORM: `antenna_keepout` check + placement/rotation.
-- STATUS: **propose-new** (plan 3.2, plan 5.1).
+### P3-6. Module antenna placement and enclosure clearance
+- SOURCES: pinned Espressif ESP32/ESP32-C3 hardware guides
+  (`SECOND-WAVE-2026-07.md` SW-E1/E2, vendor-primary, text-verified; figure
+  geometry pending visual/module-specific confirmation). Prefer antenna outside
+  the baseboard with feed near the edge; fallback cuts baseboard on both sides
+  and below. The **15 mm value is final-housing/object clearance**, not a
+  blanket PCB copper keepout. The guide also asks for ground copper/vias near
+  the antenna outside the cutout.
+- THRESHOLD: declare module-specific antenna/feed and fallback-cutout polygons;
+  store `housing_clearance_mm=15` separately; require final throughput/range
+  test. Thermometer r001 points into the interior over copper and violates the
+  placement intent.
+- MACHINE FORM: board-edge/overhang or exact cutout check plus separate
+  enclosure-review finding; never synthesize antenna geometry from 15 mm.
+- STATUS: **propose-new** (plan 3.2, plan 5.1); exact module drawing still
+  needs pinning/visual validation.
 
 ### P3-7. Switching hot-loop area metric
 - SOURCES: ott SW1/SW2 (**verified**): input-cap ESL sets DM emission
@@ -378,22 +386,19 @@ ever lands.
 
 # Phase 4 — dual-side placement gate
 
-### P4-1. Side-assignment mass gate
-- SOURCES: coombs §43.3.2/43.3.3.2.1 (**content-verified**): larger
-  parts on the LAST-reflowed side; first-pass-side parts retained only
-  by surface tension unless glued; **book gives NO number** (30 g/in²
-  heuristic absent); digest SMTA/SAC305 (**[HIGH]**): **~0.0269 g per
-  mm of wetted perimeter, use with 20% margin**; ipc-a-610 R24
-  (**verified**): no adhesive requirement for reflowed bottom side.
-- THRESHOLD: FLIPPED_REFS gated by mass / wetted-perimeter vs the SAC305
-  ratio (0.0269 g/mm × 0.8 margin). Chip passives / SOT / SOIC / TSSOP /
-  QFN / small DFN safe; transformers / big connectors / electrolytics /
-  BGAs stay on the last-reflowed side.
-- MACHINE FORM: per-footprint mass/perimeter table; blocker for parts
-  beyond the ratio; carry the SMTA value labeled as the source (coombs
-  supplies mechanism only).
-- STATUS: **propose-new** (plan 4.1, rulebook candidate 4.x). Existing
-  `placement_search` side-flip moves are the hook.
+### P4-1. Side-assignment retention review
+- SOURCES: Coombs verifies the retention mechanism and gives no numeric gate.
+  The online-verified, locally unpinned SMTA/SAC305 paper reports about
+  0.0269 g/mm for its narrow package/process population. IPC-A-610 R24 is
+  acceptance context, not a universal placement rule.
+- THRESHOLD: none universal. Use actual package mass/wetted geometry, alloy,
+  paste, profile, orientation and assembler validation. No package family,
+  including QFN/DFN, is automatically safe.
+- MACHINE FORM: an explicit assembly profile and per-package retention review;
+  the historical ratio may be reported only inside its demonstrated range and
+  is not a global blocker.
+- STATUS: **proposed, policy-held**. Existing placement_search side flips are
+  the implementation hook once evidence is supplied.
 
 ### P4-2. Neighbor-gap overhang budget
 - SOURCES: ipc-a-610 R4/R6/R8 (**verified**, R4 minor fillet-side note):
@@ -528,7 +533,7 @@ ever lands.
 | **20-H power-plane inset** = 20× interplane gap | montrose §8 (**verified**, book hedges heavily, negative-benefit literature noted) | KNOB, never a blocker; only "very high-speed" + board dim ≥ λ-fraction; dormant on 2-layer | propose-new (knob) |
 | **CAF spacing** L⁴/V² for high-DC-bias nets | coombs §6.4 (**verified**, no single number) | add margin to hole-to-hole spacing on >48 V nets; ties into §10 isolation | propose-new (flyback) |
 | **Reflow edge keep-out** for pin-chain conveyors | coombs §2.4 (**verified**, no number); ipc-7351 (**verified**) | 3–5 mm along conveyor edges (assumption pending assembler data) | propose-new |
-| **Courtyard density level** — 0.1/0.25/0.5 mm (C/B/A) | ipc-7351 Tables 3-2..3-14 (**verified** clean for 0.1/0.25/0.5); small-chip 0.15/0.20 **OCR-uncertain**; butt-joint 0.8/1.5 **OCR-uncertain**; LCC likely standard not exception | default **B** (0.25 mm, = our KiCad libs + fallback); dense mode = C (0.1 mm) MUST attach a qualification-testing finding (Table 3-15) | partially exists (`courtyard_overlap` at Level B) |
+| **Courtyard policy** | IPC-7352:2023 family tables + manufacturer/KLC/process evidence | no global 0.25 mm Level-B value; add process allowance; quarantine anomalous BGA middle value | global interpretation held |
 | **Reliability derating** — cap V_rated ≥ 2× (V⁵ law), R P_rated ≥ 2×, electrolytic ×2 life/−10 °C | williams C1/C2 (**verified**) | BOM arithmetic with datasheet evidence | partially exists (voltage margins) |
 | **Unused CMOS inputs never float** | williams D5 (**verified**) | tie to VCC/GND; NC only a deliberate marker on outputs | partially exists (ERC / no-connect machinery) |
 | **Axial bend span** — hole span − body ≥ 2·(0.8 mm + R_bend) | ipc-a-610 R17 (**verified**) | footprint-selection check for axial THT | propose-new |
@@ -573,14 +578,14 @@ proxy.
 
 | Class | Centerline spacing | Basis / status |
 |---|---|---|
-| **Same-bus intra-bundle** (SEG register outputs) | manufacturing minimum (~0.35–0.5 mm) | functionally tolerant (same-cycle LED drive) AND sub-critical (runs <76 mm, edges ≥3 ns — bogatin R4-R6 **verified**) |
+| **Characterized bus** | project-selected | same-bus alone is not an exemption |
 | **Generic foreign logic net** | ≥ 3W ≈ 0.6 mm (craft floor) | montrose 3-W **verified**; HONEST CAVEAT: does NOT prove <3% coupling on our thick dielectric — a readability/area floor only |
 | **Sensitive victim** (clock aggressor / analog / reset / crystal / high-Z FB) | ≥ 5.7·h ≈ **9.1 mm** c-c with a back-side GND pour; else move aggressor to opposite layer or add a stitched guard | johnson X1 **verified**; substitution 1/(1+(D/1.6)²)=0.03 → D=9.1 mm |
 
-Numbers are NOT averaged: 0.6 mm and 9.1 mm coexist because they bound
-DIFFERENT victims (a craft floor for non-critical logic vs a
-coupling-limited sensitive net). Same-bus members carry high mutual
-crosstalk by design and are exempt.
+Numbers are not averaged: the craft floor and plane-backed sensitive-victim
+bound address different risks. Same-bus membership is not an exemption;
+tighter spacing requires a declared per-bus switching, timing/noise/EMC,
+coupled-length and stackup budget.
 
 ## Docket #2 — Bandwidth definition (Fknee 0.5/Tr vs 0.35/Tr vs 1/(π·Tr))
 
@@ -679,30 +684,22 @@ modern spray-etch / our 0.2 mm geometry (**content-verified**, locator
 corrected 37.6→37.2); research digest **[HIGH]**; electromigration at
 right angles no worse than 45° (IRPS 2013). **Unanimous.**
 
-**Resolution (stated once):** 90° corners are NOT a signal-integrity or
-EMI problem for our class (below multi-GHz). The 45° / no-acute-joint
-discipline is justified by **fabrication (etch), appearance, and path
-length only** — never by EMI/SI. **One exception:** on declared
-high-voltage nets (flyback primary) sharp corners concentrate the field
-and degrade creepage/breakdown margin, so sharp-corner avoidance stays a
-real electrical rule there. This matches the existing
-`trace_corner_angle` check (rule 11.1) exactly; keep it, keep its
-fabrication rationale, do not add a 90°-corner ban.
+**Resolution (superseded scope):** 90° corners are not a general SI/EMI
+problem for this board class. H/V/45 may remain a craft style. A selected
+fabricator or declared HV-net policy may justify scoped angle enforcement.
+This does not validate the existing global trace_corner_angle blocker; that
+scope remains held until applicability is explicit.
 
-**No unresolved contradictions remain.** The only place better data
-would sharpen the answer is Docket #1's absolute coupling on a
-NO-pour 2-layer board (both layers signal, no reference plane at all):
-Johnson's D/H law assumes a plane at height h, so with no plane the
-inductive coupling is worse than 1/(1+(D/H)²) predicts. The 9.1 mm
-sensitive-victim figure is therefore a MINIMUM that assumes a back-side
-pour; the deciding experiment (or an IPC-2152-class field-solver number)
-would quantify the no-plane penalty. Until then the rule is: no plane →
-move the aggressor to the opposite layer or add a stitched guard, do not
-rely on spacing alone.
-
+**Residual corrections remain.** The second-wave audit corrected the
+Espressif 15 mm interpretation, rejected the old internal-trace coefficient,
+and scoped IPC-2221B B3 to altitude. IPC-7351 Tables 3-6/3-9 remain
+OCR-ambiguous pending a readable current copy. SHT3x thermal-error numbers
+remain unpinned. Docket #1's absolute coupling on a no-pour 2-layer board also
+needs a field solver or measurement: Johnson's D/H law assumes a plane, so the
+current sensitive-victim distance is only a plane-backed bound.
 ---
 
-# ai-rule-suggestions candidates (ready for user promotion)
+# ai-rule-suggestions candidates (policy-held entries are not promotion-ready)
 
 Entry format per `docs/ai-rule-suggestions.md`. All `status: proposed`.
 
@@ -732,19 +729,14 @@ Entry format per `docs/ai-rule-suggestions.md`. All `status: proposed`.
 - decision_note:
 
 ## 2026-07-12 Bus routing as a bundle with spacing classes (P2-1, P2-2)
-- status: proposed
-- proposed_by: claude (supersedes the 2026-07-11 11.6-11.8 draft with
-  the resolved spacing table)
-- rule: new 11.6 (bundle) + 11.8 (spacing classes)
-- suggestion: declared bus groups route as one bundle (leader A*,
-  offset followers, matched bends, pigtails at pads). Spacing THREE
-  classes — same-bus intra-bundle at manufacturing minimum; generic
-  foreign net ≥ 3W craft floor; sensitive victim ≥ 5.7h ≈ 9.1 mm c-c
-  (with back-side pour) per the Johnson D/H law. Rationale for the
-  bundle is craft/area, NOT signal integrity; rationale for the
-  sensitive-victim class IS coupling.
-- evidence: montrose 3-W, bogatin R11-R13, johnson X1 (all verified);
-  Docket #1 resolution; thermometer stem congestion.
+- status: proposed (**policy-held 2026-07-14**)
+- proposed_by: claude
+- rule: new 11.6 (bundle) + 11.8 (spacing)
+- suggestion: preserve leader/follower bundle routing as craft/area machinery.
+  Historical note: same-bus-at-manufacturing-minimum is superseded. Each bus
+  requires a declared electrical/coupling budget; generic 3W remains only a
+  craft floor and plane-backed sensitive spacing remains conditional.
+- evidence: Montrose, Bogatin and Johnson plus the July-14 conflict resolution.
 - decision_note:
 
 ## 2026-07-12 Decoupling connection-quality metric + census (P3-1, P3-2)
@@ -760,25 +752,27 @@ Entry format per `docs/ai-rule-suggestions.md`. All `status: proposed`.
 - decision_note:
 
 ## 2026-07-12 Sensor thermal isolation + milled moat (P3-5)
-- status: proposed
+- status: proposed (**policy-held; no universal moat**)
 - proposed_by: claude
 - rule: new
-- suggestion: temperature/humidity sensor cards declare a heat-source
-  keep-out distance; entry traces capped at signal-minimum width; a
-  milled moat slot ≥ 1.0 mm around the bulb (rounded ends, router-tool
-  floor). Directly the thermometer r002 payload.
-- evidence: digest Sensirion SHT3x [HIGH] (1 °C ≈ 5 %RH at 90 %RH),
-  williams T4 (verified), coombs §4.1 slot floor (verified).
+- suggestion: temperature/humidity sensor cards declare heat-source isolation,
+  thin/low-copper entry, and moat candidacy. A 1.0 mm rounded slot is a Coombs
+  manufacturing floor for the current concept, not a universal sensor rule.
+- evidence: Williams T4 and Coombs slot floor (verified). Acquire and pin the
+  current Sensirion SHT3x design-in guide before encoding the digest's
+  `1 C ~= 5 %RH at 90 %RH` claim or a universal moat geometry.
 - decision_note:
 
-## 2026-07-12 Module antenna keep-out (P3-6)
-- status: proposed
+## 2026-07-12 Module antenna placement/cutout (P3-6)
+- status: proposed; corrected by pinned second-wave source audit
 - proposed_by: claude
 - rule: new
-- suggestion: module cards declare antenna extent; check antenna over
-  the board edge, ≥15 mm clearance, no copper under the antenna zone.
-- evidence: digest Espressif [HIGH]; thermometer r001 VIOLATES it
-  (U1 antenna points into the bulb over copper).
+- suggestion: module cards declare antenna/feed and vendor cutout polygons;
+  prefer antenna overhang/feed at edge, otherwise cut baseboard on both sides
+  and below. Store 15 mm as enclosure/object clearance and require final RF
+  range/throughput test; do not turn it into a blanket PCB copper setback.
+- evidence: pinned Espressif guides, SW-E1/E2; thermometer r001 violates the
+  placement intent because U1 points into the interior over bulb copper.
 - decision_note:
 
 ## 2026-07-12 Return-path continuity (no slot under fast nets) (P5-2)
@@ -815,16 +809,15 @@ Entry format per `docs/ai-rule-suggestions.md`. All `status: proposed`.
   CB6); our class rides at the edge of endorsed practice.
 - decision_note:
 
-## 2026-07-12 Dual-side side-assignment mass gate (P4-1)
-- status: proposed
+## 2026-07-12 Dual-side side-assignment retention review (P4-1)
+- status: proposed (**policy-held 2026-07-14**)
 - proposed_by: claude
 - rule: new 4.x
-- suggestion: gate FLIPPED_REFS by mass / wetted-perimeter vs the SAC305
-  ratio (0.0269 g/mm, 20% margin); chip/SOT/TSSOP/QFN safe, transformers/
-  big connectors/electrolytics/BGAs on the last-reflowed side only.
-- evidence: coombs §43.3.2 (mechanism only, verified), digest SMTA/
-  SAC305 [HIGH] for the number, ipc-a-610 R24 (no adhesive requirement
-  for reflowed bottom side, verified).
+- suggestion: evaluate side assignment with the actual package and assembler
+  process. Historical note: the 0.0269 g/mm ratio and QFN-safe package list are
+  superseded as global rules; the narrow experiment is applicability-bounded
+  evidence only.
+- evidence: Coombs mechanism plus online-verified, locally unpinned SMTA paper.
 - decision_note:
 
 ## 2026-07-12 Series damping on ≥20 MHz clocks (P3-3)

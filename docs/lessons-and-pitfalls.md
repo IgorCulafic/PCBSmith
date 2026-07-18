@@ -100,10 +100,11 @@ why the checks exist and where the next mistakes will come from.
 5. **Sensor thermal placement is a correctness issue**, not comfort:
    1 C parasitic heating = 5 %RH error at 90 %RH (Sensirion). The
    thermometer r001 draft still owes the moat + thin traces.
-6. **Antenna zones**: module antenna over interior copper (thermometer
-   r001, U1) violates Espressif's edge + 15 mm rule — caught only by
-   the book research, no check yet (plan phase 3).
-
+6. **Antenna zones**: thermometer r001 points the module antenna into the
+   board interior over bulb copper. Pinned Espressif guidance prefers antenna
+   overhang/feed at the edge or a module-specific cutout on both sides and
+   below. Its 15 mm value is enclosure/object clearance, not blanket PCB
+   copper clearance. No check exists yet (plan phase 3).
 ## D. KiCad interop traps (cost real hours each)
 
 - kicad-cli silently DROPS unlabeled nets from ERC and netlist export

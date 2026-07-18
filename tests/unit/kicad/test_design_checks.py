@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+from dataclasses import replace
+
+import pytest
+
 from pcbsmith.kicad.board import (
     BoardComponent,
     BoardNet,
@@ -267,3 +271,194 @@ def test_trace_craft_exemption_skips_sculpted_nets() -> None:
         DesignChecksSpec(trace_craft_exempt_nets=("/SIG",)),
     )
     assert not [f for f in report.findings if f.rule in ("11.1", "11.2")]
+
+
+def test_legacy_barrier_is_side_review_not_safety_spacing() -> None:
+    from pcbsmith.kicad.board import BoardLayout, TrackSegment
+
+    netlist = BoardNetlist(
+        components=(),
+        nets=(BoardNet(name="/PRI", nodes=()), BoardNet(name="/SEC", nodes=())),
+    )
+    layout = BoardLayout(
+        placements=(),
+        segments=(
+            TrackSegment(
+                x1=5.0, y1=5.0, x2=10.0, y2=5.0,
+                layer="F.Cu", net_name="/PRI", width_mm=0.4,
+            ),
+            TrackSegment(
+                x1=20.0, y1=5.0, x2=25.0, y2=5.0,
+                layer="F.Cu", net_name="/SEC", width_mm=0.4,
+            ),
+        ),
+        vias=(),
+        width_mm=30.0,
+        height_mm=10.0,
+    )
+    spec = DesignChecksSpec(
+        isolation_barrier=(15.0, 100.0, ("/PRI",), ("/SEC",), ()),
+    )
+
+    report = run_design_checks(layout, netlist, spec)
+    assert "barrier_side_review" in report.checks_run
+    assert not [
+        finding
+        for finding in report.findings
+        if finding.rule == "geometry.barrier_side"
+    ]
+
+    crossed = layout.__class__(
+        **{
+            **{
+                name: getattr(layout, name)
+                for name in layout.__dataclass_fields__
+            },
+            "segments": (
+                *layout.segments,
+                TrackSegment(
+                    x1=16.0, y1=7.0, x2=18.0, y2=7.0,
+                    layer="F.Cu", net_name="/PRI", width_mm=0.4,
+                ),
+            ),
+        }
+    )
+    crossed_report = run_design_checks(crossed, netlist, spec)
+    side_findings = [
+        finding
+        for finding in crossed_report.findings
+        if finding.rule == "geometry.barrier_side"
+    ]
+    assert side_findings
+    assert all(finding.severity == "warning" for finding in side_findings)
+    assert all("does not establish" in finding.evidence for finding in side_findings)
+
+def test_profile_scoped_body_to_edge_check_and_explicit_exemption() -> None:
+    from pcbsmith.kicad.board import BoardLayout
+    from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE
+
+    resistor = _smd("R1")
+    netlist = BoardNetlist(components=(resistor,), nets=())
+    layout = BoardLayout(
+        placements=((resistor, 1.0),),
+        segments=(),
+        vias=(),
+        width_mm=20.0,
+        height_mm=12.0,
+        part_y_mm=(("R1", 6.0),),
+    )
+    geometry = DEFAULT_PCB_RULE_PROFILE.geometry.model_copy(
+        update={"minimum_component_body_to_edge_mm": 1.5}
+    )
+    profile = DEFAULT_PCB_RULE_PROFILE.model_copy(update={"geometry": geometry})
+
+    blocked = run_design_checks(layout, netlist, DesignChecksSpec(), profile)
+    findings = [
+        finding
+        for finding in blocked.findings
+        if finding.rule == "fab.body_to_edge"
+    ]
+    assert "component_body_to_edge" in blocked.checks_run
+    assert len(findings) == 1
+    assert findings[0].component_refs == ("R1",)
+
+    exempt = run_design_checks(
+        layout,
+        netlist,
+        DesignChecksSpec(body_edge_exempt_refs=("R1",)),
+        profile,
+    )
+    assert not [
+        finding
+        for finding in exempt.findings
+        if finding.rule == "fab.body_to_edge"
+    ]
+
+def test_trace_checks_use_source_roles_when_labels_are_misleading(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    from pcbsmith.kicad import virtual_drc
+    from pcbsmith.kicad.board import BoardLayout, TrackSegment, ViaSpec
+    from pcbsmith.kicad.virtual_drc import _Stadium
+    from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
+
+    original_collect = virtual_drc._collect_items
+
+    def relabel(
+        layout_arg: BoardLayout,
+        netlist_arg: BoardNetlist,
+        *,
+        cover_rect_pads: bool = False,
+        profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
+    ) -> list[_Stadium]:
+        return [
+            replace(item, label=f"diagnostic text only {index}")
+            for index, item in enumerate(
+                original_collect(
+                    layout_arg,
+                    netlist_arg,
+                    cover_rect_pads=cover_rect_pads,
+                    profile=profile,
+                )
+            )
+        ]
+
+    monkeypatch.setattr(virtual_drc, "_collect_items", relabel)
+
+    acute_segments = (
+        TrackSegment(
+            x1=10.0,
+            y1=6.0,
+            x2=15.0,
+            y2=6.0,
+            layer="B.Cu",
+            net_name="/SIG",
+            width_mm=0.4,
+        ),
+        TrackSegment(
+            x1=15.0,
+            y1=6.0,
+            x2=10.0,
+            y2=2.5,
+            layer="B.Cu",
+            net_name="/SIG",
+            width_mm=0.4,
+        ),
+    )
+    via_layout, netlist = _two_pad_layout(acute_segments)
+    via_layout = replace(
+        via_layout,
+        vias=(ViaSpec(x=15.0, y=6.0, net_name="/SIG"),),
+    )
+    via_report = run_design_checks(via_layout, netlist, DesignChecksSpec())
+    assert not [finding for finding in via_report.findings if finding.rule == "11.1"]
+
+    parallel_segments = (
+        TrackSegment(
+            x1=8.0,
+            y1=6.0,
+            x2=20.0,
+            y2=6.0,
+            layer="F.Cu",
+            net_name="/SIG",
+            width_mm=0.4,
+        ),
+        TrackSegment(
+            x1=8.0,
+            y1=6.2,
+            x2=20.0,
+            y2=6.2,
+            layer="F.Cu",
+            net_name="/SIG",
+            width_mm=0.4,
+        ),
+    )
+    parallel_layout, netlist = _two_pad_layout(parallel_segments)
+    parallel_report = run_design_checks(
+        parallel_layout,
+        netlist,
+        DesignChecksSpec(),
+    )
+    assert not [
+        finding for finding in parallel_report.findings if finding.rule == "11.2"
+    ]

@@ -6,16 +6,16 @@ fusible resistor, MOV, X2 cap, bridge, 450 V bulk can, clamp passives,
 line Y-caps, earth pad); the entire SMD control circuit lives on the
 BACK (UCC28881 cluster on the primary side, rectifier/filter/feedback
 on the secondary side). Between the halves runs the machine-checked
-ISOLATION BARRIER at x = 51 with >= 6.4 mm creepage (rule 10.1),
+ISOLATION DIVIDER at x = 51 with a 6.4 mm project copper-spacing target,
 crossed only by the three parts built to cross it: the transformer,
 the optocoupler, and the Y-capacitor.
 
-Every trace comes from ``route_board`` (Track 8.2) with the isolation
-and earth clearance groups as router keepouts - the same declarations
-`run_design_checks` enforces, built once in :func:`flyback_checks_spec`
-so the router, the checks, and the CLI authority cannot drift apart.
-No copper pours anywhere: every net is an explicit trace so the
-creepage analysis stays exact.
+Every trace comes from ``route_board`` (Track 8.2) with ordinary project
+geometry groups as router keepouts - the same declarations
+`run_design_checks` enforces, built once in :func:`flyback_checks_spec`.
+The target is not insulation approval. Qualified clearance must come from
+a complete rule profile, and creepage still requires surface-path geometry.
+No copper pours are used, keeping the copper geometry directly inspectable.
 
 Predecessors: r002 (88 x 50, single-side, hand waypoints) and the
 compaction experiment `tools/flyback_compaction.py`; analysis in
@@ -50,7 +50,7 @@ from pcbsmith.kicad.shaped_board import silk_line, silk_text
 BOARD_W = 80.0
 BOARD_H = 42.0
 BARRIER_X = 51.0
-ISOLATION_GAP_MM = 6.4
+PROJECT_GAP_TARGET_MM = 6.4
 
 PRIMARY_NETS = ("/L", "/N", "/ACL", "/HVP", "/HVM", "/SW", "/CLAMP", "/VDD", "/FB")
 EARTH_NETS = ("/EARTH",)
@@ -143,21 +143,30 @@ FLYBACK_NET_WIDTHS: dict[str, float] = {
 
 
 def flyback_checks_spec() -> DesignChecksSpec:
-    """THE flyback rule declaration: the router keepouts, the design
-    checks, and the CLI authority all read this one spec."""
+    """Flyback geometry targets shared by routing and design review.
+
+    These declarations are ordinary project constraints, not qualified
+    insulation clearance or creepage approval.
+    """
     return DesignChecksSpec(
         net_currents=(("/3V3", 0.5), ("/GNDS", 0.5)),
         isolation_barrier=(
             BARRIER_X,
-            ISOLATION_GAP_MM,
+            PROJECT_GAP_TARGET_MM,
             PRIMARY_NETS,
             SECONDARY_NETS,
             STRADDLE_REFS,
         ),
         net_group_clearances=(
-            # Rule 10.4: protective earth keeps basic-insulation
-            # distance from the mains nets; only the certified line
-            # Y-caps bridge (FLBACK-001 practice).
+            (
+                "primary-to-secondary project geometry target",
+                PRIMARY_NETS,
+                SECONDARY_NETS,
+                PROJECT_GAP_TARGET_MM,
+                STRADDLE_REFS,
+            ),
+            # Ordinary project geometry: protective earth stays away
+            # from the mains nets; only the declared line Y-caps bridge.
             (
                 "earth-to-primary clearance",
                 ("/EARTH",),
@@ -169,7 +178,7 @@ def flyback_checks_spec() -> DesignChecksSpec:
                 "earth-to-secondary clearance",
                 ("/EARTH",),
                 SECONDARY_NETS,
-                ISOLATION_GAP_MM,
+                PROJECT_GAP_TARGET_MM,
                 (),
             ),
         ),

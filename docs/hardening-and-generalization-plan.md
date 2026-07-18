@@ -1,5 +1,10 @@
 # PCBSmith Hardening & Generalization Plan
 
+> **Historical/superseded plan.** This document records the July 6
+> hardening waves and later Track 8/9 additions. Many items subsequently
+> landed, so its progress and remaining-work lists are not authoritative.
+> Use `docs/project-catchup-2026-07-12.md` for current state and
+> `docs/routing-placement-plan.md` for the active roadmap.
 Date: 2026-07-06
 
 Status: Action plan following the challenge-board audit (clover `a817b5d`,

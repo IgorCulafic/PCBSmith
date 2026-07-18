@@ -9,7 +9,6 @@ instead of hand-computed offsets.
 from __future__ import annotations
 
 from pathlib import Path
-from uuid import uuid4
 
 from pcbsmith.circuit.models import CircuitObject
 from pcbsmith.kicad.export_divider_highpass_led import (
@@ -20,6 +19,7 @@ from pcbsmith.kicad.export_divider_highpass_led import (
     _validate_project_name,
     _wire,
 )
+from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.metal_detector_board import P1_PIN_NETS
 from pcbsmith.kicad.symbols import (
     instance_pin_position,
@@ -120,7 +120,12 @@ def _render_schematic(circuit: CircuitObject, project_name: str) -> str:
   (version {KICAD_SCHEMATIC_VERSION})
   (generator "PCBSmith")
   (generator_version "0.1")
-  (uuid {uuid4()})
+  (uuid {stable_kicad_uuid(
+      "schematic-root",
+      "machine",
+      project_name,
+      circuit.topology.topology_id,
+  )})
   (paper "A4")
 
   (lib_symbols

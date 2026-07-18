@@ -2,6 +2,11 @@
 
 Date: 2026-07-02
 
+Policy reconciliation (2026-07-14): applicability/source-status findings in
+docs/reference/current-materials-knowledge-base-2026-07-14.md supersede older
+broad wording. Implemented checks can remain on **policy hold** when their
+scope is broader than their evidence.
+
 Governance: this file is the authoritative rulebook. AI reviewers currently
 edit it directly with user permission; once rule confinement is enabled they
 must instead propose changes in `docs/ai-rule-suggestions.md` for human
@@ -249,34 +254,25 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   vertical on the left edge, `(at 22 40 -90)`.) Status: **implemented** in
   the art-grid layout (rotation 270, "+" pin up); the row-channel layout
   still places headers edge-perpendicular pending escape routing.
-- **8.4 Pin-numbering conventions (deviation, documented hazard).** Official
-  KiCad libraries put the diode/LED CATHODE on pad 1 (the bar marks it) and
-  the polarized-capacitor POSITIVE on pad 1. **PCBSmith's generated
-  symbol/footprint pairs currently deviate: LED/diode pad 1 = anode, CP
-  pad 1 = negative.** The pairs are internally consistent and the silk marks
-  are placed by electrical truth, so fabrication is correct — but swapping a
-  PCBSmith footprint for the same-named KiCad library footprint would flip
-  polarity. This is also why `lib_footprint_mismatch` stays suppressed in
-  generated projects. Status: deviation **documented**; queued fix is to
-  adopt the KiCad conventions or import official `.kicad_mod` geometry
-  outright (which would bring the real silk art with it).
-
+- **8.4 Pin-numbering conventions follow the selected KiCad parts.** Official
+  diode/LED pin and pad 1 are the cathode; polarized-capacitor pin and pad 1
+  are positive. PCBSmith now follows those mappings. The earlier deviation
+  was corrected by the 2026-07-05 official-footprint migration. Status:
+  **implemented**; replacements still require explicit pin-to-pad review.
 
 ## 9. Sensing structures made of copper
 
-- **5.2 Board outlines must be simple closed polygons.** A
+- **5.6 Board outlines must be simple closed polygons.** A
   self-intersecting Edge.Cuts polygon poisons every downstream check (a
   single mirrored arc constant once produced 90+ violations on the pear
   board). (`SESSION`.) Status: **implemented** (`outline_is_simple` runs
   on every shaped layout; blocker).
 
-- **5.3 Power-net trace widths must carry their load current.** The
-  narrowest segment of a net limits the whole net; capacity per the
-  IPC-2221 external-layer fit I = 0.048 * dT^0.44 * A^0.725 at a 10 C
-  rise (0.8 mm / 1 oz ~ 2 A, matching the published tables). (`IPC-2221`
-  chart fit; worked-example evidence fetch pending per plan 1.3.)
-  Status: **implemented** (`trace_current` check; the buck authority
-  declares its power path at the design load current).
+- **7.6 Power-net trace widths must carry their load current.** The implemented
+  equation is legacy_ipc_2221a_external_fit, not IPC-2221B or IPC-2152.
+  Status: **implemented with a legacy model**; disclose copper,
+  layer/environment and temperature-rise assumptions. Unknown or near-limit
+  cases remain needs-review.
 
 - **9.1 No copper pour or plane under a sensing coil.** A plane under a
   planar inductor forms a shorted turn: eddy currents cancel flux, drop the
@@ -310,23 +306,19 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
 
 ## 10. Galvanic isolation (mains-fed designs)
 
-- **10.1 Primary and secondary copper keep a machine-checked creepage
-  distance.** An offline design declares an isolation barrier (a
-  vertical line at `barrier_x`), the set of primary nets, the set of
-  secondary nets, and the parts BUILT to straddle the barrier (the
-  transformer, the optocoupler, the Y-capacitor). The check then
-  enforces two things: (a) every primary copper item stays on the
-  primary side and every secondary item on the secondary side, with
-  straddle-part pads exempt; and (b) the worst-case pairwise distance
-  between primary and secondary copper is at least the declared gap
-  (6.4 mm on the flyback, sized for reinforced insulation at 120 VAC
-  working voltage per the IPC-2221 pollution-degree-2 tables — the
-  figure REQUIRES qualified review before fabrication). No copper
-  pours are allowed on such boards so the creepage analysis stays
-  exact. (`IPC-2221` clearance/creepage tables + `SESSION` flyback
-  slice.) Status: **implemented and machine-enforced**
-  (`isolation_barrier` design check, blocker; the flyback authority
-  declares barrier, nets, gap, and straddle refs).
+- **10.1 A declared barrier line is placement discipline, not safety
+  approval.** The legacy `isolation_barrier` tuple identifies a divider,
+  left/right net groups, and exempt straddle parts. Its machine check now
+  reports side crossings as geometry-review warnings only. The tuple's old
+  gap field is retained for compatibility but is not evaluated: Euclidean
+  copper distance is air distance, never creepage. A fully `qualified`
+  `PcbRuleProfile.insulation` is the only source allowed to emit or route
+  against `insulation_clearance`, and even that check covers reviewed air
+  clearance only. Creepage remains unimplemented until explicit surface-path
+  geometry exists. The flyback's 6.4 mm value is retained separately as an
+  ordinary project copper-spacing target under 10.4; it is not evidence of
+  IEC or end-product safety compliance. Status: **geometry review implemented;
+  safety qualification gated by profile**.
 - **10.2 The barrier is visible on the board.** The isolation boundary
   is drawn as a dashed silkscreen line with HV warnings on the primary
   side, interrupted where the straddle parts and labels sit —
@@ -338,24 +330,21 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   components with an internal isolation rating cross: the transformer
   (triple-insulated or margin-wound secondary), an optocoupler with
   the required CTR and isolation voltage, and a safety-rated (Y1/Y2)
-  EMI capacitor. Their creepage comes from the package (transformer
-  pin-row spacing 15 mm, DIP optocoupler 7.62 mm body, Y-cap 10 mm
-  pitch), which must meet the same gap. A safety finding demanding
+  EMI capacitor. Nominal package pitch is not proof of component clearance
+  or creepage; those ratings remain qualification inputs. A safety finding demanding
   certified parts and qualified review rides every mains bundle and
   caps it at needs_human_review. (`SESSION` flyback slice; TI SLUSC05
   application section.) Status: **implemented** (composition emits
   SAFETY_FINDING + TRANSFORMER_SPEC_FINDING; support parts carry
   datasheet evidence).
-- **10.4 Net groups with insulation requirements keep machine-checked
-  copper distance.** Beyond the primary/secondary barrier, some net
-  groups must never approach each other except through certified parts:
-  protective EARTH vs the mains nets (bridged only by the line-rated
-  Y capacitors), and EARTH vs the isolated secondary. The
-  `net_group_clearance` check takes (label, nets_a, nets_b, gap,
-  exempt refs) tuples and enforces the worst-case pairwise distance.
-  (`FLBACK-001` reference front end + `SESSION` flyback r002.) Status:
-  **implemented and machine-enforced** (flyback: earth-primary 3.0mm
-  with CY2/CY3 exempt, earth-secondary 6.4mm).
+- **10.4 Ordinary project net groups may keep a declared copper distance.**
+  `net_group_clearance` takes (label, nets_a, nets_b, gap, exempt refs) and
+  enforces Euclidean pairwise copper spacing for routing/manufacturing goals.
+  It is deliberately classified as ordinary project geometry, even when a
+  conservative value was chosen for a mains prototype. It never emits
+  `insulation_clearance` and cannot establish creepage. Status: **implemented
+  and machine-enforced** (flyback project targets: primary-secondary 6.4 mm,
+  earth-primary 3.0 mm with CY2/CY3 exempt, earth-secondary 6.4 mm).
 
 ## 11. Trace craft (routing shape discipline)
 
@@ -374,15 +363,11 @@ documented cleanup for fixed-grid search artifacts; Altium Situs docs:
 "fixed-grid routers... must run special post-processing routines to
 convert right-angle corners to diagonals").
 
-- **11.1 No acute copper corners outside pads.** Where two same-net
-  tracks meet outside pad/via copper, the interior angle must be
-  >= 90 degrees: 45-degree chamfers (135-degree joints) are the house
-  style, right angles are legal (the channel router's entire output),
-  anything sharper traps etchant and reads as an error. Joints inside
-  same-net pad or via copper are exempt (teardrop territory - the pad
-  masks the geometry). Status: **implemented and machine-enforced**
-  (`trace_corner_angle` design check, blocker; violation fixture in
-  test_design_checks).
+- **11.1 Corner enforcement requires declared applicability.** Right angles
+  are not a general SI/EMI defect. H/V/45 may remain house craft; a selected
+  fabricator or declared HV policy may impose a scoped rule. Status:
+  trace_corner_angle is implemented, but its global blocker scope is on
+  **policy hold** until scoped to craft/fabricator/HV applicability.
 - **11.2 No redundant same-net copper.** No track may lie entirely
   inside the union of its net's other copper: covered tracks are
   routing debris that reads as spaghetti and hides the real topology

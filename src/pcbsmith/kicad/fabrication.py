@@ -16,6 +16,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
 
 
 class FabricationError(RuntimeError):
@@ -77,7 +78,7 @@ def _board_facts(board_file: Path) -> dict[str, str]:
 
 def _drill_table(board_file: Path) -> list[tuple[float, bool, int]]:
     """(diameter_mm, plated, count) rows from the board file, largest
-    first. Oval slots report their round-drill equivalent (max axis)."""
+    first. Oval slots report their nominal maximum axis."""
     text = board_file.read_text(encoding="utf-8")
     counts: dict[tuple[float, bool], int] = {}
     for match in re.finditer(
@@ -101,6 +102,7 @@ def _fab_notes(
     project_name: str,
     facts: dict[str, str],
     drill_rows: tuple[tuple[float, bool, int], ...] = (),
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> str:
     finish = (
         "ENIG (exposed copper is functional; HASL leveling or bare "
@@ -113,21 +115,51 @@ def _fab_notes(
         "",
         "## Fabrication",
         "",
-        "1. Material: FR-4 per IPC-4101/126 or equivalent.",
-        f"2. Copper layers: {facts.get('copper_layers', '2')}.",
-        "3. Overall thickness: 1.6 mm +/- 10%.",
-        "4. Finished copper weight: 1 oz on outer layers.",
-        f"5. Plating finish: {finish}.",
-        "6. Soldermask: liquid photoimageable over bare copper, per "
-        "IPC-SM-840 Type B Class 3. Color: green.",
-        "7. Silkscreen: required, white.",
-        "8. Manufacture to IPC-6012, Class 2.",
+        f"1. Material: {profile.geometry.substrate_description}.",
+        f"2. Copper layers: {profile.geometry.copper_layer_count}.",
+        f"3. Overall thickness: {profile.geometry.board_thickness_mm:g} mm nominal; "
+        "tolerance is not declared by this profile.",
+        "4. Finished outer copper thickness: "
+        f"{profile.geometry.outer_copper_thickness_um:g} um nominal.",
+        f"5. Surface-finish recommendation for review: {finish}.",
+        "6. Soldermask material, color, class, and qualification: not "
+        "declared by this rule profile.",
+        "7. Silkscreen graphics are present; ink/material/color are not "
+        "declared by this rule profile.",
+        "8. Fabrication acceptance standard/class/revision: not declared; "
+        "agree these with the selected manufacturer.",
         f"9. Board outline extent: {facts.get('extent_mm', 'see gerbers')}.",
-        "10. Minimum track/clearance used by the design rules: 0.2 mm.",
+        "10. Minimum track width / ordinary copper clearance: "
+        f"{profile.geometry.minimum_trace_width_mm:g} mm / "
+        f"{profile.fab_spacing.minimum_copper_clearance_mm:g} mm.",
+        f"11. Rule profile: {profile.profile_id} "
+        f"({profile.fab_spacing.basis}); this is not safety-insulation approval.",
     ]
+    declared_limits = tuple(
+        (label, value)
+        for label, value in (
+            (
+                "Minimum finished-hole minor axis",
+                profile.geometry.minimum_finished_hole_mm,
+            ),
+            ("Minimum annular ring", profile.geometry.minimum_annular_ring_mm),
+            (
+                "Minimum hole-to-hole residual web",
+                profile.geometry.minimum_hole_to_hole_web_mm,
+            ),
+            (
+                "Minimum component-body to board-edge distance",
+                profile.geometry.minimum_component_body_to_edge_mm,
+            ),
+        )
+        if value is not None
+    )
+    if declared_limits:
+        lines.extend(("", "## Declared geometry limits", ""))
+        lines.extend(f"- {label}: {value:g} mm." for label, value in declared_limits)
     if facts.get("has_mask_opening") == "yes":
         lines.append(
-            "11. This board EXPOSES copper through soldermask openings by "
+            "12. This board EXPOSES copper through soldermask openings by "
             "design (functional sensing copper); do not tent or mask them."
         )
     if drill_rows:
@@ -135,6 +167,8 @@ def _fab_notes(
             (
                 "",
                 "## Drill table",
+                "",
+                "Oval-slot hole sizes, when present, are maximum-axis nominal values.",
                 "",
                 "| Hole size | Tolerance | Plated | Count |",
                 "| --- | --- | --- | --- |",
@@ -145,7 +179,7 @@ def _fab_notes(
             total += count
             mil = diameter / 0.0254
             lines.append(
-                f"| {diameter:.2f} mm ({mil:.1f} mil) | +/-0.076 mm "
+                f"| {diameter:.2f} mm ({mil:.1f} mil) | not declared "
                 f"| {'PTH' if plated else 'NPTH'} | {count} |"
             )
         lines.append(f"| **Total** | | | **{total}** |")
@@ -154,17 +188,20 @@ def _fab_notes(
             "",
             "## Assembly",
             "",
-            "1. Assemble per IPC-A-610, current revision, Class 2.",
-            "2. Solder per the latest revision of IPC J-STD-001.",
-            "3. Contains ESD-sensitive components; handle per ANSI/ESD "
-            "S20.20.",
-            "4. RoHS compliance required.",
+            "1. Assembly acceptance standard/class/revision: not declared; "
+            "agree these with the selected assembler.",
+            "2. Soldering process/material standard and revision: not declared "
+            "by this profile.",
+            "3. Use the assembler's qualified ESD-control process; the exact "
+            "standard/revision is not declared by this profile.",
+            "4. Regulatory/material compliance (including RoHS where "
+            "applicable): not declared by this profile.",
             "5. Mount polarized components per the polarity marks on the "
             "silkscreen.",
             "",
-            "Generated by PCBSmith. The design has passed KiCad ERC, DRC "
-            "with schematic parity, and behavioral simulation; it still "
-            "carries a needs-human-review status by policy.",
+            "Generated by PCBSmith. Package generation does not itself prove "
+            "ERC, DRC, schematic parity, simulation, assembly acceptance, or "
+            "safety approval; consult the authority bundle for actual status.",
             "",
         )
     )
@@ -177,6 +214,7 @@ def export_fab_package(
     project_name: str,
     finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
     runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
 ) -> FabPackage:
     install = finder()
     if install is None:
@@ -232,6 +270,7 @@ def export_fab_package(
             project_name,
             _board_facts(board_file),
             tuple(_drill_table(board_file)),
+            profile,
         ),
         encoding="utf-8",
     )

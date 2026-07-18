@@ -1,0 +1,33 @@
+{
+  "schema_id": "pcbsmith-routing-resource-graph",
+  "schema_version": 1,
+  "fixture_id": "second-order-cascade",
+  "nets": [
+    {
+      "net_name": "A",
+      "candidates": [
+        {"candidate_id": "short", "base_cost": 2, "resources": ["p", "q"]},
+        {"candidate_id": "alternate", "base_cost": 5, "resources": ["r"]}
+      ]
+    },
+    {
+      "net_name": "B",
+      "candidates": [
+        {"candidate_id": "short", "base_cost": 2, "resources": ["p", "r"]},
+        {"candidate_id": "alternate", "base_cost": 5, "resources": ["q", "s"]}
+      ]
+    },
+    {
+      "net_name": "C",
+      "candidates": [
+        {"candidate_id": "short", "base_cost": 2, "resources": ["s", "t"]},
+        {"candidate_id": "alternate", "base_cost": 5, "resources": ["u"]}
+      ]
+    }
+  ],
+  "expected_zero_overuse_assignment": {
+    "A": "alternate",
+    "B": "alternate",
+    "C": "alternate"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "schema_id": "pcbsmith-routing-resource-graph",
+  "schema_version": 1,
+  "fixture_id": "first-order-crossed-alternatives",
+  "nets": [
+    {
+      "net_name": "A",
+      "candidates": [
+        {"candidate_id": "short", "base_cost": 2, "resources": ["p", "q"]},
+        {"candidate_id": "alternate", "base_cost": 5, "resources": ["r"]}
+      ]
+    },
+    {
+      "net_name": "B",
+      "candidates": [
+        {"candidate_id": "short", "base_cost": 2, "resources": ["p", "r"]},
+        {"candidate_id": "alternate", "base_cost": 5, "resources": ["q"]}
+      ]
+    }
+  ],
+  "expected_zero_overuse_assignment": {"A": "alternate", "B": "alternate"}
+}

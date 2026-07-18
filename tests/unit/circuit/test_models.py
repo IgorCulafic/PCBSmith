@@ -15,6 +15,7 @@ from pcbsmith.circuit import (
     SimulationReport,
     TopologySelection,
 )
+from pcbsmith.circuit.models import ReviewFinding
 
 
 def test_circuit_intent_records_supported_scope() -> None:
@@ -124,3 +125,69 @@ def test_authority_models_separate_kicad_and_reconciliation() -> None:
     assert evidence.cached_files == ("datasheet.pdf",)
     assert reconciliation.status == "warning"
     assert revision.revision_id == "rev-1"
+
+
+def test_evidence_ref_carries_authority_and_applicability() -> None:
+    evidence = EvidenceRef(
+        kind="standard_table",
+        title="Scoped fabrication rule",
+        locator="Table 1",
+        source_id="example-standard",
+        organization_or_author="Example body",
+        revision="2026",
+        official_url="https://example.invalid/standard",
+        local_sha256="a" * 64,
+        source_status="pinned",
+        locator_status="figure_verified",
+        applicability_status="conditional",
+        required_conditions=("declared fabrication profile",),
+        exclusions=("safety insulation approval",),
+        origin_id="rule:ordinary-spacing",
+    )
+
+    assert evidence.source_status == "pinned"
+    assert evidence.locator_status == "figure_verified"
+    assert evidence.applicability_status == "conditional"
+    assert evidence.exclusions == ("safety insulation approval",)
+
+
+def test_review_finding_fingerprint_is_stable_for_same_semantic_identity() -> None:
+    first = ReviewFinding(
+        rule="R1.spacing",
+        severity="blocker",
+        scope="net",
+        where="/A to /B",
+        evidence="First wording",
+        suggested_action="Move the traces.",
+        source="check",
+        phase="physical_validation",
+        category="ordinary_clearance",
+        net_refs=("/A", "/B"),
+        constraint_ids=("fab:clearance",),
+    )
+    revised_wording = first.model_copy(
+        update={"evidence": "Improved explanatory wording"},
+    )
+
+    assert first.fingerprint is not None
+    assert first.fingerprint.startswith("pcbsmith:")
+    assert revised_wording.fingerprint == first.fingerprint
+
+
+def test_review_finding_fingerprint_changes_with_referenced_objects() -> None:
+    common = dict(
+        rule="R1.spacing",
+        severity="blocker",
+        scope="net",
+        where="pair",
+        evidence="Too close",
+        suggested_action="Move the traces.",
+        source="check",
+        phase="physical_validation",
+        category="ordinary_clearance",
+        constraint_ids=("fab:clearance",),
+    )
+    first = ReviewFinding(**common, net_refs=("/A", "/B"))
+    second = ReviewFinding(**common, net_refs=("/A", "/C"))
+
+    assert first.fingerprint != second.fingerprint

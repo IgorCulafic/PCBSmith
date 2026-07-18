@@ -76,11 +76,15 @@ def test_flyback_layout_is_virtual_drc_clean() -> None:
     assert run_virtual_drc(layout, netlist) == ()
 
 
-def test_flyback_isolation_barrier_passes() -> None:
+def test_flyback_project_gap_and_barrier_side_review_pass() -> None:
     netlist, layout = _routed()
     report = run_design_checks(layout, netlist, _spec())
-    assert "isolation_barrier" in report.checks_run
-    assert not [f for f in report.findings if f.rule == "10.1"]
+    assert "barrier_side_review" in report.checks_run
+    assert not [
+        finding
+        for finding in report.findings
+        if finding.rule in {"geometry.barrier_side", "10.4"}
+    ]
 
 
 def test_flyback_isolation_barrier_catches_smuggled_primary_trace() -> None:
@@ -99,9 +103,18 @@ def test_flyback_isolation_barrier_catches_smuggled_primary_trace() -> None:
         }
     )
     report = run_design_checks(poisoned, netlist, _spec())
-    violations = [f for f in report.findings if f.rule == "10.1"]
-    assert violations, "a primary trace on the secondary side must trip 10.1"
-    assert all(f.severity == "blocker" for f in violations)
+    side_reviews = [
+        finding
+        for finding in report.findings
+        if finding.rule == "geometry.barrier_side"
+    ]
+    ordinary_violations = [
+        finding for finding in report.findings if finding.rule == "10.4"
+    ]
+    assert side_reviews, "a primary trace on the right must trip side review"
+    assert all(finding.severity == "warning" for finding in side_reviews)
+    assert ordinary_violations, "the declared project gap remains enforced"
+    assert all(finding.severity == "blocker" for finding in ordinary_violations)
 
 
 def test_earth_clearance_catches_smuggled_earth_trace() -> None:

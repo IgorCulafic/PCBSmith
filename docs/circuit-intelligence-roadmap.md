@@ -1,5 +1,10 @@
 # PCBSmith Circuit Intelligence Roadmap
 
+> **Historical document.** This May 18 reset roadmap preserves the
+> rationale for the circuit-first architecture, but its "Current Repo
+> Reality," phases, and immediate actions are no longer current. Use
+> `docs/project-catchup-2026-07-12.md` for status and
+> `docs/routing-placement-plan.md` for active execution order.
 Date: 2026-05-18
 
 Status: Internal engineering roadmap after the reset from demo-first board generation to circuit-first validation.
@@ -7,9 +12,10 @@ Status: Internal engineering roadmap after the reset from demo-first board gener
 Known local tools:
 
 - KiCad CLI: `C:\Program Files\KiCad\10.0\bin\kicad-cli.exe`
-- KiCad version checked locally: `10.0.2`
+- KiCad version checked locally on 2026-07-18: `10.0.3`
 - Standalone ngspice: `D:\AI\PCB designer\Spice64\bin\ngspice_con.exe`
 - Standalone ngspice version checked locally: `ngspice-46`, creation date `Mar 29 2026`
+- Project venv Python checked locally on 2026-07-18: `3.12.12`
 
 ## Purpose
 
@@ -58,10 +64,13 @@ These outputs are historical evidence and regression material. They are not proo
 
 ### Immediate Environment Gaps
 
-- `python -m pytest -q` currently fails before test collection in the active Anaconda environment because a global `pytestqt` plugin fails importing QtCore.
-- KiCad CLI is available.
-- Standalone ngspice is now available in the project folder.
-- Root handoff docs requested in the reset message are missing from `docs/`; older versions exist under `old_files/.../docs/`.
+- This subsection described the May reset and is superseded. The project venv
+  collects the current suite successfully; use
+  `.\.venv\Scripts\python.exe`, disable ambient pytest-plugin autoload, and add
+  `-p no:cacheprovider` as shown in `docs/handoff-prompt.md`.
+- KiCad CLI 10.0.3 and standalone ngspice-46 are available.
+- Root handoff, project-history, active routing/placement, completion-audit, and
+  review-supplement documents now exist. Archived copies remain historical only.
 
 ## Target Architecture
 
@@ -901,13 +910,14 @@ These sources guide the roadmap:
 
 ## Immediate Next Actions
 
-1. Update the first vertical-slice implementation plan to use `D:\AI\PCB designer\Spice64\bin\ngspice_con.exe`.
-2. Add `PCBSMITH_NGSPICE` support and fallback discovery for the local standalone ngspice path.
-3. Build the first circuit-intelligence slice without KiCad PCB generation.
-4. Add ngspice integration tests.
-5. Restore minimal KiCad schematic export and validation.
-6. Build the component evidence registry and datasheet cache.
-7. Add the revision loop and local-AI repair/error contract.
+These May reset actions are complete or superseded. Current execution order is
+maintained in `docs/routing-placement-plan.md`. As of 2026-07-18 the immediate
+work is to apply the accepted generic R2-R6 authority chain to bounded,
+source-bound real thermometer inputs; close its complete geometry, escape,
+BusGroup/order, policy/budget, live-ngspice, and semantic declarations; persist
+and read back an accepted artifact only after exact acceptance; then run the R7
+full regression and visual review. Do not infer a production/default migration
+or a routed full-board golden from the bounded input slice.
 
 ## Done Means
 
