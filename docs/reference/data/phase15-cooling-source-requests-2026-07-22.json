@@ -1,0 +1,68 @@
+{
+  "schema": "pcbsmith-research-source-request-catalog-v1",
+  "created_at": "2026-07-22",
+  "purpose": "Official manufacturer sources for the BLDC ESC R002 cooling candidate and gate-drive applicability slice.",
+  "sources": [
+    {
+      "source_id": "infineon-tolt-package-v1.1",
+      "source_url": "https://www.infineon.com/assets/row/public/documents/24/42/infineon-power-mosfet-to-leaded-top-side-cooling-tolt-package-applicationnotes-en.pdf",
+      "approved_hosts": ["www.infineon.com"],
+      "intended_consumer": "TOLT TIM thickness, compression/load, support, and thermal-path applicability authority.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only",
+      "expected_sha256": "1f3e5659896485157124bee19163528b1ca10d2c00c3c34ca23b4a136ccbf3c6"
+    },
+    {
+      "source_id": "henkel-bergquist-sil-pad-tsp-a2000",
+      "source_url": "https://datasheets.tdx.henkel.com/BERGQUIST-SIL-PAD-TSP-A2000-en_GL.pdf",
+      "approved_hosts": ["datasheets.tdx.henkel.com"],
+      "intended_consumer": "Electrically isolating TIM candidate screening for six TOLT package interfaces.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only",
+      "expected_sha256": "f6e3207f2ebdfc0c6a5c263c1c3e2277134606922c80eb105875fa550e71002c"
+    },
+    {
+      "source_id": "boyd-maxclip-extrusion-catalog",
+      "source_url": "https://info.boydcorp.com/hubfs/Thermal/Air-Cooling/Boyd-MaxClip-Extrusion-Profiles-Catalog.pdf",
+      "approved_hosts": ["info.boydcorp.com"],
+      "intended_consumer": "Extrusion profile and catalog-condition thermal screening for a shared TOLT heatsink candidate.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only",
+      "expected_sha256": "331a7fd3e836e27da6bcf8e3decdc413acb73d72fc98b87940c42c2ea12f8314"
+    },
+    {
+      "source_id": "delta-aub0405vd-00-fan",
+      "source_url": "https://www.delta-fan.com/Download/Spec/AUB0405VD-00.pdf",
+      "approved_hosts": ["www.delta-fan.com"],
+      "intended_consumer": "Forced-air fan candidate, tachometer, voltage, pressure-flow, environmental, and life screening.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only",
+      "expected_sha256": "db4fb38a4a37e03e32e83a600a05dbb6ac97b0ac7fa25019a4fc45af61507b01"
+    },
+    {
+      "source_id": "ti-drv8353-gate-driver",
+      "source_url": "https://www.ti.com/lit/ds/symlink/drv8353.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Minimum-bus gate-voltage, gate-current, dead-time, protection, and switching-loss applicability authority.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-drv8334-gate-driver",
+      "source_url": "https://www.ti.com/lit/ds/symlink/drv8334.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Native 9V-bus three-phase gate-driver alternative with regulated GVDD, current sensing, diagnostics, and average-current authority.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "vishay-7kpd26a-tvs",
+      "source_url": "https://www.vishay.com/docs/98774/7kpd10a_thru_7kpd43a.pdf",
+      "approved_hosts": ["www.vishay.com"],
+      "intended_consumer": "Exact 7KPD26A TVS standoff and clamp-class source for BLDC ESC bus-transient protection coordination.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only",
+      "expected_sha256": "6b6ac7931656bd87412967f26e2d71455f3f4e578513ea395c639240fea91c90"
+    }
+  ]
+}

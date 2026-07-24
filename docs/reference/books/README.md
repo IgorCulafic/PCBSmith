@@ -46,9 +46,10 @@ Reading protocol (so we never pay for the same page twice):
 
 The second wave added sixteen sources after the original nine. Their historical
 grouped distillation is [SECOND-WAVE-2026-07.md](SECOND-WAVE-2026-07.md).
-The manifest now contains 31 exact sources; six later standards/status sources
-are integrated by the July 14 current-materials synthesis rather than this
-second-wave note.
+At the second-wave checkpoint the manifest contained 31 exact sources; six
+standards/status sources were integrated by the July 14 current-materials
+synthesis rather than this second-wave note. The later July 18 intake brings
+the local extraction manifest to 41 registered documents, as described below.
 
 | group | manifest slugs | status |
 |---|---|---|
@@ -72,13 +73,33 @@ second-wave note.
 | `en-61000-6-1-2002` | historical national adoption, not current authority |
 | `en-61000-6-1-2007` | historical national adoption, superseded by IEC 61000-6-1:2016 |
 
+### Local additions and official-source intake (2026-07-18)
+
+The dated audit is
+[`LOCAL-SOURCE-INVENTORY-2026-07-18.md`](LOCAL-SOURCE-INVENTORY-2026-07-18.md).
+It verifies full IPC-2222 original (1998), IEC 62368-1 Edition 2.0 (2014),
+IPC-2152 (2009), IPC-7093/7093A (2011/2020), IPC-TM-650 compilation snapshot,
+IPC-2221A (2003), and IPC-7525 original (2000) additions. The official
+Sensirion Version 2 design guide and USB-IF USB 2.0 June 2025 bundle were also
+downloaded and verified. These ten document sources, including the USB base
+specification rather than the ZIP container, are registered in the now
+41-source extraction manifest; registration means pinned/extracted, not
+necessarily distilled or promoted into production rules. The complete USB
+archive hash and contents are retained in the dated inventory.
+
+IPC-7352 and IEC 60664-1 were already pinned; newly added copies are exact
+duplicates. The file initially presented as IPC-2231A is actually IPC-2221A and
+was renamed after cover inspection. Files labelled as IPC-2231A and IPC-7525C
+previews contain mismatched IPC-1401 text and must not be counted as those
+sources. The valid IPC-7525 addition is the original revision, not revision C.
+
 ### Verification debt and resolved corrections
 
 Johnson HSDD-D1 is corrected to `1.35e-5 in^2`; IPC-2221B B3's 6.4 mm cell is
 confirmed as uncoated operation above 3050 m, not generic reinforced mains
 insulation. Bogatin R17, IPC-A-610 R4, and the Coombs locator are corrected but
 retain audit history. Open holds are the IPC-7352 BGA Level-B printed anomaly,
-IEC 60664-1 AMD1:2025/current product-standard comparison, locally pinned
-Sensirion and SMTA provenance, current selected-part/fab/assembler profiles,
-and every figure-bound or OCR-sensitive threshold named in the July 14
-synthesis.
+IEC 60664-1 AMD1:2025/current product-standard comparison, SMTA local
+provenance, current selected-part/fab/assembler profiles, targeted distillation
+of newly pinned sources, and every figure-bound or OCR-sensitive threshold
+named in the July 14 synthesis.

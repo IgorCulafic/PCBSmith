@@ -33,6 +33,9 @@ TALL_POINTS = ((0, 0), (4, 0), (4, 2), (3, 5), (1, 5), (0, 2))
 BOWTIE_POINTS = ((0, 0), (4, 4), (0, 4), (4, 0), (3, -1), (1, -1))
 ANCHORS = ("a0", "a1", "b0", "b1", "c0", "c1")
 NETS = ("VIN", "SW", "RETURN")
+ANCHOR_COMPONENTS = ("CIN", "Q1", "Q1", "D1", "D1", "CIN")
+ANCHOR_PADS = ("1", "1", "2", "1", "2", "2")
+TRANSITION_ROLES = ("high_side_switch", "freewheel_rectifier", "input_energy_storage")
 
 
 def _component(reference: str) -> BoardComponent:
@@ -51,31 +54,48 @@ def _fixture(
     branch: bool = False,
     zone: bool = False,
     contact: bool = False,
+    bypass: bool = False,
+    omit_bypass_anchor: bool = False,
 ):
-    components = tuple(_component(name.upper()) for name in ANCHORS)
+    component_refs = ("CIN", "Q1", "D1", *(("R1",) if bypass else ()))
+    components = tuple(_component(name) for name in component_refs)
     netlist = BoardNetlist(
         components=components,
-        nets=tuple(
+        nets=(
             BoardNet(
-                name=net,
-                nodes=((ANCHORS[index * 2].upper(), "1"), (ANCHORS[index * 2 + 1].upper(), "1")),
-            )
-            for index, net in enumerate(NETS)
+                name="VIN",
+                nodes=(("CIN", "1"), ("Q1", "1"), *(((("R1", "1"),)) if bypass else ())),
+            ),
+            BoardNet(name="SW", nodes=(("Q1", "2"), ("D1", "1"))),
+            BoardNet(name="RETURN", nodes=(("D1", "2"), ("CIN", "2"))),
         ),
     )
-    anchors = tuple(
+    anchors = [
         CopperTerminalAnchorBinding(
             anchor_id=name,
             physical_pad_source_id=f"pad:{name}",
-            component_reference=name.upper(),
-            pad_number="1",
+            component_reference=ANCHOR_COMPONENTS[index],
+            pad_number=ANCHOR_PADS[index],
             net_name=NETS[index // 2],
             layer="F.Cu",
             x_mm=str(points[index][0]),
             y_mm=str(points[index][1]),
         )
         for index, name in enumerate(ANCHORS)
-    )
+    ]
+    if bypass and not omit_bypass_anchor:
+        anchors.append(
+            CopperTerminalAnchorBinding(
+                anchor_id="bypass",
+                physical_pad_source_id="pad:bypass",
+                component_reference="R1",
+                pad_number="1",
+                net_name="VIN",
+                layer="F.Cu",
+                x_mm="2",
+                y_mm="-2",
+            )
+        )
     segments = [
         TrackSegment(*points[0], *points[1], "F.Cu", NETS[0], 0.3),
         TrackSegment(*points[2], *points[3], "F.Cu", NETS[1], 0.2),
@@ -92,7 +112,7 @@ def _fixture(
         segments.append(TrackSegment(2, 0, 2, 1, "F.Cu", NETS[0], 0.3))
     if reverse_construction:
         components = tuple(reversed(components))
-        anchors = tuple(reversed(anchors))
+        anchors = list(reversed(anchors))
         segments = list(reversed(segments))
     layout = BoardLayout(
         placements=tuple((item, float(index)) for index, item in enumerate(components)),
@@ -103,7 +123,7 @@ def _fixture(
         parts_row_y_mm=1,
         zones=((NETS[0], "F.Cu", (-1, -1, 5, 1)),) if zone else (),
     )
-    graph = build_routed_copper_graph(layout, netlist, anchors)
+    graph = build_routed_copper_graph(layout, netlist, tuple(anchors))
     paths = []
     for index, net in enumerate(NETS):
         ordered = None
@@ -133,7 +153,7 @@ def _fixture(
     return graph, tuple(paths)
 
 
-def _legs(graph, paths):
+def _legs(graph, paths, *, vin_parallel: tuple[str, ...] = ()):
     anchors = {item.anchor_id: item for item in graph.terminal_anchors}
     return tuple(
         SwitchingHotLoopLegDeclaration(
@@ -145,29 +165,34 @@ def _legs(graph, paths):
             end_pad_source_id=anchors[ANCHORS[index * 2 + 1]].physical_pad_source_id,
             net_name=NETS[index],
             path_result_fingerprint=paths[index].result_fingerprint,
+            declared_parallel_component_references=vin_parallel if index == 0 else (),
         )
         for index in range(3)
     )
 
 
-def _transitions():
+def _transitions(roles=TRANSITION_ROLES):
     return tuple(
         SwitchingHotLoopTerminalTransition(
             transition_id=f"transition:{index}",
+            component_reference=ANCHOR_COMPONENTS[index * 2 + 1],
             from_anchor_id=ANCHORS[index * 2 + 1],
+            from_pad_source_id=f"pad:{ANCHORS[index * 2 + 1]}",
             to_anchor_id=ANCHORS[((index + 1) % 3) * 2],
-            transition_role=f"terminal-role:{index}",
+            to_pad_source_id=f"pad:{ANCHORS[((index + 1) % 3) * 2]}",
+            transition_role=roles[index],
         )
         for index in range(3)
     )
 
 
-def _evidence(*, pinned: bool = True) -> EvidenceRef:
+def _evidence(*, pinned: bool = True, revision: str | None = "1") -> EvidenceRef:
     return EvidenceRef(
         kind="standard",
         title="Pinned hot-loop area limit",
         locator="section 1, table 1",
         source_id="source:hot-loop",
+        revision=revision,
         local_sha256="a" * 64 if pinned else None,
         source_status="pinned" if pinned else "unpinned",
         locator_status="text_verified",
@@ -183,9 +208,12 @@ def _declaration(
     mode="advisory",
     maximum: Fraction | None = None,
     binding_updates=None,
+    transition_roles=TRANSITION_ROLES,
+    expected_transition_roles=TRANSITION_ROLES,
+    vin_parallel: tuple[str, ...] = (),
 ):
-    legs = _legs(graph, paths)
-    transitions = _transitions()
+    legs = _legs(graph, paths, vin_parallel=vin_parallel)
+    transitions = _transitions(transition_roles)
     threshold = None if maximum is None else ExactRational.build(maximum)
     binding = None
     if mode == "sourced_hard":
@@ -199,6 +227,8 @@ def _declaration(
             limit_id="limit:projected-area",
             mode=mode,
             maximum_projected_area_mm2=threshold,
+            intended_consumer="switching hot-loop route acceptance",
+            expected_transition_roles=expected_transition_roles,
         )
         fields = {
             "binding_id": "binding:projected-area",
@@ -225,6 +255,8 @@ def _declaration(
         limit=SwitchingHotLoopLimitAuthority(
             limit_id="limit:projected-area",
             mode=mode,
+            intended_consumer="switching hot-loop route acceptance",
+            expected_transition_roles=expected_transition_roles,
             maximum_projected_area_mm2=threshold,
             applicability_binding=binding,
         ),
@@ -251,6 +283,13 @@ def test_same_one_dimensional_span_retains_distinct_exact_projected_areas() -> N
     assert first.metrics.combined_minimum_track_width_mm == Decimal("0.2")
     assert first.metrics.combined_via_count == 0
     assert len(first.metrics.combined_radical_length_terms) >= 1
+    assert first.metrics.transition_component_references == ("Q1", "D1", "CIN")
+    assert first.metrics.transition_roles == TRANSITION_ROLES
+    assert first.metrics.leg_terminal_component_references == (
+        ("leg:0", ("CIN", "Q1")),
+        ("leg:1", ("D1", "Q1")),
+        ("leg:2", ("CIN", "D1")),
+    )
 
 
 def test_branched_leg_rejects_automatic_selection_but_accepts_declared_edge_order() -> None:
@@ -298,7 +337,68 @@ def test_advisory_threshold_cannot_hard_fail() -> None:
         graph, paths, _declaration(graph, paths, maximum=Fraction(0))
     )
     assert result.disposition is SemanticDisposition.ADVISORY
+    assert result.violation_ids == ("maximum_projected_area_exceeded",)
+
+
+def test_wrong_switching_transition_membership_fails_hard_policy() -> None:
+    graph, paths = _fixture()
+    actual_roles = ("low_side_switch", *TRANSITION_ROLES[1:])
+    result = evaluate_switching_hot_loop(
+        graph,
+        paths,
+        _declaration(
+            graph,
+            paths,
+            mode="sourced_hard",
+            maximum=Fraction(100),
+            transition_roles=actual_roles,
+        ),
+    )
+
+    assert result.disposition is SemanticDisposition.FAIL
+    assert "expected_transition_membership_violated" in result.violation_ids
+
+
+def test_undeclared_parallel_or_bypass_terminal_fails_membership() -> None:
+    graph, paths = _fixture(bypass=True)
+    result = evaluate_switching_hot_loop(
+        graph,
+        paths,
+        _declaration(graph, paths, mode="sourced_hard", maximum=Fraction(100)),
+    )
+
+    assert result.disposition is SemanticDisposition.FAIL
+    assert "unexpected_parallel_or_bypass_component:leg:0" in result.violation_ids
+
+
+def test_reviewed_parallel_terminal_is_context_bound_and_can_pass() -> None:
+    graph, paths = _fixture(bypass=True)
+    result = evaluate_switching_hot_loop(
+        graph,
+        paths,
+        _declaration(
+            graph,
+            paths,
+            mode="sourced_hard",
+            maximum=Fraction(100),
+            vin_parallel=("R1",),
+        ),
+    )
+
+    assert result.disposition is SemanticDisposition.PASS
+
+
+def test_missing_graph_anchor_for_netlist_terminal_is_unverified() -> None:
+    graph, paths = _fixture(bypass=True, omit_bypass_anchor=True)
+    result = evaluate_switching_hot_loop(
+        graph,
+        paths,
+        _declaration(graph, paths, mode="sourced_hard", maximum=Fraction(100)),
+    )
+
+    assert result.disposition is SemanticDisposition.UNVERIFIED
     assert result.violation_ids == ()
+    assert "terminal_inventory_incomplete:leg:0" in result.unverified_reasons
 
 
 def test_missing_hard_threshold_and_evidence_are_unverified_without_advisory_fallback() -> None:
@@ -309,6 +409,8 @@ def test_missing_hard_threshold_and_evidence_are_unverified_without_advisory_fal
             "limit": SwitchingHotLoopLimitAuthority(
                 limit_id="limit:projected-area",
                 mode="sourced_hard",
+                intended_consumer="switching hot-loop route acceptance",
+                expected_transition_roles=TRANSITION_ROLES,
                 maximum_projected_area_mm2=None,
                 applicability_binding=None,
             )
@@ -338,7 +440,11 @@ def test_missing_hard_threshold_and_evidence_are_unverified_without_advisory_fal
         ),
         (
             {"evidence": (_evidence(pinned=False),)},
-            "hard_limit_evidence_not_pinned_verified_applicable",
+            "hard_limit_evidence_not_revisioned_pinned_verified_applicable",
+        ),
+        (
+            {"evidence": (_evidence(revision=None),)},
+            "hard_limit_evidence_not_revisioned_pinned_verified_applicable",
         ),
     ),
 )
@@ -386,6 +492,57 @@ def test_reversed_path_or_terminal_order_cannot_satisfy_forward_declaration() ->
                 update={"transitions": (wrong_transition, *forward.transitions[1:])}
             ),
         )
+
+    wrong_component = forward.transitions[0].model_copy(
+        update={"component_reference": "D1"}
+    )
+    with pytest.raises(ValueError, match="terminal transition"):
+        evaluate_switching_hot_loop(
+            graph,
+            paths,
+            forward.model_copy(
+                update={"transitions": (wrong_component, *forward.transitions[1:])}
+            ),
+        )
+
+
+def test_stale_binding_cannot_authorize_changed_membership_policy() -> None:
+    graph, paths = _fixture()
+    declaration = _declaration(
+        graph,
+        paths,
+        mode="sourced_hard",
+        maximum=Fraction(100),
+    )
+    changed = declaration.limit.model_copy(
+        update={
+            "expected_transition_roles": (
+                "low_side_switch",
+                *TRANSITION_ROLES[1:],
+            )
+        }
+    )
+    result = evaluate_switching_hot_loop(
+        graph,
+        paths,
+        declaration.model_copy(update={"limit": changed}),
+    )
+
+    assert result.disposition is SemanticDisposition.UNVERIFIED
+    assert result.violation_ids == ()
+    assert "hard_limit_context_fingerprint_mismatch" in result.unverified_reasons
+
+
+def test_legacy_hot_loop_schema_fails_closed() -> None:
+    graph, paths = _fixture()
+    payload = _declaration(graph, paths).model_dump(mode="json")
+    payload["schema_version"] = 1
+    payload["limit"]["schema_version"] = 1
+    payload["limit"].pop("intended_consumer")
+    payload["limit"].pop("expected_transition_roles")
+
+    with pytest.raises(ValidationError):
+        SwitchingHotLoopDeclaration.model_validate(payload)
 
 
 def test_three_free_form_role_labels_cannot_alias_only_two_physical_anchors() -> None:

@@ -1,0 +1,14 @@
+{
+  "viable": true,
+  "hard_violations": 0,
+  "total_track_mm": 2028.65,
+  "via_count": 99,
+  "min_copper_margin_mm": -0.0,
+  "parts_bbox_mm2": 7734.8,
+  "breakdown": {
+    "track_mm": 2028.648,
+    "via_equiv_mm": 495.0,
+    "margin_mm": -0.0,
+    "bbox_mm2": 7734.764
+  }
+}

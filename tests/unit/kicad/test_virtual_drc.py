@@ -513,6 +513,19 @@ def test_trace_current_check_uses_profile_copper_and_model_provenance() -> None:
     assert "no registered deterministic evaluator" in hits[0].evidence
 
 
+def test_trace_current_check_does_not_silently_pass_without_routed_tracks() -> None:
+    spec = DesignChecksSpec(net_currents=(("/A", 1.2),))
+    report = run_design_checks(_layout(), _two_part_netlist(), spec)
+
+    hits = [item for item in report.findings if item.rule == "5.3"]
+    assert report.status == "needs_human_review"
+    assert "trace_current" in report.checks_run
+    assert len(hits) == 1
+    assert hits[0].severity == "warning"
+    assert "was not evaluated" in hits[0].evidence
+    assert "Zones, planes, vias" in hits[0].evidence
+
+
 SLOT_FOOTPRINT = "Test:AsymmetricSlot"
 
 

@@ -9,12 +9,14 @@ from fractions import Fraction
 import pytest
 from pydantic import ValidationError
 
+from pcbsmith.circuit.models import EvidenceRef
 from pcbsmith.decoupling_loop_ir import (
     DecouplingLoopDeclaration,
     DecouplingLoopEvaluationResult,
     DecouplingLoopPolicy,
     DecouplingTerminalInventory,
     DecouplingTerminalInventoryEntry,
+    decoupling_loop_context_fingerprint,
 )
 from pcbsmith.kicad.board import (
     BoardComponent,
@@ -34,7 +36,7 @@ from pcbsmith.routed_copper_graph_ir import (
     DeclaredCopperPathSelection,
     ExactRational,
 )
-from pcbsmith.semantic_ir import SemanticDisposition
+from pcbsmith.semantic_ir import EvidenceApplicabilityBinding, SemanticDisposition
 
 
 def _component(reference: str) -> BoardComponent:
@@ -190,20 +192,49 @@ def _inventory(graph, *, complete: bool = True, reverse: bool = False):
 def _policy(**updates):
     fields = {
         "policy_id": "policy:decoupling-loop",
+        "mode": "sourced_hard",
+        "intended_consumer": "routed decoupling-loop acceptance",
         "maximum_via_count": ExactRational.build(Fraction(2)),
         "minimum_track_width_mm": Decimal("0.2"),
         "maximum_projected_loop_area_mm2": ExactRational.build(Fraction(20)),
         "require_dedicated": True,
+        "applicability_binding": None,
         **updates,
     }
     return DecouplingLoopPolicy(**fields)
 
 
+def _evidence(**updates) -> EvidenceRef:
+    fields = {
+        "kind": "manufacturer_design_guide",
+        "title": "Fixture decoupling guide",
+        "locator": "section 1",
+        "source_id": "fixture-decoupling-guide",
+        "organization_or_author": "PCBSmith fixture",
+        "revision": "1",
+        "official_url": "https://example.invalid/fixture.pdf",
+        "local_sha256": "b" * 64,
+        "source_status": "pinned",
+        "locator_status": "text_verified",
+        "applicability_status": "confirmed",
+        "required_conditions": ("device=fixture-u1", "network=fixture-c1"),
+        **updates,
+    }
+    return EvidenceRef(**fields)
+
+
 def _declaration(
-    graph, supply, return_leg, *, complete: bool = True, policy=None, reverse_inventory=False
+    graph,
+    supply,
+    return_leg,
+    *,
+    complete: bool = True,
+    policy=None,
+    reverse_inventory=False,
+    bind_policy: bool = True,
 ):
     anchors = {item.anchor_id: item for item in graph.terminal_anchors}
-    return DecouplingLoopDeclaration(
+    declaration = DecouplingLoopDeclaration(
         declaration_id="declaration:decoupling-loop",
         graph_fingerprint=graph.graph_fingerprint,
         board_layout_snapshot_fingerprint=graph.board_layout_snapshot_fingerprint,
@@ -223,6 +254,32 @@ def _declaration(
         terminal_inventory=_inventory(graph, complete=complete, reverse=reverse_inventory),
         policy=policy or _policy(),
     )
+    if (
+        bind_policy
+        and declaration.policy.mode == "sourced_hard"
+        and declaration.policy.applicability_binding is None
+    ):
+        conditions = ("device=fixture-u1", "network=fixture-c1")
+        binding = EvidenceApplicabilityBinding(
+            binding_id="binding:decoupling-policy",
+            evidence=(_evidence(),),
+            claim_id=declaration.policy.policy_id,
+            applicability_record_id="applicability:decoupling-fixture",
+            required_conditions=conditions,
+            excluded_conditions=(),
+            matched_conditions=conditions,
+            unmatched_conditions=(),
+            geometry_source_fingerprint=decoupling_loop_context_fingerprint(declaration),
+            reviewer_record_id="review:decoupling-fixture",
+        )
+        declaration = declaration.model_copy(
+            update={
+                "policy": declaration.policy.model_copy(
+                    update={"applicability_binding": binding}
+                )
+            }
+        )
+    return declaration
 
 
 def test_exact_metrics_and_all_threshold_equalities_pass() -> None:
@@ -266,6 +323,145 @@ def test_exact_numeric_policy_violations_fail(policy, violation: str) -> None:
     )
     assert result.disposition is SemanticDisposition.FAIL
     assert violation in result.violation_ids
+
+
+def test_advisory_policy_reports_candidate_violation_without_acceptance_authority() -> None:
+    graph, supply, return_leg = _graph_paths()
+    policy = _policy(
+        mode="advisory",
+        maximum_via_count=ExactRational.build(Fraction(1)),
+    )
+    result = evaluate_decoupling_loop(
+        graph,
+        supply,
+        return_leg,
+        _declaration(graph, supply, return_leg, policy=policy),
+    )
+
+    assert result.disposition is SemanticDisposition.ADVISORY
+    assert result.violation_ids == ("maximum_via_count_exceeded",)
+    assert result.unverified_reasons == ()
+
+
+def test_sourced_hard_policy_without_binding_is_unverified() -> None:
+    graph, supply, return_leg = _graph_paths()
+    result = evaluate_decoupling_loop(
+        graph,
+        supply,
+        return_leg,
+        _declaration(graph, supply, return_leg, bind_policy=False),
+    )
+
+    assert result.disposition is SemanticDisposition.UNVERIFIED
+    assert result.violation_ids == ()
+    assert result.unverified_reasons == ("hard_policy_evidence_missing",)
+
+
+@pytest.mark.parametrize(
+    ("binding_update", "expected_reason"),
+    (
+        (
+            {"claim_id": "policy:wrong-claim"},
+            "hard_policy_claim_identity_mismatch",
+        ),
+        (
+            {"reviewer_record_id": None},
+            "hard_policy_applicability_incomplete",
+        ),
+        (
+            {"geometry_source_fingerprint": "a" * 64},
+            "hard_policy_context_fingerprint_mismatch",
+        ),
+    ),
+)
+def test_invalid_hard_binding_is_unverified(binding_update, expected_reason: str) -> None:
+    graph, supply, return_leg = _graph_paths()
+    declaration = _declaration(graph, supply, return_leg)
+    binding = declaration.policy.applicability_binding
+    assert binding is not None
+    invalid_policy = declaration.policy.model_copy(
+        update={"applicability_binding": binding.model_copy(update=binding_update)}
+    )
+    result = evaluate_decoupling_loop(
+        graph,
+        supply,
+        return_leg,
+        declaration.model_copy(update={"policy": invalid_policy}),
+    )
+
+    assert result.disposition is SemanticDisposition.UNVERIFIED
+    assert expected_reason in result.unverified_reasons
+
+
+@pytest.mark.parametrize(
+    "evidence_update",
+    (
+        {"revision": None},
+        {"source_status": "unpinned"},
+        {"locator_status": "unverified"},
+        {"applicability_status": "conditional"},
+        {"required_conditions": ()},
+    ),
+)
+def test_non_authoritative_evidence_cannot_drive_hard_policy(evidence_update) -> None:
+    graph, supply, return_leg = _graph_paths()
+    declaration = _declaration(graph, supply, return_leg)
+    binding = declaration.policy.applicability_binding
+    assert binding is not None
+    invalid_evidence = binding.evidence[0].model_copy(update=evidence_update)
+    invalid_binding = binding.model_copy(update={"evidence": (invalid_evidence,)})
+    invalid_policy = declaration.policy.model_copy(
+        update={"applicability_binding": invalid_binding}
+    )
+    result = evaluate_decoupling_loop(
+        graph,
+        supply,
+        return_leg,
+        declaration.model_copy(update={"policy": invalid_policy}),
+    )
+
+    assert result.disposition is SemanticDisposition.UNVERIFIED
+    assert (
+        "hard_policy_evidence_not_revisioned_pinned_verified_applicable"
+        in result.unverified_reasons
+    )
+
+
+def test_stale_binding_cannot_authorize_changed_threshold() -> None:
+    graph, supply, return_leg = _graph_paths()
+    declaration = _declaration(graph, supply, return_leg)
+    changed_policy = declaration.policy.model_copy(
+        update={"maximum_via_count": ExactRational.build(Fraction(1))}
+    )
+    result = evaluate_decoupling_loop(
+        graph,
+        supply,
+        return_leg,
+        declaration.model_copy(update={"policy": changed_policy}),
+    )
+
+    assert result.disposition is SemanticDisposition.UNVERIFIED
+    assert result.violation_ids == ()
+    assert "hard_policy_context_fingerprint_mismatch" in result.unverified_reasons
+
+
+def test_policy_schema_fails_closed_for_legacy_bare_threshold_payload() -> None:
+    payload = _policy().model_dump(mode="json")
+    payload["schema_version"] = 1
+    payload.pop("mode")
+    payload.pop("intended_consumer")
+    payload.pop("applicability_binding")
+
+    with pytest.raises(ValidationError):
+        DecouplingLoopPolicy.model_validate(payload)
+
+
+def test_advisory_policy_rejects_hard_binding() -> None:
+    graph, supply, return_leg = _graph_paths()
+    hard_policy = _declaration(graph, supply, return_leg).policy
+
+    with pytest.raises(ValidationError, match="cannot carry hard evidence authority"):
+        DecouplingLoopPolicy(**hard_policy.model_dump(mode="python") | {"mode": "advisory"})
 
 
 def test_complete_inventory_detects_interior_daisy_anchor_and_fails_dedicated_policy() -> None:

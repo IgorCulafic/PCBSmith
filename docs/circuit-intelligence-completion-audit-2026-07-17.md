@@ -1,5 +1,11 @@
 # Circuit-intelligence completion audit — 2026-07-17
 
+> **Historical implementation audit.** The generic acceptance boundaries remain
+> useful, but thermometer-next actions are superseded. R005 completed the
+> thermometer proof-of-concept, R006 added the 3D proxy pilot, and the user
+> retired a thermometer rerun on 2026-07-20. Use `docs/current-state.md` and the
+> Phase 10-12 roadmap for current execution.
+
 This is the root-owned execution and completion matrix for R2 through R7. It
 does not inherit a `COMPLETE` label merely because an older document or an
 agent report uses one. A slice is accepted only after its current worktree

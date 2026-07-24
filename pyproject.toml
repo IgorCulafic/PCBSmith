@@ -22,6 +22,14 @@ extraction = [
 preview = [
   "pillow>=10.0",
 ]
+review = [
+  "pillow>=10.0",
+  "resvg_py>=0.3.3,<0.4",
+]
+artwork = [
+  "opencv-python-headless>=4.10,<6",
+  "shapely>=2.0,<3",
+]
 dev = [
   "hypothesis>=6.100",
   "import-linter>=2.0",
@@ -52,7 +60,10 @@ src = ["src", "tests"]
 select = ["E", "F", "I", "UP", "B"]
 
 [tool.mypy]
-python_version = "3.11"
+# The maintained development/verification environment is Python 3.12. Runtime
+# metadata and Ruff retain 3.11 compatibility; test it separately rather than
+# asking mypy to parse 3.12-only stubs as 3.11 syntax.
+python_version = "3.12"
 strict = true
 mypy_path = "src"
 plugins = ["pydantic.mypy"]

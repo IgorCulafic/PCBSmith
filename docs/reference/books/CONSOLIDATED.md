@@ -80,10 +80,10 @@ ever lands.
   IPC-A-610 R22 (**verified**) supplies a separate 20% width-damage budget.
 - THRESHOLD for our class: the legacy external fit may remain only as a
   labeled interim at dT=10 C and 35 um. Do not add k=0.024 as a future
-  internal authority. IPC-2152 is absent and no longer maintained; if later
-  acquired, use it only as historical measured validation while selecting a
-  separately versioned model with explicit layer, copper, environment,
-  stackup/plane and temperature-rise inputs.
+  internal authority. IPC-2152 is now pinned but remains no longer maintained;
+  use it only as historical measured validation while selecting a separately
+  versioned model with explicit layer, copper, environment, stackup/plane and
+  temperature-rise inputs.
 - MACHINE FORM: label current results legacy_ipc_2221a_external_fit; expose
   model/profile and evidence; keep damage allowance separate. Unknown and
   near-limit cases stay advisory/needs-review.
@@ -298,8 +298,8 @@ ever lands.
 
 ### P3-5. Temperature/humidity sensor thermal isolation
 - SOURCES: Williams T4 supports separating heat sources from sensitive parts.
-  Sensirion Design Guide v2 is verified online but not locally pinned and
-  supports the sensitivity/isolation mechanism, not a universal slot geometry.
+  Sensirion Design Guide v2 is now locally pinned and extracted and supports
+  the sensitivity/isolation mechanism, not a universal slot geometry.
   Coombs supports rounded manufacturable slots only within a fab context.
 - THRESHOLD: none global. The sensor, board, housing, fabricator profile and
   thermal-error target determine distance, copper and any slot/moat geometry;
@@ -758,9 +758,10 @@ Entry format per `docs/ai-rule-suggestions.md`. All `status: proposed`.
 - suggestion: temperature/humidity sensor cards declare heat-source isolation,
   thin/low-copper entry, and moat candidacy. A 1.0 mm rounded slot is a Coombs
   manufacturing floor for the current concept, not a universal sensor rule.
-- evidence: Williams T4 and Coombs slot floor (verified). Acquire and pin the
-  current Sensirion SHT3x design-in guide before encoding the digest's
-  `1 C ~= 5 %RH at 90 %RH` claim or a universal moat geometry.
+- evidence: Williams T4 and Coombs slot floor (verified). The current Sensirion
+  SHT/STS design guide is now pinned; complete targeted locator/applicability
+  review before encoding the digest's `1 C ~= 5 %RH at 90 %RH` claim. The
+  guide does not support a universal moat geometry.
 - decision_note:
 
 ## 2026-07-12 Module antenna placement/cutout (P3-6)

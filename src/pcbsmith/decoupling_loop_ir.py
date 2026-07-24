@@ -17,7 +17,11 @@ from pcbsmith.routed_copper_graph_ir import (
     require_identity,
     require_sha256,
 )
-from pcbsmith.semantic_ir import SemanticDisposition, SemanticIrModel
+from pcbsmith.semantic_ir import (
+    EvidenceApplicabilityBinding,
+    SemanticDisposition,
+    SemanticIrModel,
+)
 
 
 class DecouplingTerminalInventoryEntry(SemanticIrModel):
@@ -77,16 +81,20 @@ class DecouplingTerminalInventory(SemanticIrModel):
 
 class DecouplingLoopPolicy(SemanticIrModel):
     schema_id: Literal["pcbsmith-decoupling-loop-policy"] = "pcbsmith-decoupling-loop-policy"
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     policy_id: str
+    mode: Literal["advisory", "sourced_hard"]
+    intended_consumer: str
     maximum_via_count: ExactRational
     minimum_track_width_mm: Decimal | None
     maximum_projected_loop_area_mm2: ExactRational | None
     require_dedicated: bool
+    applicability_binding: EvidenceApplicabilityBinding | None
 
     @model_validator(mode="after")
     def policy_is_exact(self) -> Self:
         require_identity(self.policy_id, "policy_id")
+        require_identity(self.intended_consumer, "intended_consumer")
         maximum = self.maximum_via_count.fraction()
         if maximum < 0 or maximum.denominator != 1:
             raise ValueError("maximum via count must be a non-negative exact integer")
@@ -100,6 +108,8 @@ class DecouplingLoopPolicy(SemanticIrModel):
             and self.maximum_projected_loop_area_mm2.fraction() < 0
         ):
             raise ValueError("maximum projected loop area cannot be negative")
+        if self.mode == "advisory" and self.applicability_binding is not None:
+            raise ValueError("advisory decoupling policy cannot carry hard evidence authority")
         return self
 
 
@@ -163,6 +173,73 @@ class DecouplingLoopDeclaration(SemanticIrModel):
         if self.expected_power_net_name == self.expected_return_net_name:
             raise ValueError("decoupling power and return nets must differ")
         return self
+
+
+def decoupling_loop_context_fingerprint(
+    declaration: DecouplingLoopDeclaration,
+) -> str:
+    """Bind a sourced policy to its exact routed loop and project context.
+
+    The evidence binding itself is excluded so its context fingerprint can be
+    computed without a circular identity. Every threshold, terminal role,
+    retained graph/path snapshot, and intended consumer remains covered.
+    """
+
+    policy = declaration.policy
+    return fingerprint(
+        {
+            "schema_id": "pcbsmith-decoupling-loop-source-context",
+            "schema_version": 1,
+            "declaration_id": declaration.declaration_id,
+            "graph_fingerprint": declaration.graph_fingerprint,
+            "board_layout_snapshot_fingerprint": (
+                declaration.board_layout_snapshot_fingerprint
+            ),
+            "board_netlist_snapshot_fingerprint": (
+                declaration.board_netlist_snapshot_fingerprint
+            ),
+            "supply_path_result_fingerprint": (
+                declaration.supply_path_result_fingerprint
+            ),
+            "return_path_result_fingerprint": (
+                declaration.return_path_result_fingerprint
+            ),
+            "terminal_roles": {
+                "source_power": (
+                    declaration.source_power_anchor_id,
+                    declaration.source_power_pad_source_id,
+                ),
+                "load_power": (
+                    declaration.load_power_anchor_id,
+                    declaration.load_power_pad_source_id,
+                ),
+                "load_return": (
+                    declaration.load_return_anchor_id,
+                    declaration.load_return_pad_source_id,
+                ),
+                "source_return": (
+                    declaration.source_return_anchor_id,
+                    declaration.source_return_pad_source_id,
+                ),
+            },
+            "expected_power_net_name": declaration.expected_power_net_name,
+            "expected_return_net_name": declaration.expected_return_net_name,
+            "terminal_inventory": declaration.terminal_inventory.model_dump(mode="json"),
+            "policy": {
+                "policy_id": policy.policy_id,
+                "mode": policy.mode,
+                "intended_consumer": policy.intended_consumer,
+                "maximum_via_count": policy.maximum_via_count.model_dump(mode="json"),
+                "minimum_track_width_mm": policy.minimum_track_width_mm,
+                "maximum_projected_loop_area_mm2": (
+                    None
+                    if policy.maximum_projected_loop_area_mm2 is None
+                    else policy.maximum_projected_loop_area_mm2.model_dump(mode="json")
+                ),
+                "require_dedicated": policy.require_dedicated,
+            },
+        }
+    )
 
 
 class DecouplingPathLegMetrics(SemanticIrModel):

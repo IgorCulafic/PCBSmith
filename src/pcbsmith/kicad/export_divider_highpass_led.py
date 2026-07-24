@@ -111,6 +111,10 @@ def _render_project(
             f'{profile.geometry.minimum_solder_mask_web_mm:g}'
         )
     rendered_rules = ",\n".join(f"        {line}" for line in rule_lines)
+    default_clearance = profile.fab_spacing.minimum_copper_clearance_mm
+    default_track = profile.geometry.default_signal_trace_width_mm
+    default_via = profile.geometry.routing_via_diameter_mm
+    default_via_drill = profile.geometry.routing_via_drill_mm
     return f"""{{
   "board": {{
     "design_settings": {{
@@ -121,6 +125,33 @@ def _render_project(
         "lib_footprint_mismatch": "ignore"
       }}
     }}
+  }},
+  "net_settings": {{
+    "classes": [
+      {{
+        "bus_width": 12,
+        "clearance": {default_clearance:g},
+        "diff_pair_gap": {default_clearance:g},
+        "diff_pair_via_gap": {default_clearance:g},
+        "diff_pair_width": {default_track:g},
+        "line_style": 0,
+        "microvia_diameter": 0.3,
+        "microvia_drill": 0.1,
+        "name": "Default",
+        "pcb_color": "rgba(0, 0, 0, 0.000)",
+        "priority": 2147483647,
+        "schematic_color": "rgba(0, 0, 0, 0.000)",
+        "track_width": {default_track:g},
+        "tuning_profile": "",
+        "via_diameter": {default_via:g},
+        "via_drill": {default_via_drill:g},
+        "wire_width": 6
+      }}
+    ],
+    "meta": {{"version": 5}},
+    "net_colors": null,
+    "netclass_assignments": null,
+    "netclass_patterns": []
   }},
   "meta": {{"version": 1}}
 }}

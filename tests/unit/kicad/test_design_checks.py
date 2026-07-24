@@ -139,8 +139,7 @@ def test_sensitive_net_under_inductor_is_a_warning() -> None:
 
     assert report.status == "needs_human_review"
     assert any(
-        finding.rule == "3.3" and finding.severity == "warning"
-        for finding in report.findings
+        finding.rule == "3.3" and finding.severity == "warning" for finding in report.findings
     )
 
 
@@ -169,16 +168,13 @@ def test_acute_trace_corner_fires_rule_11_1() -> None:
     from pcbsmith.kicad.board import TrackSegment
 
     segments = (
-        TrackSegment(x1=10.0, y1=6.0, x2=15.0, y2=6.0,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
-        TrackSegment(x1=15.0, y1=6.0, x2=10.0, y2=2.5,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=10.0, y1=6.0, x2=15.0, y2=6.0, layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=15.0, y1=6.0, x2=10.0, y2=2.5, layer="F.Cu", net_name="/SIG", width_mm=0.4),
     )
     layout, netlist = _two_pad_layout(segments)
-    report = run_design_checks(layout, netlist, DesignChecksSpec())
+    report = run_design_checks(layout, netlist, DesignChecksSpec(trace_corner_policy="blocker"))
     assert any(
-        finding.rule == "11.1" and finding.severity == "blocker"
-        for finding in report.findings
+        finding.rule == "11.1" and finding.severity == "blocker" for finding in report.findings
     )
 
 
@@ -187,19 +183,15 @@ def test_45_and_90_corners_pass_rule_11_1() -> None:
 
     segments = (
         # 45-degree chamfer: joint angle 135.
-        TrackSegment(x1=8.0, y1=6.0, x2=12.0, y2=6.0,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
-        TrackSegment(x1=12.0, y1=6.0, x2=15.0, y2=9.0,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=8.0, y1=6.0, x2=12.0, y2=6.0, layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=12.0, y1=6.0, x2=15.0, y2=9.0, layer="F.Cu", net_name="/SIG", width_mm=0.4),
         # Second chamfer back to horizontal, then a right angle:
         # both allowed (90 is the channel router's entire output).
-        TrackSegment(x1=15.0, y1=9.0, x2=20.0, y2=9.0,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
-        TrackSegment(x1=20.0, y1=9.0, x2=20.0, y2=5.0,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=15.0, y1=9.0, x2=20.0, y2=9.0, layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=20.0, y1=9.0, x2=20.0, y2=5.0, layer="F.Cu", net_name="/SIG", width_mm=0.4),
     )
     layout, netlist = _two_pad_layout(segments)
-    report = run_design_checks(layout, netlist, DesignChecksSpec())
+    report = run_design_checks(layout, netlist, DesignChecksSpec(trace_corner_policy="blocker"))
     assert not [f for f in report.findings if f.rule == "11.1"]
 
 
@@ -211,13 +203,27 @@ def test_acute_corner_inside_pad_copper_is_exempt() -> None:
     pad = next(p for p in spec.pads if p.name == "1")
     pad_x, pad_y = 25.0 + pad.x_mm, 6.0 + pad.y_mm
     segments = (
-        TrackSegment(x1=pad_x - 4.0, y1=pad_y, x2=pad_x, y2=pad_y,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.3),
-        TrackSegment(x1=pad_x, y1=pad_y, x2=pad_x - 4.0, y2=pad_y - 2.8,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.3),
+        TrackSegment(
+            x1=pad_x - 4.0,
+            y1=pad_y,
+            x2=pad_x,
+            y2=pad_y,
+            layer="F.Cu",
+            net_name="/SIG",
+            width_mm=0.3,
+        ),
+        TrackSegment(
+            x1=pad_x,
+            y1=pad_y,
+            x2=pad_x - 4.0,
+            y2=pad_y - 2.8,
+            layer="F.Cu",
+            net_name="/SIG",
+            width_mm=0.3,
+        ),
     )
     layout, netlist = _two_pad_layout(segments)
-    report = run_design_checks(layout, netlist, DesignChecksSpec())
+    report = run_design_checks(layout, netlist, DesignChecksSpec(trace_corner_policy="blocker"))
     assert not [f for f in report.findings if f.rule == "11.1"]
 
 
@@ -226,10 +232,8 @@ def test_redundant_covered_track_fires_rule_11_2() -> None:
     from pcbsmith.kicad.board import TrackSegment
 
     segments = (
-        TrackSegment(x1=8.0, y1=6.0, x2=20.0, y2=6.0,
-                     layer="F.Cu", net_name="/SIG", width_mm=1.2),
-        TrackSegment(x1=10.0, y1=6.1, x2=16.0, y2=6.1,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.3),
+        TrackSegment(x1=8.0, y1=6.0, x2=20.0, y2=6.0, layer="F.Cu", net_name="/SIG", width_mm=1.2),
+        TrackSegment(x1=10.0, y1=6.1, x2=16.0, y2=6.1, layer="F.Cu", net_name="/SIG", width_mm=0.3),
     )
     layout, netlist = _two_pad_layout(segments)
     report = run_design_checks(layout, netlist, DesignChecksSpec())
@@ -244,10 +248,8 @@ def test_non_covered_parallel_track_passes_rule_11_2() -> None:
     from pcbsmith.kicad.board import TrackSegment
 
     segments = (
-        TrackSegment(x1=8.0, y1=6.0, x2=20.0, y2=6.0,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
-        TrackSegment(x1=8.0, y1=6.2, x2=20.0, y2=6.2,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=8.0, y1=6.0, x2=20.0, y2=6.0, layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=8.0, y1=6.2, x2=20.0, y2=6.2, layer="F.Cu", net_name="/SIG", width_mm=0.4),
     )
     layout, netlist = _two_pad_layout(segments)
     report = run_design_checks(layout, netlist, DesignChecksSpec())
@@ -260,15 +262,14 @@ def test_trace_craft_exemption_skips_sculpted_nets() -> None:
     from pcbsmith.kicad.board import TrackSegment
 
     segments = (
-        TrackSegment(x1=10.0, y1=6.0, x2=15.0, y2=6.0,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
-        TrackSegment(x1=15.0, y1=6.0, x2=10.0, y2=2.5,
-                     layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=10.0, y1=6.0, x2=15.0, y2=6.0, layer="F.Cu", net_name="/SIG", width_mm=0.4),
+        TrackSegment(x1=15.0, y1=6.0, x2=10.0, y2=2.5, layer="F.Cu", net_name="/SIG", width_mm=0.4),
     )
     layout, netlist = _two_pad_layout(segments)
     report = run_design_checks(
-        layout, netlist,
-        DesignChecksSpec(trace_craft_exempt_nets=("/SIG",)),
+        layout,
+        netlist,
+        DesignChecksSpec(trace_craft_exempt_nets=("/SIG",), trace_corner_policy="blocker"),
     )
     assert not [f for f in report.findings if f.rule in ("11.1", "11.2")]
 
@@ -284,12 +285,22 @@ def test_legacy_barrier_is_side_review_not_safety_spacing() -> None:
         placements=(),
         segments=(
             TrackSegment(
-                x1=5.0, y1=5.0, x2=10.0, y2=5.0,
-                layer="F.Cu", net_name="/PRI", width_mm=0.4,
+                x1=5.0,
+                y1=5.0,
+                x2=10.0,
+                y2=5.0,
+                layer="F.Cu",
+                net_name="/PRI",
+                width_mm=0.4,
             ),
             TrackSegment(
-                x1=20.0, y1=5.0, x2=25.0, y2=5.0,
-                layer="F.Cu", net_name="/SEC", width_mm=0.4,
+                x1=20.0,
+                y1=5.0,
+                x2=25.0,
+                y2=5.0,
+                layer="F.Cu",
+                net_name="/SEC",
+                width_mm=0.4,
             ),
         ),
         vias=(),
@@ -302,36 +313,33 @@ def test_legacy_barrier_is_side_review_not_safety_spacing() -> None:
 
     report = run_design_checks(layout, netlist, spec)
     assert "barrier_side_review" in report.checks_run
-    assert not [
-        finding
-        for finding in report.findings
-        if finding.rule == "geometry.barrier_side"
-    ]
+    assert not [finding for finding in report.findings if finding.rule == "geometry.barrier_side"]
 
     crossed = layout.__class__(
         **{
-            **{
-                name: getattr(layout, name)
-                for name in layout.__dataclass_fields__
-            },
+            **{name: getattr(layout, name) for name in layout.__dataclass_fields__},
             "segments": (
                 *layout.segments,
                 TrackSegment(
-                    x1=16.0, y1=7.0, x2=18.0, y2=7.0,
-                    layer="F.Cu", net_name="/PRI", width_mm=0.4,
+                    x1=16.0,
+                    y1=7.0,
+                    x2=18.0,
+                    y2=7.0,
+                    layer="F.Cu",
+                    net_name="/PRI",
+                    width_mm=0.4,
                 ),
             ),
         }
     )
     crossed_report = run_design_checks(crossed, netlist, spec)
     side_findings = [
-        finding
-        for finding in crossed_report.findings
-        if finding.rule == "geometry.barrier_side"
+        finding for finding in crossed_report.findings if finding.rule == "geometry.barrier_side"
     ]
     assert side_findings
     assert all(finding.severity == "warning" for finding in side_findings)
     assert all("does not establish" in finding.evidence for finding in side_findings)
+
 
 def test_profile_scoped_body_to_edge_check_and_explicit_exemption() -> None:
     from pcbsmith.kicad.board import BoardLayout
@@ -353,11 +361,7 @@ def test_profile_scoped_body_to_edge_check_and_explicit_exemption() -> None:
     profile = DEFAULT_PCB_RULE_PROFILE.model_copy(update={"geometry": geometry})
 
     blocked = run_design_checks(layout, netlist, DesignChecksSpec(), profile)
-    findings = [
-        finding
-        for finding in blocked.findings
-        if finding.rule == "fab.body_to_edge"
-    ]
+    findings = [finding for finding in blocked.findings if finding.rule == "fab.body_to_edge"]
     assert "component_body_to_edge" in blocked.checks_run
     assert len(findings) == 1
     assert findings[0].component_refs == ("R1",)
@@ -368,11 +372,8 @@ def test_profile_scoped_body_to_edge_check_and_explicit_exemption() -> None:
         DesignChecksSpec(body_edge_exempt_refs=("R1",)),
         profile,
     )
-    assert not [
-        finding
-        for finding in exempt.findings
-        if finding.rule == "fab.body_to_edge"
-    ]
+    assert not [finding for finding in exempt.findings if finding.rule == "fab.body_to_edge"]
+
 
 def test_trace_checks_use_source_roles_when_labels_are_misleading(
     monkeypatch: pytest.MonkeyPatch,
@@ -459,6 +460,4 @@ def test_trace_checks_use_source_roles_when_labels_are_misleading(
         netlist,
         DesignChecksSpec(),
     )
-    assert not [
-        finding for finding in parallel_report.findings if finding.rule == "11.2"
-    ]
+    assert not [finding for finding in parallel_report.findings if finding.rule == "11.2"]

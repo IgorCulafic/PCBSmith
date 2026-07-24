@@ -1,0 +1,69 @@
+{
+  "schema_id": "pcbsmith-exact-part-discovery-report",
+  "schema_version": 1,
+  "request": {
+    "manufacturer": "Sensirion",
+    "part_number": "SHT31-DIS",
+    "required_roles": [
+      "datasheet",
+      "kicad_footprint",
+      "kicad_symbol",
+      "model_3d"
+    ],
+    "intended_consumer": "Phase 17 exact-MPN production workflow exercise"
+  },
+  "provider_search_complete": true,
+  "records": [
+    {
+      "role": "datasheet",
+      "status": "validated_cache",
+      "provider_id": "sensirion-official",
+      "metadata_url": "https://sensirion.com/products/catalog/SHT31-DIS",
+      "source_url": "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf",
+      "source_id": "part:Sensirion:SHT31-DIS:datasheet",
+      "source_sha256": "095b1853e7f4328f5897c9ca6c392a7dd8b0202eda66b0a2629f9cb840dd496d",
+      "revision": "Version 7, December 2022",
+      "installed_resource": null,
+      "findings": []
+    },
+    {
+      "role": "kicad_footprint",
+      "status": "validated_cache",
+      "provider_id": "kicad-official-10.0.3",
+      "metadata_url": "https://gitlab.com/kicad/libraries/kicad-footprints/-/tree/10.0.3/Sensor_Humidity.pretty",
+      "source_url": "https://gitlab.com/kicad/libraries/kicad-footprints/-/raw/10.0.3/Sensor_Humidity.pretty/Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm.kicad_mod",
+      "source_id": "part:Sensirion:SHT31-DIS:kicad_footprint",
+      "source_sha256": "a6af9f807d4214a1828b37901485ed729d7a2eca6e6e2bb33f1a4aea0f198e66",
+      "revision": "KiCad library tag 10.0.3",
+      "installed_resource": null,
+      "findings": []
+    },
+    {
+      "role": "kicad_symbol",
+      "status": "validated_cache",
+      "provider_id": "kicad-official-10.0.3",
+      "metadata_url": "https://gitlab.com/kicad/libraries/kicad-symbols/-/tree/10.0.3/Sensor_Humidity.kicad_symdir",
+      "source_url": "https://gitlab.com/kicad/libraries/kicad-symbols/-/raw/10.0.3/Sensor_Humidity.kicad_symdir/SHT31-DIS.kicad_sym",
+      "source_id": "part:Sensirion:SHT31-DIS:kicad_symbol",
+      "source_sha256": "2e6b9f9a1c2c4cdd0e41a539a813d497bf908364734f4ec1bf73f4c5023e02e0",
+      "revision": "KiCad library tag 10.0.3",
+      "installed_resource": null,
+      "findings": []
+    },
+    {
+      "role": "model_3d",
+      "status": "missing",
+      "provider_id": null,
+      "metadata_url": null,
+      "source_url": null,
+      "source_id": null,
+      "source_sha256": null,
+      "revision": null,
+      "installed_resource": null,
+      "findings": [
+        "No provider candidate was returned for the required role."
+      ]
+    }
+  ],
+  "report_fingerprint": "d80beef54e96b3243c98f009614c8493925b18d3a69a78e2c6934b5f2f5723a3"
+}

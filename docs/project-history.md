@@ -525,3 +525,113 @@ via geometry, complete trunk/pigtail/via claim reconstruction, board
 materialization, negotiated retry, exact-checked atomic commit, R4.3
 group/ordinary negotiation, thermometer pilots, and production/default caller
 migration are not complete. Do not infer them from the R4.2a/b primitives.
+
+
+## Complete thermometer proof and process postmortem (2026-07-18)
+
+The production thermometer proof ultimately completed as R005: 63 netlisted
+components, 64 placements, 53 routed nets, 567 segments, 99 vias, zero
+unconnected items, clean machine/reader ERC, clean KiCad DRC/parity, identical
+R004/R005 normalized copper, byte-identical repeated KiCad saves, and inspected
+front/back/perspective/routing/assembly images. The user's larger-bulb correction
+produced a 66 x 178 mm board with a 60 mm bulb and 24 mm stem and materially
+improved both realism and routability.
+
+R006 then proved 3D metadata can be added without changing copper. It exposed a
+silent missing SHT31 STEP reference and the difference between header-only and
+complete OLED module models; its scaled SHT31/Adafruit assets remain explicitly
+labelled visualization proxies. The active roadmap and Track 6.5 now require a
+source/checksum/license-bound 3D asset resolver and model preflight.
+
+The result was accepted as a proof of concept, not as an ideal workflow. The
+complete issue register, root-cause analysis, qualified agreement/disagreement
+with the user's critique, and P0/P1 remediation order are retained in
+`docs/thermometer-production-postmortem-2026-07-18.md`. Its P0 items are now
+prerequisites in `docs/routing-placement-plan.md` before another production-sized
+shaped-board exercise.
+
+## Standardized visual-review roadmap (2026-07-18)
+
+The active routing roadmap now treats visual evidence as a versioned production
+artifact rather than an informal screenshot step. P0-V specifies a dedicated
+`review/` tree, physical-scale-aware 4K-or-greater overviews, constant-scale
+zoomed tiles, layer-isolated KiCad views, fixed-camera 3D views, comparisons,
+diagnostics, a render manifest, and a recorded inspection verdict. The same
+roadmap now has an audited checkbox ledger: completed generic slices are marked
+without conflating them with still-open production/default adoption work.
+
+## Evidence-utilization policy and Books reconciliation (2026-07-18)
+
+The roadmap now prioritizes short source-to-production vertical slices over
+another broad reading wave while R2-R7 production integration remains open. A
+durable guide defines source precedence, acquisition gates, revision handling,
+the status ladder from discovery to production exercise, and session reminders.
+
+The local Books audit confirmed that IPC-7352 May 2023 and IEC 60664-1:2020 were
+already present, pinned, and duplicated byte-identically. It newly verified full
+older IPC-2222 original (1998) and IEC 62368-1 Edition 2.0 (2014) copies.
+The later 2026-07-18 intake added full IPC-2152, IPC-7093/7093A, IPC-TM-650,
+IPC-2221A, and IPC-7525 original sources. The official Sensirion Version 2
+design guide and USB-IF USB 2.0 June 2025 bundle were then downloaded
+automatically, hashed, and visually verified. The guide and USB base
+specification were registered, and the complete archive was inventoried. The
+file initially presented as IPC-2231A was verified as IPC-2221A and is now
+correctly named.
+The older purported IPC-2231A and IPC-7525C preview files contain mismatched
+IPC-1401 material and are not counted.
+
+## Thermometer closure and Phase 10 continuity reset (2026-07-20)
+
+The user confirmed that the thermometer is accomplished. R005 remains the
+accepted routed electrical proof-of-concept and R006 the separate proxy-3D
+pilot; the project will not be rerun merely to retrofit newer generic R2-R6
+machinery. That machinery will instead face a genuinely unseen future project,
+which is stronger evidence against project-specific hard-coding.
+
+The prior long handoff was archived verbatim and removed from the mandatory
+reading path after its volatile claims became stale. A short live bootstrap now
+points to `docs/current-state.md`, the active roadmap, stable handbook, and
+current source authorities. Completed roadmap scopes are frozen; new work begins
+at Phase 10, while factual defects receive dated errata rather than being hidden
+to preserve a checkbox.
+
+Phase 10 covers continuity, truthful R005 authority labelling, Python/tooling
+normalization, and one verification checkpoint. Phase 11 covers local-first
+source metadata/derived facts, rights-aware 3D assets, and standardized visual
+review. Phase 12 covers long-job observability and budgets, one verification
+orchestrator, and a later contract-based test-suite audit.
+
+## Phase 11/12 generic pre-project foundation (2026-07-20)
+
+> **2026-07-20 integration correction:** “foundation” below means callable
+> libraries and CLI entrypoints, not automatic use by production board scripts.
+> The failed Retro-Pad pilot bypassed post-placement review and the execution
+> orchestrator. Its audit and Phase 13 corrective work are recorded in
+> `roadmap-implementation-audit-2026-07-20.md`; this historical section must not
+> be read as unseen-board proof.
+
+Before requesting the next unseen board, PCBSmith gained a controlled source
+intake boundary with private and commit-safe manifests, validated local KiCad
+symbol/footprint/model installation, model-path and classification preflight,
+and deterministic PNG adapters for physical board outlines and explicitly
+transformed silkscreen artwork. The visual-review package now emits hashed 4K
+overviews, layer-isolated views, tiles/details, declared overlays and
+diagnostics, fixed populated/bare 3D cameras, and predecessor comparisons. Its
+initial state is always pending inspection and a named reviewer must record the
+artifact decisions.
+
+The execution core now exposes quick, standard, and deep profiles with separate
+algorithmic work budgets and machine-safety limits, heartbeat evidence, typed
+termination, and complete-gate checkpoints. A single verification orchestrator
+reuses the existing lock, Ruff, mypy, pytest, and golden gates. Its final
+standard checkpoint passed all 2,590 collected tests with warnings treated as
+errors in 512 seconds, strict mypy over 239 source files, Ruff, and the lock
+check. The pytest job peaked at 2,381,729,792 bytes under an enforced 4 GiB
+ceiling. The earlier Hypothesis timing incident did not recur, but remains an
+input to the later test-health audit rather than being silently dismissed.
+
+An existing bunny board served only as an infrastructure smoke test: its review
+generator produced 36 required artifacts and stayed pending inspection, while
+model preflight correctly reported 70 unresolved LED model references. This is
+not evidence of generic board-design acceptance. The next proof is the user's
+new two-layer IC/sensor board with its supplied outline and silkscreen artwork.

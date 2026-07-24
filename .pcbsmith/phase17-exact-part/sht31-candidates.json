@@ -1,0 +1,40 @@
+{
+  "candidates": [
+    {
+      "provider_id": "sensirion-official",
+      "manufacturer": "Sensirion",
+      "part_number": "SHT31-DIS",
+      "role": "datasheet",
+      "metadata_url": "https://sensirion.com/products/catalog/SHT31-DIS",
+      "download_url": "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf",
+      "approved_hosts": ["sensirion.com"],
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only",
+      "revision": "Version 7, December 2022"
+    },
+    {
+      "provider_id": "kicad-official-10.0.3",
+      "manufacturer": "Sensirion",
+      "part_number": "SHT31-DIS",
+      "role": "kicad_footprint",
+      "metadata_url": "https://gitlab.com/kicad/libraries/kicad-footprints/-/tree/10.0.3/Sensor_Humidity.pretty",
+      "download_url": "https://gitlab.com/kicad/libraries/kicad-footprints/-/raw/10.0.3/Sensor_Humidity.pretty/Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm.kicad_mod",
+      "approved_hosts": ["gitlab.com"],
+      "expected_kind": "text",
+      "license_status": "redistributable",
+      "revision": "KiCad library tag 10.0.3"
+    },
+    {
+      "provider_id": "kicad-official-10.0.3",
+      "manufacturer": "Sensirion",
+      "part_number": "SHT31-DIS",
+      "role": "kicad_symbol",
+      "metadata_url": "https://gitlab.com/kicad/libraries/kicad-symbols/-/tree/10.0.3/Sensor_Humidity.kicad_symdir",
+      "download_url": "https://gitlab.com/kicad/libraries/kicad-symbols/-/raw/10.0.3/Sensor_Humidity.kicad_symdir/SHT31-DIS.kicad_sym",
+      "approved_hosts": ["gitlab.com"],
+      "expected_kind": "text",
+      "license_status": "redistributable",
+      "revision": "KiCad library tag 10.0.3"
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "manufacturer": "Sensirion",
+  "part_number": "SHT31-DIS",
+  "required_roles": [
+    "datasheet",
+    "kicad_footprint",
+    "kicad_symbol",
+    "model_3d"
+  ],
+  "intended_consumer": "Phase 17 exact-MPN production workflow exercise"
+}

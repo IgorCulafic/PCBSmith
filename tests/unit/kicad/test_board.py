@@ -389,3 +389,44 @@ def test_run_kicad_drc_reports_violations_and_unconnected(tmp_path: Path) -> Non
         "violations/error: Clearance violation",
         "unconnected_items/error: Missing connection",
     )
+
+
+def test_run_kicad_drc_canonicalizes_independent_finding_order(
+    tmp_path: Path,
+) -> None:
+    board = tmp_path / "Board.kicad_pcb"
+    board.write_text("(kicad_pcb)", encoding="utf-8")
+
+    def fake_runner(command: Sequence[str]) -> KiCadProcessResult:
+        report_file = _drc_report_file(command)
+        report_file.parent.mkdir(parents=True, exist_ok=True)
+        report_file.write_text(
+            json.dumps(
+                {
+                    "violations": [
+                        {"severity": "error", "description": "Z violation"},
+                        {"severity": "error", "description": "A violation"},
+                    ],
+                    "unconnected_items": [],
+                    "schematic_parity": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+        return KiCadProcessResult(
+            command=tuple(command),
+            returncode=5,
+            stdout="",
+            stderr="",
+        )
+
+    report = run_kicad_drc(
+        board,
+        finder=lambda: KiCadInstall(path=Path("kicad-cli.exe"), source="test"),
+        runner=fake_runner,
+    )
+
+    assert report.findings == (
+        "violations/error: A violation",
+        "violations/error: Z violation",
+    )

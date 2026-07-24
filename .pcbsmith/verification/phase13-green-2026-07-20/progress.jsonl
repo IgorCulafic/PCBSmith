@@ -1,0 +1,49 @@
+{"at": "2026-07-20T13:10:25.667896+00:00", "event": "run_started", "gate_count": 4, "profile": "standard"}
+{"at": "2026-07-20T13:10:25.667896+00:00", "event": "gate_started", "gate": "lock", "index": 1}
+{"at": "2026-07-20T13:10:25.885954+00:00", "elapsed_seconds": 0.20300000000861473, "event": "gate_completed", "gate": "lock", "termination": "passed"}
+{"at": "2026-07-20T13:10:25.886954+00:00", "event": "gate_started", "gate": "ruff", "index": 2}
+{"at": "2026-07-20T13:10:26.296542+00:00", "elapsed_seconds": 0.40600000001722947, "event": "gate_completed", "gate": "ruff", "termination": "passed"}
+{"at": "2026-07-20T13:10:26.297039+00:00", "event": "gate_started", "gate": "mypy", "index": 3}
+{"at": "2026-07-20T13:10:27.104850+00:00", "elapsed_seconds": 0.8129999999946449, "event": "gate_completed", "gate": "mypy", "termination": "passed"}
+{"at": "2026-07-20T13:10:27.107350+00:00", "event": "gate_started", "gate": "pytest-full", "index": 4}
+{"at": "2026-07-20T13:10:47.121162+00:00", "elapsed_seconds": 20.015, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:11:07.179159+00:00", "elapsed_seconds": 40.078, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:11:27.245572+00:00", "elapsed_seconds": 60.14, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:11:47.281998+00:00", "elapsed_seconds": 80.171, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:12:07.317063+00:00", "elapsed_seconds": 100.203, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:12:27.346394+00:00", "elapsed_seconds": 120.234, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:12:47.375506+00:00", "elapsed_seconds": 140.265, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:13:07.405142+00:00", "elapsed_seconds": 160.296, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:13:27.436469+00:00", "elapsed_seconds": 180.328, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:13:47.469437+00:00", "elapsed_seconds": 200.359, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:14:07.501194+00:00", "elapsed_seconds": 220.39, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:14:27.534385+00:00", "elapsed_seconds": 240.421, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:14:47.564588+00:00", "elapsed_seconds": 260.453, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:15:07.593223+00:00", "elapsed_seconds": 280.484, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:15:27.624314+00:00", "elapsed_seconds": 300.515, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:15:47.657024+00:00", "elapsed_seconds": 320.546, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:16:07.685704+00:00", "elapsed_seconds": 340.578, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:16:27.718323+00:00", "elapsed_seconds": 360.609, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:16:47.750910+00:00", "elapsed_seconds": 380.64, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:17:07.780558+00:00", "elapsed_seconds": 400.671, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:17:27.807339+00:00", "elapsed_seconds": 420.687, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:17:47.840801+00:00", "elapsed_seconds": 440.734, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:18:07.869822+00:00", "elapsed_seconds": 460.75, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:18:27.901519+00:00", "elapsed_seconds": 480.781, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:18:47.937872+00:00", "elapsed_seconds": 500.828, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:19:07.974465+00:00", "elapsed_seconds": 520.859, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:19:28.005520+00:00", "elapsed_seconds": 540.89, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:19:48.037394+00:00", "elapsed_seconds": 560.921, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:20:08.072901+00:00", "elapsed_seconds": 580.953, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:20:28.106281+00:00", "elapsed_seconds": 600.984, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:20:48.137000+00:00", "elapsed_seconds": 621.015, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:21:08.168654+00:00", "elapsed_seconds": 641.046, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:21:28.205630+00:00", "elapsed_seconds": 661.093, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:21:48.243046+00:00", "elapsed_seconds": 681.125, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:22:08.287442+00:00", "elapsed_seconds": 701.171, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:22:28.319064+00:00", "elapsed_seconds": 721.203, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:22:48.355326+00:00", "elapsed_seconds": 741.234, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:23:08.383064+00:00", "elapsed_seconds": 761.265, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:23:28.419056+00:00", "elapsed_seconds": 781.296, "event": "heartbeat", "gate": "pytest-full"}
+{"at": "2026-07-20T13:23:31.233277+00:00", "elapsed_seconds": 784.1089999999967, "event": "gate_completed", "gate": "pytest-full", "termination": "passed"}
+{"at": "2026-07-20T13:23:31.234277+00:00", "event": "run_completed", "status": "passed"}

@@ -5,11 +5,25 @@
 > thermal notes, TI ESD, JESD51-2A/-7, Brooks book/paper, panelization guides,
 > and NASA EEE-INST-002 are now cached and distilled in
 > docs/reference/books/SECOND-WAVE-2026-07.md. KLC v3.0.67 is cached but
-> lacks an upstream commit pin. Sensirion v2 and the SMTA QFN paper are
-> online-verified but locally unpinned. IPC-7093A, IPC-2231A, and
-> IPC-7525C remain absent. Use the second-wave note for corrected technical
-> interpretation; in particular, 15 mm is Espressif housing clearance and
-> USB-C reference footprints are informative.
+> lacks an upstream commit pin. This paragraph records the 2026-07-14 state;
+> the later filesystem reconciliation below supersedes its acquisition status.
+> Use the second-wave note for corrected technical interpretation; in
+> particular, 15 mm is Espressif housing clearance and USB-C reference
+> footprints are informative.
+>
+> **Filesystem reconciliation (2026-07-18):** The full IPC-7352 May 2023 and
+> IEC 60664-1:2020 base were already present, pinned, and synthesized; duplicate
+> copies are byte-identical. Full IPC-2222 original (1998) and IEC 62368-1
+> Edition 2.0 (2014) are newly verified older references. A later intake added
+> full IPC-2152, IPC-7093/7093A, IPC-TM-650, IPC-2221A, and IPC-7525 original.
+> The official Sensirion Version 2 guide and USB-IF USB 2.0 June 2025 bundle
+> were downloaded automatically, hashed, and visually verified. The guide and
+> USB base specification are registered; the full archive is inventoried.
+> IPC-2231A and IPC-7525C remain absent: their preview-labelled files contain
+> mismatched IPC-1401 text, and the file initially presented as IPC-2231A is
+> actually IPC-2221A. The exact inventory and revised priorities are in
+> `docs/reference/books/LOCAL-SOURCE-INVENTORY-2026-07-18.md`; the acquisition
+> decision gate is `docs/evidence-acquisition-and-utilization-guide.md`.
 
 Written 2026-07-12 by a research subagent. Scope: sources PCBSmith does
 **not** already own (`docs/reference/books/README.md`) and that are
@@ -55,7 +69,7 @@ that were subsequently obtained and distilled.
   text behind two roadmap items and a known live violation — highest
   value-per-effort on the list.
 
-### 2. IPC-7093A "Design and Assembly Process Implementation for Bottom Termination Components (BTCs)" — PAID, ABSENT
+### 2. IPC-7093A "Design and Assembly Process Implementation for Bottom Termination Components (BTCs)" — ACQUIRED 2026-07-18
 - **Covers:** Land-pattern, thermal-pad (windowed/segmented paste),
   paste-coverage %, thermal-via array, mask-defined vs paste-defined
   pad, and voiding rules for QFN / DFN / LGA / SON leadless parts.
@@ -67,8 +81,10 @@ that were subsequently obtained and distilled.
   is the authority for exposed-pad paste windowing and the thermal-via
   drill/placement rules that the `min_through_hole` / custom-pad-extent
   machinery currently guesses.
-- **Availability:** Paid. IPC shop: https://shop.ipc.org/IPC-7093-English-D ;
-  ANSI webstore mirror listed too. Free TOC to scope before buying:
+- **Availability/status:** The full October 2020 revision is now local, hashed,
+  visually verified, extracted, and registered. Targeted BTC distillation and
+  production integration remain open. IPC shop:
+  https://shop.ipc.org/IPC-7093-English-D ; free TOC:
   https://www.electronics.org/TOC/IPC-7093A-toc.pdf
 - **Priority justification:** Directly governs the two hardest real
   footprints we already ship, where we are currently improvising.
@@ -264,6 +280,6 @@ that were subsequently obtained and distilled.
   #11 panelization pages; #9 papers free / book paid).
 - **Paid: 4** (#2 IPC-7093 ~$300, #10 IPC-2231A ~$300, #12 IPC-7525C
   ~$128, #9 Brooks book ~$40 optional).
-- **Next acquisition:** the free set is already cached. Within this historical
-  wishlist, **IPC-7093A is the first absent paid BTC source**; overall order
-  follows the July-14 current-materials knowledge base.
+- **Next acquisition:** IPC-7093A is no longer an acquisition gap. Within this
+  historical wishlist, IPC-2231A and current IPC-7525C remain the paid gaps;
+  current priorities follow the July-18 local inventory and evidence guide.

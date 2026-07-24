@@ -21,7 +21,7 @@ from __future__ import annotations
 import functools
 import heapq
 import math
-from collections.abc import Collection, Mapping, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 
 from pcbsmith.kicad.board import (
@@ -233,24 +233,33 @@ class GridRouter:
             # Shaped boards: the verifier measures against the OUTLINE
             # polygon, so the router must too (a rectangle-only edge
             # model happily routes outside a thermometer's stem).
-            return _outline_blocked_cells(
+            cells = _outline_blocked_cells(
                 tuple(layout.outline),
                 self.cols,
                 self.rows,
                 self.grid,
                 round(margin, 6),
             )
-        cells: set[tuple[int, int]] = set()
-        for ix in range(self.cols):
-            for iy in range(self.rows):
-                x, y = ix * self.grid, iy * self.grid
-                if (
-                    x < margin
-                    or y < margin
-                    or x > layout.width_mm - margin
-                    or y > layout.height_mm - margin
-                ):
-                    cells.add((ix, iy))
+        else:
+            cells = set()
+            for ix in range(self.cols):
+                for iy in range(self.rows):
+                    x, y = ix * self.grid, iy * self.grid
+                    if (
+                        x < margin
+                        or y < margin
+                        or x > layout.width_mm - margin
+                        or y > layout.height_mm - margin
+                    ):
+                        cells.add((ix, iy))
+        for cutout in layout.cutouts:
+            cells |= _cutout_blocked_cells(
+                tuple(cutout.points),
+                self.cols,
+                self.rows,
+                self.grid,
+                round(margin, 6),
+            )
         return cells
 
     def _cells_inside(self, item: _Stadium) -> list[tuple[int, int]]:
@@ -788,6 +797,51 @@ def _outline_blocked_cells(
     return blocked
 
 
+@functools.lru_cache(maxsize=64)
+def _cutout_blocked_cells(
+    polygon: tuple[tuple[float, float], ...],
+    cols: int,
+    rows: int,
+    grid: float,
+    margin: float,
+) -> set[tuple[int, int]]:
+    """Grid cells inside or too close to one internal board void."""
+
+    edges = [
+        (polygon[index], polygon[(index + 1) % len(polygon)])
+        for index in range(len(polygon))
+    ]
+    x_lo = max(0, int((min(x for x, _y in polygon) - margin) / grid) - 1)
+    x_hi = min(cols, int((max(x for x, _y in polygon) + margin) / grid) + 2)
+    y_lo = max(0, int((min(y for _x, y in polygon) - margin) / grid) - 1)
+    y_hi = min(rows, int((max(y for _x, y in polygon) + margin) / grid) + 2)
+    blocked: set[tuple[int, int]] = set()
+    for ix in range(x_lo, x_hi):
+        for iy in range(y_lo, y_hi):
+            point = (ix * grid, iy * grid)
+            if _point_in_polygon(point, polygon) or any(
+                _point_seg_distance(point, first, second) < margin
+                for first, second in edges
+            ):
+                blocked.add((ix, iy))
+    return blocked
+
+
+def _point_in_polygon(
+    point: tuple[float, float],
+    polygon: tuple[tuple[float, float], ...],
+) -> bool:
+    x, y = point
+    inside = False
+    for index, (x1, y1) in enumerate(polygon):
+        x2, y2 = polygon[(index + 1) % len(polygon)]
+        if (y1 > y) != (y2 > y):
+            x_cross = x1 + (y - y1) * (x2 - x1) / (y2 - y1)
+            if x_cross > x:
+                inside = not inside
+    return inside
+
+
 # Coverage sampling: fine enough that no sliver of a "covered" segment
 # can poke past its covers between samples at PCB scales.
 COVER_SAMPLE_MM = 0.05
@@ -976,6 +1030,7 @@ def route_board(
     skip_nets: Collection[str] = (),
     fine_pitch_nets: Mapping[str, float] | None = None,
     fine_grid_mm: float = FINE_GRID_MM,
+    pass_observer: Callable[[RoutingPassTelemetry], None] | None = None,
 ) -> BoardRouteResult:
     """Route every multi-pad net with deterministic, audited work budgets.
 
@@ -1119,17 +1174,18 @@ def route_board(
             )
             results.append(result)
             working = with_route(working, result)
-        passes.append(
-            RoutingPassTelemetry(
-                pass_index=len(passes),
-                net_telemetry=tuple(telemetry),
-                unresolved_net_names=unresolved,
-                resource_overuse=(),
-                expansion_count=sum(item.expansion_count for item in telemetry),
-                exact_check_rejection_count=0,
-                stagnant=False,
-            )
+        pass_telemetry = RoutingPassTelemetry(
+            pass_index=len(passes),
+            net_telemetry=tuple(telemetry),
+            unresolved_net_names=unresolved,
+            resource_overuse=(),
+            expansion_count=sum(item.expansion_count for item in telemetry),
+            exact_check_rejection_count=0,
+            stagnant=False,
         )
+        passes.append(pass_telemetry)
+        if pass_observer is not None:
+            pass_observer(pass_telemetry)
         return working, results, failed, failure
 
     fine_results: list[RouteResult] = []

@@ -8,10 +8,17 @@ instead of by a wall of DRC violations (hardening plan 1.2).
 from __future__ import annotations
 
 import math
+from pathlib import Path
 
 from pcbsmith.kicad.board import FOOTPRINT_LIBRARY, rotate_offset
 from pcbsmith.kicad.clover_board import _back_pad
-from pcbsmith.kicad.library import load_footprint, render_embedded_footprint
+from pcbsmith.kicad.library import (
+    ImportedFootprint,
+    _measure,
+    load_footprint,
+    parse_sexpr,
+    render_embedded_footprint,
+)
 
 RESISTOR = "Resistor_SMD:R_0603_1608Metric"
 NET_TIE = "NetTie:NetTie-2_SMD_Pad2.0mm"
@@ -28,8 +35,8 @@ def test_front_rotation_pad_positions() -> None:
     # (Metal-detector lesson: assuming 90 = top produced 14 shorts.)
     dx, dy = _pad_local(RESISTOR, "1")
     assert dx < 0 and dy == 0
-    assert rotate_offset(dx, dy, 90.0) == (0.0, -dx)   # bottom (y down)
-    assert rotate_offset(dx, dy, 270.0) == (0.0, dx)   # top
+    assert rotate_offset(dx, dy, 90.0) == (0.0, -dx)  # bottom (y down)
+    assert rotate_offset(dx, dy, 270.0) == (0.0, dx)  # top
     assert rotate_offset(dx, dy, 180.0) == (-dx, 0.0)  # east
 
 
@@ -39,9 +46,9 @@ def test_back_side_placement_uses_inverse_rotation_then_mirror() -> None:
     # before the x-mirror. For pad 1 at local (-0.7875, 0), anchor (0,0):
     dx, _dy = _pad_local(RESISTOR, "1")
     x, y = _back_pad((0.0, 0.0), 90.0, (dx, 0.0))
-    assert (round(x, 4), round(y, 4)) == (0.0, dx)     # TOP on the back
+    assert (round(x, 4), round(y, 4)) == (0.0, dx)  # TOP on the back
     x, y = _back_pad((0.0, 0.0), 270.0, (dx, 0.0))
-    assert (round(x, 4), round(y, 4)) == (0.0, -dx)    # bottom on the back
+    assert (round(x, 4), round(y, 4)) == (0.0, -dx)  # bottom on the back
     # Rotation 0 on the back simply mirrors x.
     x, y = _back_pad((0.0, 0.0), 0.0, (dx, 0.0))
     assert (round(x, 4), round(y, 4)) == (-dx, 0.0)
@@ -110,6 +117,41 @@ def test_netlist_standard_fields_merge_without_kicad_save_rewrites() -> None:
     assert '(property "Source" "fixture"' in rendered
 
 
+def test_legacy_fp_text_reference_is_bound_to_real_board_reference() -> None:
+    tree = parse_sexpr(
+        """(footprint "Legacy_Terminal"
+  (version 20221018)
+  (generator pcbnew)
+  (layer "F.Cu")
+  (fp_text reference "REF**" (at 0 -2) (layer "F.SilkS"))
+  (fp_text value "OLD" (at 0 2) (layer "F.Fab") hide)
+  (pad "1" thru_hole circle (at 0 0) (size 2 2) (drill 1) (layers "*.Cu" "*.Mask"))
+)
+"""
+    )
+    imported = ImportedFootprint(
+        library_id="Fixture:Legacy_Terminal",
+        spec=_measure(tree, "Fixture:Legacy_Terminal"),
+        source_file=Path("legacy-terminal.kicad_mod"),
+        tree=tree,
+    )
+
+    rendered = render_embedded_footprint(
+        imported,
+        reference="J1",
+        value="7461057",
+        x_mm=20.0,
+        y_mm=20.0,
+        rotation=0.0,
+        uuid_path="probe-legacy-j1",
+        pad_nets={"1": (1, "/BAT_P")},
+    )
+
+    assert '(fp_text reference "J1"' in rendered
+    assert '(fp_text value "7461057"' in rendered
+    assert "REF**" not in rendered
+
+
 def test_arbitrary_rotation_matches_the_right_angle_fast_paths() -> None:
     # The trig branch and the exact branch must agree at the boundaries.
     for angle in (90.0, 180.0, 270.0):
@@ -130,12 +172,14 @@ def test_fp_rect_courtyards_produce_full_hulls() -> None:
     from pcbsmith.kicad.board import FOOTPRINT_LIBRARY
 
     expected = {
-        "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-3-2-5.08_1x02"
-        "_P5.08mm_Horizontal": (-3.04, -6.4, 8.13, 5.8),
-        "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P10.00mm":
-            (-1.25, -2.75, 11.25, 2.75),
-        "Connector_Wire:SolderWire-2.5sqmm_1x01_D2.4mm_OD3.6mm":
-            (-2.55, -2.5, 2.55, 2.5),
+        "TerminalBlock_Phoenix:TerminalBlock_Phoenix_MKDS-3-2-5.08_1x02_P5.08mm_Horizontal": (
+            -3.04,
+            -6.4,
+            8.13,
+            5.8,
+        ),
+        "Capacitor_THT:C_Disc_D9.0mm_W5.0mm_P10.00mm": (-1.25, -2.75, 11.25, 2.75),
+        "Connector_Wire:SolderWire-2.5sqmm_1x01_D2.4mm_OD3.6mm": (-2.55, -2.5, 2.55, 2.5),
     }
     for library_id, (x1, y1, x2, y2) in expected.items():
         hull = FOOTPRINT_LIBRARY[library_id].courtyard_hull
@@ -143,6 +187,33 @@ def test_fp_rect_courtyards_produce_full_hulls() -> None:
         xs = [x for x, _ in hull]
         ys = [y for _, y in hull]
         assert (min(xs), min(ys), max(xs), max(ys)) == (x1, y1, x2, y2)
+
+
+def test_padless_board_only_footprint_uses_fab_geometry() -> None:
+    tree = parse_sexpr(
+        """(footprint "Mechanical_Envelope"
+  (version 20241229)
+  (generator "PCBSmith")
+  (layer "F.Cu")
+  (attr board_only exclude_from_pos_files exclude_from_bom)
+  (fp_rect (start -21 -41) (end 21 41)
+    (stroke (width 0.25) (type default)) (fill none) (layer "F.Fab"))
+)
+"""
+    )
+
+    spec = _measure(tree, "Fixture:Mechanical_Envelope")
+
+    assert spec.pads == ()
+    assert spec.board_only
+    assert spec.fab_rect == (-21.0, -41.0, 21.0, 41.0)
+    assert (spec.x_min, spec.y_min, spec.x_max, spec.y_max) == (
+        -21.0,
+        -41.0,
+        21.0,
+        41.0,
+    )
+    assert spec.fab_hull is not None
 
 
 def test_custom_pads_and_npth_holes_parse_their_real_geometry() -> None:
@@ -154,17 +225,11 @@ def test_custom_pads_and_npth_holes_parse_their_real_geometry() -> None:
     # collapsed into "tht").
     from pcbsmith.kicad.board import FOOTPRINT_LIBRARY
 
-    sensor = FOOTPRINT_LIBRARY[
-        "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm"
-        "_EP1.1x1.7mm"
-    ]
+    sensor = FOOTPRINT_LIBRARY["Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm"]
     ep = next(pad for pad in sensor.pads if pad.name == "9")
     assert (ep.width_mm, ep.height_mm) == (1.0, 1.7)
 
-    usb = FOOTPRINT_LIBRARY[
-        "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P"
-        "_TopMnt_Horizontal"
-    ]
+    usb = FOOTPRINT_LIBRARY["Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal"]
     npth = [pad for pad in usb.pads if pad.kind == "npth"]
     assert [(pad.x_mm, pad.y_mm, pad.drill_mm) for pad in npth] == [
         (-2.89, -2.605, 0.65),

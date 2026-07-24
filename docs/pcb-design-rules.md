@@ -58,6 +58,16 @@ to future, more complex designs.
 - **1.3 Indicator LEDs sit near the board edge where they are visible.**
   (`REF-BC2596`; general product convention.) Status: circuit-level
   **implemented** for the buck (power LED branch); placement rule **pending**.
+- **1.4 A protected off-board signal must encounter its declared ESD stage
+  before the protected load.** Status: semantic evaluator **implemented**. The
+  checker replays connector-zone identity, exact routed-copper legs, and the
+  ingress/egress physical pads of each protection or filter transition. Every
+  involved net must have a complete terminal inventory; undeclared parallel or
+  bypass components fail the ordering policy. Hard PASS/FAIL additionally
+  requires revision-identified, hash-pinned, locator-verified,
+  applicability-confirmed evidence bound to the exact chain. This rule proves
+  ordering only; part rating, clamp voltage, return path, EMC, and immunity
+  validation remain separate requirements.
 
 ## 2. Capacitors and decoupling
 
@@ -74,6 +84,15 @@ to future, more complex designs.
   window is binding. (`TI-DS` design procedure; calculator emits this
   warning.) Status: warning **implemented** (`calculators/electronics.py`);
   ESR evidence check **pending**.
+- **2.4 Routed decoupling-loop acceptance must distinguish an advisory target
+  from a source-authorized hard limit.** Status: semantic evaluator
+  **implemented**. It reuses the exact routed-copper graph and path authorities
+  for via count, minimum width, projected loop area, and dedicated-versus-
+  daisy-chain topology. A hard result additionally requires revision-identified,
+  hash-pinned, locator-verified, applicability-confirmed evidence bound to the
+  exact evaluation context; otherwise the result is `UNVERIFIED`. No universal
+  numeric default is asserted. Production integration and materially different
+  board proof remain **pending**.
 
 ## 3. Switching-converter layout (safety-relevant — gates board generation)
 
@@ -85,11 +104,15 @@ grounding."
 
 - **3.1 Minimise the high di/dt loop area.** For a buck this loop is
   input cap → VIN pin → switch → catch diode → ground → input cap. Traces in
-  it are wide and short. Status: **partially implemented** — power nets carry
-  a 3x weight in the row-ordering cost, which pulls the power path into
-  adjacent placement (a 1-D loop-length minimisation); true 2-D loop-area
-  minimisation and a ground plane remain **pending** and are flagged in every
-  buck board report.
+  it are wide and short. Status: semantic measurement and membership
+  **implemented**; production-board integration remains **pending**. The exact
+  evaluator replays every routed leg, proves same-component ingress/egress pad
+  transitions and typed switching roles, requires complete terminal inventories,
+  detects undeclared bypass/parallel nodes, and computes exact projected 2-D
+  loop area. Hard limits require revisioned, pinned, verified, applicable
+  evidence bound to the topology, graph, paths, membership, threshold, and
+  consumer. The older 3x row-ordering weight remains only a placement heuristic,
+  and ground-plane/electromagnetic performance is not inferred from area alone.
 - **3.2 All power externals (diode, inductor, in/out capacitors) cluster
   tightly around the IC; ground via a plane or a single point.** (`TI-DS`
   §9.4.1.) Status: **implemented** — adjacency via weighted ordering plus a
@@ -236,6 +259,26 @@ rules F4/F5: polarized parts must show polarity; pin 1 must be identifiable).
   the circuit's roles. (`SESSION` 2026-07-06, Track 6.) Status:
   **implemented** (`support_findings`, run wherever cards are declared).
 
+- **7.6 External oscillator zones require explicit, source-bound keepout and
+  support requirements.** Status: semantic evaluator **implemented** for exact
+  supplied geometry. Hard intrusion, forbidden-net-class, reference-ground,
+  stitch-via, I/O-separation, and qualified capacitance checks require
+  revision-identified, pinned, verified, applicable evidence bound to the exact
+  board snapshots, zone, component/net scope, exemptions, thresholds, claim,
+  and intended consumer. Intrusion zones may be explicitly advisory. Automatic
+  whole-board physical-object extraction is still **pending**, so the evaluator
+  does not claim complete-board clearance from a supplied subset.
+
+- **7.7 Return-path acceptance requires known stack-up/reference authority.**
+  Status: semantic evaluator **implemented** for exact two-layer contexts.
+  Exact reference-fill containment, sourced hard thresholds, and layer-
+  transition stitch acceptance require a board-snapshot-bound stack-up with
+  verified copper order, adjacent signal/reference pairs, named reference nets,
+  and revisioned pinned applicable evidence. Unknown stack-up is explicit and
+  can produce advisory guidance only. This rule does not infer dielectric or
+  material properties, impedance, plane quality, multilayer coupling, or SI
+  signoff; those remain separate analysis authorities.
+
 - **8.1 Polarized two-terminal parts mark polarity on silkscreen.** Diodes
   and LEDs get a CATHODE BAR (a silk line beside the cathode terminal —
   `KICAD-LIB` `LED_0603_1608Metric` closes its silk outline with a bar at the
@@ -366,8 +409,9 @@ convert right-angle corners to diagonals").
 - **11.1 Corner enforcement requires declared applicability.** Right angles
   are not a general SI/EMI defect. H/V/45 may remain house craft; a selected
   fabricator or declared HV policy may impose a scoped rule. Status:
-  trace_corner_angle is implemented, but its global blocker scope is on
-  **policy hold** until scoped to craft/fabricator/HV applicability.
+  `trace_corner_angle` is implemented and now defaults to `off`. A topology or
+  selected profile must explicitly request `advisory` or `blocker`; global
+  blocker behavior was removed by the 2026-07-20 stewardship audit.
 - **11.2 No redundant same-net copper.** No track may lie entirely
   inside the union of its net's other copper: covered tracks are
   routing debris that reads as spaghetti and hides the real topology
@@ -408,3 +452,52 @@ convert right-angle corners to diagonals").
   spiral feed's 42-degree corner and a clover bezier sliver - real
   geometry, deliberate shapes. Status: **implemented** (spec field +
   exemption fixture test).
+
+## 12. Schematic and review-preparation conventions
+
+Origin: user-supplied review-preparation excerpt, 2026-07-24. These are
+practitioner conventions divided by consequence and applicability; they are
+not a single universal blocker checklist. The full classification and
+implementation plan are in
+`docs/pinscope-method-audit-and-review-convention-integration-2026-07-24.md`.
+
+- **12.1 Release artifacts identify themselves.** Schematic and PCB review
+  packages carry project/board name, revision, and date/year. Public artifacts
+  apply the declared authorship/privacy policy. Status: **scheduled as a
+  Phase 17 release obligation**.
+- **12.2 Human-readable schematics have collision-free presentation.** Text,
+  wires, and symbols do not overlap or run through one another. Values,
+  connector identity/purpose, active-part identity, clock frequency, LED
+  color, switch function, and heatsink relationship are shown when applicable.
+  Status: **partly represented by reader-schematic placement; typed visual
+  execution remains scheduled**.
+- **12.3 Conventional orientation is presentation authority.** Positive rails
+  above, ground below, pull-ups above, pull-downs below, functional symbols,
+  and left-to-right signal flow improve comprehension. They are review/style
+  findings unless a concrete functional or safety consequence exists. Status:
+  **scheduled as presentation obligations**.
+- **12.4 Reference numbering is context-dependent.** Compact new single-sheet
+  designs prefer conventional prefixes and contiguous numbering. Existing
+  product revisions and multi-sheet schemes may preserve gaps or page bands
+  for ECO/service continuity. Status: **advisory; never an unconditional
+  renumbering command**.
+- **12.5 Board markings support assembly and service.** Applicable parts carry
+  visible pin-1, polarity, orientation, connector voltage/polarity, function,
+  and accessible reference markings. Missing assembly-critical polarity may
+  block release; optional descriptive text remains review/style. Status:
+  **partly implemented in design checks; complete applicability/execution
+  closure remains Phase 17**.
+- **12.6 Mechanical retention is declared, not assumed.** Mounting holes are
+  reviewed early when the product needs them, but dongles, modules, edge
+  clamps, enclosures, and other retention strategies may make holes
+  inapplicable. Status: **applicability-dependent**.
+- **12.7 Current and sensitive-region rules require real context.** Wider
+  copper, ground fills, and restrictions under clocks, crystals, antenna/RF,
+  high-current, and sensitive circuits require declared net/region semantics,
+  stack-up, current/return, and exact geometry. Status: **split across existing
+  Phase 14/15 authorities and Phase 18 current-path closure**.
+- **12.8 Isolation is a claim with domain evidence.** An optoisolator does not
+  establish galvanic isolation when both sides share the same ground or power
+  domain. Relay coil/contact isolation and application safety remain distinct
+  questions. Status: **conditional electrical rule; exact isolation authority
+  remains governed by section 10**.

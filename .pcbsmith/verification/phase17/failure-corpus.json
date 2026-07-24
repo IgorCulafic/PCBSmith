@@ -1,0 +1,103 @@
+{
+  "schema_id": "pcbsmith-phase17-failure-corpus",
+  "schema_version": 1,
+  "cases": [
+    {
+      "schema_id": "pcbsmith-retained-failure-case",
+      "schema_version": 1,
+      "case_id": "ambiguity-hard-conflict",
+      "category": "ambiguity",
+      "trigger": "Prompt claims contain an infeasible hard conflict.",
+      "expected_outcome": "Prompt examination blocks and retains consequences plus alternatives.",
+      "observed_outcome": "Focused test asserts blocked outcome and two alternatives.",
+      "evidence_locator": "tests/unit/test_prompt_examiner.py",
+      "evidence_sha256": "13e8291e27ecf5017c58030fd84ed565ddde5caa8b9f59fbfa1a4f57968d1023",
+      "prevented_claims": [
+        "invented requirement",
+        "ready_for_concept"
+      ],
+      "case_fingerprint": "eb7bc9ca1029a36f2870f1413bb5ac9c8930a5860ffaca261e35f4cb2674f6c9"
+    },
+    {
+      "schema_id": "pcbsmith-retained-failure-case",
+      "schema_version": 1,
+      "case_id": "capacity-neck-overflow",
+      "category": "capacity",
+      "trigger": "Two nets require one capacity-one routing neck.",
+      "expected_outcome": "Pre-route feasibility blocks with named net and blocker.",
+      "observed_outcome": "Focused test asserts exhaustive blocked capacity diagnostic.",
+      "evidence_locator": "tests/unit/test_workflow_feasibility.py",
+      "evidence_sha256": "0934276afcf60174e66e8029f568520d69b06c5ca55368eb3505673a2a992ab5",
+      "prevented_claims": [
+        "capacity_sufficient",
+        "route_feasible"
+      ],
+      "case_fingerprint": "b43882d86ad490f8b0aeb74b36a28bb2c76514fe86c3ab1707a663a1e9e936ca"
+    },
+    {
+      "schema_id": "pcbsmith-retained-failure-case",
+      "schema_version": 1,
+      "case_id": "legacy-routing-order-failure",
+      "category": "routing",
+      "trigger": "Every sequential net order fails in the adversarial maze.",
+      "expected_outcome": "Legacy routing fails while negotiated routing is separately measured.",
+      "observed_outcome": "Adversarial test asserts both legacy orders fail.",
+      "evidence_locator": "tests/unit/kicad/test_negotiated_board_maze.py",
+      "evidence_sha256": "dc61e7e97979b5564c615760338ee157912f3cdd0481d56934b481ac182a32a0",
+      "prevented_claims": [
+        "ordering_is_sufficient",
+        "routing_complete"
+      ],
+      "case_fingerprint": "74d581272a30e9d173690f73e468f08e67aa28e62c7260f89c3ac4826d4e17ee"
+    },
+    {
+      "schema_id": "pcbsmith-retained-failure-case",
+      "schema_version": 1,
+      "case_id": "missing-required-model",
+      "category": "missing_asset",
+      "trigger": "Required 3D model preflight fails or transform is shifted.",
+      "expected_outcome": "Required 3D review artifacts are withheld and review generation fails.",
+      "observed_outcome": "Focused tests assert missing renders and shifted-model failure.",
+      "evidence_locator": "tests/unit/kicad/test_model_preflight.py",
+      "evidence_sha256": "7a4a57d1f2663ef942e5a20e5e5bbcffa699f553ca172d782154d6d218174622",
+      "prevented_claims": [
+        "camera_alignment_accepted",
+        "model_complete"
+      ],
+      "case_fingerprint": "30249bbee3a711334274e00d9878f137e4ec2ebf9a9c6e492d01e9befb89321d"
+    },
+    {
+      "schema_id": "pcbsmith-retained-failure-case",
+      "schema_version": 1,
+      "case_id": "review-omission",
+      "category": "review_omission",
+      "trigger": "Placement review is pending, missing, stale, or targets another board.",
+      "expected_outcome": "Routing-entry gate remains blocked.",
+      "observed_outcome": "Focused tests assert exact reviewed-board transaction binding.",
+      "evidence_locator": "tests/unit/test_production_workflow.py",
+      "evidence_sha256": "d6dff10b25f99694e28ac09a66d15fbe450360fe72b50cf8fce8b9dcf91b4719",
+      "prevented_claims": [
+        "review_complete",
+        "routing_authorized"
+      ],
+      "case_fingerprint": "5bd6365843d9d7272fb889ea6e7a228d9ec61373332a038171ab17e4f53bcd41"
+    },
+    {
+      "schema_id": "pcbsmith-retained-failure-case",
+      "schema_version": 1,
+      "case_id": "transaction-pointer-rollback",
+      "category": "transaction_rollback",
+      "trigger": "Injected failure occurs after generation promotion but before pointer swap.",
+      "expected_outcome": "Previous CURRENT pointer remains active and failed generation is retained.",
+      "observed_outcome": "Focused test verifies rollback without mixed revisions.",
+      "evidence_locator": "tests/unit/test_production_workflow.py",
+      "evidence_sha256": "d6dff10b25f99694e28ac09a66d15fbe450360fe72b50cf8fce8b9dcf91b4719",
+      "prevented_claims": [
+        "current_revision_replaced",
+        "generation_committed"
+      ],
+      "case_fingerprint": "ce77d96dcb7511a0b1310bcd90c6b28ec204cedd218971ffeb72ad6dc4e8268c"
+    }
+  ],
+  "corpus_fingerprint": "793e15dbf5ff353f0c4a6d431e2f8c4ff1c6c7a7dd7e9caae8e648b32a7d2202"
+}

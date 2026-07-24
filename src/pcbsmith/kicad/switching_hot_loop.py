@@ -7,6 +7,7 @@ from collections.abc import Sequence
 from fractions import Fraction
 from typing import Any
 
+from pcbsmith.kicad.board_serialization import parse_canonical_board_netlist_snapshot
 from pcbsmith.kicad.decoupling_loop import _on_segment, _orientation, _segments_intersect
 from pcbsmith.routed_copper_graph_ir import (
     CopperRadicalLengthTerm,
@@ -67,9 +68,17 @@ def _validate_inputs(
             raise ValueError("switching-loop leg physical pad authority is stale")
         transition = retained.transitions[index]
         next_leg = retained.legs[(index + 1) % len(retained.legs)]
+        from_anchor = anchors.get(transition.from_anchor_id)
+        to_anchor = anchors.get(transition.to_anchor_id)
         if (
             transition.from_anchor_id != leg.end_anchor_id
             or transition.to_anchor_id != next_leg.start_anchor_id
+            or from_anchor is None
+            or to_anchor is None
+            or from_anchor.physical_pad_source_id != transition.from_pad_source_id
+            or to_anchor.physical_pad_source_id != transition.to_pad_source_id
+            or from_anchor.component_reference != transition.component_reference
+            or to_anchor.component_reference != transition.component_reference
         ):
             raise ValueError(
                 "adjacent switching-loop legs do not match declared terminal transition"
@@ -227,7 +236,78 @@ def _derive_metrics(
             None if signed_area is None else ExactRational.build(abs(signed_area))
         ),
         projected_polygon_verification=verification,
+        transition_component_references=tuple(
+            item.component_reference for item in declaration.transitions
+        ),
+        transition_roles=tuple(item.transition_role for item in declaration.transitions),
+        leg_terminal_component_references=tuple(
+            (
+                leg.leg_id,
+                tuple(
+                    sorted(
+                        {
+                            reference
+                            for net in parse_canonical_board_netlist_snapshot(
+                                graph.board_netlist_snapshot_json
+                            ).nets
+                            if net.name == leg.net_name
+                            for reference, _pad in net.nodes
+                        }
+                    )
+                ),
+            )
+            for leg in declaration.legs
+        ),
     )
+
+
+def _terminal_inventory_reasons(
+    graph: RoutedCopperGraphResult,
+    declaration: SwitchingHotLoopDeclaration,
+) -> tuple[str, ...]:
+    netlist = parse_canonical_board_netlist_snapshot(graph.board_netlist_snapshot_json)
+    reasons = []
+    for leg in declaration.legs:
+        netlist_nodes = {
+            node for net in netlist.nets if net.name == leg.net_name for node in net.nodes
+        }
+        anchors = tuple(item for item in graph.terminal_anchors if item.net_name == leg.net_name)
+        anchor_nodes = tuple((item.component_reference, item.pad_number) for item in anchors)
+        if (
+            len(anchor_nodes) != len(set(anchor_nodes))
+            or len({item.physical_pad_source_id for item in anchors}) != len(anchors)
+        ):
+            reasons.append(f"duplicate_terminal_anchor_alias:{leg.leg_id}")
+        if set(anchor_nodes) != netlist_nodes:
+            reasons.append(f"terminal_inventory_incomplete:{leg.leg_id}")
+    return tuple(sorted(reasons))
+
+
+def _policy_violations(
+    graph: RoutedCopperGraphResult,
+    declaration: SwitchingHotLoopDeclaration,
+    metrics: SwitchingHotLoopMetrics,
+) -> tuple[str, ...]:
+    violations = []
+    if metrics.transition_roles != declaration.limit.expected_transition_roles:
+        violations.append("expected_transition_membership_violated")
+    anchors = {item.anchor_id: item for item in graph.terminal_anchors}
+    for index, (leg_id, actual_references) in enumerate(
+        metrics.leg_terminal_component_references
+    ):
+        leg = declaration.legs[index]
+        expected_references = {
+            anchors[leg.start_anchor_id].component_reference,
+            anchors[leg.end_anchor_id].component_reference,
+            *leg.declared_parallel_component_references,
+        }
+        if set(actual_references) != expected_references:
+            violations.append(f"unexpected_parallel_or_bypass_component:{leg_id}")
+    maximum = declaration.limit.maximum_projected_area_mm2
+    if maximum is not None and metrics.projected_absolute_area_mm2 is not None:
+        if metrics.projected_absolute_area_mm2.fraction() > maximum.fraction():
+            violations.append("maximum_projected_area_exceeded")
+    return tuple(sorted(violations))
 
 
 def _hard_binding_reasons(
@@ -252,6 +332,8 @@ def _hard_binding_reasons(
         limit_id=limit.limit_id,
         mode=limit.mode,
         maximum_projected_area_mm2=limit.maximum_projected_area_mm2,
+        intended_consumer=limit.intended_consumer,
+        expected_transition_roles=limit.expected_transition_roles,
     )
     if binding.claim_id != limit.limit_id:
         reasons.append("hard_limit_claim_identity_mismatch")
@@ -264,14 +346,21 @@ def _hard_binding_reasons(
         reasons.append("hard_limit_applicability_incomplete")
     if binding.geometry_source_fingerprint != expected_context:
         reasons.append("hard_limit_context_fingerprint_mismatch")
+    binding_conditions = set(binding.required_conditions)
     if not all(
-        item.source_status == "pinned"
+        bool(item.source_id and item.source_id.strip())
+        and bool(item.revision and item.revision.strip())
+        and item.source_status == "pinned"
         and item.local_sha256 is not None
+        and len(item.local_sha256) == 64
+        and all(character in "0123456789abcdef" for character in item.local_sha256)
         and item.locator_status in {"text_verified", "figure_verified"}
         and item.applicability_status == "confirmed"
+        and item.required_conditions
+        and set(item.required_conditions).issubset(binding_conditions)
         for item in binding.evidence
     ):
-        reasons.append("hard_limit_evidence_not_pinned_verified_applicable")
+        reasons.append("hard_limit_evidence_not_revisioned_pinned_verified_applicable")
     return tuple(sorted(reasons))
 
 
@@ -292,28 +381,23 @@ def rederive_switching_hot_loop(
     metrics = None if reasons else _derive_metrics(graph, paths, retained)
     if metrics is not None and metrics.projected_polygon_verification != "exact_simple":
         reasons.append("projected_polygon_unverified")
-    violations = []
-    if reasons:
-        disposition = SemanticDisposition.UNVERIFIED
-    elif retained.limit.mode == "advisory":
-        disposition = SemanticDisposition.ADVISORY
-    else:
-        hard_reasons = _hard_binding_reasons(graph, retained)
-        if hard_reasons:
-            reasons.extend(hard_reasons)
-            disposition = SemanticDisposition.UNVERIFIED
-        else:
-            assert metrics is not None
-            assert metrics.projected_absolute_area_mm2 is not None
-            assert retained.limit.maximum_projected_area_mm2 is not None
-            if (
-                metrics.projected_absolute_area_mm2.fraction()
-                > retained.limit.maximum_projected_area_mm2.fraction()
-            ):
-                violations.append("maximum_projected_area_exceeded")
-                disposition = SemanticDisposition.FAIL
-            else:
-                disposition = SemanticDisposition.PASS
+    if metrics is not None:
+        reasons.extend(_terminal_inventory_reasons(graph, retained))
+        if retained.limit.mode == "sourced_hard":
+            reasons.extend(_hard_binding_reasons(graph, retained))
+    reasons_tuple = tuple(sorted(set(reasons)))
+    violations = (
+        () if metrics is None or reasons_tuple else _policy_violations(graph, retained, metrics)
+    )
+    disposition = (
+        SemanticDisposition.UNVERIFIED
+        if reasons_tuple
+        else SemanticDisposition.ADVISORY
+        if retained.limit.mode == "advisory"
+        else SemanticDisposition.FAIL
+        if violations
+        else SemanticDisposition.PASS
+    )
     input_fp = fingerprint(
         {
             "graph": graph.result_fingerprint,
@@ -326,8 +410,8 @@ def rederive_switching_hot_loop(
         "declaration": retained,
         "metrics": metrics,
         "disposition": disposition,
-        "violation_ids": tuple(sorted(violations)),
-        "unverified_reasons": tuple(sorted(reasons)),
+        "violation_ids": violations,
+        "unverified_reasons": reasons_tuple,
         "input_fingerprint": input_fp,
     }
 

@@ -350,13 +350,15 @@ def silk_text(
     size: float = 0.8,
     *,
     occurrence: int = 0,
+    layer: str = "F.SilkS",
 ) -> str:
     rendered_at = _absolute_identity_point(at, origin)
     thickness = f"{size * 0.18:.2f}"
+    justification = "\n      (justify mirror)" if layer.startswith("B.") else ""
     item_uuid = _graphic_uuid(
         "text",
         (
-            "F.SilkS",
+            layer,
             text,
             f"{rendered_at[0]},{rendered_at[1]}",
             f"size:{_identity_number(size)}",
@@ -366,13 +368,13 @@ def silk_text(
     )
     return f"""  (gr_text "{text}"
     (at {rendered_at[0]} {rendered_at[1]} 0)
-    (layer "F.SilkS")
+    (layer "{layer}")
     (uuid {item_uuid})
     (effects
       (font
         (size {size} {size})
         (thickness {thickness})
-      )
+      ){justification}
     )
   )"""
 

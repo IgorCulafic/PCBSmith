@@ -1,0 +1,120 @@
+{
+  "schema": "pcbsmith-multiphysics-capability-gap-catalog-v1",
+  "created_at": "2026-07-22",
+  "status": "research-complete-implementation-open",
+  "scope": "System capabilities needed beyond component calculators and geometry semantics. Entries are not production signoff claims.",
+  "capabilities": [
+    {
+      "id": "workflow-conformance-and-deviation",
+      "priority": 0,
+      "state": "policy-defined-enforcement-open",
+      "required_inputs": ["workflow profile", "requirement identities", "artifact manifest", "applicability context", "waivers and approvals"],
+      "outputs": ["completeness result", "addition/substitution/omission classification", "release-status ceiling"],
+      "first_pilot": "Repair BLDC ESC R002 with the shared standard review package while retaining supplemental thermal views."
+    },
+    {
+      "id": "operating-scenario-and-mission-profile",
+      "priority": 1,
+      "state": "research-ready",
+      "required_inputs": ["operating modes", "electrical loads", "duty and duration", "environment", "fault cases", "allowed degradation"],
+      "outputs": ["coverage matrix", "scenario fingerprints", "missing-input findings"],
+      "first_pilot": "BLDC startup, normal, peak, stall, regenerative, short, hot-plug, and fan-failure cases."
+    },
+    {
+      "id": "loss-and-stress-ledger",
+      "priority": 2,
+      "state": "partial-calculators-only",
+      "required_inputs": ["exact part models", "scenario waveforms", "temperature dependencies", "parasitics", "tolerances"],
+      "outputs": ["per-part and per-path loss", "pulse energy", "stress ratios", "uncertainty"],
+      "first_pilot": "Q1/Q2, RSH1, local DC-link capacitors, gate driver, copper, and phase terminal."
+    },
+    {
+      "id": "electrothermal-network",
+      "priority": 3,
+      "state": "thermal-separation-ir-only",
+      "required_inputs": ["loss ledger", "Rth/Zth or compact models", "PCB territories", "TIM/contact", "sink and ambient boundaries"],
+      "outputs": ["steady and transient temperatures", "shared-path heat flow", "convergence and scope status"],
+      "first_pilot": "One BLDC phase and its local MOSFET-TIM-common-sink paths."
+    },
+    {
+      "id": "cooling-assembly-and-interface",
+      "priority": 4,
+      "state": "geometry-envelope-only",
+      "required_inputs": ["exact heatsink", "TIM", "electrical isolation", "flatness/roughness", "clamp force/torque", "tolerances", "assembly process"],
+      "outputs": ["mechanical stack", "contact-resistance bounds", "isolation findings", "assembly/inspection plan"],
+      "first_pilot": "Replace R002 envelopes with selected parts and a tolerance-bound clamp stack."
+    },
+    {
+      "id": "airflow-and-enclosure",
+      "priority": 5,
+      "state": "future",
+      "required_inputs": ["enclosure CAD", "inlet conditions", "fan and system curves", "obstructions/bypass", "altitude", "failure state"],
+      "outputs": ["local ambient", "flow distribution", "sink performance", "unsupported/CFD escalation"],
+      "first_pilot": "Natural-convection screen before any fan is assumed for R002."
+    },
+    {
+      "id": "current-path-and-interconnect",
+      "priority": 6,
+      "state": "partial-geometry-and-calculators",
+      "required_inputs": ["force/sense path graphs", "copper/plating", "vias/pads", "contacts/cables", "temperature", "duty"],
+      "outputs": ["voltage drop", "local loss and temperature-rise inputs", "neck-down and sharing findings"],
+      "first_pilot": "Battery-to-local-DC-link and one phase force path with Kelvin sense separated."
+    },
+    {
+      "id": "protection-and-fault-energy",
+      "priority": 7,
+      "state": "ordering-only-partial",
+      "required_inputs": ["source/cable impedance", "fault events", "protection time curves", "SOA", "TVS/fuse data", "shutdown latency"],
+      "outputs": ["event energy paths", "coordination margins", "unprotected interval", "bench fault plan"],
+      "first_pilot": "BLDC stall, shoot-through, short-to-battery/ground, regenerative bus rise, and hot-plug."
+    },
+    {
+      "id": "pdn-and-control-stability",
+      "priority": 8,
+      "state": "partial-ir-only",
+      "required_inputs": ["load-step spectrum", "droop budget", "VRM model", "capacitor bias/ESR/ESL", "mounting/plane models", "control/sampling timing"],
+      "outputs": ["target impedance", "resonance and transient results", "control margins", "measurement plan"],
+      "first_pilot": "Driver/control rails after the power-stage thermal slice."
+    },
+    {
+      "id": "emc-and-common-mode",
+      "priority": 9,
+      "state": "partial-geometry-only",
+      "required_inputs": ["edge/spectrum", "switching and return paths", "cables/shields/heatsinks", "parasitic capacitance", "enclosure", "threat/test standard"],
+      "outputs": ["common-mode path map", "coupling risks", "mitigation provisions", "pre-compliance plan"],
+      "first_pilot": "Common-sink and motor-cable common-mode paths for R002."
+    },
+    {
+      "id": "mechanical-and-thermomechanical",
+      "priority": 10,
+      "state": "collision-and-hole-geometry-only",
+      "required_inputs": ["mass/inertia", "supports/fasteners", "loads and vibration", "materials/CTE", "solder joints", "temperature cycles"],
+      "outputs": ["deflection/stress screens", "modal/FEA escalation", "retention and fatigue findings"],
+      "first_pilot": "R002 heatsink mass, clamp loads, board bending, and terminal insertion loads."
+    },
+    {
+      "id": "reliability-environment-and-life",
+      "priority": 11,
+      "state": "future",
+      "required_inputs": ["mission profile", "part-family life model", "temperature history", "humidity/contamination", "shock/vibration", "service life"],
+      "outputs": ["derating records", "life consumption", "dominant mechanisms", "qualification plan"],
+      "first_pilot": "Bulk capacitor ripple life and connector/contact temperature ageing."
+    },
+    {
+      "id": "manufacturing-variation-and-inspection",
+      "priority": 12,
+      "state": "fabrication-profile-partial",
+      "required_inputs": ["fabricator/assembler process", "geometry/material tolerances", "paste/voiding", "placement and torque variation", "inspection capability"],
+      "outputs": ["corner cases", "DFM findings", "inspection requirements", "supplier feedback record"],
+      "first_pilot": "TIM thickness, heatsink flatness, clamp force, MOSFET coplanarity, and solder/voiding corners."
+    },
+    {
+      "id": "validation-uncertainty-and-correlation",
+      "priority": 13,
+      "state": "future",
+      "required_inputs": ["predictions", "instrument/probe models", "calibration", "measurement locations", "uncertainties", "acceptance bands"],
+      "outputs": ["test procedure", "prediction/measurement comparison", "model update", "correlation status"],
+      "first_pilot": "R002 current, case/board/sink/inlet temperatures, switching waveforms, and thermal-camera uncertainty."
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+(footprint "NegotiatedMazeTerminal"
+  (version 20240108)
+  (generator "pcbsmith")
+  (layer "F.Cu")
+  (attr smd)
+  (fp_rect
+    (start -0.1 -0.1)
+    (end 0.1 0.1)
+    (stroke (width 0.02) (type default))
+    (fill none)
+    (layer "F.Fab"))
+  (pad "1" smd circle
+    (at 0 0)
+    (size 0.2 0.2)
+    (layers "F.Cu" "F.Mask"))
+)

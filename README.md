@@ -1,27 +1,28 @@
 # PCBSmith
 
-> **Current project state (implementation reconciled 2026-07-18):** PCBSmith has grown far beyond
-> the original Phase 0 CLI below. Nine topology authorities regenerate
-> through the live golden suite; the tenth thermometer challenge failed
-> at board routing and now drives the active authority application. Generic
-> R2-R6 negotiated-routing, corridor, ordered-bus, placement, live reduced-stem,
-> and semantic/process machinery is accepted within documented bounds. There is
-> still no persisted exact-accepted thermometer board, production/default caller
-> migration, complete thermometer declaration set, or routed full-board golden.
-> One isolated production-derived R17/D17 `/PWLED` crop now completes an offline
-> placement-and-routing micro-pilot, including an authorized ordinary-R2 fallback,
-> exact budget-cliff tests, and a separate opt-in live KiCad 10 save/read-back/
-> clean-DRC gate. The offline wrapper deliberately retains `kicad_live_checked=False`;
-> neither result is full-board routing, production persistence, or R7 completion. Start
-> with [`CLAUDE.md`](CLAUDE.md),
-> [`docs/project-catchup-2026-07-12.md`](docs/project-catchup-2026-07-12.md),
+> **Current project state (reconciled 2026-07-20):** PCBSmith has grown far
+> beyond the original Phase 0 CLI below. The tenth thermometer project is
+> complete as the accepted routed R005 proof-of-concept; R006 is a separate 3D
+> proxy visualization pilot. Its slow legacy-path success does not establish
+> generic negotiated-router scale or production/default adoption, but the board
+> will not be rerun merely to prove newer machinery. Generic R2-R6 routing,
+> corridor, bus, placement, and semantic authorities remain bounded tools to be
+> exercised on the next genuinely unseen project. Start with
+> [`docs/handoff-prompt.md`](docs/handoff-prompt.md),
+> [`docs/current-state.md`](docs/current-state.md), [`CLAUDE.md`](CLAUDE.md),
 > [`docs/reference/current-materials-knowledge-base-2026-07-14.md`](docs/reference/current-materials-knowledge-base-2026-07-14.md),
 > [`docs/reference/standards-table-reverification-2026-07-14.md`](docs/reference/standards-table-reverification-2026-07-14.md),
-> [`docs/routing-placement-plan.md`](docs/routing-placement-plan.md), and
-> [`docs/circuit-intelligence-review-supplement-5-2026-07-17.md`](docs/circuit-intelligence-review-supplement-5-2026-07-17.md).
-> The July 14 reference synthesis is the current 31-source knowledge entry
-> point; `docs/reference/books/CONSOLIDATED.md` is historical first-wave
-> candidate data, not direct authorization to encode a threshold.
+> and [`docs/routing-placement-plan.md`](docs/routing-placement-plan.md).
+> The July 14 synthesis covers 31 reconciled sources; the local extraction
+> manifest now registers 41 documents. Registration is not the same as
+> distillation or production use. Historical and archived documents never
+> override the current-state record or active roadmap.
+> Phase 11/12 now have a callable generic foundation for approved-source
+> intake, private/redistributable KiCad assets, PNG outline and silkscreen
+> tracing, model preflight, standardized 2D/3D review packages, and observable
+> repository verification profiles. These are not yet automatically invoked by
+> every board generator. See
+> [`docs/evidence-assets-review-execution-guide.md`](docs/evidence-assets-review-execution-guide.md).
 > The remainder of this README documents the still-supported original
 > headless foundation.
 
@@ -45,6 +46,10 @@ The CLI can create and inspect headless PCBSmith projects, load all referenced s
 
 ## Verification
 
+The maintained development and verification environment is Python 3.12. The
+package metadata and Ruff syntax floor retain Python 3.11 compatibility, which
+is checked separately; Python 3.14 is currently outside the supported range.
+
 Run the deterministic offline gates from PowerShell:
 
 ```powershell
@@ -52,6 +57,7 @@ $env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
 .\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider -W error
 .\.venv\Scripts\python.exe -m ruff check src tests
 .\.venv\Scripts\python.exe -m mypy --strict --python-version 3.12 src/pcbsmith
+pcbsmith verify .pcbsmith/verification/quick --profile quick
 ```
 
 The independent live KiCad/ngspice gate commands and their environment-variable

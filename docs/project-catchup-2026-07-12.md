@@ -1,5 +1,10 @@
 # PCBSmith catch-up — 2026-07-12
 
+> **Historical snapshot.** This document predates the successful R005
+> thermometer, R006 3D pilot, 41-source intake, and Phases 10-12. Use
+> `docs/current-state.md` for current status; retain this file for historical
+> failure and research context.
+
 This document reconciles the repository, the July 10–12 Claude session
 logs, and the handoff documents after the thermometer challenge and the
 layout-craft research wave. It is a current-state supplement, not a

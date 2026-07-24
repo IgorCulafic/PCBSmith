@@ -33,6 +33,7 @@ from pcbsmith.kicad.board import (
     parse_board_netlist,
     render_board_from_layout,
 )
+from pcbsmith.kicad.board_region import BoardCutoutPolygon
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
 from pcbsmith.kicad.design_checks import DesignChecksSpec
 from pcbsmith.kicad.identity import stable_kicad_uuid
@@ -42,14 +43,15 @@ from pcbsmith.kicad.shaped_board import (
     silk_text,
     splice_rect_tab,
 )
+from pcbsmith.kicad.thermometer_bus import validate_thermometer_bus_groups
 
-BOARD_W = 46.0
-BOARD_H = 158.0
+BOARD_W = 66.0
+BOARD_H = 178.0
 
-STEM_CX = 23.0
+STEM_CX = 33.0
 STEM_HALF = 12.0
 TIP_CY = 20.0            # stem tip arc center (radius = STEM_HALF)
-BULB_CX, BULB_CY, BULB_R = 23.0, 136.0, 21.0
+BULB_CX, BULB_CY, BULB_R = 33.0, 147.0, 30.0
 USB_TAB_HALF = 5.8
 
 # The printed scale: 0C at the bottom of the stem scale, 50C at the
@@ -147,21 +149,25 @@ PLACEMENTS: dict[str, tuple[float, float, float]] = {
         for index in range(1, LED_COUNT + 1)
     },
     # -- front: displays, sensor, indicator, test points -------------
-    # x=20.39 clears the rule-8.2 "+" mark (at pad1 - 3.9mm) from
-    # the TEMP/HUM labels on the left; live silk_overlap at 19.19.
-    "J2": (20.39, 104.0, 90.0),
-    "J3": (20.39, 111.0, 90.0),
+    # The enlarged bulb shoulder carries two side-by-side 0.49-inch OLED
+    # modules.  Their 15x14mm body envelopes are drawn explicitly on silk.
+    # The anchors are 2mm below the first enlarged-bulb candidate.  This
+    # keeps the header polarity marks and both module outlines at least
+    # 0.5mm inside the circular board edge.
+    "J2": (18.5, 127.0, 0.0),
+    "J3": (36.0, 127.0, 0.0),
     # y at 130.05: the 0.05 offset lands the DFN's 0.5mm-pitch pads
     # EXACTLY on the 0.1mm fine-routing grid (pads sit at anchor
     # +/-0.25/+/-0.75; the offset absorbs the quarter-step).
-    "U4": (23.0, 130.05, 0.0),
-    "C7": (28.5, 130.0, 90.0),
-    "D17": (31.0, 147.0, 0.0),
-    "R17": (35.0, 147.0, 0.0),
-    # y=124 keeps the PTH loops out of U1's back courtyard (top
-    # edge y=127.25; live pth_inside_courtyard at y=127).
-    "TP1": (10.0, 124.0, 0.0),
-    "TP2": (36.0, 124.0, 0.0),
+    # The SHT31 and its local decoupler sit on the isolated bulb island.
+    # The U-shaped Edge.Cuts slot below isolates three sides and leaves a
+    # short right-hand bridge for the four sensor nets.
+    "U4": (12.0, 142.05, 0.0),
+    "C7": (15.2, 142.0, 90.0),
+    "D17": (50.0, 160.0, 0.0),
+    "R17": (54.0, 160.0, 0.0),
+    "TP1": (23.0, 142.0, 0.0),
+    "TP2": (29.0, 142.0, 0.0),
     # -- back: USB, module, power chain. The module's 28.5x25.5
     # courtyard owns the bulb's back from y=121.7 to 147.2; the power
     # cluster fits the two pockets between it and the USB body.
@@ -169,15 +175,18 @@ PLACEMENTS: dict[str, tuple[float, float, float]] = {
     # 0.2mm routing grid (at 23.0 the D+/D- centerlines fall between
     # cells and every in-pad cell violates clearance to the
     # interleaved neighbour - measured).
-    "J1": (23.05, 154.2, 0.0),
-    "U1": (23.0, 140.0, 0.0),
-    "U5": (11.5, 150.0, 90.0),
-    "C5": (15.2, 149.3, 90.0),
-    "C6": (15.2, 153.0, 90.0),
-    "F1": (29.8, 150.3, 90.0),
+    "J1": (33.05, 174.2, 0.0),
+    # On the back, rotation 270 points the module antenna to the board's
+    # right.  Its feed edge is x=45, coincident with the straight stem
+    # edge, and the entire 18x6mm antenna region is outside the substrate.
+    "U1": (37.9, 110.0, 270.0),
+    "U5": (14.0, 166.0, 90.0),
+    "C5": (18.0, 165.0, 90.0),
+    "C6": (18.0, 170.0, 90.0),
+    "F1": (49.0, 166.5, 90.0),
     # CC pull-downs ride the narrow band left of the module courtyard.
-    "RCC1": (6.8, 138.0, 0.0),
-    "RCC2": (6.8, 141.5, 0.0),
+    "RCC1": (52.0, 143.0, 0.0),
+    "RCC2": (52.0, 147.0, 0.0),
     # -- back: registers and series resistors along the stem ---------
     # y at x.1: the TSSOP's 0.65 pitch lands pad-entry margins exactly
     # ON the 0.2 grid boundary at integral y (float-noise walls).
@@ -185,8 +194,8 @@ PLACEMENTS: dict[str, tuple[float, float, float]] = {
     # y 78-93), U3 drives SEG9-16 (y 24-54). The inverted arrangement
     # made all sixteen SEG nets cross the other register's zone and
     # /SEG9 became unroutable (live).
-    "U2": (23.0, 76.1, 0.0),
-    "U3": (23.0, 48.1, 0.0),
+    "U2": (33.0, 76.1, 0.0),
+    "U3": (33.0, 48.1, 0.0),
     # Resistor columns follow the SOURCE pin side, not LED parity: a
     # TSSOP '595 exposes seven outputs on one column and QA alone on
     # the other, so an odd/even split forced seven of each register's
@@ -197,8 +206,8 @@ PLACEMENTS: dict[str, tuple[float, float, float]] = {
     # 2.96mm courtyard span, probed).
     **{
         f"R{index}": (
-            15.5 if index in (1, 9)
-            else (28.5 if index % 2 == 0 else 32.5),
+            25.5 if index in (1, 9)
+            else (38.5 if index % 2 == 0 else 42.5),
             _series_r_y(index),
             90.0,
         )
@@ -207,19 +216,22 @@ PLACEMENTS: dict[str, tuple[float, float, float]] = {
     # -- back: module support and pull-up field. The series-resistor
     # columns at x=16.5/29.5 own their lanes; the pull-ups live in the
     # center corridor between them.
-    "C1": (14.5, 119.0, 0.0),
-    "C2": (31.5, 119.0, 0.0),
-    "REN1": (13.0, 116.5, 0.0),
-    "CEN1": (18.5, 116.5, 0.0),
-    "RS1": (24.0, 116.5, 0.0),
-    "RS2": (29.5, 116.5, 0.0),
-    "ROE1": (13.0, 99.0, 0.0),
-    "C3": (23.0, 70.0, 0.0),
-    "C4": (23.0, 42.0, 0.0),
-    "RI1": (21.0, 92.0, 0.0),
-    "RI2": (25.0, 92.0, 0.0),
-    "RI3": (21.0, 95.0, 0.0),
-    "RI4": (25.0, 95.0, 0.0),
+    # The enlarged bulb carries the module support/pull-up field.  This
+    # frees the lower stem for the four negotiated control trunks while
+    # keeping the capacitors close to the module's lower edge.
+    "C1": (42.0, 128.0, 0.0),
+    "C2": (46.0, 128.0, 0.0),
+    "REN1": (42.0, 133.0, 0.0),
+    "CEN1": (46.0, 133.0, 0.0),
+    "RS1": (42.0, 138.0, 0.0),
+    "RS2": (46.0, 138.0, 0.0),
+    "ROE1": (42.0, 143.0, 0.0),
+    "C3": (33.0, 70.0, 0.0),
+    "C4": (33.0, 42.0, 0.0),
+    "RI1": (31.0, 91.0, 0.0),
+    "RI2": (35.0, 91.0, 0.0),
+    "RI3": (31.0, 94.0, 0.0),
+    "RI4": (35.0, 94.0, 0.0),
 }
 
 FLIPPED_REFS: tuple[str, ...] = (
@@ -230,6 +242,14 @@ FLIPPED_REFS: tuple[str, ...] = (
     *(f"R{index}" for index in range(1, LED_COUNT + 1)),
 )
 
+HIDE_REFERENCES: tuple[str, ...] = (
+    "J2", "J3", "U4", "C7", "D17", "R17",
+    *(f"D{index}" for index in range(1, LED_COUNT + 1)),
+    # The back-side resistor field is documented by the assembly review;
+    # hiding its dense reference text prevents silk-over-pad violations.
+    *(f"R{index}" for index in range(1, LED_COUNT + 1)),
+)
+
 # Footprint-local (x, y, total angle); back-side labels transform
 # INVERSE rotation then x-mirror.
 REFERENCE_AT: dict[str, tuple[float, float, float]] = {
@@ -237,7 +257,149 @@ REFERENCE_AT: dict[str, tuple[float, float, float]] = {
     "C1": (0.0, 1.9, 0.0),    # below the cap, off REN1's pads
     "RCC2": (0.0, 1.9, 0.0),  # below its body, off RCC1's label
     "C5": (0.0, 1.9, 0.0),    # right of the cap, off U5's outline
+    "C7": (0.0, 1.9, 0.0),    # outside the sensor island's copper
+    "J2": (-2.7, 3.8, 0.0),   # clear the temperature scale
+    "J3": (-2.7, 3.8, 0.0),   # clear the humidity legend
+    "U1": (0.0, -12.0, 0.0),  # on the module body, not its antenna
 }
+
+
+# Exact three-sided thermal-isolation slot around U4/C7.  It is one
+# concave polygon rather than three touching rectangles because KiCad's
+# board topology and the canonical cutout contract require disjoint
+# simple cutouts.  The island remains connected on the right.
+SENSOR_ISOLATION_CUTOUT = BoardCutoutPolygon(
+    points=(
+        # The top-right opening is the deliberate four-net thermal bridge.
+        # Live routed-copper readback proves the sensor buses cross there;
+        # the remaining top, left, and bottom slot walls stay >=0.5mm from
+        # every accepted segment and via.
+        (8.0, 135.0), (14.0, 135.0), (14.0, 136.0), (9.25, 136.0),
+        (9.25, 147.5), (15.8, 147.5), (15.8, 148.5), (8.0, 148.5),
+    )
+)
+
+
+_THERMOMETER_STACKUP = """\
+\t\t(stackup
+\t\t\t(layer "F.SilkS"
+\t\t\t\t(type "Top Silk Screen")
+\t\t\t\t(color "White")
+\t\t\t)
+\t\t\t(layer "F.Paste"
+\t\t\t\t(type "Top Solder Paste")
+\t\t\t)
+\t\t\t(layer "F.Mask"
+\t\t\t\t(type "Top Solder Mask")
+\t\t\t\t(color "Black")
+\t\t\t\t(thickness 0.01)
+\t\t\t)
+\t\t\t(layer "F.Cu"
+\t\t\t\t(type "copper")
+\t\t\t\t(thickness 0.035)
+\t\t\t)
+\t\t\t(layer "dielectric 1"
+\t\t\t\t(type "core")
+\t\t\t\t(thickness 1.51)
+\t\t\t\t(material "FR4")
+\t\t\t\t(epsilon_r 4.5)
+\t\t\t\t(loss_tangent 0.02)
+\t\t\t)
+\t\t\t(layer "B.Cu"
+\t\t\t\t(type "copper")
+\t\t\t\t(thickness 0.035)
+\t\t\t)
+\t\t\t(layer "B.Mask"
+\t\t\t\t(type "Bottom Solder Mask")
+\t\t\t\t(color "Black")
+\t\t\t\t(thickness 0.01)
+\t\t\t)
+\t\t\t(layer "B.Paste"
+\t\t\t\t(type "Bottom Solder Paste")
+\t\t\t)
+\t\t\t(layer "B.SilkS"
+\t\t\t\t(type "Bottom Silk Screen")
+\t\t\t\t(color "White")
+\t\t\t)
+\t\t\t(copper_finish "ENIG")
+\t\t\t(dielectric_constraints no)
+\t\t)
+"""
+
+
+def render_thermometer_board(netlist: BoardNetlist, layout: BoardLayout) -> str:
+    """Render with the project-selected black/white/ENIG stackup intent."""
+    rendered = render_board_from_layout(netlist, layout)
+    # The module-specific antenna authority intentionally places U1's
+    # antenna outside the substrate.  Library body artwork follows that
+    # overhang and would therefore be clipped by the board edge.  Keep the
+    # footprint geometry for assembly on B.Fab, but do not print it on silk.
+    rendered = _move_footprint_layer(
+        rendered,
+        footprint="RF_Module:ESP32-C3-WROOM-02",
+        old_layer="B.SilkS",
+        new_layer="B.Fab",
+    )
+    setup = "  (setup\n"
+    if setup in rendered:
+        return rendered.replace(setup, setup + _THERMOMETER_STACKUP, 1)
+    layers_end = '    (44 "Edge.Cuts" user)\n  )'
+    if layers_end not in rendered:
+        raise BoardGenerationError("rendered thermometer board is missing layers")
+    setup_block = f"{layers_end}\n\n  (setup\n{_THERMOMETER_STACKUP}  )"
+    return rendered.replace(layers_end, setup_block, 1)
+
+
+def _move_footprint_layer(
+    board_text: str,
+    *,
+    footprint: str,
+    old_layer: str,
+    new_layer: str,
+) -> str:
+    """Move graphics inside one embedded footprint without touching pads.
+
+    The renderer embeds complete library footprints.  A balanced scanner is
+    used here instead of a broad replacement so other back-side footprints
+    retain their silkscreen artwork.
+    """
+    marker = f'  (footprint "{footprint}"'
+    start = board_text.find(marker)
+    if start < 0:
+        raise BoardGenerationError(f"rendered board is missing {footprint}")
+    depth = 0
+    quoted = False
+    escaped = False
+    end = -1
+    for index in range(start, len(board_text)):
+        character = board_text[index]
+        if quoted:
+            if escaped:
+                escaped = False
+            elif character == "\\":
+                escaped = True
+            elif character == '"':
+                quoted = False
+            continue
+        if character == '"':
+            quoted = True
+        elif character == "(":
+            depth += 1
+        elif character == ")":
+            depth -= 1
+            if depth == 0:
+                end = index + 1
+                break
+    if end < 0:
+        raise BoardGenerationError(f"unterminated footprint {footprint}")
+    block = board_text[start:end]
+    source = f'(layer "{old_layer}")'
+    if source not in block:
+        raise BoardGenerationError(
+            f"footprint {footprint} has no graphics on {old_layer}"
+        )
+    block = block.replace(source, f'(layer "{new_layer}")')
+    return board_text[:start] + block + board_text[end:]
 
 
 def _graduations(origin: float) -> list[str]:
@@ -245,24 +407,24 @@ def _graduations(origin: float) -> list[str]:
     for temperature in range(0, 51, 2):
         y = scale_y(float(temperature))
         major = temperature % 10 == 0
-        x_start = 15.5 if major else 17.5
+        x_start = 25.5 if major else 27.5
         graphics.append(
-            silk_line((x_start, y), (19.5, y), origin,
+            silk_line((x_start, y), (29.5, y), origin,
                       width=0.3 if major else 0.18)
         )
         if major:
             graphics.append(
-                silk_text(str(temperature), (13.2, y), origin, size=0.9)
+                silk_text(str(temperature), (23.2, y), origin, size=0.9)
             )
     # Glass highlight: a thin decorative line right of the mercury.
-    graphics.append(silk_line((27.2, 22.0), (27.2, 96.0), origin, width=0.15))
+    graphics.append(silk_line((37.2, 22.0), (37.2, 96.0), origin, width=0.15))
     return graphics
 
 
 def _icons(origin: float) -> list[str]:
     graphics: list[str] = []
     # Sun beside the hot end.
-    sun = (30.5, 25.0)
+    sun = (40.5, 25.0)
     graphics.extend(clipped_circle_outline(sun, 1.1, (), origin, width=0.2))
     for step in range(8):
         angle = math.radians(step * 45.0)
@@ -272,7 +434,7 @@ def _icons(origin: float) -> list[str]:
             origin, width=0.2,
         ))
     # Snowflake beside the cold end.
-    flake = (30.5, 92.0)
+    flake = (40.5, 92.0)
     for step in range(3):
         angle = math.radians(step * 60.0)
         dx, dy = 1.9 * math.cos(angle), 1.9 * math.sin(angle)
@@ -280,16 +442,16 @@ def _icons(origin: float) -> list[str]:
             (flake[0] - dx, flake[1] - dy), (flake[0] + dx, flake[1] + dy),
             origin, width=0.2,
         ))
-    # Thermometer glyph beside the TEMP display.
-    graphics.append(silk_line((31.0, 101.5), (31.0, 104.3), origin, width=0.3))
+    # Thermometer glyph inside the TEMP module envelope.
+    graphics.append(silk_line((29.0, 129.2), (29.0, 132.0), origin, width=0.3))
     graphics.extend(
-        clipped_circle_outline((31.0, 105.0), 0.7, (), origin, width=0.25)
+        clipped_circle_outline((29.0, 132.7), 0.7, (), origin, width=0.25)
     )
-    # Droplet beside the HUM display.
-    graphics.append(silk_line((30.3, 109.6), (31.0, 108.2), origin, width=0.2))
-    graphics.append(silk_line((31.7, 109.6), (31.0, 108.2), origin, width=0.2))
+    # Droplet inside the HUM module envelope.
+    graphics.append(silk_line((45.3, 131.1), (46.0, 129.7), origin, width=0.2))
+    graphics.append(silk_line((46.7, 131.1), (46.0, 129.7), origin, width=0.2))
     graphics.extend(
-        clipped_circle_outline((31.0, 110.2), 0.8, (), origin, width=0.2)
+        clipped_circle_outline((46.0, 131.7), 0.8, (), origin, width=0.2)
     )
     return graphics
 
@@ -298,9 +460,21 @@ def thermometer_silk_graphics(origin: float) -> tuple[str, ...]:
     graphics: list[str] = [
         *(_graduations(origin)),
         *(_icons(origin)),
-        silk_text("TEMP", (13.6, 104.0), origin, size=0.8),
-        silk_text("HUM", (13.6, 111.0), origin, size=0.8),
-        silk_text("USB-C 5V", (23.0, 145.2), origin, size=0.8),
+        # Explicit 15x14mm module envelopes, including header-side space.
+        # Leave the header-side top-left corner open around the footprint's
+        # own '+' mark; the remaining 12mm line still communicates the
+        # module envelope without creating a silk-overlap DRC warning.
+        silk_line((19.5, 124.5), (31.5, 124.5), origin, width=0.2),
+        silk_line((31.5, 124.5), (31.5, 138.5), origin, width=0.2),
+        silk_line((31.5, 138.5), (16.5, 138.5), origin, width=0.2),
+        silk_line((16.5, 138.5), (16.5, 124.5), origin, width=0.2),
+        silk_line((37.0, 124.5), (49.0, 124.5), origin, width=0.2),
+        silk_line((49.0, 124.5), (49.0, 138.5), origin, width=0.2),
+        silk_line((49.0, 138.5), (34.0, 138.5), origin, width=0.2),
+        silk_line((34.0, 138.5), (34.0, 124.5), origin, width=0.2),
+        silk_text("TEMP OLED", (24.0, 126.0), origin, size=0.8),
+        silk_text("HUM OLED", (41.5, 126.0), origin, size=0.8),
+        silk_text("USB-C 5V", (33.0, 163.0), origin, size=0.8),
     ]
     return tuple(graphics)
 
@@ -377,39 +551,38 @@ def _unrouted_layout(netlist: BoardNetlist) -> BoardLayout:
         part_rotation=tuple(part_rotation),
         zones=(),
         outline=thermometer_outline(),
+        cutouts=(SENSOR_ISOLATION_CUTOUT,),
         graphics=thermometer_silk_graphics(BOARD_SHEET_ORIGIN_MM),
         part_reference_at=tuple(REFERENCE_AT.items()),
         part_flip=FLIPPED_REFS,
+        hide_references=HIDE_REFERENCES,
     )
 
 
-# Nets that must ENTER 0.5mm-pitch pads (USB-C data/CC row, the
-# SHT31 DFN) or thread the USB shell's hole belt. Declaration order is
-# routing priority: the pad-pinned USB signals first (their only exit
-# is the narrow corridor between the shell's NPTH holes), then the
-# 0.4mm power pair (it can dive to the empty front to cross), then
-# VCC/GND, whose many pads leave them the most freedom. Widths
-# verified against IPC-2221 by the trace_current check at the
-# worst-case rail current.
+# Nets that truly require the 0.1mm graph to ENTER the USB-C data/CC
+# row.  Live 0.2mm probes prove /DP, /CC1, and /CC2 have no legal cell;
+# /DM is retained with its differential mate.  The SHT31, TSSOP, and
+# rail pads all expose legal 0.2mm cells and must not promote their
+# global trees onto the expensive fine graph.
 FINE_PITCH_NETS: dict[str, float] = {
     "/DP": 0.2, "/DM": 0.2,
-    "/VBUS": 0.4, "/VBUSF": 0.4,
     "/CC1": 0.2, "/CC2": 0.2,
-    "/SDA1": 0.25, "/SCL1": 0.25,
-    # /CAS spans both TSSOP pin columns (U2.9 -> U3.14) with its pads
-    # pinched between the registers' VCC pins - it must claim its stem
-    # lane before the rails do.
-    "/CAS": 0.2,
-    "/VCC": 0.25, "/GND": 0.25,
 }
 
 
 def compute_thermometer_board_layout(netlist: BoardNetlist) -> BoardLayout:
+    # Bus declarations are executable input, not documentation: any SEG,
+    # LK, or shift-control terminal drift blocks board generation.
+    validate_thermometer_bus_groups(netlist)
     result = route_board(
         _unrouted_layout(netlist),
         netlist,
         fine_pitch_nets=FINE_PITCH_NETS,
         net_widths={
+            # Power widths remain ordinary main-grid declarations; they
+            # are not a reason to route an entire rail on the fine graph.
+            "/VBUS": POWER_W, "/VBUSF": POWER_W,
+            "/CAS": 0.2,
             # 74HC595 nets enter the 0.65mm-pitch TSSOP rows: 0.2mm
             # keeps every pad enterable at any grid parity, and the
             # slimmer class relieves the stem's three-column squeeze.
@@ -423,7 +596,9 @@ def compute_thermometer_board_layout(netlist: BoardNetlist) -> BoardLayout:
         # shortest-first ordering let the local SEG/LK crowd wall them
         # in (probed: /SER routes in one try when FIRST, fails after
         # sixteen restarts when last).
-        net_order=("/SER", "/SRCLK", "/RCLK", "/OE"),
+        # /OE is the only four-terminal control tree (U1, both registers,
+        # and ROE1), so it owns the first continuous stem lane.
+        net_order=("/OE", "/SER", "/SRCLK", "/RCLK"),
         # The stem is one long shared corridor: single-net promotion
         # needs more attempts than an open board.
         max_restarts=16,
@@ -448,6 +623,6 @@ def generate_thermometer_board(
     netlist = parse_board_netlist(netlist_file.read_text(encoding="utf-8"))
     layout = compute_thermometer_board_layout(netlist)
     board_file.write_text(
-        render_board_from_layout(netlist, layout), encoding="utf-8"
+        render_thermometer_board(netlist, layout), encoding="utf-8"
     )
     return netlist, layout

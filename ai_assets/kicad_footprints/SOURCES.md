@@ -16,3 +16,7 @@ share directory for footprints not vendored here.
   one-pad SMD fixture matching `tests/fixtures/routing/reduced_capacity_two_stem.py`;
   used only to make the synthetic placement save/read-back acceptance test
   deterministic without live KiCad library access.
+- `Test__NegotiatedMazeTerminal.kicad_mod` - locally authored minimal one-pad
+  SMD fixture for the retained adversarial R2 negotiated-routing corpus. It is
+  registered in the normal footprint resolver so corpus reconstruction does
+  not depend on test-process monkeypatching.

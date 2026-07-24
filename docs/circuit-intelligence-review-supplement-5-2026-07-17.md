@@ -1,5 +1,10 @@
 # Circuit-intelligence root review supplement 5 — 2026-07-17
 
+> **Historical bounded-authority evidence.** This file remains authoritative for
+> what the reviewed generic slices proved on 2026-07-17, but not for current
+> project order. The thermometer later completed as R005/R006 and will not be
+> rerun. Use `docs/current-state.md` for current scope.
+
 This supplement records only slices independently reviewed on the combined
 worktree after full filesystem access was restored. It does not close the whole
 R3-R7 roadmap.

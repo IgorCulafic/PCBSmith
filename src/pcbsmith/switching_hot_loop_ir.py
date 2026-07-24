@@ -23,12 +23,23 @@ from pcbsmith.semantic_ir import (
     SemanticIrModel,
 )
 
+SwitchingTransitionRole = Literal[
+    "input_energy_storage",
+    "high_side_switch",
+    "low_side_switch",
+    "freewheel_rectifier",
+    "transformer_primary",
+    "output_rectifier",
+    "return_path_element",
+    "other_reviewed_transition",
+]
+
 
 class SwitchingHotLoopLegDeclaration(SemanticIrModel):
     schema_id: Literal["pcbsmith-switching-hot-loop-leg-declaration"] = (
         "pcbsmith-switching-hot-loop-leg-declaration"
     )
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     leg_id: str
     role_id: str
     start_anchor_id: str
@@ -37,6 +48,7 @@ class SwitchingHotLoopLegDeclaration(SemanticIrModel):
     end_pad_source_id: str
     net_name: str
     path_result_fingerprint: str
+    declared_parallel_component_references: tuple[str, ...] = ()
 
     @model_validator(mode="after")
     def leg_is_explicit(self) -> Self:
@@ -53,6 +65,15 @@ class SwitchingHotLoopLegDeclaration(SemanticIrModel):
         require_sha256(self.path_result_fingerprint, "path_result_fingerprint")
         if self.start_anchor_id == self.end_anchor_id:
             raise ValueError("switching-loop leg anchors must differ")
+        parallel = tuple(
+            sorted(
+                require_identity(item, "declared_parallel_component_references")
+                for item in self.declared_parallel_component_references
+            )
+        )
+        if len(parallel) != len(set(parallel)):
+            raise ValueError("declared parallel component references must be unique")
+        object.__setattr__(self, "declared_parallel_component_references", parallel)
         return self
 
 
@@ -60,18 +81,31 @@ class SwitchingHotLoopTerminalTransition(SemanticIrModel):
     schema_id: Literal["pcbsmith-switching-hot-loop-terminal-transition"] = (
         "pcbsmith-switching-hot-loop-terminal-transition"
     )
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     transition_id: str
+    component_reference: str
     from_anchor_id: str
+    from_pad_source_id: str
     to_anchor_id: str
-    transition_role: str
+    to_pad_source_id: str
+    transition_role: SwitchingTransitionRole
 
     @model_validator(mode="after")
     def transition_is_declared(self) -> Self:
-        for name in ("transition_id", "from_anchor_id", "to_anchor_id", "transition_role"):
+        for name in (
+            "transition_id",
+            "component_reference",
+            "from_anchor_id",
+            "from_pad_source_id",
+            "to_anchor_id",
+            "to_pad_source_id",
+            "transition_role",
+        ):
             require_identity(getattr(self, name), name)
         if self.from_anchor_id == self.to_anchor_id:
             raise ValueError("terminal transitions must join distinct declared pad anchors")
+        if self.from_pad_source_id == self.to_pad_source_id:
+            raise ValueError("terminal transitions must traverse distinct physical pads")
         return self
 
 
@@ -79,15 +113,18 @@ class SwitchingHotLoopLimitAuthority(SemanticIrModel):
     schema_id: Literal["pcbsmith-switching-hot-loop-limit-authority"] = (
         "pcbsmith-switching-hot-loop-limit-authority"
     )
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     limit_id: str
     mode: Literal["advisory", "sourced_hard"]
+    intended_consumer: str
+    expected_transition_roles: tuple[SwitchingTransitionRole, ...] = Field(min_length=3)
     maximum_projected_area_mm2: ExactRational | None
     applicability_binding: EvidenceApplicabilityBinding | None
 
     @model_validator(mode="after")
     def limit_is_typed(self) -> Self:
         require_identity(self.limit_id, "limit_id")
+        require_identity(self.intended_consumer, "intended_consumer")
         if (
             self.maximum_projected_area_mm2 is not None
             and self.maximum_projected_area_mm2.fraction() < 0
@@ -109,6 +146,8 @@ def switching_hot_loop_context_fingerprint(
     limit_id: str,
     mode: str,
     maximum_projected_area_mm2: ExactRational | None,
+    intended_consumer: str,
+    expected_transition_roles: tuple[SwitchingTransitionRole, ...],
 ) -> str:
     return fingerprint(
         {
@@ -122,6 +161,8 @@ def switching_hot_loop_context_fingerprint(
             "transitions": [item.model_dump(mode="json") for item in transitions],
             "limit_id": limit_id,
             "mode": mode,
+            "intended_consumer": intended_consumer,
+            "expected_transition_roles": expected_transition_roles,
             "maximum_projected_area_mm2": (
                 None
                 if maximum_projected_area_mm2 is None
@@ -135,7 +176,7 @@ class SwitchingHotLoopDeclaration(SemanticIrModel):
     schema_id: Literal["pcbsmith-switching-hot-loop-declaration"] = (
         "pcbsmith-switching-hot-loop-declaration"
     )
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     declaration_id: str
     topology_kind: Literal["buck", "boost", "flyback", "other"]
     graph_fingerprint: str
@@ -157,6 +198,8 @@ class SwitchingHotLoopDeclaration(SemanticIrModel):
             require_sha256(getattr(self, name), name)
         if len(self.legs) != len(self.transitions):
             raise ValueError("switching-loop legs and terminal transitions must pair exactly")
+        if len(self.limit.expected_transition_roles) != len(self.transitions):
+            raise ValueError("expected transition roles must cover the complete switching cycle")
         if len({item.leg_id for item in self.legs}) != len(self.legs):
             raise ValueError("switching-loop leg identities must be unique")
         terminal_anchor_ids = {
@@ -215,7 +258,7 @@ class SwitchingHotLoopMetrics(SemanticIrModel):
     schema_id: Literal["pcbsmith-switching-hot-loop-metrics"] = (
         "pcbsmith-switching-hot-loop-metrics"
     )
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     legs: tuple[SwitchingHotLoopLegMetrics, ...]
     transitions: tuple[SwitchingHotLoopTransitionEvidence, ...]
     combined_source_ids: tuple[str, ...]
@@ -227,16 +270,19 @@ class SwitchingHotLoopMetrics(SemanticIrModel):
     projected_signed_area_mm2: ExactRational | None
     projected_absolute_area_mm2: ExactRational | None
     projected_polygon_verification: Literal["exact_simple", "unverified_non_simple"]
+    transition_component_references: tuple[str, ...]
+    transition_roles: tuple[SwitchingTransitionRole, ...]
+    leg_terminal_component_references: tuple[tuple[str, tuple[str, ...]], ...]
 
 
 class SwitchingHotLoopEvaluationResult(SemanticIrModel):
     schema_id: Literal["pcbsmith-switching-hot-loop-evaluation-result"] = (
         "pcbsmith-switching-hot-loop-evaluation-result"
     )
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     authority_statement: Literal[
-        "path and projected-area authority only; no switch-node union or electromagnetic claim"
-    ] = "path and projected-area authority only; no switch-node union or electromagnetic claim"
+        "declared topology membership and projected-area authority only; no electromagnetic claim"
+    ] = "declared topology membership and projected-area authority only; no electromagnetic claim"
     graph: RoutedCopperGraphResult
     paths: tuple[ResolvedCopperPathResult, ...]
     declaration: SwitchingHotLoopDeclaration

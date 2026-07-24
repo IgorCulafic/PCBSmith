@@ -1,0 +1,453 @@
+{
+  "schema": "pcbsmith-source-intake-v2",
+  "records": [
+    {
+      "source_id": "ecss-q-st-20-10c-ots",
+      "status": "downloaded",
+      "source_url": "https://ecss.nl/wp-content/uploads/standards/ecss-q/ECSS-Q-ST-20-10C8October2010.pdf",
+      "intended_consumer": "OTS equipment derating, thermography, thermal modeling, simulation, and test research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:44.163028+00:00",
+      "identity": {
+        "sha256": "8ce5e4ab781bb8630e92d70d48a753baf36d56a33dd4f76822105c2aefa9222b",
+        "kind": "pdf",
+        "byte_count": 399564,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://ecss.nl/wp-content/uploads/standards/ecss-q/ECSS-Q-ST-20-10C8October2010.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "ecss-q-st-70-60c-pcb-qualification",
+      "status": "downloaded",
+      "source_url": "https://ecss.nl/wp-content/uploads/2018/05/ECSS-Q-ST-70-60C%281June2018%29.pdf",
+      "intended_consumer": "PCB technology qualification, thermomechanical process stress, inspection, and procurement research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:43.513153+00:00",
+      "identity": {
+        "sha256": "c82175bd56cf37e66bcb4819e3cda321d1923c416135d0ebc77331aca18b5165",
+        "kind": "pdf",
+        "byte_count": 6695938,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://ecss.nl/wp-content/uploads/2018/05/ECSS-Q-ST-70-60C%281June2018%29.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "infineon-designing-with-power-mosfets-v1.1",
+      "status": "downloaded",
+      "source_url": "https://www.infineon.com/assets/row/public/documents/24/42/infineon-designing-with-power-mosfets-applicationnotes-en.pdf",
+      "intended_consumer": "Power MOSFET loss, SOA, paralleling, gate-drive, and whole-path thermal design research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:35.391583+00:00",
+      "identity": {
+        "sha256": "4b94b144f51a63300da52def2d882b41c2851abf589d81e2cde3514699b52fae",
+        "kind": "pdf",
+        "byte_count": 754930,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://www.infineon.com/assets/row/public/documents/24/42/infineon-designing-with-power-mosfets-applicationnotes-en.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": "inline"
+      }
+    },
+    {
+      "source_id": "infineon-to-package-assembly",
+      "status": "downloaded",
+      "source_url": "https://www.infineon.com/assets/row/public/documents/24/42/infineon-applicationnote-package-recommendations-assembly-topackages-applicationnotes-en.pdf",
+      "intended_consumer": "Heatsink mounting, insulation, torque, package stress, soldering, and assembly-process research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:35.616219+00:00",
+      "identity": {
+        "sha256": "577388400a5e888a869b81a7cf9d4f494cdda874a233a2b806ee17b75966ac71",
+        "kind": "pdf",
+        "byte_count": 1016509,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://www.infineon.com/assets/row/public/documents/24/42/infineon-applicationnote-package-recommendations-assembly-topackages-applicationnotes-en.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": "inline"
+      }
+    },
+    {
+      "source_id": "nasa-eee-inst-002-add1",
+      "status": "downloaded",
+      "source_url": "https://nepp.nasa.gov/docuploads/FFB52B88-36AE-4378-A05B2C084B5EE2CC/EEE-INST-002_add1.pdf",
+      "intended_consumer": "Mission-profile parts selection, stress derating, qualification, and retained-analysis research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:41.376314+00:00",
+      "identity": {
+        "sha256": "4bd84c11401d51613911a4cdfd4afaacefc113e7b538fd86b2a60f99afa1d3dd",
+        "kind": "pdf",
+        "byte_count": 2060841,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://nepp.nasa.gov/docuploads/FFB52B88-36AE-4378-A05B2C084B5EE2CC/EEE-INST-002_add1.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "nasa-gsfc-std-8001",
+      "status": "downloaded",
+      "source_url": "https://standards.nasa.gov/sites/default/files/standards/GSFC/Baseline/0/gsfc-std-8001.pdf",
+      "intended_consumer": "High-reliability PCB design, procurement, fabrication, and quality-assurance workflow research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:42.381567+00:00",
+      "identity": {
+        "sha256": "558735a5815b8737e222cfe25f7fe12c45b41f5bc833fc9b3be597f1cac1d9d5",
+        "kind": "pdf",
+        "byte_count": 736403,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://standards.nasa.gov/sites/default/files/standards/GSFC/Baseline/0/gsfc-std-8001.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "nexperia-an50006-linear-mode",
+      "status": "downloaded",
+      "source_url": "https://assets.nexperia.com/documents/application-note/AN50006.pdf",
+      "intended_consumer": "Linear-mode SOA, transient thermal impedance, and hot-swap/precharge stress research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:38.652906+00:00",
+      "identity": {
+        "sha256": "7d63f3f61cc9daa7dabd63484949fe96dee4f743fc7bb8c32809db67dee295e9",
+        "kind": "pdf",
+        "byte_count": 3765620,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://assets.nexperia.com/documents/application-note/AN50006.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "nexperia-an50019-thermal-boundary",
+      "status": "downloaded",
+      "source_url": "https://assets.nexperia.com/documents/application-note/AN50019.pdf",
+      "intended_consumer": "MOSFET loss categories, PCB boundary-condition sensitivity, Cauer models, and electrothermal research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:38.239373+00:00",
+      "identity": {
+        "sha256": "8176e549e8f8678c4a8e8a981f7fb8a74c4f868c1ae63ac00e3438a5e2711530",
+        "kind": "pdf",
+        "byte_count": 1560963,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://assets.nexperia.com/documents/application-note/AN50019.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "tdk-aluminum-electrolytic-general-technical",
+      "status": "downloaded",
+      "source_url": "https://www.tdk-electronics.tdk.com/download/185386/31a5416e653dd6e4e428b8208d65cc2e/pdf-generaltechnicalinformation.pdf",
+      "intended_consumer": "Capacitor ripple-current heating, cooling assumptions, useful-life, and derating research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:39.338121+00:00",
+      "identity": {
+        "sha256": "740e23ac16eaf87eb12d423738da1da407ff5d3992e3f918352b2f411928cc07",
+        "kind": "pdf",
+        "byte_count": 1812860,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://www.tdk-electronics.tdk.com/download/185386/eb339abe96db2e47622f361f5b50b389/pdf-generaltechnicalinformation.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "te-108-160952-power-tab-spec",
+      "status": "downloaded",
+      "source_url": "https://www.te.com/content/dam/te-com/documents/appliances/global/power-tab-assembly-product-specification.pdf",
+      "intended_consumer": "Connector contact temperature rise, PCB/current dependence, and qualification-test research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:39.692583+00:00",
+      "identity": {
+        "sha256": "6021fa99f9f5f348cd656a4233489ee4d833b403bb323fc70e320881a2a13ee6",
+        "kind": "pdf",
+        "byte_count": 189844,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://www.te.com/content/dam/te-com/documents/appliances/global/power-tab-assembly-product-specification.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "ti-slua566a-thermal-calculation-tools",
+      "status": "downloaded",
+      "source_url": "https://www.ti.com/lit/an/slua566a/slua566a.pdf",
+      "intended_consumer": "PCB/package thermal-network assumptions, boundary conditions, and first-pass thermal estimation research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:36.805820+00:00",
+      "identity": {
+        "sha256": "64b5831d3c98f39cca398ea309674a63d4e3b1eaa3f17efd38df68f76522b650",
+        "kind": "pdf",
+        "byte_count": 1161611,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://www.ti.com/lit/an/slua566a/slua566a.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "ti-slvae30e-transient-loads",
+      "status": "downloaded",
+      "source_url": "https://www.ti.com/lit/an/slvae30e/slvae30e.pdf",
+      "intended_consumer": "Transient load, inrush, inductive energy, and Foster thermal-impedance model research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:37.136927+00:00",
+      "identity": {
+        "sha256": "869c6dc32629d64976c73b177b983b3f61bffbdb973596c6e23064202e08d75b",
+        "kind": "pdf",
+        "byte_count": 2267992,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://www.ti.com/lit/an/slvae30e/slvae30e.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "ti-slvaf66-high-power-motor-driver",
+      "status": "downloaded",
+      "source_url": "https://www.ti.com/lit/an/slvaf66/slvaf66.pdf",
+      "intended_consumer": "High-power motor-stage parasitics, gate drive, snubbers, current sense, faults, and layout research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:36.349706+00:00",
+      "identity": {
+        "sha256": "8ede44c99d9e452a9e210b46e9e57735b0bbbb9dcf92d9318c8cfbc0ac2d37a2",
+        "kind": "pdf",
+        "byte_count": 1112045,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://www.ti.com/lit/an/slvaf66/slvaf66.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "ti-sprace6-pdn-dynamic-analysis",
+      "status": "downloaded",
+      "source_url": "https://www.ti.com/lit/an/sprace6/sprace6.pdf",
+      "intended_consumer": "PDN target impedance, anti-resonance, mounting inductance, and post-layout analysis research.",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-22T11:16:37.733294+00:00",
+      "identity": {
+        "sha256": "5fd69ab840d56dc9ec1cd4b566ccbe966388aa344b4a4b0c3d948e10ed31f072",
+        "kind": "pdf",
+        "byte_count": 3636997,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://www.ti.com/lit/an/sprace6/sprace6.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    }
+  ]
+}

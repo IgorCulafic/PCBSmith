@@ -168,12 +168,17 @@ def _drc_findings(report_file: Path) -> tuple[str, ...]:
             continue
         if not isinstance(entries, list):
             return (f"KiCad DRC report section {section} was not a list.",)
+        section_findings: list[str] = []
         for entry in entries:
             if not isinstance(entry, dict):
                 return (f"KiCad DRC report section {section} had a malformed entry.",)
             description = str(entry.get("description") or "DRC violation")
             severity = str(entry.get("severity") or entry.get("type") or "unknown")
-            findings.append(f"{section}/{severity}: {description}")
+            section_findings.append(f"{section}/{severity}: {description}")
+        # KiCad does not promise the order of independent DRC findings. Retain
+        # the section priority but canonicalize findings inside each section so
+        # identical runs remain comparable and replayable.
+        findings.extend(sorted(section_findings))
     return tuple(findings)
 
 

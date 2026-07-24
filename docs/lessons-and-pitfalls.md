@@ -174,6 +174,11 @@ why the checks exist and where the next mistakes will come from.
 
 ## G. Research & knowledge process
 
+- A freely available official source that closes an approved live gap must not
+  stop at `online-verified` or `absent locally`. Attempt automatic retrieval,
+  identity/cover verification, hashing, and manifest registration during the
+  project; report `blocked` only with a concrete reason. Downloading still does
+  not mean the guidance is production-integrated.
 - Web research yields claims; BOOKS yield thresholds with mechanisms.
   The 9-source knowledge base (docs/reference/books/) is the durable
   extraction — never re-read the books wholesale; verify single

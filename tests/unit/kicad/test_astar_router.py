@@ -18,6 +18,7 @@ from pcbsmith.kicad.astar_router import (
 )
 from pcbsmith.kicad.board import (
     BoardComponent,
+    BoardCutoutPolygon,
     BoardLayout,
     BoardNet,
     BoardNetlist,
@@ -82,6 +83,20 @@ def test_detours_around_a_partial_wall() -> None:
     result = route_net(layout, netlist, "/SIG")
     routed = with_route(layout, result)
     assert run_virtual_drc(routed, netlist) == ()
+
+
+def test_detours_around_internal_board_cutout() -> None:
+    layout, netlist = _fixture()
+    cutout = BoardCutoutPolygon(
+        points=((14.0, 4.0), (16.0, 4.0), (16.0, 8.0), (14.0, 8.0))
+    )
+    layout = replace(layout, cutouts=(cutout,))
+
+    result = route_net(layout, netlist, "/SIG")
+
+    assert result.segments
+    assert any(abs(segment.y1 - 6.0) > 2.0 for segment in result.segments)
+    assert run_virtual_drc(with_route(layout, result), netlist) == ()
     # It had to go around: meaningfully longer than the straight shot
     # (~18.5mm); diagonal moves make the detour tighter than Manhattan.
     assert result.length_mm > 19.5

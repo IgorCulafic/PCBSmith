@@ -1,0 +1,1129 @@
+{
+  "schema_id": "pcbsmith-measured-shaped-placement-corpus",
+  "schema_version": 1,
+  "cases": [
+    {
+      "schema_id": "pcbsmith-measured-shaped-placement-case",
+      "schema_version": 1,
+      "case_id": "back-cutout",
+      "roundtrip_authority": {
+        "schema_id": "pcbsmith-placement-kicad-save-roundtrip",
+        "schema_version": 2,
+        "serialization_authority": {
+          "schema_id": "pcbsmith-placement-serialization-authority",
+          "schema_version": 1,
+          "authority_scope": "render_repeat_only_no_readback_or_drc",
+          "renderer_id": "pcbsmith.kicad.board.render_board_from_layout-v1",
+          "source_layout_snapshot_json": "{\"cutouts\":[{\"points\":[[3.0,3.0],[6.0,3.0],[6.0,6.0],[3.0,6.0]]}],\"graphics\":[],\"height_mm\":16.0,\"hide_references\":[],\"mask_apertures\":[],\"outline\":[[0.0,2.0],[2.0,0.0],[18.0,0.0],[20.0,2.0],[20.0,14.0],[18.0,16.0],[2.0,16.0],[0.0,14.0]],\"part_flip\":[\"R4\"],\"part_reference_at\":[],\"part_rotation\":[],\"part_y_mm\":[],\"parts_row_y_mm\":8.0,\"placements\":[[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R4\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R4\",\"uuid_path\":\"sentinel/sheet/r4\",\"value\":\"R4-10k\"},11.0]],\"segments\":[],\"vias\":[],\"width_mm\":20.0,\"zones\":[]}",
+          "source_netlist_snapshot_json": "{\"components\":[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R4\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R4\",\"uuid_path\":\"sentinel/sheet/r4\",\"value\":\"R4-10k\"}],\"nets\":[{\"name\":\"/LOCAL\",\"nodes\":[[\"R4\",\"1\"]]}]}",
+          "final_layout_snapshot_json": "{\"cutouts\":[{\"points\":[[3.0,3.0],[6.0,3.0],[6.0,6.0],[3.0,6.0]]}],\"graphics\":[],\"height_mm\":16.0,\"hide_references\":[],\"mask_apertures\":[],\"outline\":[[0.0,2.0],[2.0,0.0],[18.0,0.0],[20.0,2.0],[20.0,14.0],[18.0,16.0],[2.0,16.0],[0.0,14.0]],\"part_flip\":[\"R4\"],\"part_reference_at\":[],\"part_rotation\":[],\"part_y_mm\":[],\"parts_row_y_mm\":8.0,\"placements\":[[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R4\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R4\",\"uuid_path\":\"sentinel/sheet/r4\",\"value\":\"R4-10k\"},11.0]],\"segments\":[],\"vias\":[],\"width_mm\":20.0,\"zones\":[]}",
+          "profile": {
+            "profile_id": "pcbsmith-legacy-default-v1",
+            "geometry": {
+              "profile_id": "legacy-kicad-geometry-v1",
+              "basis": "legacy_compatibility",
+              "manufacturer_process_id": null,
+              "minimum_trace_width_mm": 0.2,
+              "default_signal_trace_width_mm": 0.3,
+              "default_power_trace_width_mm": 0.8,
+              "routing_via_diameter_mm": 0.6,
+              "routing_via_drill_mm": 0.3,
+              "power_via_diameter_mm": 0.8,
+              "power_via_drill_mm": 0.4,
+              "board_thickness_mm": 1.6,
+              "copper_layer_count": 2,
+              "outer_copper_thickness_um": 35.0,
+              "inner_copper_thickness_um": null,
+              "substrate_description": "FR-4",
+              "trace_thermal_model_id": "legacy_ipc_2221a_external_fit",
+              "trace_temperature_rise_c": 10.0,
+              "minimum_finished_hole_mm": null,
+              "minimum_annular_ring_mm": null,
+              "minimum_hole_to_hole_web_mm": null,
+              "default_pad_solder_mask_expansion_mm": null,
+              "minimum_solder_mask_web_mm": null,
+              "minimum_component_body_to_edge_mm": null,
+              "evidence": []
+            },
+            "fab_spacing": {
+              "profile_id": "legacy-kicad-spacing-v1",
+              "basis": "legacy_compatibility",
+              "manufacturer_process_id": null,
+              "minimum_copper_clearance_mm": 0.2,
+              "minimum_copper_to_edge_mm": 0.5,
+              "minimum_hole_to_copper_mm": 0.25,
+              "pairwise_clearances": [],
+              "evidence": []
+            },
+            "insulation": {
+              "profile_id": "ordinary-low-voltage-unspecified-v1",
+              "status": "not_applicable",
+              "product_standard": null,
+              "coordination_standards": [],
+              "overvoltage_category": "unknown",
+              "pollution_degree": null,
+              "material_group": null,
+              "minimum_cti_v": null,
+              "maximum_altitude_m": null,
+              "field_case": "unknown",
+              "protection_regime": "unknown",
+              "protection_qualification_rule_ids": [],
+              "barriers": [],
+              "review": {
+                "status": "needs_human_review",
+                "reviewer": null,
+                "review_record_id": null,
+                "reviewed_on": null
+              }
+            }
+          },
+          "target_net_names": [
+            "/LOCAL"
+          ],
+          "movable_references": [
+            "R4"
+          ],
+          "delta_policy": {
+            "schema_id": "pcbsmith-shaped-serialization-delta-policy",
+            "schema_version": 1,
+            "policy_id": "r5.6b-shaped-layout-delta-v1",
+            "field_rules": [
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "placements",
+                "delta_class": "declared_placement_transformable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "segments",
+                "delta_class": "declared_target_route_replaceable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "vias",
+                "delta_class": "declared_target_route_replaceable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "width_mm",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "height_mm",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "parts_row_y_mm",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "part_y_mm",
+                "delta_class": "declared_placement_transformable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "part_rotation",
+                "delta_class": "declared_placement_transformable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "zones",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "outline",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "graphics",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "part_flip",
+                "delta_class": "declared_placement_transformable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "hide_references",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "part_reference_at",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "mask_apertures",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "cutouts",
+                "delta_class": "immutable_preserved"
+              }
+            ]
+          },
+          "field_delta_evidence": [
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "placements",
+              "delta_class": "declared_placement_transformable",
+              "changed": false,
+              "source_value_fingerprint": "59a28d211c148cc24b3c063021bf198caa11588a057548bf9570dae3f4d344f2",
+              "final_value_fingerprint": "59a28d211c148cc24b3c063021bf198caa11588a057548bf9570dae3f4d344f2",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "segments",
+              "delta_class": "declared_target_route_replaceable",
+              "changed": false,
+              "source_value_fingerprint": "52fff0367ddf21ecdf5e3e0eacef85dab88702f67a9c7ff9ad82fb55fe43032a",
+              "final_value_fingerprint": "52fff0367ddf21ecdf5e3e0eacef85dab88702f67a9c7ff9ad82fb55fe43032a",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "vias",
+              "delta_class": "declared_target_route_replaceable",
+              "changed": false,
+              "source_value_fingerprint": "178451d7d2b007efe37caf32cc8064608397caa090377b1176c09c3f84a4ba91",
+              "final_value_fingerprint": "178451d7d2b007efe37caf32cc8064608397caa090377b1176c09c3f84a4ba91",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "width_mm",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "6964dfd1548f0168badf8ba4ecd3f61e79b1a07c2e880ea6a46e8968690ebf43",
+              "final_value_fingerprint": "6964dfd1548f0168badf8ba4ecd3f61e79b1a07c2e880ea6a46e8968690ebf43",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "height_mm",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "5b241cb6b1155b6aa8b2ebc1fc049c27dba93e34eb18f1460b313e2e27c17e64",
+              "final_value_fingerprint": "5b241cb6b1155b6aa8b2ebc1fc049c27dba93e34eb18f1460b313e2e27c17e64",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "parts_row_y_mm",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "186355983744214a1de06b15a72eb2d3d8aa0a131764914e4fcdc275eb78cebc",
+              "final_value_fingerprint": "186355983744214a1de06b15a72eb2d3d8aa0a131764914e4fcdc275eb78cebc",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "part_y_mm",
+              "delta_class": "declared_placement_transformable",
+              "changed": false,
+              "source_value_fingerprint": "57c5eab64bf4353a84460af90a465bacdd8408a168c8701fb8b4d98f64eee51a",
+              "final_value_fingerprint": "57c5eab64bf4353a84460af90a465bacdd8408a168c8701fb8b4d98f64eee51a",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "part_rotation",
+              "delta_class": "declared_placement_transformable",
+              "changed": false,
+              "source_value_fingerprint": "96ee6072085b67c95810ebc47823de773704619fa9bd27dd9ad99d1e2b508ff5",
+              "final_value_fingerprint": "96ee6072085b67c95810ebc47823de773704619fa9bd27dd9ad99d1e2b508ff5",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "zones",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "cbd60c5ffaef4694935fc7ca63632a0eff51e325dbe4784ef9dc96d1b9f97610",
+              "final_value_fingerprint": "cbd60c5ffaef4694935fc7ca63632a0eff51e325dbe4784ef9dc96d1b9f97610",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "outline",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "65fc6dc48f7abb78ff51f86d2d00a436d03566bfa0048d376a800ea2d3540974",
+              "final_value_fingerprint": "65fc6dc48f7abb78ff51f86d2d00a436d03566bfa0048d376a800ea2d3540974",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "graphics",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "529f31bdedb9e9a14f6e1d1e647150d7ec6bb4d0a265b36e6f443c9c1deb4c19",
+              "final_value_fingerprint": "529f31bdedb9e9a14f6e1d1e647150d7ec6bb4d0a265b36e6f443c9c1deb4c19",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "part_flip",
+              "delta_class": "declared_placement_transformable",
+              "changed": false,
+              "source_value_fingerprint": "77bc37e9873c83d5f6990b6d64949434ed009afba37917f3ae0757f2bb432855",
+              "final_value_fingerprint": "77bc37e9873c83d5f6990b6d64949434ed009afba37917f3ae0757f2bb432855",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "hide_references",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "86549c3884cfc72631ef34fc63d6d5a75d7eff042efa28e6890d6719e2900be6",
+              "final_value_fingerprint": "86549c3884cfc72631ef34fc63d6d5a75d7eff042efa28e6890d6719e2900be6",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "part_reference_at",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "caefef3720c0b51278a275cc2a8ff8217192ff24a25e0f58fc8b11824819e511",
+              "final_value_fingerprint": "caefef3720c0b51278a275cc2a8ff8217192ff24a25e0f58fc8b11824819e511",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "mask_apertures",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "c6fa9315c38c4437ffaf69726810e4efbb10e1337a3e83f86b9513c15da39361",
+              "final_value_fingerprint": "c6fa9315c38c4437ffaf69726810e4efbb10e1337a3e83f86b9513c15da39361",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "cutouts",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "0cb4e94111bbff0dda07187bb7d7b5d255ed8f9373696385f80e9b4e26db816e",
+              "final_value_fingerprint": "0cb4e94111bbff0dda07187bb7d7b5d255ed8f9373696385f80e9b4e26db816e",
+              "affected_references": [],
+              "affected_target_nets": []
+            }
+          ],
+          "component_identity_evidence": [
+            {
+              "schema_id": "pcbsmith-component-serialization-identity-evidence",
+              "schema_version": 1,
+              "reference": "R4",
+              "component_fingerprint": "18b1f51c4ffd4390a84c3006e3c10fe6ffc1dd2868393bcbb362098357fe98df"
+            }
+          ],
+          "rendered_board_text": "(kicad_pcb\n  (version 20241229)\n  (generator \"PCBSmith\")\n\n  (general\n    (thickness 1.6)\n  )\n\n  (paper \"A4\")\n\n  (layers\n    (0 \"F.Cu\" signal)\n    (31 \"B.Cu\" signal)\n    (32 \"B.Adhes\" user)\n    (33 \"F.Adhes\" user)\n    (34 \"B.Paste\" user)\n    (35 \"F.Paste\" user)\n    (36 \"B.SilkS\" user)\n    (37 \"F.SilkS\" user)\n    (38 \"B.Mask\" user)\n    (39 \"F.Mask\" user)\n    (44 \"Edge.Cuts\" user)\n  )\n  (footprint \"Resistor_SMD:R_0603_1608Metric\"\n    (uuid \"131ca54d-0c63-5fc4-8c14-707b79f0db84\")\n    (at 31 28)\n    (layer \"B.Cu\")\n    (descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n    (tags \"resistor\")\n    (property \"Reference\" \"R4\"\n      (at -0 -1.43 0)\n      (layer \"B.SilkS\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n        (justify mirror)\n      )\n      (uuid \"8c525a34-a4e6-5cd1-b889-57a9f3739745\")\n    )\n    (property \"Value\" \"R4-10k\"\n      (at -0 1.43 0)\n      (layer \"B.Fab\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n        (justify mirror)\n      )\n      (uuid \"b92cc46f-9624-5a03-83a7-9294438db9ba\")\n    )\n    (property \"Datasheet\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"30f2428d-1020-572c-be5d-e9b5e36c7f50\")\n    )\n    (property \"Description\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"aff60ac6-33a5-5175-bb1e-1aa059751066\")\n    )\n    (property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n      (at -0 0 0)\n      (layer \"B.SilkS\")\n      (hide yes)\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n        (justify mirror)\n      )\n      (uuid \"88a59676-dc80-515b-8327-c41ad9fb97b1\")\n    )\n    (attr smd)\n    (duplicate_pad_numbers_are_jumpers no)\n    (fp_line\n      (start 0.237 -0.5225)\n      (end -0.237 -0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"B.SilkS\")\n      (uuid \"44a99d14-a2cd-561b-b5c5-3956d125a0c4\")\n    )\n    (fp_line\n      (start 0.237 0.5225)\n      (end -0.237 0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"B.SilkS\")\n      (uuid \"625a9fa3-59b0-50e9-93c2-dcbe209658a4\")\n    )\n    (fp_rect\n      (start 1.48 -0.73)\n      (end -1.48 0.73)\n      (stroke\n        (width 0.05)\n        (type solid)\n      )\n      (fill no)\n      (layer \"B.CrtYd\")\n      (uuid \"2220ddd4-a2f0-5ddc-b983-c0109c5b69ae\")\n    )\n    (fp_rect\n      (start 0.8 -0.4125)\n      (end -0.8 0.4125)\n      (stroke\n        (width 0.1)\n        (type solid)\n      )\n      (fill no)\n      (layer \"B.Fab\")\n      (uuid \"e02a8820-479c-57e3-a9e5-999ed3003559\")\n    )\n    (fp_text user \"${REFERENCE}\"\n      (at -0 0 0)\n      (layer \"B.Fab\")\n      (effects\n        (font\n          (size 0.4 0.4)\n          (thickness 0.06)\n        )\n        (justify mirror)\n      )\n      (uuid \"30ca0dcd-5d42-5d2f-8ee8-3fecedfdf3b4\")\n    )\n    (pad \"1\" smd roundrect\n      (at 0.825 0)\n      (size 0.8 0.95)\n      (layers \"B.Cu\" \"B.Mask\" \"B.Paste\")\n      (roundrect_rratio 0.25)\n      (net \"/LOCAL\")\n      (uuid \"9b1ebc63-32be-5512-ab67-99ffa4fb5e27\")\n    )\n    (pad \"2\" smd roundrect\n      (at -0.825 0)\n      (size 0.8 0.95)\n      (layers \"B.Cu\" \"B.Mask\" \"B.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"0e0de233-4f1c-5403-85b5-299ddb7ecde4\")\n    )\n    (model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n      (offset\n        (xyz 0 0 0)\n      )\n      (scale\n        (xyz 1 1 1)\n      )\n      (rotate\n        (xyz 0 0 0)\n      )\n    )\n    (property \"Tolerance\" \"0.1%\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"1916c6a9-051f-5212-9628-ec14bdc563d5\")\n    )\n    (property \"Manufacturer\" \"Exact-R4\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"23088787-fcb4-5c1a-bac5-d50fa0e53166\")\n    )\n    (path \"/df0f9379-bf3d-5451-af3b-1489441d9634/b7d7dbc3-3c8c-57fe-aba1-a60eec833260/c3fef83d-ff99-56cd-a4c6-7847daf66409\")\n  )\n  (gr_poly\n    (pts\n          (xy 23 23)\n          (xy 26 23)\n          (xy 26 26)\n          (xy 23 26)\n    )\n    (stroke (width 0.1) (type default))\n    (fill none)\n    (layer \"Edge.Cuts\")\n    (uuid a0a556eb-ed8d-5143-9d85-af1410bca7d3)\n  )\n  (gr_poly\n    (pts\n          (xy 20 22)\n          (xy 22 20)\n          (xy 38 20)\n          (xy 40 22)\n          (xy 40 34)\n          (xy 38 36)\n          (xy 22 36)\n          (xy 20 34)\n    )\n    (stroke (width 0.1) (type default))\n    (fill none)\n    (layer \"Edge.Cuts\")\n    (uuid 5ffc18f8-70d4-5f63-99d6-efe3918c329d)\n  )\n)\n",
+          "rendered_board_sha256": "f38e5b37b2740898b0d9a286ae29d9f703f981a1be7d51a80e9c50d842dbd7c2",
+          "source_layout_fingerprint": "5e8a78e9c41f03e591575b7d69082b5446cd2db69875d39b14a2a86e18039cf0",
+          "source_netlist_fingerprint": "327de4b690581042e62399c351541e19cceaa83ffe203e0f69de2e02ae4bee36",
+          "final_layout_fingerprint": "5e8a78e9c41f03e591575b7d69082b5446cd2db69875d39b14a2a86e18039cf0",
+          "profile_fingerprint": "8ea1f3643fbc3eaf7e02e7bc0d7fe0dcd3223ed666914f5c79de00ea90b50bfe",
+          "policy_fingerprint": "13ad5d4c558281f0a3af5d81adf35f9301b0f9c2179faf06117ae202a73e121d",
+          "input_fingerprint": "fdece5aa23f6db705b804f3dea9e65678c4d5ef8228bfbfaa13e2b9acb8b54ed",
+          "result_fingerprint": "b2a4dfe89edc9f193119ad1f1031a3799b36719ba798d7fb8ea95ab7a04e9d03"
+        },
+        "kicad_cli_version": "10.0.3",
+        "initial_board_text": "(kicad_pcb\n  (version 20241229)\n  (generator \"PCBSmith\")\n\n  (general\n    (thickness 1.6)\n  )\n\n  (paper \"A4\")\n\n  (layers\n    (0 \"F.Cu\" signal)\n    (31 \"B.Cu\" signal)\n    (32 \"B.Adhes\" user)\n    (33 \"F.Adhes\" user)\n    (34 \"B.Paste\" user)\n    (35 \"F.Paste\" user)\n    (36 \"B.SilkS\" user)\n    (37 \"F.SilkS\" user)\n    (38 \"B.Mask\" user)\n    (39 \"F.Mask\" user)\n    (44 \"Edge.Cuts\" user)\n  )\n  (footprint \"Resistor_SMD:R_0603_1608Metric\"\n    (uuid \"131ca54d-0c63-5fc4-8c14-707b79f0db84\")\n    (at 31 28)\n    (layer \"B.Cu\")\n    (descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n    (tags \"resistor\")\n    (property \"Reference\" \"R4\"\n      (at -0 -1.43 0)\n      (layer \"B.SilkS\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n        (justify mirror)\n      )\n      (uuid \"8c525a34-a4e6-5cd1-b889-57a9f3739745\")\n    )\n    (property \"Value\" \"R4-10k\"\n      (at -0 1.43 0)\n      (layer \"B.Fab\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n        (justify mirror)\n      )\n      (uuid \"b92cc46f-9624-5a03-83a7-9294438db9ba\")\n    )\n    (property \"Datasheet\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"30f2428d-1020-572c-be5d-e9b5e36c7f50\")\n    )\n    (property \"Description\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"aff60ac6-33a5-5175-bb1e-1aa059751066\")\n    )\n    (property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n      (at -0 0 0)\n      (layer \"B.SilkS\")\n      (hide yes)\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n        (justify mirror)\n      )\n      (uuid \"88a59676-dc80-515b-8327-c41ad9fb97b1\")\n    )\n    (attr smd)\n    (duplicate_pad_numbers_are_jumpers no)\n    (fp_line\n      (start 0.237 -0.5225)\n      (end -0.237 -0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"B.SilkS\")\n      (uuid \"44a99d14-a2cd-561b-b5c5-3956d125a0c4\")\n    )\n    (fp_line\n      (start 0.237 0.5225)\n      (end -0.237 0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"B.SilkS\")\n      (uuid \"625a9fa3-59b0-50e9-93c2-dcbe209658a4\")\n    )\n    (fp_rect\n      (start 1.48 -0.73)\n      (end -1.48 0.73)\n      (stroke\n        (width 0.05)\n        (type solid)\n      )\n      (fill no)\n      (layer \"B.CrtYd\")\n      (uuid \"2220ddd4-a2f0-5ddc-b983-c0109c5b69ae\")\n    )\n    (fp_rect\n      (start 0.8 -0.4125)\n      (end -0.8 0.4125)\n      (stroke\n        (width 0.1)\n        (type solid)\n      )\n      (fill no)\n      (layer \"B.Fab\")\n      (uuid \"e02a8820-479c-57e3-a9e5-999ed3003559\")\n    )\n    (fp_text user \"${REFERENCE}\"\n      (at -0 0 0)\n      (layer \"B.Fab\")\n      (effects\n        (font\n          (size 0.4 0.4)\n          (thickness 0.06)\n        )\n        (justify mirror)\n      )\n      (uuid \"30ca0dcd-5d42-5d2f-8ee8-3fecedfdf3b4\")\n    )\n    (pad \"1\" smd roundrect\n      (at 0.825 0)\n      (size 0.8 0.95)\n      (layers \"B.Cu\" \"B.Mask\" \"B.Paste\")\n      (roundrect_rratio 0.25)\n      (net \"/LOCAL\")\n      (uuid \"9b1ebc63-32be-5512-ab67-99ffa4fb5e27\")\n    )\n    (pad \"2\" smd roundrect\n      (at -0.825 0)\n      (size 0.8 0.95)\n      (layers \"B.Cu\" \"B.Mask\" \"B.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"0e0de233-4f1c-5403-85b5-299ddb7ecde4\")\n    )\n    (model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n      (offset\n        (xyz 0 0 0)\n      )\n      (scale\n        (xyz 1 1 1)\n      )\n      (rotate\n        (xyz 0 0 0)\n      )\n    )\n    (property \"Tolerance\" \"0.1%\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"1916c6a9-051f-5212-9628-ec14bdc563d5\")\n    )\n    (property \"Manufacturer\" \"Exact-R4\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"23088787-fcb4-5c1a-bac5-d50fa0e53166\")\n    )\n    (path \"/df0f9379-bf3d-5451-af3b-1489441d9634/b7d7dbc3-3c8c-57fe-aba1-a60eec833260/c3fef83d-ff99-56cd-a4c6-7847daf66409\")\n  )\n  (gr_poly\n    (pts\n          (xy 23 23)\n          (xy 26 23)\n          (xy 26 26)\n          (xy 23 26)\n    )\n    (stroke (width 0.1) (type default))\n    (fill none)\n    (layer \"Edge.Cuts\")\n    (uuid a0a556eb-ed8d-5143-9d85-af1410bca7d3)\n  )\n  (gr_poly\n    (pts\n          (xy 20 22)\n          (xy 22 20)\n          (xy 38 20)\n          (xy 40 22)\n          (xy 40 34)\n          (xy 38 36)\n          (xy 22 36)\n          (xy 20 34)\n    )\n    (stroke (width 0.1) (type default))\n    (fill none)\n    (layer \"Edge.Cuts\")\n    (uuid 5ffc18f8-70d4-5f63-99d6-efe3918c329d)\n  )\n)\n",
+        "saved_board_text": "(kicad_pcb\n\t(version 20260206)\n\t(generator \"pcbnew\")\n\t(generator_version \"10.0\")\n\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n\t(paper \"A4\")\n\t(layers\n\t\t(0 \"F.Cu\" signal)\n\t\t(2 \"B.Cu\" signal)\n\t\t(9 \"F.Adhes\" user \"F.Adhesive\")\n\t\t(11 \"B.Adhes\" user \"B.Adhesive\")\n\t\t(13 \"F.Paste\" user)\n\t\t(15 \"B.Paste\" user)\n\t\t(5 \"F.SilkS\" user \"F.Silkscreen\")\n\t\t(7 \"B.SilkS\" user \"B.Silkscreen\")\n\t\t(1 \"F.Mask\" user)\n\t\t(3 \"B.Mask\" user)\n\t\t(25 \"Edge.Cuts\" user)\n\t\t(27 \"Margin\" user)\n\t\t(31 \"F.CrtYd\" user \"F.Courtyard\")\n\t\t(29 \"B.CrtYd\" user \"B.Courtyard\")\n\t)\n\t(setup\n\t\t(pad_to_mask_clearance 0)\n\t\t(allow_soldermask_bridges_in_footprints no)\n\t\t(tenting\n\t\t\t(front yes)\n\t\t\t(back yes)\n\t\t)\n\t\t(covering\n\t\t\t(front no)\n\t\t\t(back no)\n\t\t)\n\t\t(plugging\n\t\t\t(front no)\n\t\t\t(back no)\n\t\t)\n\t\t(capping no)\n\t\t(filling no)\n\t\t(pcbplotparams\n\t\t\t(layerselection 0x00000000_00000000_55555555_5755f5ff)\n\t\t\t(plot_on_all_layers_selection 0x00000000_00000000_00000000_00000000)\n\t\t\t(disableapertmacros no)\n\t\t\t(usegerberextensions no)\n\t\t\t(usegerberattributes yes)\n\t\t\t(usegerberadvancedattributes yes)\n\t\t\t(creategerberjobfile yes)\n\t\t\t(dashed_line_dash_ratio 12)\n\t\t\t(dashed_line_gap_ratio 3)\n\t\t\t(svgprecision 4)\n\t\t\t(plotframeref no)\n\t\t\t(mode 1)\n\t\t\t(useauxorigin no)\n\t\t\t(pdf_front_fp_property_popups yes)\n\t\t\t(pdf_back_fp_property_popups yes)\n\t\t\t(pdf_metadata yes)\n\t\t\t(pdf_single_document no)\n\t\t\t(dxfpolygonmode yes)\n\t\t\t(dxfimperialunits yes)\n\t\t\t(dxfusepcbnewfont yes)\n\t\t\t(psnegative no)\n\t\t\t(psa4output no)\n\t\t\t(plot_black_and_white yes)\n\t\t\t(sketchpadsonfab no)\n\t\t\t(plotpadnumbers no)\n\t\t\t(hidednponfab no)\n\t\t\t(sketchdnponfab yes)\n\t\t\t(crossoutdnponfab yes)\n\t\t\t(subtractmaskfromsilk no)\n\t\t\t(outputformat 1)\n\t\t\t(mirror no)\n\t\t\t(drillshape 1)\n\t\t\t(scaleselection 1)\n\t\t\t(outputdirectory \"\")\n\t\t)\n\t)\n\t(footprint \"Resistor_SMD:R_0603_1608Metric\"\n\t\t(layer \"B.Cu\")\n\t\t(uuid \"131ca54d-0c63-5fc4-8c14-707b79f0db84\")\n\t\t(at 31 28)\n\t\t(descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n\t\t(tags \"resistor\")\n\t\t(property \"Reference\" \"R4\"\n\t\t\t(at 0 -1.43 0)\n\t\t\t(layer \"B.SilkS\")\n\t\t\t(uuid \"8c525a34-a4e6-5cd1-b889-57a9f3739745\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t\t(justify mirror)\n\t\t\t)\n\t\t)\n\t\t(property \"Value\" \"R4-10k\"\n\t\t\t(at 0 1.43 0)\n\t\t\t(layer \"B.Fab\")\n\t\t\t(uuid \"b92cc46f-9624-5a03-83a7-9294438db9ba\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t\t(justify mirror)\n\t\t\t)\n\t\t)\n\t\t(property \"Datasheet\" \"\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"30f2428d-1020-572c-be5d-e9b5e36c7f50\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Description\" \"\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"aff60ac6-33a5-5175-bb1e-1aa059751066\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"B.SilkS\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"88a59676-dc80-515b-8327-c41ad9fb97b1\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t\t(justify mirror)\n\t\t\t)\n\t\t)\n\t\t(property \"Tolerance\" \"0.1%\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"1916c6a9-051f-5212-9628-ec14bdc563d5\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.5 0.5)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Manufacturer\" \"Exact-R4\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"23088787-fcb4-5c1a-bac5-d50fa0e53166\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.5 0.5)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(path \"/df0f9379-bf3d-5451-af3b-1489441d9634/b7d7dbc3-3c8c-57fe-aba1-a60eec833260/c3fef83d-ff99-56cd-a4c6-7847daf66409\")\n\t\t(attr smd)\n\t\t(duplicate_pad_numbers_are_jumpers no)\n\t\t(fp_line\n\t\t\t(start 0.237 -0.5225)\n\t\t\t(end -0.237 -0.5225)\n\t\t\t(stroke\n\t\t\t\t(width 0.12)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(layer \"B.SilkS\")\n\t\t\t(uuid \"44a99d14-a2cd-561b-b5c5-3956d125a0c4\")\n\t\t)\n\t\t(fp_line\n\t\t\t(start 0.237 0.5225)\n\t\t\t(end -0.237 0.5225)\n\t\t\t(stroke\n\t\t\t\t(width 0.12)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(layer \"B.SilkS\")\n\t\t\t(uuid \"625a9fa3-59b0-50e9-93c2-dcbe209658a4\")\n\t\t)\n\t\t(fp_rect\n\t\t\t(start 1.48 -0.73)\n\t\t\t(end -1.48 0.73)\n\t\t\t(stroke\n\t\t\t\t(width 0.05)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(fill no)\n\t\t\t(layer \"B.CrtYd\")\n\t\t\t(uuid \"2220ddd4-a2f0-5ddc-b983-c0109c5b69ae\")\n\t\t)\n\t\t(fp_rect\n\t\t\t(start 0.8 -0.4125)\n\t\t\t(end -0.8 0.4125)\n\t\t\t(stroke\n\t\t\t\t(width 0.1)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(fill no)\n\t\t\t(layer \"B.Fab\")\n\t\t\t(uuid \"e02a8820-479c-57e3-a9e5-999ed3003559\")\n\t\t)\n\t\t(fp_text user \"${REFERENCE}\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"B.Fab\")\n\t\t\t(uuid \"30ca0dcd-5d42-5d2f-8ee8-3fecedfdf3b4\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.4 0.4)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t\t(justify mirror)\n\t\t\t)\n\t\t)\n\t\t(pad \"1\" smd roundrect\n\t\t\t(at 0.825 0)\n\t\t\t(size 0.8 0.95)\n\t\t\t(layers \"B.Cu\" \"B.Mask\" \"B.Paste\")\n\t\t\t(roundrect_rratio 0.25)\n\t\t\t(net \"/LOCAL\")\n\t\t\t(uuid \"9b1ebc63-32be-5512-ab67-99ffa4fb5e27\")\n\t\t)\n\t\t(pad \"2\" smd roundrect\n\t\t\t(at -0.825 0)\n\t\t\t(size 0.8 0.95)\n\t\t\t(layers \"B.Cu\" \"B.Mask\" \"B.Paste\")\n\t\t\t(roundrect_rratio 0.25)\n\t\t\t(uuid \"0e0de233-4f1c-5403-85b5-299ddb7ecde4\")\n\t\t)\n\t\t(embedded_fonts no)\n\t\t(model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n\t\t\t(offset\n\t\t\t\t(xyz 0 0 0)\n\t\t\t)\n\t\t\t(scale\n\t\t\t\t(xyz 1 1 1)\n\t\t\t)\n\t\t\t(rotate\n\t\t\t\t(xyz 0 0 0)\n\t\t\t)\n\t\t)\n\t)\n\t(gr_poly\n\t\t(pts\n\t\t\t(xy 23 23) (xy 26 23) (xy 26 26) (xy 23 26)\n\t\t)\n\t\t(stroke\n\t\t\t(width 0.1)\n\t\t\t(type default)\n\t\t)\n\t\t(fill no)\n\t\t(layer \"Edge.Cuts\")\n\t\t(uuid \"a0a556eb-ed8d-5143-9d85-af1410bca7d3\")\n\t)\n\t(gr_poly\n\t\t(pts\n\t\t\t(xy 20 22) (xy 22 20) (xy 38 20) (xy 40 22) (xy 40 34) (xy 38 36) (xy 22 36) (xy 20 34)\n\t\t)\n\t\t(stroke\n\t\t\t(width 0.1)\n\t\t\t(type default)\n\t\t)\n\t\t(fill no)\n\t\t(layer \"Edge.Cuts\")\n\t\t(uuid \"5ffc18f8-70d4-5f63-99d6-efe3918c329d\")\n\t)\n\t(embedded_fonts no)\n)\n",
+        "initial_board_sha256": "f38e5b37b2740898b0d9a286ae29d9f703f981a1be7d51a80e9c50d842dbd7c2",
+        "saved_board_sha256": "1291150b813c1ed5e059a082a99d258098c72a0b195767a37e7ba2d559e7e330",
+        "repeated_saved_board_sha256": "1291150b813c1ed5e059a082a99d258098c72a0b195767a37e7ba2d559e7e330",
+        "initial_snapshot": {
+          "schema_id": "pcbsmith-kicad-board-readback-snapshot",
+          "schema_version": 1,
+          "footprints": [
+            "[{\"atom\":\"footprint\"},{\"quoted\":\"Resistor_SMD:R_0603_1608Metric\"},[{\"atom\":\"at\"},{\"atom\":\"31\"},{\"atom\":\"28\"}],[{\"atom\":\"attr\"},{\"atom\":\"smd\"}],[{\"atom\":\"descr\"},{\"quoted\":\"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\"}],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"-0.237\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"0.237\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"44a99d14-a2cd-561b-b5c5-3956d125a0c4\"}]],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"-0.237\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"0.237\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"625a9fa3-59b0-50e9-93c2-dcbe209658a4\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.CrtYd\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"0.73\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.05\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"2220ddd4-a2f0-5ddc-b983-c0109c5b69ae\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.Fab\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"0.4125\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"e02a8820-479c-57e3-a9e5-999ed3003559\"}]],[{\"atom\":\"fp_text\"},{\"atom\":\"user\"},{\"quoted\":\"${REFERENCE}\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.4\"},{\"atom\":\"0.4\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]],[{\"atom\":\"justify\"},{\"atom\":\"mirror\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"B.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"30ca0dcd-5d42-5d2f-8ee8-3fecedfdf3b4\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"B.Cu\"}],[{\"atom\":\"model\"},{\"quoted\":\"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"},[{\"atom\":\"offset\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"rotate\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"scale\"},[{\"atom\":\"xyz\"},{\"atom\":\"1\"},{\"atom\":\"1\"},{\"atom\":\"1\"}]]],[{\"atom\":\"pad\"},{\"quoted\":\"1\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"B.Cu\"},{\"quoted\":\"B.Mask\"},{\"quoted\":\"B.Paste\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LOCAL\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"9b1ebc63-32be-5512-ab67-99ffa4fb5e27\"}]],[{\"atom\":\"pad\"},{\"quoted\":\"2\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"-0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"B.Cu\"},{\"quoted\":\"B.Mask\"},{\"quoted\":\"B.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"0e0de233-4f1c-5403-85b5-299ddb7ecde4\"}]],[{\"atom\":\"path\"},{\"quoted\":\"/df0f9379-bf3d-5451-af3b-1489441d9634/b7d7dbc3-3c8c-57fe-aba1-a60eec833260/c3fef83d-ff99-56cd-a4c6-7847daf66409\"}],[{\"atom\":\"property\"},{\"quoted\":\"Datasheet\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"30f2428d-1020-572c-be5d-e9b5e36c7f50\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Description\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"aff60ac6-33a5-5175-bb1e-1aa059751066\"}]],[{\"atom\":\"property\"},{\"quoted\":\"KiLib_Generator\"},{\"quoted\":\"SMD_2terminal_chip_molded\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]],[{\"atom\":\"justify\"},{\"atom\":\"mirror\"}]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"88a59676-dc80-515b-8327-c41ad9fb97b1\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Manufacturer\"},{\"quoted\":\"Exact-R4\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"23088787-fcb4-5c1a-bac5-d50fa0e53166\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Reference\"},{\"quoted\":\"R4\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"-1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]],[{\"atom\":\"justify\"},{\"atom\":\"mirror\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"B.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"8c525a34-a4e6-5cd1-b889-57a9f3739745\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Tolerance\"},{\"quoted\":\"0.1%\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"1916c6a9-051f-5212-9628-ec14bdc563d5\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Value\"},{\"quoted\":\"R4-10k\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]],[{\"atom\":\"justify\"},{\"atom\":\"mirror\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"B.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"b92cc46f-9624-5a03-83a7-9294438db9ba\"}]],[{\"atom\":\"tags\"},{\"quoted\":\"resistor\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"131ca54d-0c63-5fc4-8c14-707b79f0db84\"}]]"
+          ],
+          "edge_cuts": [
+            "[{\"atom\":\"gr_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"Edge.Cuts\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"20\"},{\"atom\":\"22\"}],[{\"atom\":\"xy\"},{\"atom\":\"22\"},{\"atom\":\"20\"}],[{\"atom\":\"xy\"},{\"atom\":\"38\"},{\"atom\":\"20\"}],[{\"atom\":\"xy\"},{\"atom\":\"40\"},{\"atom\":\"22\"}],[{\"atom\":\"xy\"},{\"atom\":\"40\"},{\"atom\":\"34\"}],[{\"atom\":\"xy\"},{\"atom\":\"38\"},{\"atom\":\"36\"}],[{\"atom\":\"xy\"},{\"atom\":\"22\"},{\"atom\":\"36\"}],[{\"atom\":\"xy\"},{\"atom\":\"20\"},{\"atom\":\"34\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"default\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"5ffc18f8-70d4-5f63-99d6-efe3918c329d\"}]]",
+            "[{\"atom\":\"gr_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"Edge.Cuts\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"23\"},{\"atom\":\"23\"}],[{\"atom\":\"xy\"},{\"atom\":\"26\"},{\"atom\":\"23\"}],[{\"atom\":\"xy\"},{\"atom\":\"26\"},{\"atom\":\"26\"}],[{\"atom\":\"xy\"},{\"atom\":\"23\"},{\"atom\":\"26\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"default\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"a0a556eb-ed8d-5143-9d85-af1410bca7d3\"}]]"
+          ],
+          "board_graphics": [],
+          "zones": [],
+          "segments": [],
+          "vias": [],
+          "nets": [
+            "[{\"atom\":\"net\"},{\"quoted\":\"/LOCAL\"}]"
+          ],
+          "layers": [
+            "[{\"quoted\":\"B.CrtYd\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"B.Cu\"},{\"atom\":\"signal\"}]",
+            "[{\"quoted\":\"B.Fab\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"B.Mask\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"B.Paste\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"B.SilkS\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"Edge.Cuts\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.Cu\"},{\"atom\":\"signal\"}]",
+            "[{\"quoted\":\"F.Fab\"},{\"atom\":\"user\"}]"
+          ],
+          "setup": []
+        },
+        "saved_snapshot": {
+          "schema_id": "pcbsmith-kicad-board-readback-snapshot",
+          "schema_version": 1,
+          "footprints": [
+            "[{\"atom\":\"footprint\"},{\"quoted\":\"Resistor_SMD:R_0603_1608Metric\"},[{\"atom\":\"at\"},{\"atom\":\"31\"},{\"atom\":\"28\"}],[{\"atom\":\"attr\"},{\"atom\":\"smd\"}],[{\"atom\":\"descr\"},{\"quoted\":\"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\"}],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"-0.237\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"0.237\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"44a99d14-a2cd-561b-b5c5-3956d125a0c4\"}]],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"-0.237\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"0.237\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"625a9fa3-59b0-50e9-93c2-dcbe209658a4\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.CrtYd\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"0.73\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.05\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"2220ddd4-a2f0-5ddc-b983-c0109c5b69ae\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.Fab\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"0.4125\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"e02a8820-479c-57e3-a9e5-999ed3003559\"}]],[{\"atom\":\"fp_text\"},{\"atom\":\"user\"},{\"quoted\":\"${REFERENCE}\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.4\"},{\"atom\":\"0.4\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]],[{\"atom\":\"justify\"},{\"atom\":\"mirror\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"B.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"30ca0dcd-5d42-5d2f-8ee8-3fecedfdf3b4\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"B.Cu\"}],[{\"atom\":\"model\"},{\"quoted\":\"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"},[{\"atom\":\"offset\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"rotate\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"scale\"},[{\"atom\":\"xyz\"},{\"atom\":\"1\"},{\"atom\":\"1\"},{\"atom\":\"1\"}]]],[{\"atom\":\"pad\"},{\"quoted\":\"1\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"B.Cu\"},{\"quoted\":\"B.Mask\"},{\"quoted\":\"B.Paste\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LOCAL\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"9b1ebc63-32be-5512-ab67-99ffa4fb5e27\"}]],[{\"atom\":\"pad\"},{\"quoted\":\"2\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"-0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"B.Cu\"},{\"quoted\":\"B.Mask\"},{\"quoted\":\"B.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"0e0de233-4f1c-5403-85b5-299ddb7ecde4\"}]],[{\"atom\":\"path\"},{\"quoted\":\"/df0f9379-bf3d-5451-af3b-1489441d9634/b7d7dbc3-3c8c-57fe-aba1-a60eec833260/c3fef83d-ff99-56cd-a4c6-7847daf66409\"}],[{\"atom\":\"property\"},{\"quoted\":\"Datasheet\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"30f2428d-1020-572c-be5d-e9b5e36c7f50\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Description\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"aff60ac6-33a5-5175-bb1e-1aa059751066\"}]],[{\"atom\":\"property\"},{\"quoted\":\"KiLib_Generator\"},{\"quoted\":\"SMD_2terminal_chip_molded\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]],[{\"atom\":\"justify\"},{\"atom\":\"mirror\"}]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"88a59676-dc80-515b-8327-c41ad9fb97b1\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Manufacturer\"},{\"quoted\":\"Exact-R4\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"23088787-fcb4-5c1a-bac5-d50fa0e53166\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Reference\"},{\"quoted\":\"R4\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"-1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]],[{\"atom\":\"justify\"},{\"atom\":\"mirror\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"B.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"8c525a34-a4e6-5cd1-b889-57a9f3739745\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Tolerance\"},{\"quoted\":\"0.1%\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"1916c6a9-051f-5212-9628-ec14bdc563d5\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Value\"},{\"quoted\":\"R4-10k\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]],[{\"atom\":\"justify\"},{\"atom\":\"mirror\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"B.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"b92cc46f-9624-5a03-83a7-9294438db9ba\"}]],[{\"atom\":\"tags\"},{\"quoted\":\"resistor\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"131ca54d-0c63-5fc4-8c14-707b79f0db84\"}]]"
+          ],
+          "edge_cuts": [
+            "[{\"atom\":\"gr_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"Edge.Cuts\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"20\"},{\"atom\":\"22\"}],[{\"atom\":\"xy\"},{\"atom\":\"22\"},{\"atom\":\"20\"}],[{\"atom\":\"xy\"},{\"atom\":\"38\"},{\"atom\":\"20\"}],[{\"atom\":\"xy\"},{\"atom\":\"40\"},{\"atom\":\"22\"}],[{\"atom\":\"xy\"},{\"atom\":\"40\"},{\"atom\":\"34\"}],[{\"atom\":\"xy\"},{\"atom\":\"38\"},{\"atom\":\"36\"}],[{\"atom\":\"xy\"},{\"atom\":\"22\"},{\"atom\":\"36\"}],[{\"atom\":\"xy\"},{\"atom\":\"20\"},{\"atom\":\"34\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"default\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"5ffc18f8-70d4-5f63-99d6-efe3918c329d\"}]]",
+            "[{\"atom\":\"gr_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"Edge.Cuts\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"23\"},{\"atom\":\"23\"}],[{\"atom\":\"xy\"},{\"atom\":\"26\"},{\"atom\":\"23\"}],[{\"atom\":\"xy\"},{\"atom\":\"26\"},{\"atom\":\"26\"}],[{\"atom\":\"xy\"},{\"atom\":\"23\"},{\"atom\":\"26\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"default\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"a0a556eb-ed8d-5143-9d85-af1410bca7d3\"}]]"
+          ],
+          "board_graphics": [],
+          "zones": [],
+          "segments": [],
+          "vias": [],
+          "nets": [
+            "[{\"atom\":\"net\"},{\"quoted\":\"/LOCAL\"}]"
+          ],
+          "layers": [
+            "[{\"quoted\":\"B.CrtYd\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"B.Cu\"},{\"atom\":\"signal\"}]",
+            "[{\"quoted\":\"B.Fab\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"B.Mask\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"B.Paste\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"B.SilkS\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"Edge.Cuts\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.Cu\"},{\"atom\":\"signal\"}]",
+            "[{\"quoted\":\"F.Fab\"},{\"atom\":\"user\"}]"
+          ],
+          "setup": []
+        },
+        "drc_status": "passed",
+        "drc_findings": [],
+        "drc_report_json": "{\"$schema\":\"https://schemas.kicad.org/drc.v1.json\",\"coordinate_units\":\"mm\",\"ignored_checks\":[{\"description\":\"Footprint doesn't match copy in library\",\"key\":\"lib_footprint_mismatch\"}],\"included_severities\":[\"error\",\"warning\"],\"kicad_version\":\"10.0.3\",\"schematic_parity\":[],\"source\":\"placement-roundtrip.kicad_pcb\",\"unconnected_items\":[],\"violations\":[]}",
+        "drc_report_sha256": "5469b3fa907523d40b9e1babde1160fcd3095fc64f99169ab52ba822e334cc7e",
+        "drc_report_normalization": "canonical_json_without_top_level_execution_date",
+        "require_drc_pass": true,
+        "authority_scope": "kicad_parse_save_readback_and_drc"
+      },
+      "drc_policy": {
+        "schema_id": "pcbsmith-placement-corpus-drc-policy",
+        "schema_version": 1,
+        "project_json": "{\"board\":{\"design_settings\":{\"rule_severities\":{\"footprint_filters_mismatch\":\"warning\",\"footprint_type_mismatch\":\"warning\",\"lib_footprint_mismatch\":\"ignore\",\"missing_courtyard\":\"warning\",\"track_not_centered_on_via\":\"warning\",\"tuning_profile_track_geometries\":\"warning\"}}},\"meta\":{\"version\":1}}",
+        "project_sha256": "96c0cc06fd4de562a2d5bcd2ac7e0a1d7792ab4e591be940225dbc162a439ff5",
+        "ignored_rule_ids": [
+          "lib_footprint_mismatch"
+        ],
+        "enforced_rule_ids": [
+          "footprint_filters_mismatch",
+          "footprint_type_mismatch",
+          "missing_courtyard",
+          "track_not_centered_on_via",
+          "tuning_profile_track_geometries"
+        ],
+        "rationale": "Generated embedded footprints are authoritative; installed-library copy mismatch is not a physical geometry, connectivity, clearance, or manufacturability finding."
+      },
+      "measurements": {
+        "schema_id": "pcbsmith-shaped-placement-measurements",
+        "schema_version": 1,
+        "has_custom_outline": true,
+        "has_cutouts": true,
+        "has_mask_apertures": false,
+        "cutout_count": 1,
+        "mask_aperture_count": 0,
+        "front_placement_count": 0,
+        "back_placement_count": 1,
+        "placement_count": 1,
+        "segment_count": 0,
+        "via_count": 0,
+        "zone_count": 0,
+        "total_routed_length": {
+          "schema_id": "pcbsmith-routed-length-interval",
+          "schema_version": 1,
+          "lower": {
+            "schema_id": "pcbsmith-rational-measurement",
+            "schema_version": 1,
+            "numerator": 0,
+            "denominator": 1,
+            "unit": "mm",
+            "interpretation": "exact_from_neutral_decimal_coordinates"
+          },
+          "upper": {
+            "schema_id": "pcbsmith-rational-measurement",
+            "schema_version": 1,
+            "numerator": 0,
+            "denominator": 1,
+            "unit": "mm",
+            "interpretation": "exact_from_neutral_decimal_coordinates"
+          },
+          "per_segment_bound_denominator": 1000000000000,
+          "interpretation": "conservative_rational_bounds_from_neutral_decimal_coordinates"
+        },
+        "outline_bounding_area": {
+          "schema_id": "pcbsmith-rational-measurement",
+          "schema_version": 1,
+          "numerator": 320,
+          "denominator": 1,
+          "unit": "mm2",
+          "interpretation": "exact_from_neutral_decimal_coordinates"
+        },
+        "outer_outline_area": {
+          "schema_id": "pcbsmith-rational-measurement",
+          "schema_version": 1,
+          "numerator": 312,
+          "denominator": 1,
+          "unit": "mm2",
+          "interpretation": "exact_from_neutral_decimal_coordinates"
+        },
+        "substrate_area_after_cutouts": {
+          "schema_id": "pcbsmith-rational-measurement",
+          "schema_version": 1,
+          "numerator": 303,
+          "denominator": 1,
+          "unit": "mm2",
+          "interpretation": "exact_from_neutral_decimal_coordinates"
+        },
+        "drc_status": "passed",
+        "drc_finding_count": 0
+      },
+      "artifact_hashes": {
+        "schema_id": "pcbsmith-placement-corpus-artifact-hashes",
+        "schema_version": 1,
+        "final_layout_snapshot_sha256": "ce38c036c06e10d27f6bea9a45f72d2287025563cd368aa2ebaf2862a061a03f",
+        "rendered_board_sha256": "f38e5b37b2740898b0d9a286ae29d9f703f981a1be7d51a80e9c50d842dbd7c2",
+        "saved_board_sha256": "1291150b813c1ed5e059a082a99d258098c72a0b195767a37e7ba2d559e7e330",
+        "drc_report_sha256": "5469b3fa907523d40b9e1babde1160fcd3095fc64f99169ab52ba822e334cc7e",
+        "drc_project_policy_sha256": "96c0cc06fd4de562a2d5bcd2ac7e0a1d7792ab4e591be940225dbc162a439ff5"
+      },
+      "case_fingerprint": "ed448e9fcd4668e065f4e15774822bcc44d74246251b2bef8b63b1e84c25c7b8"
+    },
+    {
+      "schema_id": "pcbsmith-measured-shaped-placement-case",
+      "schema_version": 1,
+      "case_id": "front-routed",
+      "roundtrip_authority": {
+        "schema_id": "pcbsmith-placement-kicad-save-roundtrip",
+        "schema_version": 2,
+        "serialization_authority": {
+          "schema_id": "pcbsmith-placement-serialization-authority",
+          "schema_version": 1,
+          "authority_scope": "render_repeat_only_no_readback_or_drc",
+          "renderer_id": "pcbsmith.kicad.board.render_board_from_layout-v1",
+          "source_layout_snapshot_json": "{\"cutouts\":[],\"graphics\":[],\"height_mm\":14.0,\"hide_references\":[],\"mask_apertures\":[],\"outline\":[[0.0,2.0],[2.0,0.0],[16.0,0.0],[18.0,2.0],[18.0,12.0],[16.0,14.0],[2.0,14.0],[0.0,12.0]],\"part_flip\":[],\"part_reference_at\":[],\"part_rotation\":[[\"R3\",90.0]],\"part_y_mm\":[[\"R3\",10.0]],\"parts_row_y_mm\":6.0,\"placements\":[[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R1\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R1\",\"uuid_path\":\"sentinel/sheet/r1\",\"value\":\"R1-10k\"},5.0],[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R2\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R2\",\"uuid_path\":\"sentinel/sheet/r2\",\"value\":\"R2-10k\"},11.0],[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R3\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R3\",\"uuid_path\":\"sentinel/sheet/r3\",\"value\":\"R3-10k\"},14.0]],\"segments\":[{\"layer\":\"F.Cu\",\"net_name\":\"/LINK\",\"width_mm\":0.25,\"x1\":5.825,\"x2\":7.0,\"y1\":6.0,\"y2\":6.0},{\"layer\":\"B.Cu\",\"net_name\":\"/LINK\",\"width_mm\":0.25,\"x1\":7.0,\"x2\":9.0,\"y1\":6.0,\"y2\":6.0},{\"layer\":\"F.Cu\",\"net_name\":\"/LINK\",\"width_mm\":0.25,\"x1\":9.0,\"x2\":10.175,\"y1\":6.0,\"y2\":6.0}],\"vias\":[{\"back_mask\":\"inherit\",\"drill_mm\":0.3,\"front_mask\":\"inherit\",\"net_name\":\"/LINK\",\"size_mm\":0.7,\"x\":7.0,\"y\":6.0},{\"back_mask\":\"inherit\",\"drill_mm\":0.3,\"front_mask\":\"inherit\",\"net_name\":\"/LINK\",\"size_mm\":0.7,\"x\":9.0,\"y\":6.0}],\"width_mm\":18.0,\"zones\":[]}",
+          "source_netlist_snapshot_json": "{\"components\":[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R1\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R1\",\"uuid_path\":\"sentinel/sheet/r1\",\"value\":\"R1-10k\"},{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R2\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R2\",\"uuid_path\":\"sentinel/sheet/r2\",\"value\":\"R2-10k\"},{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R3\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R3\",\"uuid_path\":\"sentinel/sheet/r3\",\"value\":\"R3-10k\"}],\"nets\":[{\"name\":\"/LINK\",\"nodes\":[[\"R1\",\"2\"],[\"R2\",\"1\"]]}]}",
+          "final_layout_snapshot_json": "{\"cutouts\":[],\"graphics\":[],\"height_mm\":14.0,\"hide_references\":[],\"mask_apertures\":[],\"outline\":[[0.0,2.0],[2.0,0.0],[16.0,0.0],[18.0,2.0],[18.0,12.0],[16.0,14.0],[2.0,14.0],[0.0,12.0]],\"part_flip\":[],\"part_reference_at\":[],\"part_rotation\":[[\"R3\",90.0]],\"part_y_mm\":[[\"R3\",10.0]],\"parts_row_y_mm\":6.0,\"placements\":[[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R1\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R1\",\"uuid_path\":\"sentinel/sheet/r1\",\"value\":\"R1-10k\"},5.0],[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R2\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R2\",\"uuid_path\":\"sentinel/sheet/r2\",\"value\":\"R2-10k\"},11.0],[{\"fields\":[[\"Tolerance\",\"0.1%\"],[\"Manufacturer\",\"Exact-R3\"]],\"footprint\":\"Resistor_SMD:R_0603_1608Metric\",\"reference\":\"R3\",\"uuid_path\":\"sentinel/sheet/r3\",\"value\":\"R3-10k\"},14.0]],\"segments\":[{\"layer\":\"F.Cu\",\"net_name\":\"/LINK\",\"width_mm\":0.25,\"x1\":5.825,\"x2\":7.0,\"y1\":6.0,\"y2\":6.0},{\"layer\":\"B.Cu\",\"net_name\":\"/LINK\",\"width_mm\":0.25,\"x1\":7.0,\"x2\":9.0,\"y1\":6.0,\"y2\":6.0},{\"layer\":\"F.Cu\",\"net_name\":\"/LINK\",\"width_mm\":0.25,\"x1\":9.0,\"x2\":10.175,\"y1\":6.0,\"y2\":6.0}],\"vias\":[{\"back_mask\":\"inherit\",\"drill_mm\":0.3,\"front_mask\":\"inherit\",\"net_name\":\"/LINK\",\"size_mm\":0.7,\"x\":7.0,\"y\":6.0},{\"back_mask\":\"inherit\",\"drill_mm\":0.3,\"front_mask\":\"inherit\",\"net_name\":\"/LINK\",\"size_mm\":0.7,\"x\":9.0,\"y\":6.0}],\"width_mm\":18.0,\"zones\":[]}",
+          "profile": {
+            "profile_id": "pcbsmith-legacy-default-v1",
+            "geometry": {
+              "profile_id": "legacy-kicad-geometry-v1",
+              "basis": "legacy_compatibility",
+              "manufacturer_process_id": null,
+              "minimum_trace_width_mm": 0.2,
+              "default_signal_trace_width_mm": 0.3,
+              "default_power_trace_width_mm": 0.8,
+              "routing_via_diameter_mm": 0.6,
+              "routing_via_drill_mm": 0.3,
+              "power_via_diameter_mm": 0.8,
+              "power_via_drill_mm": 0.4,
+              "board_thickness_mm": 1.6,
+              "copper_layer_count": 2,
+              "outer_copper_thickness_um": 35.0,
+              "inner_copper_thickness_um": null,
+              "substrate_description": "FR-4",
+              "trace_thermal_model_id": "legacy_ipc_2221a_external_fit",
+              "trace_temperature_rise_c": 10.0,
+              "minimum_finished_hole_mm": null,
+              "minimum_annular_ring_mm": null,
+              "minimum_hole_to_hole_web_mm": null,
+              "default_pad_solder_mask_expansion_mm": null,
+              "minimum_solder_mask_web_mm": null,
+              "minimum_component_body_to_edge_mm": null,
+              "evidence": []
+            },
+            "fab_spacing": {
+              "profile_id": "legacy-kicad-spacing-v1",
+              "basis": "legacy_compatibility",
+              "manufacturer_process_id": null,
+              "minimum_copper_clearance_mm": 0.2,
+              "minimum_copper_to_edge_mm": 0.5,
+              "minimum_hole_to_copper_mm": 0.25,
+              "pairwise_clearances": [],
+              "evidence": []
+            },
+            "insulation": {
+              "profile_id": "ordinary-low-voltage-unspecified-v1",
+              "status": "not_applicable",
+              "product_standard": null,
+              "coordination_standards": [],
+              "overvoltage_category": "unknown",
+              "pollution_degree": null,
+              "material_group": null,
+              "minimum_cti_v": null,
+              "maximum_altitude_m": null,
+              "field_case": "unknown",
+              "protection_regime": "unknown",
+              "protection_qualification_rule_ids": [],
+              "barriers": [],
+              "review": {
+                "status": "needs_human_review",
+                "reviewer": null,
+                "review_record_id": null,
+                "reviewed_on": null
+              }
+            }
+          },
+          "target_net_names": [
+            "/LINK"
+          ],
+          "movable_references": [
+            "R1",
+            "R2",
+            "R3"
+          ],
+          "delta_policy": {
+            "schema_id": "pcbsmith-shaped-serialization-delta-policy",
+            "schema_version": 1,
+            "policy_id": "r5.6b-shaped-layout-delta-v1",
+            "field_rules": [
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "placements",
+                "delta_class": "declared_placement_transformable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "segments",
+                "delta_class": "declared_target_route_replaceable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "vias",
+                "delta_class": "declared_target_route_replaceable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "width_mm",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "height_mm",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "parts_row_y_mm",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "part_y_mm",
+                "delta_class": "declared_placement_transformable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "part_rotation",
+                "delta_class": "declared_placement_transformable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "zones",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "outline",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "graphics",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "part_flip",
+                "delta_class": "declared_placement_transformable"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "hide_references",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "part_reference_at",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "mask_apertures",
+                "delta_class": "immutable_preserved"
+              },
+              {
+                "schema_id": "pcbsmith-layout-field-delta-rule",
+                "schema_version": 1,
+                "field_name": "cutouts",
+                "delta_class": "immutable_preserved"
+              }
+            ]
+          },
+          "field_delta_evidence": [
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "placements",
+              "delta_class": "declared_placement_transformable",
+              "changed": false,
+              "source_value_fingerprint": "5c32f8c2981f1a7a43cf1644c5d05c3fd336cace65cab03d756b27148627d245",
+              "final_value_fingerprint": "5c32f8c2981f1a7a43cf1644c5d05c3fd336cace65cab03d756b27148627d245",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "segments",
+              "delta_class": "declared_target_route_replaceable",
+              "changed": false,
+              "source_value_fingerprint": "a7bd688e61ae398a3e1b283be9e5f13cd774545cc7a88b2e7d7db2082c06f4f6",
+              "final_value_fingerprint": "a7bd688e61ae398a3e1b283be9e5f13cd774545cc7a88b2e7d7db2082c06f4f6",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "vias",
+              "delta_class": "declared_target_route_replaceable",
+              "changed": false,
+              "source_value_fingerprint": "188e92fe317bd9d750e62838239022a7655f9bacb724721445488dc97f5ae0e4",
+              "final_value_fingerprint": "188e92fe317bd9d750e62838239022a7655f9bacb724721445488dc97f5ae0e4",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "width_mm",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "d30dbd2a98b6f7128306309b4c1066044db742a3f15b98d2978cac54a7f8c61f",
+              "final_value_fingerprint": "d30dbd2a98b6f7128306309b4c1066044db742a3f15b98d2978cac54a7f8c61f",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "height_mm",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "8bb84f2c14a5723bb568f3e1e72ba41ca2b7e14eee61114257ec443b16e28637",
+              "final_value_fingerprint": "8bb84f2c14a5723bb568f3e1e72ba41ca2b7e14eee61114257ec443b16e28637",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "parts_row_y_mm",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "2838d7b6907ed8e944a39bd27ec675cc465f05f9e10e33fea86e5ba2bded7ad3",
+              "final_value_fingerprint": "2838d7b6907ed8e944a39bd27ec675cc465f05f9e10e33fea86e5ba2bded7ad3",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "part_y_mm",
+              "delta_class": "declared_placement_transformable",
+              "changed": false,
+              "source_value_fingerprint": "052722a5c79f75062c1fe809072263b670cdb13d0e7b23af02c39240fb0c91a9",
+              "final_value_fingerprint": "052722a5c79f75062c1fe809072263b670cdb13d0e7b23af02c39240fb0c91a9",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "part_rotation",
+              "delta_class": "declared_placement_transformable",
+              "changed": false,
+              "source_value_fingerprint": "c01b63814540ede5813e76198ed890b7872bd33a04b4e42f968a3df1e29ade6b",
+              "final_value_fingerprint": "c01b63814540ede5813e76198ed890b7872bd33a04b4e42f968a3df1e29ade6b",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "zones",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "cbd60c5ffaef4694935fc7ca63632a0eff51e325dbe4784ef9dc96d1b9f97610",
+              "final_value_fingerprint": "cbd60c5ffaef4694935fc7ca63632a0eff51e325dbe4784ef9dc96d1b9f97610",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "outline",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "2489a325b94e9244969ffbbf46f14f60ecfdd1d672c8fa3c20187f1552189f0f",
+              "final_value_fingerprint": "2489a325b94e9244969ffbbf46f14f60ecfdd1d672c8fa3c20187f1552189f0f",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "graphics",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "529f31bdedb9e9a14f6e1d1e647150d7ec6bb4d0a265b36e6f443c9c1deb4c19",
+              "final_value_fingerprint": "529f31bdedb9e9a14f6e1d1e647150d7ec6bb4d0a265b36e6f443c9c1deb4c19",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "part_flip",
+              "delta_class": "declared_placement_transformable",
+              "changed": false,
+              "source_value_fingerprint": "d374efc75964479d6a6fa3ebcdb216469adab38aeb55e605bb17c91145dc855d",
+              "final_value_fingerprint": "d374efc75964479d6a6fa3ebcdb216469adab38aeb55e605bb17c91145dc855d",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "hide_references",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "86549c3884cfc72631ef34fc63d6d5a75d7eff042efa28e6890d6719e2900be6",
+              "final_value_fingerprint": "86549c3884cfc72631ef34fc63d6d5a75d7eff042efa28e6890d6719e2900be6",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "part_reference_at",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "caefef3720c0b51278a275cc2a8ff8217192ff24a25e0f58fc8b11824819e511",
+              "final_value_fingerprint": "caefef3720c0b51278a275cc2a8ff8217192ff24a25e0f58fc8b11824819e511",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "mask_apertures",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "c6fa9315c38c4437ffaf69726810e4efbb10e1337a3e83f86b9513c15da39361",
+              "final_value_fingerprint": "c6fa9315c38c4437ffaf69726810e4efbb10e1337a3e83f86b9513c15da39361",
+              "affected_references": [],
+              "affected_target_nets": []
+            },
+            {
+              "schema_id": "pcbsmith-layout-field-delta-evidence",
+              "schema_version": 1,
+              "field_name": "cutouts",
+              "delta_class": "immutable_preserved",
+              "changed": false,
+              "source_value_fingerprint": "da2bd8032378b3c5a38bc79d3a69d81560e2c8bf899c9bab5deb77b067d80f06",
+              "final_value_fingerprint": "da2bd8032378b3c5a38bc79d3a69d81560e2c8bf899c9bab5deb77b067d80f06",
+              "affected_references": [],
+              "affected_target_nets": []
+            }
+          ],
+          "component_identity_evidence": [
+            {
+              "schema_id": "pcbsmith-component-serialization-identity-evidence",
+              "schema_version": 1,
+              "reference": "R1",
+              "component_fingerprint": "74d1cde2ed814073c3ff1a6cd1a08797a4514fd18a60d0d28a1597a653133c28"
+            },
+            {
+              "schema_id": "pcbsmith-component-serialization-identity-evidence",
+              "schema_version": 1,
+              "reference": "R2",
+              "component_fingerprint": "975e36b218ff3f0b8d70ef9faff220aba4c9052db3df4cd5bd7abee98ffb2415"
+            },
+            {
+              "schema_id": "pcbsmith-component-serialization-identity-evidence",
+              "schema_version": 1,
+              "reference": "R3",
+              "component_fingerprint": "be64012c6034028a903dac1b6b18a3b9b44613a2972c7fad256506be6530a6db"
+            }
+          ],
+          "rendered_board_text": "(kicad_pcb\n  (version 20241229)\n  (generator \"PCBSmith\")\n\n  (general\n    (thickness 1.6)\n  )\n\n  (paper \"A4\")\n\n  (layers\n    (0 \"F.Cu\" signal)\n    (31 \"B.Cu\" signal)\n    (32 \"B.Adhes\" user)\n    (33 \"F.Adhes\" user)\n    (34 \"B.Paste\" user)\n    (35 \"F.Paste\" user)\n    (36 \"B.SilkS\" user)\n    (37 \"F.SilkS\" user)\n    (38 \"B.Mask\" user)\n    (39 \"F.Mask\" user)\n    (44 \"Edge.Cuts\" user)\n  )\n  (footprint \"Resistor_SMD:R_0603_1608Metric\"\n    (uuid \"97a2a7ad-8372-5585-be7c-540b7abc6732\")\n    (at 25 26)\n    (layer \"F.Cu\")\n    (descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n    (tags \"resistor\")\n    (property \"Reference\" \"R1\"\n      (at 0 -1.43 0)\n      (layer \"F.SilkS\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"f9797947-83bd-5eb7-b4eb-0cd1af564c6f\")\n    )\n    (property \"Value\" \"R1-10k\"\n      (at 0 1.43 0)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"ca133477-1935-54da-9caa-2cbfd6054def\")\n    )\n    (property \"Datasheet\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"b0d74267-2968-53bf-9285-f9a6a92b229d\")\n    )\n    (property \"Description\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"00304a80-f361-55a8-98fb-a4f367cd88d2\")\n    )\n    (property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n      (at 0 0 0)\n      (layer \"F.SilkS\")\n      (hide yes)\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"e29881b2-4114-52b0-a194-e3ee9261526c\")\n    )\n    (attr smd)\n    (duplicate_pad_numbers_are_jumpers no)\n    (fp_line\n      (start -0.237258 -0.5225)\n      (end 0.237258 -0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"3aeafba2-f695-5aeb-8608-eac9c95d1ce3\")\n    )\n    (fp_line\n      (start -0.237258 0.5225)\n      (end 0.237258 0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"3c047e2b-ef68-539c-bbca-51a882ca4142\")\n    )\n    (fp_rect\n      (start -1.48 -0.73)\n      (end 1.48 0.73)\n      (stroke\n        (width 0.05)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.CrtYd\")\n      (uuid \"e51ecf68-d502-5127-8506-fedfdd228cd9\")\n    )\n    (fp_rect\n      (start -0.8 -0.4125)\n      (end 0.8 0.4125)\n      (stroke\n        (width 0.1)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.Fab\")\n      (uuid \"750bc430-665b-56fb-9f90-ec9c6999d768\")\n    )\n    (fp_text user \"${REFERENCE}\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 0.4 0.4)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"3391731b-65f4-51c5-a78f-5e27d6885a03\")\n    )\n    (pad \"1\" smd roundrect\n      (at -0.825 0)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"4d3ec9ef-3d44-5f05-9db5-0e27561a98c8\")\n    )\n    (pad \"2\" smd roundrect\n      (at 0.825 0)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (net \"/LINK\")\n      (uuid \"aec06821-8a06-5a52-b072-6fbde686a1c3\")\n    )\n    (model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n      (offset\n        (xyz 0 0 0)\n      )\n      (scale\n        (xyz 1 1 1)\n      )\n      (rotate\n        (xyz 0 0 0)\n      )\n    )\n    (property \"Tolerance\" \"0.1%\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"7dc47372-5108-5b5c-860e-efa950d939bf\")\n    )\n    (property \"Manufacturer\" \"Exact-R1\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"279a50d9-4b24-5010-9048-acf6a0f10ee5\")\n    )\n    (path \"/f620cdc4-e001-529e-b102-3216d433a44f/1db9fff4-3246-5c91-878b-af4324a9c679/5f014983-e15f-547d-ac09-3fc2c4a3978a\")\n  )\n  (footprint \"Resistor_SMD:R_0603_1608Metric\"\n    (uuid \"c9a051ff-90fa-589a-b150-21bc153aefc3\")\n    (at 31 26)\n    (layer \"F.Cu\")\n    (descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n    (tags \"resistor\")\n    (property \"Reference\" \"R2\"\n      (at 0 -1.43 0)\n      (layer \"F.SilkS\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"6a8d5409-3ac3-5deb-bf4c-800118eea11d\")\n    )\n    (property \"Value\" \"R2-10k\"\n      (at 0 1.43 0)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"744c1ea9-d857-5e8a-bdbd-4349f7a73b04\")\n    )\n    (property \"Datasheet\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"a08cb2c8-fc17-5c38-ac0c-59553bb96a5a\")\n    )\n    (property \"Description\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"e27b7715-d7de-5b72-8ac2-19a1a9684c49\")\n    )\n    (property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n      (at 0 0 0)\n      (layer \"F.SilkS\")\n      (hide yes)\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"21ac7b3b-9dea-5a94-b51b-859bfc0ad82b\")\n    )\n    (attr smd)\n    (duplicate_pad_numbers_are_jumpers no)\n    (fp_line\n      (start -0.237258 -0.5225)\n      (end 0.237258 -0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"d6b919c3-19bf-5b2a-ae93-12280ae0857c\")\n    )\n    (fp_line\n      (start -0.237258 0.5225)\n      (end 0.237258 0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"8f80d95b-e143-5b33-b623-69285896add8\")\n    )\n    (fp_rect\n      (start -1.48 -0.73)\n      (end 1.48 0.73)\n      (stroke\n        (width 0.05)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.CrtYd\")\n      (uuid \"9d838bef-6dcb-505d-9e4e-3b835f2f67ea\")\n    )\n    (fp_rect\n      (start -0.8 -0.4125)\n      (end 0.8 0.4125)\n      (stroke\n        (width 0.1)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.Fab\")\n      (uuid \"e4707424-a5fb-54c9-b87e-a1d97a61269c\")\n    )\n    (fp_text user \"${REFERENCE}\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 0.4 0.4)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"bddde133-22e1-576b-8816-9a28b0b16b63\")\n    )\n    (pad \"1\" smd roundrect\n      (at -0.825 0)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (net \"/LINK\")\n      (uuid \"6f68711e-6da8-5dbc-9014-99692c4f430f\")\n    )\n    (pad \"2\" smd roundrect\n      (at 0.825 0)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"4d7d9170-d689-579c-8108-8bb2dbc50f2d\")\n    )\n    (model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n      (offset\n        (xyz 0 0 0)\n      )\n      (scale\n        (xyz 1 1 1)\n      )\n      (rotate\n        (xyz 0 0 0)\n      )\n    )\n    (property \"Tolerance\" \"0.1%\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"f1ee1144-23dc-5ba6-82a7-48ae632d3ac5\")\n    )\n    (property \"Manufacturer\" \"Exact-R2\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"0bf7c703-b9e9-590e-b1fc-d85b50f66f77\")\n    )\n    (path \"/9eee1142-6b54-5ace-b8e1-b5ce3e374605/c7dddddb-b7ce-5afe-841b-2e29f774da43/b8a8cbae-c5b3-5fa1-8414-2fbc127fc84c\")\n  )\n  (footprint \"Resistor_SMD:R_0603_1608Metric\"\n    (uuid \"a1f39d27-bfe5-54ef-adfc-336f038185a3\")\n    (at 34 30 90)\n    (layer \"F.Cu\")\n    (descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n    (tags \"resistor\")\n    (property \"Reference\" \"R3\"\n      (at 0 -1.43 90)\n      (layer \"F.SilkS\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"b23a3dd4-cf41-5b28-b742-d6e161f41bd9\")\n    )\n    (property \"Value\" \"R3-10k\"\n      (at 0 1.43 90)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"760f71eb-b02b-52a3-8a2f-21fd0fcf775d\")\n    )\n    (property \"Datasheet\" \"\"\n      (at 0 0 90)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"a53614b6-5bf8-54ab-8925-8ddce85b1796\")\n    )\n    (property \"Description\" \"\"\n      (at 0 0 90)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"57fdaf6c-82fd-54de-b90b-13f5517852ed\")\n    )\n    (property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n      (at 0 0 90)\n      (layer \"F.SilkS\")\n      (hide yes)\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"f9c76f90-1f6b-5117-82e5-548112e48c76\")\n    )\n    (attr smd)\n    (duplicate_pad_numbers_are_jumpers no)\n    (fp_line\n      (start -0.237258 -0.5225)\n      (end 0.237258 -0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"9f953e3a-a7d8-5b8e-a3f1-5306f0cc9be3\")\n    )\n    (fp_line\n      (start -0.237258 0.5225)\n      (end 0.237258 0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"da2d1819-046f-520e-9ef0-d282bfd7b1f5\")\n    )\n    (fp_rect\n      (start -1.48 -0.73)\n      (end 1.48 0.73)\n      (stroke\n        (width 0.05)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.CrtYd\")\n      (uuid \"11ff43d8-496d-57be-b20c-65f349fac451\")\n    )\n    (fp_rect\n      (start -0.8 -0.4125)\n      (end 0.8 0.4125)\n      (stroke\n        (width 0.1)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.Fab\")\n      (uuid \"bc80d58b-b1f4-5464-8899-0bbe5db6558a\")\n    )\n    (fp_text user \"${REFERENCE}\"\n      (at 0 0 90)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 0.4 0.4)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"3f01ef14-3eef-5de6-9b7f-3ab455a13e6d\")\n    )\n    (pad \"1\" smd roundrect\n      (at -0.825 0 90)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"f7bc7d22-7952-5e9d-a5b3-cc248467f55d\")\n    )\n    (pad \"2\" smd roundrect\n      (at 0.825 0 90)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"0b05c600-d1bd-5f46-8781-064847d8b2e3\")\n    )\n    (model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n      (offset\n        (xyz 0 0 0)\n      )\n      (scale\n        (xyz 1 1 1)\n      )\n      (rotate\n        (xyz 0 0 0)\n      )\n    )\n    (property \"Tolerance\" \"0.1%\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"1640d60d-8222-53e1-8837-da761330ec4a\")\n    )\n    (property \"Manufacturer\" \"Exact-R3\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"eb417bd0-2e2d-568f-8f54-9c4e7e58103d\")\n    )\n    (path \"/22cd52e8-1e2c-5ff2-9be2-00813aad27f3/b6561a41-153c-5199-b0ee-07cb46096d5f/9e325ff7-28e9-594d-97c3-9ea889990e2b\")\n  )\n  (segment (start 25.825 26) (end 27 26) (width 0.25) (layer \"F.Cu\") (net \"/LINK\") (uuid 0c6a129b-0bdf-522e-bc10-122cc077c612))\n  (segment (start 27 26) (end 29 26) (width 0.25) (layer \"B.Cu\") (net \"/LINK\") (uuid c5064849-397f-51df-9910-3028be2db390))\n  (segment (start 29 26) (end 30.175 26) (width 0.25) (layer \"F.Cu\") (net \"/LINK\") (uuid f4a26c46-b62c-5a33-baf3-4a7975291554))\n  (via (at 27 26) (size 0.7) (drill 0.3) (layers \"F.Cu\" \"B.Cu\") (tenting (front none) (back none)) (net \"/LINK\") (uuid c896c4d9-d868-5614-8432-edebb280773d))\n  (via (at 29 26) (size 0.7) (drill 0.3) (layers \"F.Cu\" \"B.Cu\") (tenting (front none) (back none)) (net \"/LINK\") (uuid 7fe26812-1e80-50e9-b354-77a23614c5cb))\n  (gr_poly\n    (pts\n          (xy 20 22)\n          (xy 22 20)\n          (xy 36 20)\n          (xy 38 22)\n          (xy 38 32)\n          (xy 36 34)\n          (xy 22 34)\n          (xy 20 32)\n    )\n    (stroke (width 0.1) (type default))\n    (fill none)\n    (layer \"Edge.Cuts\")\n    (uuid 5ffc18f8-70d4-5f63-99d6-efe3918c329d)\n  )\n)\n",
+          "rendered_board_sha256": "952b408bca15ac98248718d150fcb61b6f62884f2be260a10cc3a7f544916bdf",
+          "source_layout_fingerprint": "391a9cb6a0ca058a28bf6c66346dc529db6f157105d0b4a8fe37b54eae72c2a2",
+          "source_netlist_fingerprint": "d2036ff8053d76ea2fa9cd11800d2ebc0711050be3418a0796b078189fb9ff8c",
+          "final_layout_fingerprint": "391a9cb6a0ca058a28bf6c66346dc529db6f157105d0b4a8fe37b54eae72c2a2",
+          "profile_fingerprint": "8ea1f3643fbc3eaf7e02e7bc0d7fe0dcd3223ed666914f5c79de00ea90b50bfe",
+          "policy_fingerprint": "13ad5d4c558281f0a3af5d81adf35f9301b0f9c2179faf06117ae202a73e121d",
+          "input_fingerprint": "ab8032c62fa6fb26e68072f65552464ea9fedbd12053b3b8881f517b25a64b02",
+          "result_fingerprint": "3f897015d7d0873854dbea1b52fc65213b24237653101ed5b74986103537850c"
+        },
+        "kicad_cli_version": "10.0.3",
+        "initial_board_text": "(kicad_pcb\n  (version 20241229)\n  (generator \"PCBSmith\")\n\n  (general\n    (thickness 1.6)\n  )\n\n  (paper \"A4\")\n\n  (layers\n    (0 \"F.Cu\" signal)\n    (31 \"B.Cu\" signal)\n    (32 \"B.Adhes\" user)\n    (33 \"F.Adhes\" user)\n    (34 \"B.Paste\" user)\n    (35 \"F.Paste\" user)\n    (36 \"B.SilkS\" user)\n    (37 \"F.SilkS\" user)\n    (38 \"B.Mask\" user)\n    (39 \"F.Mask\" user)\n    (44 \"Edge.Cuts\" user)\n  )\n  (footprint \"Resistor_SMD:R_0603_1608Metric\"\n    (uuid \"97a2a7ad-8372-5585-be7c-540b7abc6732\")\n    (at 25 26)\n    (layer \"F.Cu\")\n    (descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n    (tags \"resistor\")\n    (property \"Reference\" \"R1\"\n      (at 0 -1.43 0)\n      (layer \"F.SilkS\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"f9797947-83bd-5eb7-b4eb-0cd1af564c6f\")\n    )\n    (property \"Value\" \"R1-10k\"\n      (at 0 1.43 0)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"ca133477-1935-54da-9caa-2cbfd6054def\")\n    )\n    (property \"Datasheet\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"b0d74267-2968-53bf-9285-f9a6a92b229d\")\n    )\n    (property \"Description\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"00304a80-f361-55a8-98fb-a4f367cd88d2\")\n    )\n    (property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n      (at 0 0 0)\n      (layer \"F.SilkS\")\n      (hide yes)\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"e29881b2-4114-52b0-a194-e3ee9261526c\")\n    )\n    (attr smd)\n    (duplicate_pad_numbers_are_jumpers no)\n    (fp_line\n      (start -0.237258 -0.5225)\n      (end 0.237258 -0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"3aeafba2-f695-5aeb-8608-eac9c95d1ce3\")\n    )\n    (fp_line\n      (start -0.237258 0.5225)\n      (end 0.237258 0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"3c047e2b-ef68-539c-bbca-51a882ca4142\")\n    )\n    (fp_rect\n      (start -1.48 -0.73)\n      (end 1.48 0.73)\n      (stroke\n        (width 0.05)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.CrtYd\")\n      (uuid \"e51ecf68-d502-5127-8506-fedfdd228cd9\")\n    )\n    (fp_rect\n      (start -0.8 -0.4125)\n      (end 0.8 0.4125)\n      (stroke\n        (width 0.1)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.Fab\")\n      (uuid \"750bc430-665b-56fb-9f90-ec9c6999d768\")\n    )\n    (fp_text user \"${REFERENCE}\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 0.4 0.4)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"3391731b-65f4-51c5-a78f-5e27d6885a03\")\n    )\n    (pad \"1\" smd roundrect\n      (at -0.825 0)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"4d3ec9ef-3d44-5f05-9db5-0e27561a98c8\")\n    )\n    (pad \"2\" smd roundrect\n      (at 0.825 0)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (net \"/LINK\")\n      (uuid \"aec06821-8a06-5a52-b072-6fbde686a1c3\")\n    )\n    (model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n      (offset\n        (xyz 0 0 0)\n      )\n      (scale\n        (xyz 1 1 1)\n      )\n      (rotate\n        (xyz 0 0 0)\n      )\n    )\n    (property \"Tolerance\" \"0.1%\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"7dc47372-5108-5b5c-860e-efa950d939bf\")\n    )\n    (property \"Manufacturer\" \"Exact-R1\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"279a50d9-4b24-5010-9048-acf6a0f10ee5\")\n    )\n    (path \"/f620cdc4-e001-529e-b102-3216d433a44f/1db9fff4-3246-5c91-878b-af4324a9c679/5f014983-e15f-547d-ac09-3fc2c4a3978a\")\n  )\n  (footprint \"Resistor_SMD:R_0603_1608Metric\"\n    (uuid \"c9a051ff-90fa-589a-b150-21bc153aefc3\")\n    (at 31 26)\n    (layer \"F.Cu\")\n    (descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n    (tags \"resistor\")\n    (property \"Reference\" \"R2\"\n      (at 0 -1.43 0)\n      (layer \"F.SilkS\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"6a8d5409-3ac3-5deb-bf4c-800118eea11d\")\n    )\n    (property \"Value\" \"R2-10k\"\n      (at 0 1.43 0)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"744c1ea9-d857-5e8a-bdbd-4349f7a73b04\")\n    )\n    (property \"Datasheet\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"a08cb2c8-fc17-5c38-ac0c-59553bb96a5a\")\n    )\n    (property \"Description\" \"\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"e27b7715-d7de-5b72-8ac2-19a1a9684c49\")\n    )\n    (property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n      (at 0 0 0)\n      (layer \"F.SilkS\")\n      (hide yes)\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"21ac7b3b-9dea-5a94-b51b-859bfc0ad82b\")\n    )\n    (attr smd)\n    (duplicate_pad_numbers_are_jumpers no)\n    (fp_line\n      (start -0.237258 -0.5225)\n      (end 0.237258 -0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"d6b919c3-19bf-5b2a-ae93-12280ae0857c\")\n    )\n    (fp_line\n      (start -0.237258 0.5225)\n      (end 0.237258 0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"8f80d95b-e143-5b33-b623-69285896add8\")\n    )\n    (fp_rect\n      (start -1.48 -0.73)\n      (end 1.48 0.73)\n      (stroke\n        (width 0.05)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.CrtYd\")\n      (uuid \"9d838bef-6dcb-505d-9e4e-3b835f2f67ea\")\n    )\n    (fp_rect\n      (start -0.8 -0.4125)\n      (end 0.8 0.4125)\n      (stroke\n        (width 0.1)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.Fab\")\n      (uuid \"e4707424-a5fb-54c9-b87e-a1d97a61269c\")\n    )\n    (fp_text user \"${REFERENCE}\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 0.4 0.4)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"bddde133-22e1-576b-8816-9a28b0b16b63\")\n    )\n    (pad \"1\" smd roundrect\n      (at -0.825 0)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (net \"/LINK\")\n      (uuid \"6f68711e-6da8-5dbc-9014-99692c4f430f\")\n    )\n    (pad \"2\" smd roundrect\n      (at 0.825 0)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"4d7d9170-d689-579c-8108-8bb2dbc50f2d\")\n    )\n    (model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n      (offset\n        (xyz 0 0 0)\n      )\n      (scale\n        (xyz 1 1 1)\n      )\n      (rotate\n        (xyz 0 0 0)\n      )\n    )\n    (property \"Tolerance\" \"0.1%\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"f1ee1144-23dc-5ba6-82a7-48ae632d3ac5\")\n    )\n    (property \"Manufacturer\" \"Exact-R2\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"0bf7c703-b9e9-590e-b1fc-d85b50f66f77\")\n    )\n    (path \"/9eee1142-6b54-5ace-b8e1-b5ce3e374605/c7dddddb-b7ce-5afe-841b-2e29f774da43/b8a8cbae-c5b3-5fa1-8414-2fbc127fc84c\")\n  )\n  (footprint \"Resistor_SMD:R_0603_1608Metric\"\n    (uuid \"a1f39d27-bfe5-54ef-adfc-336f038185a3\")\n    (at 34 30 90)\n    (layer \"F.Cu\")\n    (descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n    (tags \"resistor\")\n    (property \"Reference\" \"R3\"\n      (at 0 -1.43 90)\n      (layer \"F.SilkS\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"b23a3dd4-cf41-5b28-b742-d6e161f41bd9\")\n    )\n    (property \"Value\" \"R3-10k\"\n      (at 0 1.43 90)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"760f71eb-b02b-52a3-8a2f-21fd0fcf775d\")\n    )\n    (property \"Datasheet\" \"\"\n      (at 0 0 90)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"a53614b6-5bf8-54ab-8925-8ddce85b1796\")\n    )\n    (property \"Description\" \"\"\n      (at 0 0 90)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 1.27 1.27)\n        )\n      )\n      (uuid \"57fdaf6c-82fd-54de-b90b-13f5517852ed\")\n    )\n    (property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n      (at 0 0 90)\n      (layer \"F.SilkS\")\n      (hide yes)\n      (effects\n        (font\n          (size 1 1)\n          (thickness 0.15)\n        )\n      )\n      (uuid \"f9c76f90-1f6b-5117-82e5-548112e48c76\")\n    )\n    (attr smd)\n    (duplicate_pad_numbers_are_jumpers no)\n    (fp_line\n      (start -0.237258 -0.5225)\n      (end 0.237258 -0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"9f953e3a-a7d8-5b8e-a3f1-5306f0cc9be3\")\n    )\n    (fp_line\n      (start -0.237258 0.5225)\n      (end 0.237258 0.5225)\n      (stroke\n        (width 0.12)\n        (type solid)\n      )\n      (layer \"F.SilkS\")\n      (uuid \"da2d1819-046f-520e-9ef0-d282bfd7b1f5\")\n    )\n    (fp_rect\n      (start -1.48 -0.73)\n      (end 1.48 0.73)\n      (stroke\n        (width 0.05)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.CrtYd\")\n      (uuid \"11ff43d8-496d-57be-b20c-65f349fac451\")\n    )\n    (fp_rect\n      (start -0.8 -0.4125)\n      (end 0.8 0.4125)\n      (stroke\n        (width 0.1)\n        (type solid)\n      )\n      (fill no)\n      (layer \"F.Fab\")\n      (uuid \"bc80d58b-b1f4-5464-8899-0bbe5db6558a\")\n    )\n    (fp_text user \"${REFERENCE}\"\n      (at 0 0 90)\n      (layer \"F.Fab\")\n      (effects\n        (font\n          (size 0.4 0.4)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"3f01ef14-3eef-5de6-9b7f-3ab455a13e6d\")\n    )\n    (pad \"1\" smd roundrect\n      (at -0.825 0 90)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"f7bc7d22-7952-5e9d-a5b3-cc248467f55d\")\n    )\n    (pad \"2\" smd roundrect\n      (at 0.825 0 90)\n      (size 0.8 0.95)\n      (layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n      (roundrect_rratio 0.25)\n      (uuid \"0b05c600-d1bd-5f46-8781-064847d8b2e3\")\n    )\n    (model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n      (offset\n        (xyz 0 0 0)\n      )\n      (scale\n        (xyz 1 1 1)\n      )\n      (rotate\n        (xyz 0 0 0)\n      )\n    )\n    (property \"Tolerance\" \"0.1%\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"1640d60d-8222-53e1-8837-da761330ec4a\")\n    )\n    (property \"Manufacturer\" \"Exact-R3\"\n      (at 0 0 0)\n      (layer \"F.Fab\")\n      (hide yes)\n      (effects\n        (font\n          (size 0.5 0.5)\n          (thickness 0.06)\n        )\n      )\n      (uuid \"eb417bd0-2e2d-568f-8f54-9c4e7e58103d\")\n    )\n    (path \"/22cd52e8-1e2c-5ff2-9be2-00813aad27f3/b6561a41-153c-5199-b0ee-07cb46096d5f/9e325ff7-28e9-594d-97c3-9ea889990e2b\")\n  )\n  (segment (start 25.825 26) (end 27 26) (width 0.25) (layer \"F.Cu\") (net \"/LINK\") (uuid 0c6a129b-0bdf-522e-bc10-122cc077c612))\n  (segment (start 27 26) (end 29 26) (width 0.25) (layer \"B.Cu\") (net \"/LINK\") (uuid c5064849-397f-51df-9910-3028be2db390))\n  (segment (start 29 26) (end 30.175 26) (width 0.25) (layer \"F.Cu\") (net \"/LINK\") (uuid f4a26c46-b62c-5a33-baf3-4a7975291554))\n  (via (at 27 26) (size 0.7) (drill 0.3) (layers \"F.Cu\" \"B.Cu\") (tenting (front none) (back none)) (net \"/LINK\") (uuid c896c4d9-d868-5614-8432-edebb280773d))\n  (via (at 29 26) (size 0.7) (drill 0.3) (layers \"F.Cu\" \"B.Cu\") (tenting (front none) (back none)) (net \"/LINK\") (uuid 7fe26812-1e80-50e9-b354-77a23614c5cb))\n  (gr_poly\n    (pts\n          (xy 20 22)\n          (xy 22 20)\n          (xy 36 20)\n          (xy 38 22)\n          (xy 38 32)\n          (xy 36 34)\n          (xy 22 34)\n          (xy 20 32)\n    )\n    (stroke (width 0.1) (type default))\n    (fill none)\n    (layer \"Edge.Cuts\")\n    (uuid 5ffc18f8-70d4-5f63-99d6-efe3918c329d)\n  )\n)\n",
+        "saved_board_text": "(kicad_pcb\n\t(version 20260206)\n\t(generator \"pcbnew\")\n\t(generator_version \"10.0\")\n\t(general\n\t\t(thickness 1.6)\n\t\t(legacy_teardrops no)\n\t)\n\t(paper \"A4\")\n\t(layers\n\t\t(0 \"F.Cu\" signal)\n\t\t(2 \"B.Cu\" signal)\n\t\t(9 \"F.Adhes\" user \"F.Adhesive\")\n\t\t(11 \"B.Adhes\" user \"B.Adhesive\")\n\t\t(13 \"F.Paste\" user)\n\t\t(15 \"B.Paste\" user)\n\t\t(5 \"F.SilkS\" user \"F.Silkscreen\")\n\t\t(7 \"B.SilkS\" user \"B.Silkscreen\")\n\t\t(1 \"F.Mask\" user)\n\t\t(3 \"B.Mask\" user)\n\t\t(25 \"Edge.Cuts\" user)\n\t\t(27 \"Margin\" user)\n\t\t(31 \"F.CrtYd\" user \"F.Courtyard\")\n\t\t(29 \"B.CrtYd\" user \"B.Courtyard\")\n\t)\n\t(setup\n\t\t(pad_to_mask_clearance 0)\n\t\t(allow_soldermask_bridges_in_footprints no)\n\t\t(tenting\n\t\t\t(front yes)\n\t\t\t(back yes)\n\t\t)\n\t\t(covering\n\t\t\t(front no)\n\t\t\t(back no)\n\t\t)\n\t\t(plugging\n\t\t\t(front no)\n\t\t\t(back no)\n\t\t)\n\t\t(capping no)\n\t\t(filling no)\n\t\t(pcbplotparams\n\t\t\t(layerselection 0x00000000_00000000_55555555_5755f5ff)\n\t\t\t(plot_on_all_layers_selection 0x00000000_00000000_00000000_00000000)\n\t\t\t(disableapertmacros no)\n\t\t\t(usegerberextensions no)\n\t\t\t(usegerberattributes yes)\n\t\t\t(usegerberadvancedattributes yes)\n\t\t\t(creategerberjobfile yes)\n\t\t\t(dashed_line_dash_ratio 12)\n\t\t\t(dashed_line_gap_ratio 3)\n\t\t\t(svgprecision 4)\n\t\t\t(plotframeref no)\n\t\t\t(mode 1)\n\t\t\t(useauxorigin no)\n\t\t\t(pdf_front_fp_property_popups yes)\n\t\t\t(pdf_back_fp_property_popups yes)\n\t\t\t(pdf_metadata yes)\n\t\t\t(pdf_single_document no)\n\t\t\t(dxfpolygonmode yes)\n\t\t\t(dxfimperialunits yes)\n\t\t\t(dxfusepcbnewfont yes)\n\t\t\t(psnegative no)\n\t\t\t(psa4output no)\n\t\t\t(plot_black_and_white yes)\n\t\t\t(sketchpadsonfab no)\n\t\t\t(plotpadnumbers no)\n\t\t\t(hidednponfab no)\n\t\t\t(sketchdnponfab yes)\n\t\t\t(crossoutdnponfab yes)\n\t\t\t(subtractmaskfromsilk no)\n\t\t\t(outputformat 1)\n\t\t\t(mirror no)\n\t\t\t(drillshape 1)\n\t\t\t(scaleselection 1)\n\t\t\t(outputdirectory \"\")\n\t\t)\n\t)\n\t(footprint \"Resistor_SMD:R_0603_1608Metric\"\n\t\t(layer \"F.Cu\")\n\t\t(uuid \"97a2a7ad-8372-5585-be7c-540b7abc6732\")\n\t\t(at 25 26)\n\t\t(descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n\t\t(tags \"resistor\")\n\t\t(property \"Reference\" \"R1\"\n\t\t\t(at 0 -1.43 0)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"f9797947-83bd-5eb7-b4eb-0cd1af564c6f\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Value\" \"R1-10k\"\n\t\t\t(at 0 1.43 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"ca133477-1935-54da-9caa-2cbfd6054def\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Datasheet\" \"\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"b0d74267-2968-53bf-9285-f9a6a92b229d\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Description\" \"\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"00304a80-f361-55a8-98fb-a4f367cd88d2\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"e29881b2-4114-52b0-a194-e3ee9261526c\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Tolerance\" \"0.1%\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"7dc47372-5108-5b5c-860e-efa950d939bf\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.5 0.5)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Manufacturer\" \"Exact-R1\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"279a50d9-4b24-5010-9048-acf6a0f10ee5\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.5 0.5)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(path \"/f620cdc4-e001-529e-b102-3216d433a44f/1db9fff4-3246-5c91-878b-af4324a9c679/5f014983-e15f-547d-ac09-3fc2c4a3978a\")\n\t\t(attr smd)\n\t\t(duplicate_pad_numbers_are_jumpers no)\n\t\t(fp_line\n\t\t\t(start -0.237258 -0.5225)\n\t\t\t(end 0.237258 -0.5225)\n\t\t\t(stroke\n\t\t\t\t(width 0.12)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"3aeafba2-f695-5aeb-8608-eac9c95d1ce3\")\n\t\t)\n\t\t(fp_line\n\t\t\t(start -0.237258 0.5225)\n\t\t\t(end 0.237258 0.5225)\n\t\t\t(stroke\n\t\t\t\t(width 0.12)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"3c047e2b-ef68-539c-bbca-51a882ca4142\")\n\t\t)\n\t\t(fp_rect\n\t\t\t(start -1.48 -0.73)\n\t\t\t(end 1.48 0.73)\n\t\t\t(stroke\n\t\t\t\t(width 0.05)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(fill no)\n\t\t\t(layer \"F.CrtYd\")\n\t\t\t(uuid \"e51ecf68-d502-5127-8506-fedfdd228cd9\")\n\t\t)\n\t\t(fp_rect\n\t\t\t(start -0.8 -0.4125)\n\t\t\t(end 0.8 0.4125)\n\t\t\t(stroke\n\t\t\t\t(width 0.1)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(fill no)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"750bc430-665b-56fb-9f90-ec9c6999d768\")\n\t\t)\n\t\t(fp_text user \"${REFERENCE}\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"3391731b-65f4-51c5-a78f-5e27d6885a03\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.4 0.4)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(pad \"1\" smd roundrect\n\t\t\t(at -0.825 0)\n\t\t\t(size 0.8 0.95)\n\t\t\t(layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n\t\t\t(roundrect_rratio 0.25)\n\t\t\t(uuid \"4d3ec9ef-3d44-5f05-9db5-0e27561a98c8\")\n\t\t)\n\t\t(pad \"2\" smd roundrect\n\t\t\t(at 0.825 0)\n\t\t\t(size 0.8 0.95)\n\t\t\t(layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n\t\t\t(roundrect_rratio 0.25)\n\t\t\t(net \"/LINK\")\n\t\t\t(uuid \"aec06821-8a06-5a52-b072-6fbde686a1c3\")\n\t\t)\n\t\t(embedded_fonts no)\n\t\t(model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n\t\t\t(offset\n\t\t\t\t(xyz 0 0 0)\n\t\t\t)\n\t\t\t(scale\n\t\t\t\t(xyz 1 1 1)\n\t\t\t)\n\t\t\t(rotate\n\t\t\t\t(xyz 0 0 0)\n\t\t\t)\n\t\t)\n\t)\n\t(footprint \"Resistor_SMD:R_0603_1608Metric\"\n\t\t(layer \"F.Cu\")\n\t\t(uuid \"a1f39d27-bfe5-54ef-adfc-336f038185a3\")\n\t\t(at 34 30 90)\n\t\t(descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n\t\t(tags \"resistor\")\n\t\t(property \"Reference\" \"R3\"\n\t\t\t(at 0 -1.43 90)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"b23a3dd4-cf41-5b28-b742-d6e161f41bd9\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Value\" \"R3-10k\"\n\t\t\t(at 0 1.43 90)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"760f71eb-b02b-52a3-8a2f-21fd0fcf775d\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Datasheet\" \"\"\n\t\t\t(at 0 0 90)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"a53614b6-5bf8-54ab-8925-8ddce85b1796\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Description\" \"\"\n\t\t\t(at 0 0 90)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"57fdaf6c-82fd-54de-b90b-13f5517852ed\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n\t\t\t(at 0 0 90)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"f9c76f90-1f6b-5117-82e5-548112e48c76\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Tolerance\" \"0.1%\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"1640d60d-8222-53e1-8837-da761330ec4a\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.5 0.5)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Manufacturer\" \"Exact-R3\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"eb417bd0-2e2d-568f-8f54-9c4e7e58103d\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.5 0.5)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(path \"/22cd52e8-1e2c-5ff2-9be2-00813aad27f3/b6561a41-153c-5199-b0ee-07cb46096d5f/9e325ff7-28e9-594d-97c3-9ea889990e2b\")\n\t\t(attr smd)\n\t\t(duplicate_pad_numbers_are_jumpers no)\n\t\t(fp_line\n\t\t\t(start -0.237258 -0.5225)\n\t\t\t(end 0.237258 -0.5225)\n\t\t\t(stroke\n\t\t\t\t(width 0.12)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"9f953e3a-a7d8-5b8e-a3f1-5306f0cc9be3\")\n\t\t)\n\t\t(fp_line\n\t\t\t(start -0.237258 0.5225)\n\t\t\t(end 0.237258 0.5225)\n\t\t\t(stroke\n\t\t\t\t(width 0.12)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"da2d1819-046f-520e-9ef0-d282bfd7b1f5\")\n\t\t)\n\t\t(fp_rect\n\t\t\t(start -1.48 -0.73)\n\t\t\t(end 1.48 0.73)\n\t\t\t(stroke\n\t\t\t\t(width 0.05)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(fill no)\n\t\t\t(layer \"F.CrtYd\")\n\t\t\t(uuid \"11ff43d8-496d-57be-b20c-65f349fac451\")\n\t\t)\n\t\t(fp_rect\n\t\t\t(start -0.8 -0.4125)\n\t\t\t(end 0.8 0.4125)\n\t\t\t(stroke\n\t\t\t\t(width 0.1)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(fill no)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"bc80d58b-b1f4-5464-8899-0bbe5db6558a\")\n\t\t)\n\t\t(fp_text user \"${REFERENCE}\"\n\t\t\t(at 0 0 90)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"3f01ef14-3eef-5de6-9b7f-3ab455a13e6d\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.4 0.4)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(pad \"1\" smd roundrect\n\t\t\t(at -0.825 0 90)\n\t\t\t(size 0.8 0.95)\n\t\t\t(layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n\t\t\t(roundrect_rratio 0.25)\n\t\t\t(uuid \"f7bc7d22-7952-5e9d-a5b3-cc248467f55d\")\n\t\t)\n\t\t(pad \"2\" smd roundrect\n\t\t\t(at 0.825 0 90)\n\t\t\t(size 0.8 0.95)\n\t\t\t(layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n\t\t\t(roundrect_rratio 0.25)\n\t\t\t(uuid \"0b05c600-d1bd-5f46-8781-064847d8b2e3\")\n\t\t)\n\t\t(embedded_fonts no)\n\t\t(model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n\t\t\t(offset\n\t\t\t\t(xyz 0 0 0)\n\t\t\t)\n\t\t\t(scale\n\t\t\t\t(xyz 1 1 1)\n\t\t\t)\n\t\t\t(rotate\n\t\t\t\t(xyz 0 0 0)\n\t\t\t)\n\t\t)\n\t)\n\t(footprint \"Resistor_SMD:R_0603_1608Metric\"\n\t\t(layer \"F.Cu\")\n\t\t(uuid \"c9a051ff-90fa-589a-b150-21bc153aefc3\")\n\t\t(at 31 26)\n\t\t(descr \"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\")\n\t\t(tags \"resistor\")\n\t\t(property \"Reference\" \"R2\"\n\t\t\t(at 0 -1.43 0)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"6a8d5409-3ac3-5deb-bf4c-800118eea11d\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Value\" \"R2-10k\"\n\t\t\t(at 0 1.43 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"744c1ea9-d857-5e8a-bdbd-4349f7a73b04\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Datasheet\" \"\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"a08cb2c8-fc17-5c38-ac0c-59553bb96a5a\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Description\" \"\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"e27b7715-d7de-5b72-8ac2-19a1a9684c49\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1.27 1.27)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"KiLib_Generator\" \"SMD_2terminal_chip_molded\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"21ac7b3b-9dea-5a94-b51b-859bfc0ad82b\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 1 1)\n\t\t\t\t\t(thickness 0.15)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Tolerance\" \"0.1%\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"f1ee1144-23dc-5ba6-82a7-48ae632d3ac5\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.5 0.5)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(property \"Manufacturer\" \"Exact-R2\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(hide yes)\n\t\t\t(uuid \"0bf7c703-b9e9-590e-b1fc-d85b50f66f77\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.5 0.5)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(path \"/9eee1142-6b54-5ace-b8e1-b5ce3e374605/c7dddddb-b7ce-5afe-841b-2e29f774da43/b8a8cbae-c5b3-5fa1-8414-2fbc127fc84c\")\n\t\t(attr smd)\n\t\t(duplicate_pad_numbers_are_jumpers no)\n\t\t(fp_line\n\t\t\t(start -0.237258 -0.5225)\n\t\t\t(end 0.237258 -0.5225)\n\t\t\t(stroke\n\t\t\t\t(width 0.12)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"d6b919c3-19bf-5b2a-ae93-12280ae0857c\")\n\t\t)\n\t\t(fp_line\n\t\t\t(start -0.237258 0.5225)\n\t\t\t(end 0.237258 0.5225)\n\t\t\t(stroke\n\t\t\t\t(width 0.12)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(layer \"F.SilkS\")\n\t\t\t(uuid \"8f80d95b-e143-5b33-b623-69285896add8\")\n\t\t)\n\t\t(fp_rect\n\t\t\t(start -1.48 -0.73)\n\t\t\t(end 1.48 0.73)\n\t\t\t(stroke\n\t\t\t\t(width 0.05)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(fill no)\n\t\t\t(layer \"F.CrtYd\")\n\t\t\t(uuid \"9d838bef-6dcb-505d-9e4e-3b835f2f67ea\")\n\t\t)\n\t\t(fp_rect\n\t\t\t(start -0.8 -0.4125)\n\t\t\t(end 0.8 0.4125)\n\t\t\t(stroke\n\t\t\t\t(width 0.1)\n\t\t\t\t(type solid)\n\t\t\t)\n\t\t\t(fill no)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"e4707424-a5fb-54c9-b87e-a1d97a61269c\")\n\t\t)\n\t\t(fp_text user \"${REFERENCE}\"\n\t\t\t(at 0 0 0)\n\t\t\t(layer \"F.Fab\")\n\t\t\t(uuid \"bddde133-22e1-576b-8816-9a28b0b16b63\")\n\t\t\t(effects\n\t\t\t\t(font\n\t\t\t\t\t(size 0.4 0.4)\n\t\t\t\t\t(thickness 0.06)\n\t\t\t\t)\n\t\t\t)\n\t\t)\n\t\t(pad \"1\" smd roundrect\n\t\t\t(at -0.825 0)\n\t\t\t(size 0.8 0.95)\n\t\t\t(layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n\t\t\t(roundrect_rratio 0.25)\n\t\t\t(net \"/LINK\")\n\t\t\t(uuid \"6f68711e-6da8-5dbc-9014-99692c4f430f\")\n\t\t)\n\t\t(pad \"2\" smd roundrect\n\t\t\t(at 0.825 0)\n\t\t\t(size 0.8 0.95)\n\t\t\t(layers \"F.Cu\" \"F.Mask\" \"F.Paste\")\n\t\t\t(roundrect_rratio 0.25)\n\t\t\t(uuid \"4d7d9170-d689-579c-8108-8bb2dbc50f2d\")\n\t\t)\n\t\t(embedded_fonts no)\n\t\t(model \"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"\n\t\t\t(offset\n\t\t\t\t(xyz 0 0 0)\n\t\t\t)\n\t\t\t(scale\n\t\t\t\t(xyz 1 1 1)\n\t\t\t)\n\t\t\t(rotate\n\t\t\t\t(xyz 0 0 0)\n\t\t\t)\n\t\t)\n\t)\n\t(gr_poly\n\t\t(pts\n\t\t\t(xy 20 22) (xy 22 20) (xy 36 20) (xy 38 22) (xy 38 32) (xy 36 34) (xy 22 34) (xy 20 32)\n\t\t)\n\t\t(stroke\n\t\t\t(width 0.1)\n\t\t\t(type default)\n\t\t)\n\t\t(fill no)\n\t\t(layer \"Edge.Cuts\")\n\t\t(uuid \"5ffc18f8-70d4-5f63-99d6-efe3918c329d\")\n\t)\n\t(segment\n\t\t(start 25.825 26)\n\t\t(end 27 26)\n\t\t(width 0.25)\n\t\t(layer \"F.Cu\")\n\t\t(net \"/LINK\")\n\t\t(uuid \"0c6a129b-0bdf-522e-bc10-122cc077c612\")\n\t)\n\t(segment\n\t\t(start 29 26)\n\t\t(end 30.175 26)\n\t\t(width 0.25)\n\t\t(layer \"F.Cu\")\n\t\t(net \"/LINK\")\n\t\t(uuid \"f4a26c46-b62c-5a33-baf3-4a7975291554\")\n\t)\n\t(via\n\t\t(at 29 26)\n\t\t(size 0.7)\n\t\t(drill 0.3)\n\t\t(layers \"F.Cu\" \"B.Cu\")\n\t\t(capping no)\n\t\t(covering\n\t\t\t(front no)\n\t\t\t(back no)\n\t\t)\n\t\t(plugging\n\t\t\t(front no)\n\t\t\t(back no)\n\t\t)\n\t\t(filling no)\n\t\t(net \"/LINK\")\n\t\t(uuid \"7fe26812-1e80-50e9-b354-77a23614c5cb\")\n\t)\n\t(via\n\t\t(at 27 26)\n\t\t(size 0.7)\n\t\t(drill 0.3)\n\t\t(layers \"F.Cu\" \"B.Cu\")\n\t\t(capping no)\n\t\t(covering\n\t\t\t(front no)\n\t\t\t(back no)\n\t\t)\n\t\t(plugging\n\t\t\t(front no)\n\t\t\t(back no)\n\t\t)\n\t\t(filling no)\n\t\t(net \"/LINK\")\n\t\t(uuid \"c896c4d9-d868-5614-8432-edebb280773d\")\n\t)\n\t(segment\n\t\t(start 27 26)\n\t\t(end 29 26)\n\t\t(width 0.25)\n\t\t(layer \"B.Cu\")\n\t\t(net \"/LINK\")\n\t\t(uuid \"c5064849-397f-51df-9910-3028be2db390\")\n\t)\n\t(embedded_fonts no)\n)\n",
+        "initial_board_sha256": "952b408bca15ac98248718d150fcb61b6f62884f2be260a10cc3a7f544916bdf",
+        "saved_board_sha256": "0504eb5f35e079a61112dcba5b11a76f78262f4fd98f2fd64fcab703d1af70bd",
+        "repeated_saved_board_sha256": "0504eb5f35e079a61112dcba5b11a76f78262f4fd98f2fd64fcab703d1af70bd",
+        "initial_snapshot": {
+          "schema_id": "pcbsmith-kicad-board-readback-snapshot",
+          "schema_version": 1,
+          "footprints": [
+            "[{\"atom\":\"footprint\"},{\"quoted\":\"Resistor_SMD:R_0603_1608Metric\"},[{\"atom\":\"at\"},{\"atom\":\"25\"},{\"atom\":\"26\"}],[{\"atom\":\"attr\"},{\"atom\":\"smd\"}],[{\"atom\":\"descr\"},{\"quoted\":\"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\"}],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"3aeafba2-f695-5aeb-8608-eac9c95d1ce3\"}]],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"3c047e2b-ef68-539c-bbca-51a882ca4142\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.CrtYd\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"0.73\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.05\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"e51ecf68-d502-5127-8506-fedfdd228cd9\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"0.4125\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"750bc430-665b-56fb-9f90-ec9c6999d768\"}]],[{\"atom\":\"fp_text\"},{\"atom\":\"user\"},{\"quoted\":\"${REFERENCE}\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.4\"},{\"atom\":\"0.4\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"3391731b-65f4-51c5-a78f-5e27d6885a03\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"model\"},{\"quoted\":\"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"},[{\"atom\":\"offset\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"rotate\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"scale\"},[{\"atom\":\"xyz\"},{\"atom\":\"1\"},{\"atom\":\"1\"},{\"atom\":\"1\"}]]],[{\"atom\":\"pad\"},{\"quoted\":\"1\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"-0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"4d3ec9ef-3d44-5f05-9db5-0e27561a98c8\"}]],[{\"atom\":\"pad\"},{\"quoted\":\"2\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"aec06821-8a06-5a52-b072-6fbde686a1c3\"}]],[{\"atom\":\"path\"},{\"quoted\":\"/f620cdc4-e001-529e-b102-3216d433a44f/1db9fff4-3246-5c91-878b-af4324a9c679/5f014983-e15f-547d-ac09-3fc2c4a3978a\"}],[{\"atom\":\"property\"},{\"quoted\":\"Datasheet\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"b0d74267-2968-53bf-9285-f9a6a92b229d\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Description\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"00304a80-f361-55a8-98fb-a4f367cd88d2\"}]],[{\"atom\":\"property\"},{\"quoted\":\"KiLib_Generator\"},{\"quoted\":\"SMD_2terminal_chip_molded\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"e29881b2-4114-52b0-a194-e3ee9261526c\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Manufacturer\"},{\"quoted\":\"Exact-R1\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"279a50d9-4b24-5010-9048-acf6a0f10ee5\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Reference\"},{\"quoted\":\"R1\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"-1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f9797947-83bd-5eb7-b4eb-0cd1af564c6f\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Tolerance\"},{\"quoted\":\"0.1%\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"7dc47372-5108-5b5c-860e-efa950d939bf\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Value\"},{\"quoted\":\"R1-10k\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"ca133477-1935-54da-9caa-2cbfd6054def\"}]],[{\"atom\":\"tags\"},{\"quoted\":\"resistor\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"97a2a7ad-8372-5585-be7c-540b7abc6732\"}]]",
+            "[{\"atom\":\"footprint\"},{\"quoted\":\"Resistor_SMD:R_0603_1608Metric\"},[{\"atom\":\"at\"},{\"atom\":\"31\"},{\"atom\":\"26\"}],[{\"atom\":\"attr\"},{\"atom\":\"smd\"}],[{\"atom\":\"descr\"},{\"quoted\":\"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\"}],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"d6b919c3-19bf-5b2a-ae93-12280ae0857c\"}]],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"8f80d95b-e143-5b33-b623-69285896add8\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.CrtYd\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"0.73\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.05\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"9d838bef-6dcb-505d-9e4e-3b835f2f67ea\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"0.4125\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"e4707424-a5fb-54c9-b87e-a1d97a61269c\"}]],[{\"atom\":\"fp_text\"},{\"atom\":\"user\"},{\"quoted\":\"${REFERENCE}\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.4\"},{\"atom\":\"0.4\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"bddde133-22e1-576b-8816-9a28b0b16b63\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"model\"},{\"quoted\":\"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"},[{\"atom\":\"offset\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"rotate\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"scale\"},[{\"atom\":\"xyz\"},{\"atom\":\"1\"},{\"atom\":\"1\"},{\"atom\":\"1\"}]]],[{\"atom\":\"pad\"},{\"quoted\":\"1\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"-0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"6f68711e-6da8-5dbc-9014-99692c4f430f\"}]],[{\"atom\":\"pad\"},{\"quoted\":\"2\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"4d7d9170-d689-579c-8108-8bb2dbc50f2d\"}]],[{\"atom\":\"path\"},{\"quoted\":\"/9eee1142-6b54-5ace-b8e1-b5ce3e374605/c7dddddb-b7ce-5afe-841b-2e29f774da43/b8a8cbae-c5b3-5fa1-8414-2fbc127fc84c\"}],[{\"atom\":\"property\"},{\"quoted\":\"Datasheet\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"a08cb2c8-fc17-5c38-ac0c-59553bb96a5a\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Description\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"e27b7715-d7de-5b72-8ac2-19a1a9684c49\"}]],[{\"atom\":\"property\"},{\"quoted\":\"KiLib_Generator\"},{\"quoted\":\"SMD_2terminal_chip_molded\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"21ac7b3b-9dea-5a94-b51b-859bfc0ad82b\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Manufacturer\"},{\"quoted\":\"Exact-R2\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"0bf7c703-b9e9-590e-b1fc-d85b50f66f77\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Reference\"},{\"quoted\":\"R2\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"-1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"6a8d5409-3ac3-5deb-bf4c-800118eea11d\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Tolerance\"},{\"quoted\":\"0.1%\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f1ee1144-23dc-5ba6-82a7-48ae632d3ac5\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Value\"},{\"quoted\":\"R2-10k\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"744c1ea9-d857-5e8a-bdbd-4349f7a73b04\"}]],[{\"atom\":\"tags\"},{\"quoted\":\"resistor\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"c9a051ff-90fa-589a-b150-21bc153aefc3\"}]]",
+            "[{\"atom\":\"footprint\"},{\"quoted\":\"Resistor_SMD:R_0603_1608Metric\"},[{\"atom\":\"at\"},{\"atom\":\"34\"},{\"atom\":\"30\"},{\"atom\":\"90\"}],[{\"atom\":\"attr\"},{\"atom\":\"smd\"}],[{\"atom\":\"descr\"},{\"quoted\":\"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\"}],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"9f953e3a-a7d8-5b8e-a3f1-5306f0cc9be3\"}]],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"da2d1819-046f-520e-9ef0-d282bfd7b1f5\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.CrtYd\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"0.73\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.05\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"11ff43d8-496d-57be-b20c-65f349fac451\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"0.4125\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"bc80d58b-b1f4-5464-8899-0bbe5db6558a\"}]],[{\"atom\":\"fp_text\"},{\"atom\":\"user\"},{\"quoted\":\"${REFERENCE}\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.4\"},{\"atom\":\"0.4\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"3f01ef14-3eef-5de6-9b7f-3ab455a13e6d\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"model\"},{\"quoted\":\"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"},[{\"atom\":\"offset\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"rotate\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"scale\"},[{\"atom\":\"xyz\"},{\"atom\":\"1\"},{\"atom\":\"1\"},{\"atom\":\"1\"}]]],[{\"atom\":\"pad\"},{\"quoted\":\"1\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"-0.825\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f7bc7d22-7952-5e9d-a5b3-cc248467f55d\"}]],[{\"atom\":\"pad\"},{\"quoted\":\"2\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"0.825\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"0b05c600-d1bd-5f46-8781-064847d8b2e3\"}]],[{\"atom\":\"path\"},{\"quoted\":\"/22cd52e8-1e2c-5ff2-9be2-00813aad27f3/b6561a41-153c-5199-b0ee-07cb46096d5f/9e325ff7-28e9-594d-97c3-9ea889990e2b\"}],[{\"atom\":\"property\"},{\"quoted\":\"Datasheet\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"a53614b6-5bf8-54ab-8925-8ddce85b1796\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Description\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"57fdaf6c-82fd-54de-b90b-13f5517852ed\"}]],[{\"atom\":\"property\"},{\"quoted\":\"KiLib_Generator\"},{\"quoted\":\"SMD_2terminal_chip_molded\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f9c76f90-1f6b-5117-82e5-548112e48c76\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Manufacturer\"},{\"quoted\":\"Exact-R3\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"eb417bd0-2e2d-568f-8f54-9c4e7e58103d\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Reference\"},{\"quoted\":\"R3\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"-1.43\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"b23a3dd4-cf41-5b28-b742-d6e161f41bd9\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Tolerance\"},{\"quoted\":\"0.1%\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"1640d60d-8222-53e1-8837-da761330ec4a\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Value\"},{\"quoted\":\"R3-10k\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"1.43\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"760f71eb-b02b-52a3-8a2f-21fd0fcf775d\"}]],[{\"atom\":\"tags\"},{\"quoted\":\"resistor\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"a1f39d27-bfe5-54ef-adfc-336f038185a3\"}]]"
+          ],
+          "edge_cuts": [
+            "[{\"atom\":\"gr_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"Edge.Cuts\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"20\"},{\"atom\":\"22\"}],[{\"atom\":\"xy\"},{\"atom\":\"22\"},{\"atom\":\"20\"}],[{\"atom\":\"xy\"},{\"atom\":\"36\"},{\"atom\":\"20\"}],[{\"atom\":\"xy\"},{\"atom\":\"38\"},{\"atom\":\"22\"}],[{\"atom\":\"xy\"},{\"atom\":\"38\"},{\"atom\":\"32\"}],[{\"atom\":\"xy\"},{\"atom\":\"36\"},{\"atom\":\"34\"}],[{\"atom\":\"xy\"},{\"atom\":\"22\"},{\"atom\":\"34\"}],[{\"atom\":\"xy\"},{\"atom\":\"20\"},{\"atom\":\"32\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"default\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"5ffc18f8-70d4-5f63-99d6-efe3918c329d\"}]]"
+          ],
+          "board_graphics": [],
+          "zones": [],
+          "segments": [
+            "[{\"atom\":\"segment\"},[{\"atom\":\"end\"},{\"atom\":\"27\"},{\"atom\":\"26\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"start\"},{\"atom\":\"25.825\"},{\"atom\":\"26\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"0c6a129b-0bdf-522e-bc10-122cc077c612\"}],[{\"atom\":\"width\"},{\"atom\":\"0.25\"}]]",
+            "[{\"atom\":\"segment\"},[{\"atom\":\"end\"},{\"atom\":\"29\"},{\"atom\":\"26\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"start\"},{\"atom\":\"27\"},{\"atom\":\"26\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"c5064849-397f-51df-9910-3028be2db390\"}],[{\"atom\":\"width\"},{\"atom\":\"0.25\"}]]",
+            "[{\"atom\":\"segment\"},[{\"atom\":\"end\"},{\"atom\":\"30.175\"},{\"atom\":\"26\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"start\"},{\"atom\":\"29\"},{\"atom\":\"26\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f4a26c46-b62c-5a33-baf3-4a7975291554\"}],[{\"atom\":\"width\"},{\"atom\":\"0.25\"}]]"
+          ],
+          "vias": [
+            "[{\"atom\":\"via\"},[{\"atom\":\"at\"},{\"atom\":\"27\"},{\"atom\":\"26\"}],[{\"atom\":\"drill\"},{\"atom\":\"0.3\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"B.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"size\"},{\"atom\":\"0.7\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"c896c4d9-d868-5614-8432-edebb280773d\"}]]",
+            "[{\"atom\":\"via\"},[{\"atom\":\"at\"},{\"atom\":\"29\"},{\"atom\":\"26\"}],[{\"atom\":\"drill\"},{\"atom\":\"0.3\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"B.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"size\"},{\"atom\":\"0.7\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"7fe26812-1e80-50e9-b354-77a23614c5cb\"}]]"
+          ],
+          "nets": [
+            "[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}]"
+          ],
+          "layers": [
+            "[{\"quoted\":\"B.Cu\"},{\"atom\":\"signal\"}]",
+            "[{\"quoted\":\"Edge.Cuts\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.CrtYd\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.Cu\"},{\"atom\":\"signal\"}]",
+            "[{\"quoted\":\"F.Fab\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.Mask\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.Paste\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.SilkS\"},{\"atom\":\"user\"}]"
+          ],
+          "setup": []
+        },
+        "saved_snapshot": {
+          "schema_id": "pcbsmith-kicad-board-readback-snapshot",
+          "schema_version": 1,
+          "footprints": [
+            "[{\"atom\":\"footprint\"},{\"quoted\":\"Resistor_SMD:R_0603_1608Metric\"},[{\"atom\":\"at\"},{\"atom\":\"25\"},{\"atom\":\"26\"}],[{\"atom\":\"attr\"},{\"atom\":\"smd\"}],[{\"atom\":\"descr\"},{\"quoted\":\"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\"}],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"3aeafba2-f695-5aeb-8608-eac9c95d1ce3\"}]],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"3c047e2b-ef68-539c-bbca-51a882ca4142\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.CrtYd\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"0.73\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.05\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"e51ecf68-d502-5127-8506-fedfdd228cd9\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"0.4125\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"750bc430-665b-56fb-9f90-ec9c6999d768\"}]],[{\"atom\":\"fp_text\"},{\"atom\":\"user\"},{\"quoted\":\"${REFERENCE}\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.4\"},{\"atom\":\"0.4\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"3391731b-65f4-51c5-a78f-5e27d6885a03\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"model\"},{\"quoted\":\"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"},[{\"atom\":\"offset\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"rotate\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"scale\"},[{\"atom\":\"xyz\"},{\"atom\":\"1\"},{\"atom\":\"1\"},{\"atom\":\"1\"}]]],[{\"atom\":\"pad\"},{\"quoted\":\"1\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"-0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"4d3ec9ef-3d44-5f05-9db5-0e27561a98c8\"}]],[{\"atom\":\"pad\"},{\"quoted\":\"2\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"aec06821-8a06-5a52-b072-6fbde686a1c3\"}]],[{\"atom\":\"path\"},{\"quoted\":\"/f620cdc4-e001-529e-b102-3216d433a44f/1db9fff4-3246-5c91-878b-af4324a9c679/5f014983-e15f-547d-ac09-3fc2c4a3978a\"}],[{\"atom\":\"property\"},{\"quoted\":\"Datasheet\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"b0d74267-2968-53bf-9285-f9a6a92b229d\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Description\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"00304a80-f361-55a8-98fb-a4f367cd88d2\"}]],[{\"atom\":\"property\"},{\"quoted\":\"KiLib_Generator\"},{\"quoted\":\"SMD_2terminal_chip_molded\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"e29881b2-4114-52b0-a194-e3ee9261526c\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Manufacturer\"},{\"quoted\":\"Exact-R1\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"279a50d9-4b24-5010-9048-acf6a0f10ee5\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Reference\"},{\"quoted\":\"R1\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"-1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f9797947-83bd-5eb7-b4eb-0cd1af564c6f\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Tolerance\"},{\"quoted\":\"0.1%\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"7dc47372-5108-5b5c-860e-efa950d939bf\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Value\"},{\"quoted\":\"R1-10k\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"ca133477-1935-54da-9caa-2cbfd6054def\"}]],[{\"atom\":\"tags\"},{\"quoted\":\"resistor\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"97a2a7ad-8372-5585-be7c-540b7abc6732\"}]]",
+            "[{\"atom\":\"footprint\"},{\"quoted\":\"Resistor_SMD:R_0603_1608Metric\"},[{\"atom\":\"at\"},{\"atom\":\"31\"},{\"atom\":\"26\"}],[{\"atom\":\"attr\"},{\"atom\":\"smd\"}],[{\"atom\":\"descr\"},{\"quoted\":\"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\"}],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"d6b919c3-19bf-5b2a-ae93-12280ae0857c\"}]],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"8f80d95b-e143-5b33-b623-69285896add8\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.CrtYd\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"0.73\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.05\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"9d838bef-6dcb-505d-9e4e-3b835f2f67ea\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"0.4125\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"e4707424-a5fb-54c9-b87e-a1d97a61269c\"}]],[{\"atom\":\"fp_text\"},{\"atom\":\"user\"},{\"quoted\":\"${REFERENCE}\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.4\"},{\"atom\":\"0.4\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"bddde133-22e1-576b-8816-9a28b0b16b63\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"model\"},{\"quoted\":\"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"},[{\"atom\":\"offset\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"rotate\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"scale\"},[{\"atom\":\"xyz\"},{\"atom\":\"1\"},{\"atom\":\"1\"},{\"atom\":\"1\"}]]],[{\"atom\":\"pad\"},{\"quoted\":\"1\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"-0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"6f68711e-6da8-5dbc-9014-99692c4f430f\"}]],[{\"atom\":\"pad\"},{\"quoted\":\"2\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"0.825\"},{\"atom\":\"0\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"4d7d9170-d689-579c-8108-8bb2dbc50f2d\"}]],[{\"atom\":\"path\"},{\"quoted\":\"/9eee1142-6b54-5ace-b8e1-b5ce3e374605/c7dddddb-b7ce-5afe-841b-2e29f774da43/b8a8cbae-c5b3-5fa1-8414-2fbc127fc84c\"}],[{\"atom\":\"property\"},{\"quoted\":\"Datasheet\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"a08cb2c8-fc17-5c38-ac0c-59553bb96a5a\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Description\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"e27b7715-d7de-5b72-8ac2-19a1a9684c49\"}]],[{\"atom\":\"property\"},{\"quoted\":\"KiLib_Generator\"},{\"quoted\":\"SMD_2terminal_chip_molded\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"21ac7b3b-9dea-5a94-b51b-859bfc0ad82b\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Manufacturer\"},{\"quoted\":\"Exact-R2\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"0bf7c703-b9e9-590e-b1fc-d85b50f66f77\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Reference\"},{\"quoted\":\"R2\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"-1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"6a8d5409-3ac3-5deb-bf4c-800118eea11d\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Tolerance\"},{\"quoted\":\"0.1%\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f1ee1144-23dc-5ba6-82a7-48ae632d3ac5\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Value\"},{\"quoted\":\"R2-10k\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"1.43\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"744c1ea9-d857-5e8a-bdbd-4349f7a73b04\"}]],[{\"atom\":\"tags\"},{\"quoted\":\"resistor\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"c9a051ff-90fa-589a-b150-21bc153aefc3\"}]]",
+            "[{\"atom\":\"footprint\"},{\"quoted\":\"Resistor_SMD:R_0603_1608Metric\"},[{\"atom\":\"at\"},{\"atom\":\"34\"},{\"atom\":\"30\"},{\"atom\":\"90\"}],[{\"atom\":\"attr\"},{\"atom\":\"smd\"}],[{\"atom\":\"descr\"},{\"quoted\":\"Resistor SMD 0603 (1608 Metric), square (rectangular) end terminal, IPC-7351 nominal, (Body size source: IPC-SM-782 page 72, https://www.pcb-3d.com/wordpress/wp-content/uploads/ipc-sm-782a_amendment_1_and_2.pdf)\"}],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"-0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"9f953e3a-a7d8-5b8e-a3f1-5306f0cc9be3\"}]],[{\"atom\":\"fp_line\"},[{\"atom\":\"end\"},{\"atom\":\"0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"start\"},{\"atom\":\"-0.237258\"},{\"atom\":\"0.5225\"}],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.12\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"da2d1819-046f-520e-9ef0-d282bfd7b1f5\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.CrtYd\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"-0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"1.48\"},{\"atom\":\"0.73\"}],[{\"atom\":\"xy\"},{\"atom\":\"-1.48\"},{\"atom\":\"0.73\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.05\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"11ff43d8-496d-57be-b20c-65f349fac451\"}]],[{\"atom\":\"fp_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"-0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"0.8\"},{\"atom\":\"0.4125\"}],[{\"atom\":\"xy\"},{\"atom\":\"-0.8\"},{\"atom\":\"0.4125\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"solid\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"bc80d58b-b1f4-5464-8899-0bbe5db6558a\"}]],[{\"atom\":\"fp_text\"},{\"atom\":\"user\"},{\"quoted\":\"${REFERENCE}\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.4\"},{\"atom\":\"0.4\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"3f01ef14-3eef-5de6-9b7f-3ab455a13e6d\"}]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"model\"},{\"quoted\":\"${KICAD10_3DMODEL_DIR}/Resistor_SMD.3dshapes/R_0603_1608Metric.step\"},[{\"atom\":\"offset\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"rotate\"},[{\"atom\":\"xyz\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}]],[{\"atom\":\"scale\"},[{\"atom\":\"xyz\"},{\"atom\":\"1\"},{\"atom\":\"1\"},{\"atom\":\"1\"}]]],[{\"atom\":\"pad\"},{\"quoted\":\"1\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"-0.825\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f7bc7d22-7952-5e9d-a5b3-cc248467f55d\"}]],[{\"atom\":\"pad\"},{\"quoted\":\"2\"},{\"atom\":\"smd\"},{\"atom\":\"roundrect\"},[{\"atom\":\"at\"},{\"atom\":\"0.825\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"F.Mask\"},{\"quoted\":\"F.Paste\"}],[{\"atom\":\"roundrect_rratio\"},{\"atom\":\"0.25\"}],[{\"atom\":\"size\"},{\"atom\":\"0.8\"},{\"atom\":\"0.95\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"0b05c600-d1bd-5f46-8781-064847d8b2e3\"}]],[{\"atom\":\"path\"},{\"quoted\":\"/22cd52e8-1e2c-5ff2-9be2-00813aad27f3/b6561a41-153c-5199-b0ee-07cb46096d5f/9e325ff7-28e9-594d-97c3-9ea889990e2b\"}],[{\"atom\":\"property\"},{\"quoted\":\"Datasheet\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"a53614b6-5bf8-54ab-8925-8ddce85b1796\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Description\"},{\"quoted\":\"\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1.27\"},{\"atom\":\"1.27\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"57fdaf6c-82fd-54de-b90b-13f5517852ed\"}]],[{\"atom\":\"property\"},{\"quoted\":\"KiLib_Generator\"},{\"quoted\":\"SMD_2terminal_chip_molded\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f9c76f90-1f6b-5117-82e5-548112e48c76\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Manufacturer\"},{\"quoted\":\"Exact-R3\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"eb417bd0-2e2d-568f-8f54-9c4e7e58103d\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Reference\"},{\"quoted\":\"R3\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"-1.43\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.SilkS\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"b23a3dd4-cf41-5b28-b742-d6e161f41bd9\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Tolerance\"},{\"quoted\":\"0.1%\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"0\"},{\"atom\":\"0\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"0.5\"},{\"atom\":\"0.5\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.06\"}]]],[{\"atom\":\"hide\"},{\"atom\":\"yes\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"1640d60d-8222-53e1-8837-da761330ec4a\"}]],[{\"atom\":\"property\"},{\"quoted\":\"Value\"},{\"quoted\":\"R3-10k\"},[{\"atom\":\"at\"},{\"atom\":\"0\"},{\"atom\":\"1.43\"},{\"atom\":\"90\"}],[{\"atom\":\"effects\"},[{\"atom\":\"font\"},[{\"atom\":\"size\"},{\"atom\":\"1\"},{\"atom\":\"1\"}],[{\"atom\":\"thickness\"},{\"atom\":\"0.15\"}]]],[{\"atom\":\"layer\"},{\"quoted\":\"F.Fab\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"760f71eb-b02b-52a3-8a2f-21fd0fcf775d\"}]],[{\"atom\":\"tags\"},{\"quoted\":\"resistor\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"a1f39d27-bfe5-54ef-adfc-336f038185a3\"}]]"
+          ],
+          "edge_cuts": [
+            "[{\"atom\":\"gr_poly\"},[{\"atom\":\"fill\"},{\"atom\":\"no\"}],[{\"atom\":\"layer\"},{\"quoted\":\"Edge.Cuts\"}],[{\"atom\":\"pts\"},[{\"atom\":\"xy\"},{\"atom\":\"20\"},{\"atom\":\"22\"}],[{\"atom\":\"xy\"},{\"atom\":\"22\"},{\"atom\":\"20\"}],[{\"atom\":\"xy\"},{\"atom\":\"36\"},{\"atom\":\"20\"}],[{\"atom\":\"xy\"},{\"atom\":\"38\"},{\"atom\":\"22\"}],[{\"atom\":\"xy\"},{\"atom\":\"38\"},{\"atom\":\"32\"}],[{\"atom\":\"xy\"},{\"atom\":\"36\"},{\"atom\":\"34\"}],[{\"atom\":\"xy\"},{\"atom\":\"22\"},{\"atom\":\"34\"}],[{\"atom\":\"xy\"},{\"atom\":\"20\"},{\"atom\":\"32\"}]],[{\"atom\":\"stroke\"},[{\"atom\":\"type\"},{\"atom\":\"default\"}],[{\"atom\":\"width\"},{\"atom\":\"0.1\"}]],[{\"atom\":\"uuid\"},{\"quoted\":\"5ffc18f8-70d4-5f63-99d6-efe3918c329d\"}]]"
+          ],
+          "board_graphics": [],
+          "zones": [],
+          "segments": [
+            "[{\"atom\":\"segment\"},[{\"atom\":\"end\"},{\"atom\":\"27\"},{\"atom\":\"26\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"start\"},{\"atom\":\"25.825\"},{\"atom\":\"26\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"0c6a129b-0bdf-522e-bc10-122cc077c612\"}],[{\"atom\":\"width\"},{\"atom\":\"0.25\"}]]",
+            "[{\"atom\":\"segment\"},[{\"atom\":\"end\"},{\"atom\":\"29\"},{\"atom\":\"26\"}],[{\"atom\":\"layer\"},{\"quoted\":\"B.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"start\"},{\"atom\":\"27\"},{\"atom\":\"26\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"c5064849-397f-51df-9910-3028be2db390\"}],[{\"atom\":\"width\"},{\"atom\":\"0.25\"}]]",
+            "[{\"atom\":\"segment\"},[{\"atom\":\"end\"},{\"atom\":\"30.175\"},{\"atom\":\"26\"}],[{\"atom\":\"layer\"},{\"quoted\":\"F.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"start\"},{\"atom\":\"29\"},{\"atom\":\"26\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"f4a26c46-b62c-5a33-baf3-4a7975291554\"}],[{\"atom\":\"width\"},{\"atom\":\"0.25\"}]]"
+          ],
+          "vias": [
+            "[{\"atom\":\"via\"},[{\"atom\":\"at\"},{\"atom\":\"27\"},{\"atom\":\"26\"}],[{\"atom\":\"drill\"},{\"atom\":\"0.3\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"B.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"size\"},{\"atom\":\"0.7\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"c896c4d9-d868-5614-8432-edebb280773d\"}]]",
+            "[{\"atom\":\"via\"},[{\"atom\":\"at\"},{\"atom\":\"29\"},{\"atom\":\"26\"}],[{\"atom\":\"drill\"},{\"atom\":\"0.3\"}],[{\"atom\":\"layers\"},{\"quoted\":\"F.Cu\"},{\"quoted\":\"B.Cu\"}],[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}],[{\"atom\":\"size\"},{\"atom\":\"0.7\"}],[{\"atom\":\"uuid\"},{\"quoted\":\"7fe26812-1e80-50e9-b354-77a23614c5cb\"}]]"
+          ],
+          "nets": [
+            "[{\"atom\":\"net\"},{\"quoted\":\"/LINK\"}]"
+          ],
+          "layers": [
+            "[{\"quoted\":\"B.Cu\"},{\"atom\":\"signal\"}]",
+            "[{\"quoted\":\"Edge.Cuts\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.CrtYd\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.Cu\"},{\"atom\":\"signal\"}]",
+            "[{\"quoted\":\"F.Fab\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.Mask\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.Paste\"},{\"atom\":\"user\"}]",
+            "[{\"quoted\":\"F.SilkS\"},{\"atom\":\"user\"}]"
+          ],
+          "setup": []
+        },
+        "drc_status": "passed",
+        "drc_findings": [],
+        "drc_report_json": "{\"$schema\":\"https://schemas.kicad.org/drc.v1.json\",\"coordinate_units\":\"mm\",\"ignored_checks\":[{\"description\":\"Footprint doesn't match copy in library\",\"key\":\"lib_footprint_mismatch\"}],\"included_severities\":[\"error\",\"warning\"],\"kicad_version\":\"10.0.3\",\"schematic_parity\":[],\"source\":\"placement-roundtrip.kicad_pcb\",\"unconnected_items\":[],\"violations\":[]}",
+        "drc_report_sha256": "5469b3fa907523d40b9e1babde1160fcd3095fc64f99169ab52ba822e334cc7e",
+        "drc_report_normalization": "canonical_json_without_top_level_execution_date",
+        "require_drc_pass": true,
+        "authority_scope": "kicad_parse_save_readback_and_drc"
+      },
+      "drc_policy": {
+        "schema_id": "pcbsmith-placement-corpus-drc-policy",
+        "schema_version": 1,
+        "project_json": "{\"board\":{\"design_settings\":{\"rule_severities\":{\"footprint_filters_mismatch\":\"warning\",\"footprint_type_mismatch\":\"warning\",\"lib_footprint_mismatch\":\"ignore\",\"missing_courtyard\":\"warning\",\"track_not_centered_on_via\":\"warning\",\"tuning_profile_track_geometries\":\"warning\"}}},\"meta\":{\"version\":1}}",
+        "project_sha256": "96c0cc06fd4de562a2d5bcd2ac7e0a1d7792ab4e591be940225dbc162a439ff5",
+        "ignored_rule_ids": [
+          "lib_footprint_mismatch"
+        ],
+        "enforced_rule_ids": [
+          "footprint_filters_mismatch",
+          "footprint_type_mismatch",
+          "missing_courtyard",
+          "track_not_centered_on_via",
+          "tuning_profile_track_geometries"
+        ],
+        "rationale": "Generated embedded footprints are authoritative; installed-library copy mismatch is not a physical geometry, connectivity, clearance, or manufacturability finding."
+      },
+      "measurements": {
+        "schema_id": "pcbsmith-shaped-placement-measurements",
+        "schema_version": 1,
+        "has_custom_outline": true,
+        "has_cutouts": false,
+        "has_mask_apertures": false,
+        "cutout_count": 0,
+        "mask_aperture_count": 0,
+        "front_placement_count": 3,
+        "back_placement_count": 0,
+        "placement_count": 3,
+        "segment_count": 3,
+        "via_count": 2,
+        "zone_count": 0,
+        "total_routed_length": {
+          "schema_id": "pcbsmith-routed-length-interval",
+          "schema_version": 1,
+          "lower": {
+            "schema_id": "pcbsmith-rational-measurement",
+            "schema_version": 1,
+            "numerator": 87,
+            "denominator": 20,
+            "unit": "mm",
+            "interpretation": "exact_from_neutral_decimal_coordinates"
+          },
+          "upper": {
+            "schema_id": "pcbsmith-rational-measurement",
+            "schema_version": 1,
+            "numerator": 87,
+            "denominator": 20,
+            "unit": "mm",
+            "interpretation": "exact_from_neutral_decimal_coordinates"
+          },
+          "per_segment_bound_denominator": 1000000000000,
+          "interpretation": "conservative_rational_bounds_from_neutral_decimal_coordinates"
+        },
+        "outline_bounding_area": {
+          "schema_id": "pcbsmith-rational-measurement",
+          "schema_version": 1,
+          "numerator": 252,
+          "denominator": 1,
+          "unit": "mm2",
+          "interpretation": "exact_from_neutral_decimal_coordinates"
+        },
+        "outer_outline_area": {
+          "schema_id": "pcbsmith-rational-measurement",
+          "schema_version": 1,
+          "numerator": 244,
+          "denominator": 1,
+          "unit": "mm2",
+          "interpretation": "exact_from_neutral_decimal_coordinates"
+        },
+        "substrate_area_after_cutouts": {
+          "schema_id": "pcbsmith-rational-measurement",
+          "schema_version": 1,
+          "numerator": 244,
+          "denominator": 1,
+          "unit": "mm2",
+          "interpretation": "exact_from_neutral_decimal_coordinates"
+        },
+        "drc_status": "passed",
+        "drc_finding_count": 0
+      },
+      "artifact_hashes": {
+        "schema_id": "pcbsmith-placement-corpus-artifact-hashes",
+        "schema_version": 1,
+        "final_layout_snapshot_sha256": "e8586d2a34692a1c7fefab5c528d82c4ce2bfd3ff39228ca73f35364cf3bdaf9",
+        "rendered_board_sha256": "952b408bca15ac98248718d150fcb61b6f62884f2be260a10cc3a7f544916bdf",
+        "saved_board_sha256": "0504eb5f35e079a61112dcba5b11a76f78262f4fd98f2fd64fcab703d1af70bd",
+        "drc_report_sha256": "5469b3fa907523d40b9e1babde1160fcd3095fc64f99169ab52ba822e334cc7e",
+        "drc_project_policy_sha256": "96c0cc06fd4de562a2d5bcd2ac7e0a1d7792ab4e591be940225dbc162a439ff5"
+      },
+      "case_fingerprint": "d7c6c062171dc2044f70405f1d4c3b094d705692032eaf33ca938615ce07ff5c"
+    }
+  ],
+  "kicad_cli_versions": [
+    "10.0.3"
+  ],
+  "corpus_fingerprint": "e048f62e272a73f55113e3edcb6b85927076784a9ed30dfd4c1f549edb77b3b7",
+  "authorized_inference": "These measurements authorize only reproducibility and KiCad compatibility evidence; they authorize no performance, optimization, quality, or algorithm-superiority inference."
+}

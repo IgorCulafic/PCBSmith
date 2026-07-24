@@ -1,6 +1,16 @@
 # PCBSmith — working handbook for the AI developer
 
 Written 2026-07-07 by Claude Fable 5 as a handoff to its successors.
+
+> **Current-state amendment (2026-07-20):** This is the stable working handbook,
+> not the volatile status authority. Read `docs/handoff-prompt.md`, then
+> `docs/current-state.md`, before using dated frontier text below. The archived
+> long handoff is historical only. The thermometer project completed as the
+> accepted routed R005 proof-of-concept; R006 is its 3D proxy pilot. Do not rerun
+> the thermometer to prove generic machinery—use the next unseen user project.
+> Phase 11/12 source, asset, artwork, visual-review, and bounded-execution
+> operations are documented in `docs/evidence-assets-review-execution-guide.md`.
+
 You are the DEVELOPER of this project; the pipeline itself is 100%
 deterministic and must stay that way — no LLM in the design loop. Your
 job is to grow the pipeline's intelligence so that, on its own, it
@@ -47,7 +57,7 @@ ledger — read BEFORE touching the router or placements), and
    Component cards (`ai_assets/components/*.json`) are the durable form.
 
 ## How to build a new topology (the sequence - proven through
-## schematics on 10/10 topologies, through boards on only 9/10)
+## schematics on 10/10 topologies, through boards on 10/10 with scope limits)
 
 1. **Datasheets first.** Fetch, pin, read; extract the WORST-CASE
    limits table into the calculator's defaults.
@@ -191,11 +201,11 @@ ledger — read BEFORE touching the router or placements), and
   Text-cache hazard: pypdf/OCR drop the Greek mu glyph; close any
   unit-sensitive verification by dimensional analysis, never string
   match. NEVER re-read the books wholesale.
-- `docs/routing-placement-plan.md` is THE roadmap (user directive:
-  research-first, bus routing, placement compatibility, dual-side
-  gate, thermometer r002). Execute its phases in order; phase 0 is
-  complete. Before implementing Phase 1, reconcile its older thresholds
-  against the July 14 authority/applicability decisions.
+- `docs/routing-placement-plan.md` is THE roadmap. Completed phase scopes are
+  frozen; new capabilities use the next sequential phase, and dated errata
+  correct invalidated claims. The thermometer is complete. Phases 10-12 govern
+  continuity/environment, evidence/assets/review, and execution health before
+  the next unseen project.
 - Headline audit results already known: our trace-current formula is
   IPC-2221A's and must be labeled as such; IPC-2152 is useful historical
   measured data but is no longer maintained. Flat `CLEARANCE_MM = 0.2`
@@ -208,12 +218,17 @@ ledger — read BEFORE touching the router or placements), and
   labeled); decap PROXIMITY is weak, routed loop area is first-order;
   Ott caps 2-layer boards at ~10 MHz clocks (standing advisory vs our
   50 MHz class); thermometer r001 violates the Espressif antenna rule
-  (U1 antenna over bulb copper). Sensirion's current guide is text-verified
-  online and supports thermal isolation, but is not locally pinned and does
-  not specify a universal moat width or bridge geometry.
+  (U1 antenna over bulb copper). Sensirion's current guide is now locally
+  pinned and supports thermal isolation, but still does not specify a universal
+  moat width or bridge geometry.
 
 ## Environment pitfalls (Windows, this machine)
 
+- Canonical development and verification use `.venv` Python 3.12. Package
+  metadata and Ruff retain a Python 3.11 compatibility floor; do not run project
+  commands with the system-default Python 3.14, which is outside the declared
+  range. Mypy targets 3.12 because the maintained environment includes
+  3.12-syntax third-party stubs.
 - `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1` always; add `-p no:cacheprovider`
   (the `.pytest_cache` ACL is broken from a PC reinstall and spams
   warnings; occasionally pytest's summary line is eaten — pipe to a
@@ -297,16 +312,17 @@ ledger — read BEFORE touching the router or placements), and
 
 ## Current frontier (where to push next)
 
-- **Automation-first boards work at SMALL scale only**: the servo555
+- **Legacy automation is proven but does not establish generic scale**: the servo555
   tester (9th
   golden topology) is the first board where `route_board` produced
   every trace from coarse placements — placement + probe + route +
   live DRC loop converged in 3 iterations and the fixes it forced
   (rect-pad cover, per-physical-pad connectivity, silk height/edge
   checks) are now permanent machinery. SCOPE LIMIT, learned the
-  hard way: that was 9 parts on an open rectangle; the same router
-  failed outright at 63 parts in a narrow corridor (thermometer).
-  "Proven" means proven AT THAT SCALE, nothing more.
+  hard way: that was 9 parts on an open rectangle. The 63-part thermometer
+  initially failed repeatedly in its narrow corridor, then eventually completed
+  as R005 after a slow legacy route and extensive correction. That proves the
+  accepted board, not a mature or generally scalable routing workflow.
 - **flyback dual-side compaction (2026-07-10, one data point)**:
   `tools/flyback_compaction.py` produced an 80×42 dual-side flyback
   (whole SMD control circuit on the back, FLBACK-001-style), 100%
@@ -331,21 +347,22 @@ ledger — read BEFORE touching the router or placements), and
   angles are PROBED convention (angle=rotation for 90/270, 0 for
   180). Next: buck/detector backfill (INSTANCES tables exist); the
   role-driven column/rail placer.
-- **R2-R6 GENERIC MACHINERY EXISTS; REAL THERMOMETER APPLICATION IS THE
-  CURRENT TRACK (2026-07-18)**: the research-first rebuild now includes
+- **R2-R6 GENERIC MACHINERY EXISTS; THE NEXT UNSEEN PROJECT IS THE FUTURE
+  GENERALITY TEST (2026-07-20)**: the research-first rebuild now includes
   negotiated congestion and shaped capacity, fine/ordinary exchange, generated
   bus escapes and transition vias, physical-swap and cost-aware LCS authority,
   atomic exact checked commit, placement probes/candidates/detail/exact
   envelopes, live reduced-stem KiCad and reader/ERC producers, and generic R6
   semantic/process authorities. The accepted R4 consumer exposes only an
   in-memory exact-accepted `BoardLayout`; it does not save or render a board.
-  Do not resume hand iteration. Close real thermometer geometry, escape,
-  BusGroup/order, policy/budget, live-ngspice, and semantic declarations, then
-  apply the accepted chain through an explicitly persisted/read-back artifact.
+  Do not retrofit this chain into the completed thermometer. Apply it through
+  an explicitly persisted/read-back artifact on the next user-selected design,
+  whose shape and circuit are not already encoded in the repository.
   `docs/circuit-intelligence-review-supplement-5-2026-07-17.md` records the
   accepted bounds; `docs/r5-thermometer-pilot-prerequisite-audit-2026-07-17.md`
   records the remaining prerequisites.
-- **Thermometer challenge (2026-07-10, 10th topology, BOARD FAILED)**:
+- **Thermometer challenge (2026-07-10 through 2026-07-18, 10th topology,
+  COMPLETE PROOF-OF-CONCEPT)**:
   63 parts (ESP32-C3, SHT31 DFN, 2x74HC595, USB-C 16P, 16-LED mercury
   column) on a thermometer-shaped outline. It forced five GENERIC
   machinery upgrades, each regression-tested and rulebook'd (5.3-5.5):
@@ -364,12 +381,11 @@ ledger — read BEFORE touching the router or placements), and
   seven successive single-net failures (VBUS/DM/CAS/SEG9/SEG6/SEG5/
   LK4/SER/SRCLK) proved per-net A* + rip-up cannot shepherd 20+ nets
   through the 24 mm stem; every failure became a committed placement/
-  machinery fix. Machine schematic, reader schematic (live ERC +
-  netlist equality), ngspice sim, authority CLI, tests and golden
-  entry are DONE. The full board remains unrouted and is gated
-  on the missing real-thermometer declarations and authority application.
-  The old board-runner path through `compute_thermometer_board_layout` is a
-  legacy failure baseline, not the next implementation recipe. The isolated
+  machinery fix. A later corrected legacy-path run completed as R005: all 53
+  nets routed, clean machine/reader ERC, netlist equality, ngspice checks,
+  virtual/design checks, clean KiCad DRC, deterministic copper replay,
+  byte-identical repeated save, and inspected review images. R006 added proxy
+  SHT31/OLED 3D metadata without changing copper. The isolated
   production-derived R17/D17 `/PWLED` offline micro-pilot now proves exact
   vendored R0603/LED0805 body/courtyard input, one reviewed R17 -0.5 mm
   `LEGAL_EXACT` move, a 56-cell/82-portal zero-overuse R3 plan in 202 expansions,
@@ -382,11 +398,10 @@ ledger — read BEFORE touching the router or placements), and
   48 expansions, and R2 271 against 270. A separate opt-in live KiCad 10 gate
   passes exact read-back, byte-identical repeated save, and clean DRC with zero
   findings; the offline wrapper remains truthfully `kicad_live_checked=False`.
-  These isolated results do not establish full-template/fixed-neighbor
-  preservation, circuit equivalence, reader, simulation, thermometer readiness,
-  routing superiority, or R7 completion. No full
-  thermometer declaration set, persisted accepted board, default migration, or
-  routed full-board golden exists.
+  These isolated generic results do not establish broad routing superiority or
+  default adoption, but that does not reopen the completed project. R005 is the
+  accepted electrical proof; R006 is visualization-only. The user explicitly
+  retired the planned thermometer rerun on 2026-07-20.
 - Polygon-exact pour analysis; pear/led-art/divider exporter
   migrations to official symbols; live forge-topology run (user must
   start KoboldCpp); more registry blocks (rcd-clamp,

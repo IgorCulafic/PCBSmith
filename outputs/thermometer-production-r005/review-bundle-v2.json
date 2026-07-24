@@ -1,0 +1,1922 @@
+{
+  "schema": "pcbsmith-circuit-review-bundle-v2",
+  "status": "needs_human_review",
+  "intent": {
+    "raw_request": "thermometer temperature humidity display pcb",
+    "intent_id": "thermometer_env_display",
+    "status": "supported",
+    "assumptions": {
+      "vbus_v": 5.0,
+      "vcc_v": 3.3,
+      "led_count": 16.0,
+      "scale_min_c": 0.0,
+      "scale_max_c": 50.0
+    },
+    "unsupported_reasons": []
+  },
+  "pcbs_internal": {
+    "intent": {
+      "raw_request": "thermometer temperature humidity display pcb",
+      "intent_id": "thermometer_env_display",
+      "status": "supported",
+      "assumptions": {
+        "vbus_v": 5.0,
+        "vcc_v": 3.3,
+        "led_count": 16.0,
+        "scale_min_c": 0.0,
+        "scale_max_c": 50.0
+      },
+      "unsupported_reasons": []
+    },
+    "topology": {
+      "topology_id": "thermometer_env_display",
+      "title": "Thermometer-shaped SHT31 + ESP32-C3 display: 16-LED mercury column via two 74HC595, dual OLED readouts, USB-C powered 3.3V rail",
+      "status": "selected",
+      "evidence": [],
+      "warnings": []
+    },
+    "components": [
+      {
+        "reference": "J1",
+        "role": "usb_c_receptacle",
+        "symbol_id": "stdlib:USB_C",
+        "value": "USB-C 2.0 16P",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "GCT USB4105 16-pin USB 2.0 receptacle",
+            "locator": "Official KiCad footprint; verify the ordered part matches USB4105-xx-A.",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "F1",
+        "role": "vbus_polyfuse",
+        "symbol_id": "stdlib:FUSE",
+        "value": "500mA polyfuse",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Fuse:Fuse_1206_3216Metric",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "Resettable fuse on VBUS",
+            "locator": "Hold 500mA >= worst-case rail current from the calculator; protects the host port.",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "RCC1",
+        "role": "cc1_pulldown",
+        "symbol_id": "stdlib:R",
+        "value": "5.1k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "CC1 pull-down advertises a USB default sink",
+            "locator": "USB Type-C spec Rd = 5.1k.",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "RCC2",
+        "role": "cc2_pulldown",
+        "symbol_id": "stdlib:R",
+        "value": "5.1k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "CC2 pull-down advertises a USB default sink",
+            "locator": "USB Type-C spec Rd = 5.1k.",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "U5",
+        "role": "ldo_regulator",
+        "symbol_id": "stdlib:AP2112K",
+        "value": "AP2112K-3.3",
+        "support_status": "supported",
+        "footprint": "Package_TO_SOT_SMD:SOT-23-5",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "AP2112K-3.3: 600mA min, SOT-25 pinout VIN/GND/EN/NC/VOUT, 1uF X7R input and output capacitors",
+            "locator": "ai_assets/datasheets/ap2112.pdf p1 (rating, pinout), p2 (pin table, application circuit note 4), p3 (VIN 2.5-6V)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "C5",
+        "role": "ldo_input_capacitor",
+        "symbol_id": "stdlib:C",
+        "value": "1uF X7R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Capacitor_SMD:C_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "AP2112K-3.3: 600mA min, SOT-25 pinout VIN/GND/EN/NC/VOUT, 1uF X7R input and output capacitors",
+            "locator": "ai_assets/datasheets/ap2112.pdf p1 (rating, pinout), p2 (pin table, application circuit note 4), p3 (VIN 2.5-6V)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "C6",
+        "role": "ldo_output_capacitor",
+        "symbol_id": "stdlib:C",
+        "value": "1uF X7R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Capacitor_SMD:C_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "AP2112K-3.3: 600mA min, SOT-25 pinout VIN/GND/EN/NC/VOUT, 1uF X7R input and output capacitors",
+            "locator": "ai_assets/datasheets/ap2112.pdf p1 (rating, pinout), p2 (pin table, application circuit note 4), p3 (VIN 2.5-6V)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D17",
+        "role": "power_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "Kingbright APT2012SRCPRV 0805 red",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R17",
+        "role": "power_led_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "1k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "Dim always-on rail indicator",
+            "locator": "(3.3-1.85)/1k ~ 1.5mA: visible, negligible load.",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "U1",
+        "role": "mcu_module",
+        "symbol_id": "stdlib:ESP32C3WROOM02",
+        "value": "ESP32-C3-WROOM-02",
+        "support_status": "supported",
+        "footprint": "RF_Module:ESP32-C3-WROOM-02",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "ESP32-C3-WROOM-02 pinout, 3.0-3.6V supply, USB-Serial/JTAG on GPIO18/19, strapping pins GPIO2/8/9",
+            "locator": "ai_assets/datasheets/esp32-c3-wroom-02.pdf p3, p10-11, p12-13, p19",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "C1",
+        "role": "module_bulk_capacitor",
+        "symbol_id": "stdlib:C",
+        "value": "10uF",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Capacitor_SMD:C_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "ESP32-C3-WROOM-02 pinout, 3.0-3.6V supply, USB-Serial/JTAG on GPIO18/19, strapping pins GPIO2/8/9",
+            "locator": "ai_assets/datasheets/esp32-c3-wroom-02.pdf p3, p10-11, p12-13, p19",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "C2",
+        "role": "module_bypass_capacitor",
+        "symbol_id": "stdlib:C",
+        "value": "100n",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Capacitor_SMD:C_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "ESP32-C3-WROOM-02 pinout, 3.0-3.6V supply, USB-Serial/JTAG on GPIO18/19, strapping pins GPIO2/8/9",
+            "locator": "ai_assets/datasheets/esp32-c3-wroom-02.pdf p3, p10-11, p12-13, p19",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "REN1",
+        "role": "enable_pullup",
+        "symbol_id": "stdlib:R",
+        "value": "10k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "ESP32-C3-WROOM-02 pinout, 3.0-3.6V supply, USB-Serial/JTAG on GPIO18/19, strapping pins GPIO2/8/9",
+            "locator": "ai_assets/datasheets/esp32-c3-wroom-02.pdf p3, p10-11, p12-13, p19",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "CEN1",
+        "role": "enable_capacitor",
+        "symbol_id": "stdlib:C",
+        "value": "100n",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Capacitor_SMD:C_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "ESP32-C3-WROOM-02 pinout, 3.0-3.6V supply, USB-Serial/JTAG on GPIO18/19, strapping pins GPIO2/8/9",
+            "locator": "ai_assets/datasheets/esp32-c3-wroom-02.pdf p3, p10-11, p12-13, p19",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "RS1",
+        "role": "strap_pullup",
+        "symbol_id": "stdlib:R",
+        "value": "10k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "ESP32-C3-WROOM-02 pinout, 3.0-3.6V supply, USB-Serial/JTAG on GPIO18/19, strapping pins GPIO2/8/9",
+            "locator": "ai_assets/datasheets/esp32-c3-wroom-02.pdf p3, p10-11, p12-13, p19",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "RS2",
+        "role": "strap_pullup",
+        "symbol_id": "stdlib:R",
+        "value": "10k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "ESP32-C3-WROOM-02 pinout, 3.0-3.6V supply, USB-Serial/JTAG on GPIO18/19, strapping pins GPIO2/8/9",
+            "locator": "ai_assets/datasheets/esp32-c3-wroom-02.pdf p3, p10-11, p12-13, p19",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "U2",
+        "role": "led_shift_register",
+        "symbol_id": "stdlib:74HC595",
+        "value": "74HC595",
+        "support_status": "supported",
+        "footprint": "Package_SO:TSSOP-16_4.4x5mm_P0.65mm",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SN74HC595 pinout and 2-6V range",
+            "locator": "ai_assets/datasheets/sn74hc595.pdf p3 (pin table), p1",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "U3",
+        "role": "led_shift_register",
+        "symbol_id": "stdlib:74HC595",
+        "value": "74HC595",
+        "support_status": "supported",
+        "footprint": "Package_SO:TSSOP-16_4.4x5mm_P0.65mm",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SN74HC595 pinout and 2-6V range",
+            "locator": "ai_assets/datasheets/sn74hc595.pdf p3 (pin table), p1",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "C3",
+        "role": "register_bypass_capacitor",
+        "symbol_id": "stdlib:C",
+        "value": "100n",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Capacitor_SMD:C_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SN74HC595 pinout and 2-6V range",
+            "locator": "ai_assets/datasheets/sn74hc595.pdf p3 (pin table), p1",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "C4",
+        "role": "register_bypass_capacitor",
+        "symbol_id": "stdlib:C",
+        "value": "100n",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Capacitor_SMD:C_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SN74HC595 pinout and 2-6V range",
+            "locator": "ai_assets/datasheets/sn74hc595.pdf p3 (pin table), p1",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "ROE1",
+        "role": "oe_pullup",
+        "symbol_id": "stdlib:R",
+        "value": "10k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "OE pulled high blanks the column until firmware drives it",
+            "locator": "ai_assets/datasheets/sn74hc595.pdf p3 (OE, active low)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "U4",
+        "role": "humidity_temperature_sensor",
+        "symbol_id": "stdlib:SHT31",
+        "value": "SHT31-DIS",
+        "support_status": "supported",
+        "footprint": "Sensor_Humidity:Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SHT31-DIS pin assignment and I2C address",
+            "locator": "ai_assets/datasheets/sht3x-dis.pdf p8 (Table 7), p9 (0x44), p6 (supply)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "C7",
+        "role": "sensor_bypass_capacitor",
+        "symbol_id": "stdlib:C",
+        "value": "100n",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Capacitor_SMD:C_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SHT31-DIS pin assignment and I2C address",
+            "locator": "ai_assets/datasheets/sht3x-dis.pdf p8 (Table 7), p9 (0x44), p6 (supply)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "RI1",
+        "role": "i2c_pullup",
+        "symbol_id": "stdlib:R",
+        "value": "4.7k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SHT31-DIS pin assignment and I2C address",
+            "locator": "ai_assets/datasheets/sht3x-dis.pdf p8 (Table 7), p9 (0x44), p6 (supply)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "RI2",
+        "role": "i2c_pullup",
+        "symbol_id": "stdlib:R",
+        "value": "4.7k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SHT31-DIS pin assignment and I2C address",
+            "locator": "ai_assets/datasheets/sht3x-dis.pdf p8 (Table 7), p9 (0x44), p6 (supply)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "RI3",
+        "role": "i2c_pullup",
+        "symbol_id": "stdlib:R",
+        "value": "4.7k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SHT31-DIS pin assignment and I2C address",
+            "locator": "ai_assets/datasheets/sht3x-dis.pdf p8 (Table 7), p9 (0x44), p6 (supply)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "RI4",
+        "role": "i2c_pullup",
+        "symbol_id": "stdlib:R",
+        "value": "4.7k",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "SHT31-DIS pin assignment and I2C address",
+            "locator": "ai_assets/datasheets/sht3x-dis.pdf p8 (Table 7), p9 (0x44), p6 (supply)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "J2",
+        "role": "oled_header",
+        "symbol_id": "stdlib:CONN_01X04",
+        "value": "OLED 0.49in TEMP",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "0.49-inch SSD1306 I2C module on a 4-pin header",
+            "locator": "Module pin order GND/VCC/SCL/SDA assumed; verify against the ordered module (finding).",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "J3",
+        "role": "oled_header",
+        "symbol_id": "stdlib:CONN_01X04",
+        "value": "OLED 0.49in HUM",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Connector_PinHeader_2.54mm:PinHeader_1x04_P2.54mm_Vertical",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "0.49-inch SSD1306 I2C module on a 4-pin header",
+            "locator": "Module pin order GND/VCC/SCL/SDA assumed; verify against the ordered module (finding).",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R1",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D1",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R2",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D2",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R3",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D3",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R4",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D4",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R5",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D5",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R6",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D6",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R7",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D7",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R8",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D8",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R9",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D9",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R10",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D10",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R11",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D11",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R12",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D12",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R13",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D13",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R14",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D14",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R15",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D15",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "R16",
+        "role": "led_series_resistor",
+        "symbol_id": "stdlib:R",
+        "value": "270R",
+        "support_status": "needs_datasheet_review",
+        "footprint": "Resistor_SMD:R_0603_1608Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "D16",
+        "role": "mercury_led",
+        "symbol_id": "stdlib:LED",
+        "value": "RED-0805",
+        "support_status": "needs_datasheet_review",
+        "footprint": "LED_SMD:LED_0805_2012Metric",
+        "evidence": [
+          {
+            "kind": "datasheet_fact",
+            "title": "APT2012SRCPRV 0805 red, Vf 1.85V typ at 20mA",
+            "locator": "ai_assets/datasheets/kingbright-apt2012srcprv.pdf p2, p3 (V-I curve)",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "TP1",
+        "role": "test_point",
+        "symbol_id": "stdlib:TESTPOINT",
+        "value": "TP 3V3",
+        "support_status": "needs_datasheet_review",
+        "footprint": "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "Rail probe point",
+            "locator": "Bring-up aid.",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      },
+      {
+        "reference": "TP2",
+        "role": "test_point",
+        "symbol_id": "stdlib:TESTPOINT",
+        "value": "TP GND",
+        "support_status": "needs_datasheet_review",
+        "footprint": "TestPoint:TestPoint_THTPad_D2.0mm_Drill1.0mm",
+        "evidence": [
+          {
+            "kind": "engineering_assumption",
+            "title": "Ground probe point",
+            "locator": "Bring-up aid.",
+            "source_id": null,
+            "organization_or_author": null,
+            "revision": null,
+            "official_url": null,
+            "local_sha256": null,
+            "source_status": "unknown",
+            "locator_status": "unverified",
+            "applicability_status": "unknown",
+            "required_conditions": [],
+            "exclusions": [],
+            "origin_id": null
+          }
+        ]
+      }
+    ],
+    "nets": [
+      "VBUS",
+      "VBUSF",
+      "VCC",
+      "GND",
+      "CC1",
+      "CC2",
+      "DP",
+      "DM",
+      "EN",
+      "IO2",
+      "IO8",
+      "SER",
+      "SRCLK",
+      "RCLK",
+      "OE",
+      "CAS",
+      "SDA1",
+      "SCL1",
+      "SDA2",
+      "SCL2",
+      "PWLED",
+      "SEG1",
+      "SEG2",
+      "SEG3",
+      "SEG4",
+      "SEG5",
+      "SEG6",
+      "SEG7",
+      "SEG8",
+      "SEG9",
+      "SEG10",
+      "SEG11",
+      "SEG12",
+      "SEG13",
+      "SEG14",
+      "SEG15",
+      "SEG16",
+      "LK1",
+      "LK2",
+      "LK3",
+      "LK4",
+      "LK5",
+      "LK6",
+      "LK7",
+      "LK8",
+      "LK9",
+      "LK10",
+      "LK11",
+      "LK12",
+      "LK13",
+      "LK14",
+      "LK15",
+      "LK16"
+    ],
+    "math": {
+      "status": "warning",
+      "calculations": {
+        "led_current_typ_ma": 5.37,
+        "led_current_dim_ma": 4.07,
+        "per_register_supply_ma": 43.0,
+        "total_led_current_ma": 85.9,
+        "degrees_per_led_c": 3.125,
+        "i2c_pullup_min_ohms": 967.0,
+        "i2c_pullup_max_ohms": 23604.0,
+        "i2c_pullup_ohms": 4700.0,
+        "rail_current_worst_ma": 425.9,
+        "ldo_dissipation_w": 0.724,
+        "ldo_temperature_rise_c": 181.0
+      },
+      "findings": [
+        "LDO temperature rise 181C at the worst-case 426mA rail (module WiFi TX burst): keep the radio off or duty-cycled in firmware - the display workload itself draws a small fraction of this.",
+        "OLED READOUTS ARE MODULES: the two 0.49-inch SSD1306 displays are carried as 4-pin header footprints (GND/VCC/SCL/SDA) because common modules are complete assemblies with a fixed I2C address (0x3C) - hence one module per I2C bus. Verify the ordered module's pin order against the header silk before soldering.",
+        "ANTENNA KEEPOUT: the ESP32-C3-WROOM-02 datasheet (p10) requires a copper keepout under and beyond the module antenna even though this design uses no radio by default; the layout places the antenna end over the board edge. Firmware should keep WiFi off - the LDO thermal margin is budgeted for display load (see the calculator's WiFi-burst warning).",
+        "OMITTED BY DECISION (optional in the brief): LiPo battery + charging IC (board is USB-powered), and a dedicated USB ESD array (the short chassis-to-jack distance and 27ohm-free USB-Serial/JTAG lines are acceptable for an indoor display; add USBLC6-2SC6 if the deployment is harsher).",
+        "FIRMWARE CONTRACT (from the calculator, the same numbers the silk ticks use): LED1>=3.125C, LED2>=6.25C, LED3>=9.375C, LED4>=12.5C, LED5>=15.625C, LED6>=18.75C, LED7>=21.875C, LED8>=25C, LED9>=28.125C, LED10>=31.25C, LED11>=34.375C, LED12>=37.5C, LED13>=40.625C, LED14>=43.75C, LED15>=46.875C, LED16>=50C."
+      ]
+    }
+  },
+  "evidence": {
+    "status": "needs_human_review",
+    "findings": [
+      "ESP32-C3-WROOM-02, SHT31-DIS, SN74HC595, AP2112 and the Kingbright LED facts come from fetched, sha-pinned datasheets with page-level locators.",
+      "ASSUMPTION: J2/J3 accept 4-pin 0.49in I2C SSD1306 OLED modules (GND/VCC/SCL/SDA pin order) - verify against the purchased modules before soldering the sockets.",
+      "FIRMWARE CONTRACT: the LED thresholds, I2C addresses and display roles are documented composition findings; the board is inert without firmware honouring them.",
+      "The AP2112 WiFi-burst dissipation finding requires review before continuous-WiFi firmware is flashed."
+    ],
+    "cached_files": []
+  },
+  "kicad": {
+    "status": "passed",
+    "command": [
+      "C:\\Program Files\\KiCad\\10.0\\bin\\kicad-cli.exe",
+      "sch",
+      "erc",
+      "--format",
+      "json",
+      "--output",
+      "outputs\\thermometer-production-r005\\.pcbsmith\\kicad\\erc.json",
+      "outputs\\thermometer-production-r005\\Thermometer_R005.kicad_sch"
+    ],
+    "schematic_file": "outputs\\thermometer-production-r005\\Thermometer_R005.kicad_sch",
+    "erc_report": "outputs\\thermometer-production-r005\\.pcbsmith\\kicad\\erc.json",
+    "spice_netlist": null,
+    "findings": [
+      "Reader (human) schematic ERC: passed.",
+      "Netlist equality: the reader schematic exports the same components and net partition as the machine schematic.",
+      "KiCad SPICE export was intentionally skipped; the LED branches are simulated from a PCBSmith netlist and everything digital is datasheet-limit verified by the calculator."
+    ]
+  },
+  "ngspice": {
+    "backend": "ngspice",
+    "status": "passed",
+    "command": [
+      "D:\\AI\\PCB designer\\Spice64\\bin\\ngspice_con.exe",
+      "-b",
+      "D:\\AI\\PCB designer\\outputs\\thermometer-production-r005\\.pcbsmith\\simulation\\thermometer_led_op.cir"
+    ],
+    "measurements": {
+      "i_seg": 0.00558994,
+      "v_f": 1.79072,
+      "i_pwled": 0.0015787
+    },
+    "findings": [
+      "LED branch .op only: diode fit to the datasheet Vf point; the registers, MCU/radio, sensor and regulator are datasheet-limit verified by the calculator, NOT SPICE-simulated."
+    ],
+    "raw_output_path": "outputs\\thermometer-production-r005\\.pcbsmith\\simulation\\thermometer_led_op-ngspice-output.txt"
+  },
+  "reconciliation": {
+    "status": "warning",
+    "checks": [
+      "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
+      "ngspice ran the LED segment and power-indicator branches only.",
+      "The silkscreen graduations and the LED column positions derive from the same thermometer_scale_fraction - one scale truth for copper and ink."
+    ],
+    "findings": [
+      "The registers, MCU, I2C bus, sensor, USB and regulator are verified against datasheet worst-case limits by the calculator, not by SPICE."
+    ]
+  },
+  "board": {
+    "status": "needs_human_review",
+    "command": [
+      "C:\\Program Files\\KiCad\\10.0\\bin\\kicad-cli.exe",
+      "pcb",
+      "drc",
+      "--format",
+      "json",
+      "--output",
+      "outputs\\thermometer-production-r005\\.pcbsmith\\kicad\\drc.json",
+      "--schematic-parity",
+      "--refill-zones",
+      "--save-board",
+      "outputs\\thermometer-production-r005\\Thermometer_R005.kicad_pcb"
+    ],
+    "board_file": "outputs\\thermometer-production-r005\\Thermometer_R005.kicad_pcb",
+    "drc_report": "outputs\\thermometer-production-r005\\.pcbsmith\\kicad\\drc.json",
+    "findings": [
+      "AUTOMATION-ROUTED SHAPED BOARD: every trace was produced by route_board (fine-pitch pre-routing on a 0.1mm grid for the USB-C/DFN/cascade nets, then the 0.2mm main pass) inside the thermometer outline; the layout passed the same virtual DRC, kicad-cli DRC, and design checks as every board.",
+      "KiCad DRC passed. The generated board layout still requires human visual review before fabrication."
+    ]
+  },
+  "design_review": {
+    "status": "passed",
+    "checks_run": [
+      "connector_edge",
+      "outline_is_simple",
+      "trace_current",
+      "component_card_contract",
+      "ic_pin_connectivity",
+      "trace_corner_angle",
+      "redundant_copper"
+    ],
+    "findings": []
+  },
+  "revisions": [
+    {
+      "revision_id": "evidence_missing",
+      "parent_revision_id": null,
+      "changed_artifacts": [
+        "Evidence cache or part selection"
+      ],
+      "authority_checks": [
+        "evidence_lookup"
+      ],
+      "findings": [
+        "ESP32-C3-WROOM-02, SHT31-DIS, SN74HC595, AP2112 and the Kingbright LED facts come from fetched, sha-pinned datasheets with page-level locators.",
+        "ASSUMPTION: J2/J3 accept 4-pin 0.49in I2C SSD1306 OLED modules (GND/VCC/SCL/SDA pin order) - verify against the purchased modules before soldering the sockets.",
+        "FIRMWARE CONTRACT: the LED thresholds, I2C addresses and display roles are documented composition findings; the board is inert without firmware honouring them.",
+        "The AP2112 WiFi-burst dissipation finding requires review before continuous-WiFi firmware is flashed."
+      ],
+      "next_action": "Fetch or request the missing evidence before changing the schematic."
+    },
+    {
+      "revision_id": "math_mismatch",
+      "parent_revision_id": "evidence_missing",
+      "changed_artifacts": [
+        "Circuit object values or deterministic calculators"
+      ],
+      "authority_checks": [
+        "math_gate"
+      ],
+      "findings": [
+        "LDO temperature rise 181C at the worst-case 426mA rail (module WiFi TX burst): keep the radio off or duty-cycled in firmware - the display workload itself draws a small fraction of this.",
+        "OLED READOUTS ARE MODULES: the two 0.49-inch SSD1306 displays are carried as 4-pin header footprints (GND/VCC/SCL/SDA) because common modules are complete assemblies with a fixed I2C address (0x3C) - hence one module per I2C bus. Verify the ordered module's pin order against the header silk before soldering.",
+        "ANTENNA KEEPOUT: the ESP32-C3-WROOM-02 datasheet (p10) requires a copper keepout under and beyond the module antenna even though this design uses no radio by default; the layout places the antenna end over the board edge. Firmware should keep WiFi off - the LDO thermal margin is budgeted for display load (see the calculator's WiFi-burst warning).",
+        "OMITTED BY DECISION (optional in the brief): LiPo battery + charging IC (board is USB-powered), and a dedicated USB ESD array (the short chassis-to-jack distance and 27ohm-free USB-Serial/JTAG lines are acceptable for an indoor display; add USBLC6-2SC6 if the deployment is harsher).",
+        "FIRMWARE CONTRACT (from the calculator, the same numbers the silk ticks use): LED1>=3.125C, LED2>=6.25C, LED3>=9.375C, LED4>=12.5C, LED5>=15.625C, LED6>=18.75C, LED7>=21.875C, LED8>=25C, LED9>=28.125C, LED10>=31.25C, LED11>=34.375C, LED12>=37.5C, LED13>=40.625C, LED14>=43.75C, LED15>=46.875C, LED16>=50C."
+      ],
+      "next_action": "Recalculate values and update the existing circuit object."
+    },
+    {
+      "revision_id": "reconciliation_failed",
+      "parent_revision_id": "math_mismatch",
+      "changed_artifacts": [
+        "Translation boundary between PCBSmith, KiCad, and ngspice"
+      ],
+      "authority_checks": [
+        "reconciliation"
+      ],
+      "findings": [
+        "The registers, MCU, I2C bus, sensor, USB and regulator are verified against datasheet worst-case limits by the calculator, not by SPICE."
+      ],
+      "next_action": "Patch the mismatched translation layer."
+    }
+  ],
+  "artifacts": {
+    "pcbs_project": "outputs\\thermometer-production-r005\\project.pcbsmith.json",
+    "kicad_project": "outputs\\thermometer-production-r005\\Thermometer_R005.kicad_pro",
+    "review_bundle": "outputs\\thermometer-production-r005\\review-bundle-v2.json",
+    "kicad_schematic": "outputs\\thermometer-production-r005\\Thermometer_R005.kicad_sch",
+    "review_pack": "outputs\\thermometer-production-r005\\review-pack.md",
+    "layout_score": "outputs\\thermometer-production-r005\\.pcbsmith\\layout-score.json",
+    "kicad_erc_report": "outputs\\thermometer-production-r005\\.pcbsmith\\kicad\\erc.json",
+    "ngspice_output": "outputs\\thermometer-production-r005\\.pcbsmith\\simulation\\thermometer_led_op-ngspice-output.txt",
+    "kicad_board": "outputs\\thermometer-production-r005\\Thermometer_R005.kicad_pcb",
+    "kicad_drc_report": "outputs\\thermometer-production-r005\\.pcbsmith\\kicad\\drc.json",
+    "board_render_top": "outputs\\thermometer-production-r005\\Thermometer_R005-top.png",
+    "board_render_bottom": "outputs\\thermometer-production-r005\\Thermometer_R005-bottom.png",
+    "board_render_perspective": "outputs\\thermometer-production-r005\\Thermometer_R005-perspective.png",
+    "board_review_plot": "outputs\\thermometer-production-r005\\Thermometer_R005-review.png",
+    "kicad_schematic_svg": "outputs\\thermometer-production-r005\\Thermometer_R005-reader.svg",
+    "kicad_schematic_machine_svg": "outputs\\thermometer-production-r005\\Thermometer_R005.svg",
+    "kicad_reader_schematic": "outputs\\thermometer-production-r005\\Thermometer_R005-reader.kicad_sch"
+  }
+}

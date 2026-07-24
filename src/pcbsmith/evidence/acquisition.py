@@ -4,9 +4,11 @@ import hashlib
 import json
 import re
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
+from time import sleep
 from typing import Protocol
-from urllib import request
+from urllib import error, request
 
 from pcbsmith.evidence.cache import EvidenceCache
 from pcbsmith.evidence.models import (
@@ -24,36 +26,210 @@ class EvidenceProvider(Protocol):
     def search(
         self,
         request: EvidenceAcquisitionRequest,
-    ) -> tuple[EvidenceSourceCandidate, ...]:
-        ...
+    ) -> tuple[EvidenceSourceCandidate, ...]: ...
 
 
 class EvidenceDownloader(Protocol):
-    def download(self, url: str) -> bytes:
-        ...
+    def download(self, url: str) -> bytes: ...
+
+
+@dataclass(frozen=True)
+class DownloadAttempt:
+    attempt: int
+    header_profile: str
+    outcome: str
+    status_code: int | None = None
+    error_type: str | None = None
+    retry_after: str | None = None
+    scheduled_delay_seconds: float | None = None
+
+
+@dataclass(frozen=True)
+class SourceDownloadResult:
+    payload: bytes
+    final_url: str
+    attempts: tuple[DownloadAttempt, ...]
+    content_disposition: str | None = None
 
 
 class EvidenceDownloadError(RuntimeError):
-    pass
+    def __init__(
+        self,
+        message: str,
+        *,
+        attempts: tuple[DownloadAttempt, ...] = (),
+        final_url: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.attempts = attempts
+        self.final_url = final_url
 
 
 class UrlLibEvidenceDownloader:
-    def __init__(self, *, timeout_seconds: float = 60.0) -> None:
+    _RETRYABLE_HTTP_STATUS = frozenset({408, 425, 429, 500, 502, 503, 504})
+
+    def __init__(
+        self,
+        *,
+        timeout_seconds: float = 60.0,
+        max_attempts: int = 1,
+        retry_delay_seconds: float = 1.0,
+        max_retry_delay_seconds: float = 30.0,
+        browser_fallback: bool = True,
+        sleeper: Callable[[float], None] = sleep,
+    ) -> None:
+        if timeout_seconds <= 0:
+            raise ValueError("timeout_seconds must be positive")
+        if max_attempts < 1:
+            raise ValueError("max_attempts must be at least one")
+        if retry_delay_seconds < 0 or max_retry_delay_seconds < 0:
+            raise ValueError("retry delays cannot be negative")
         self._timeout_seconds = timeout_seconds
+        self._max_attempts = max_attempts
+        self._retry_delay_seconds = retry_delay_seconds
+        self._max_retry_delay_seconds = max_retry_delay_seconds
+        self._browser_fallback = browser_fallback
+        self._sleeper = sleeper
 
     def download(self, url: str) -> bytes:
-        http_request = request.Request(
-            url,
-            headers={"User-Agent": "pcbsmith-evidence/0.1"},
-        )
-        try:
-            with request.urlopen(http_request, timeout=self._timeout_seconds) as response:
-                payload = response.read()
-        except OSError as exc:
-            raise EvidenceDownloadError(f"Datasheet download failed: {exc}") from exc
-        if not isinstance(payload, bytes) or not payload:
-            raise EvidenceDownloadError("Datasheet download returned no data.")
-        return payload
+        return self.download_with_metadata(url).payload
+
+    def download_with_metadata(self, url: str) -> SourceDownloadResult:
+        attempts: list[DownloadAttempt] = []
+        last_final_url: str | None = None
+        for attempt_number in range(1, self._max_attempts + 1):
+            profile = self._header_profile(attempt_number)
+            http_request = request.Request(url, headers=self._headers(profile))
+            try:
+                with request.urlopen(http_request, timeout=self._timeout_seconds) as response:
+                    payload = response.read()
+                    final_url = response.geturl()
+                    last_final_url = final_url
+                    status_code = getattr(response, "status", None)
+                    content_disposition = response.headers.get("Content-Disposition")
+            except error.HTTPError as exc:
+                retry_after = exc.headers.get("Retry-After") if exc.headers is not None else None
+                retryable = exc.code in self._RETRYABLE_HTTP_STATUS
+                delay: float | None = None
+                if retryable:
+                    delay = self._retry_delay(attempt_number, retry_after)
+                attempts.append(
+                    DownloadAttempt(
+                        attempt=attempt_number,
+                        header_profile=profile,
+                        outcome="retryable_error" if retryable else "terminal_error",
+                        status_code=exc.code,
+                        error_type=type(exc).__name__,
+                        retry_after=retry_after,
+                        scheduled_delay_seconds=(
+                            delay if retryable and attempt_number < self._max_attempts else None
+                        ),
+                    )
+                )
+                if retryable and attempt_number < self._max_attempts:
+                    assert delay is not None
+                    self._sleeper(delay)
+                    continue
+                raise EvidenceDownloadError(
+                    f"Datasheet download failed with HTTP {exc.code}: {exc.reason}",
+                    attempts=tuple(attempts),
+                    final_url=last_final_url,
+                ) from exc
+            except (OSError, TimeoutError) as exc:
+                delay = self._retry_delay(attempt_number, None)
+                attempts.append(
+                    DownloadAttempt(
+                        attempt=attempt_number,
+                        header_profile=profile,
+                        outcome="retryable_error",
+                        error_type=type(exc).__name__,
+                        scheduled_delay_seconds=(
+                            delay if attempt_number < self._max_attempts else None
+                        ),
+                    )
+                )
+                if attempt_number < self._max_attempts:
+                    self._sleeper(delay)
+                    continue
+                raise EvidenceDownloadError(
+                    f"Datasheet download failed: {exc}",
+                    attempts=tuple(attempts),
+                    final_url=last_final_url,
+                ) from exc
+
+            if not isinstance(payload, bytes) or not payload:
+                attempts.append(
+                    DownloadAttempt(
+                        attempt=attempt_number,
+                        header_profile=profile,
+                        outcome="terminal_error",
+                        status_code=status_code,
+                        error_type="EmptyPayload",
+                    )
+                )
+                raise EvidenceDownloadError(
+                    "Datasheet download returned no data.",
+                    attempts=tuple(attempts),
+                    final_url=final_url,
+                )
+            attempts.append(
+                DownloadAttempt(
+                    attempt=attempt_number,
+                    header_profile=profile,
+                    outcome="success",
+                    status_code=status_code,
+                )
+            )
+            return SourceDownloadResult(
+                payload=payload,
+                final_url=final_url,
+                attempts=tuple(attempts),
+                content_disposition=content_disposition,
+            )
+        raise AssertionError("download attempt loop exited without a result")
+
+    def _header_profile(self, attempt_number: int) -> str:
+        if (
+            self._browser_fallback
+            and self._max_attempts > 1
+            and attempt_number == self._max_attempts
+        ):
+            return "browser-compatible"
+        return "pcbsmith"
+
+    @staticmethod
+    def _headers(profile: str) -> dict[str, str]:
+        if profile == "browser-compatible":
+            return {
+                "User-Agent": (
+                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                    "AppleWebKit/537.36 Chrome/126 Safari/537.36"
+                ),
+                "Accept": "application/pdf,application/zip,application/octet-stream,*/*;q=0.8",
+                "Accept-Language": "en-US,en;q=0.9",
+                "Connection": "close",
+            }
+        return {
+            "User-Agent": "pcbsmith-evidence/0.2",
+            "Accept": "application/pdf,application/zip,application/octet-stream,*/*;q=0.8",
+            "Connection": "close",
+        }
+
+    def _retry_delay(self, attempt_number: int, retry_after: str | None) -> float:
+        exponential = self._retry_delay_seconds * (2.0 ** (attempt_number - 1))
+        requested = _retry_after_seconds(retry_after)
+        delay = max(exponential, requested or 0.0)
+        return min(delay, self._max_retry_delay_seconds)
+
+
+def _retry_after_seconds(value: str | None) -> float | None:
+    if value is None:
+        return None
+    try:
+        parsed = float(value.strip())
+    except ValueError:
+        return None
+    return max(parsed, 0.0)
 
 
 def register_local_evidence(
@@ -258,8 +434,7 @@ class EvidenceAcquisitionService:
         if not component.files:
             return False
         return all(
-            self._resolve_cached_file(cached_file).exists()
-            for cached_file in component.files
+            self._resolve_cached_file(cached_file).exists() for cached_file in component.files
         )
 
     def _resolve_cached_file(self, cached_file: CachedEvidenceFile) -> Path:
@@ -324,8 +499,7 @@ def _without_same_extraction_job(
         for job in manifest.extraction_jobs
         if not (
             _normalize_identity(job.component_manufacturer) == _normalize_identity(manufacturer)
-            and _normalize_identity(job.component_part_number)
-            == _normalize_identity(part_number)
+            and _normalize_identity(job.component_part_number) == _normalize_identity(part_number)
             and job.role == role
         )
     )

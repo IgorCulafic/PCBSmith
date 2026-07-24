@@ -39,6 +39,7 @@ def _ids(values: tuple[str, ...], name: str) -> tuple[str, ...]:
 
 
 def complete_hard_binding(binding: EvidenceApplicabilityBinding) -> bool:
+    conditions = set(binding.required_conditions)
     return (
         bool(binding.required_conditions)
         and set(binding.matched_conditions) == set(binding.required_conditions)
@@ -46,10 +47,16 @@ def complete_hard_binding(binding: EvidenceApplicabilityBinding) -> bool:
         and binding.geometry_source_fingerprint is not None
         and binding.reviewer_record_id is not None
         and all(
-            item.source_status == "pinned"
+            bool(item.source_id and item.source_id.strip())
+            and bool(item.revision and item.revision.strip())
+            and item.source_status == "pinned"
             and item.local_sha256 is not None
-            and item.locator_status in {"text_verified", "figure_verified", "figure_bound"}
+            and len(item.local_sha256) == 64
+            and all(character in "0123456789abcdef" for character in item.local_sha256)
+            and item.locator_status in {"text_verified", "figure_verified"}
             and item.applicability_status == "confirmed"
+            and bool(item.required_conditions)
+            and set(item.required_conditions).issubset(conditions)
             for item in binding.evidence
         )
     )
@@ -68,6 +75,81 @@ class ReturnLayerPair(SemanticIrModel):
     schema_version: Literal[1] = 1
     signal_layer: Literal["F.Cu", "B.Cu"]
     reference_layer: Literal["F.Cu", "B.Cu"]
+
+
+class StackupReferenceContext(SemanticIrModel):
+    """Verified two-layer adjacency only; no impedance/material inference."""
+
+    schema_id: Literal["pcbsmith-stackup-reference-context"] = (
+        "pcbsmith-stackup-reference-context"
+    )
+    schema_version: Literal[1] = 1
+    context_id: str
+    status: Literal["verified", "unknown"]
+    board_layout_snapshot_fingerprint: str
+    copper_layer_order: tuple[Literal["F.Cu", "B.Cu"], ...]
+    adjacent_reference_pairs: tuple[ReturnLayerPair, ...]
+    reference_net_names: tuple[str, ...]
+    intended_consumer: str
+    evidence_binding: EvidenceApplicabilityBinding | None
+
+    @model_validator(mode="after")
+    def context_is_explicit(self) -> Self:
+        require_identity(self.context_id, "context_id")
+        require_identity(self.intended_consumer, "intended_consumer")
+        require_sha256(
+            self.board_layout_snapshot_fingerprint,
+            "board_layout_snapshot_fingerprint",
+        )
+        pairs = tuple(
+            sorted(
+                self.adjacent_reference_pairs,
+                key=lambda item: (item.signal_layer, item.reference_layer),
+            )
+        )
+        if len(pairs) != len(
+            {(item.signal_layer, item.reference_layer) for item in pairs}
+        ):
+            raise ValueError("stack-up adjacent reference pairs must be unique")
+        object.__setattr__(self, "adjacent_reference_pairs", pairs)
+        object.__setattr__(
+            self,
+            "reference_net_names",
+            _ids(self.reference_net_names, "reference_net_names"),
+        )
+        if self.status == "unknown":
+            if (
+                self.copper_layer_order
+                or pairs
+                or self.reference_net_names
+                or self.evidence_binding is not None
+            ):
+                raise ValueError("unknown stack-up cannot invent layer/reference authority")
+            return self
+        if self.copper_layer_order != ("F.Cu", "B.Cu"):
+            raise ValueError("current verified stack-up authority supports exact two-layer order")
+        if not pairs or not self.reference_net_names or self.evidence_binding is None:
+            raise ValueError("verified stack-up requires adjacency, reference nets, and evidence")
+        if any(item.signal_layer == item.reference_layer for item in pairs):
+            raise ValueError("a signal layer cannot be its own adjacent reference layer")
+        binding = self.evidence_binding
+        if not complete_hard_binding(binding):
+            raise ValueError("verified stack-up requires revisioned pinned applicable evidence")
+        if binding.claim_id != self.context_id:
+            raise ValueError("stack-up evidence claim identity does not match context")
+        if binding.geometry_source_fingerprint != stackup_reference_context_fingerprint(self):
+            raise ValueError("stack-up evidence is stale for its exact context")
+        return self
+
+
+def stackup_reference_context_fingerprint(context: StackupReferenceContext) -> str:
+    return fingerprint(
+        {
+            "schema_id": "pcbsmith-stackup-reference-source-context",
+            "schema_version": 1,
+            "context": context.model_dump(mode="json", exclude={"evidence_binding"}),
+        }
+    )
 
 
 class ReturnPathLeg(SemanticIrModel):
@@ -107,12 +189,13 @@ def return_requirement_context_fingerprint(
     requirement_id: str,
     requirement_kind: str,
     requirement_value: Decimal | None,
+    stackup_context_fingerprint: str,
 ) -> str:
     """Build the evidence pin for one full graph/declaration/model requirement context."""
 
     payload = {
         "schema_id": "pcbsmith-return-hard-context",
-        "schema_version": 1,
+        "schema_version": 2,
         "declaration_id": declaration_id,
         "graph_fingerprint": graph.graph_fingerprint,
         "layout_fingerprint": graph.board_layout_snapshot_fingerprint,
@@ -133,6 +216,7 @@ def return_requirement_context_fingerprint(
         "threshold_id": requirement_id,
         "threshold_kind": requirement_kind,
         "threshold_value": None if requirement_value is None else str(requirement_value),
+        "stackup_context_fingerprint": stackup_context_fingerprint,
     }
     return fingerprint(payload)
 
@@ -186,7 +270,7 @@ class ReturnPathDeclaration(SemanticIrModel):
     """A complete, graph-bound declaration; it does not choose copper paths."""
 
     schema_id: Literal["pcbsmith-return-path-declaration"] = "pcbsmith-return-path-declaration"
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     declaration_id: str
     graph: RoutedCopperGraphResult
     board_layout_snapshot_fingerprint: str
@@ -195,6 +279,7 @@ class ReturnPathDeclaration(SemanticIrModel):
     signal_class: ReturnSignalClass
     exact_net_class_id: str
     reference_net_name: str
+    stackup_context: StackupReferenceContext
     layer_pairs: tuple[ReturnLayerPair, ...] = Field(min_length=1)
     legs: tuple[ReturnPathLeg, ...] = Field(min_length=1)
     adjacency_model_id: str
@@ -215,6 +300,7 @@ class ReturnPathDeclaration(SemanticIrModel):
             requirement_id=threshold.threshold_id,
             requirement_kind=threshold.kind,
             requirement_value=threshold.value_mm,
+            stackup_context_fingerprint=self.stackup_context.semantic_fingerprint(),
         )
 
     def stitch_context_fingerprint(self) -> str | None:
@@ -234,6 +320,7 @@ class ReturnPathDeclaration(SemanticIrModel):
             requirement_id=requirement.requirement_id,
             requirement_kind="transition_stitch_maximum_distance_mm",
             requirement_value=requirement.maximum_distance_mm,
+            stackup_context_fingerprint=self.stackup_context.semantic_fingerprint(),
         )
 
     @model_validator(mode="after")
@@ -253,6 +340,11 @@ class ReturnPathDeclaration(SemanticIrModel):
             raise ValueError("return declaration is bound to another BoardLayout snapshot")
         if self.board_netlist_snapshot_fingerprint != self.graph.board_netlist_snapshot_fingerprint:
             raise ValueError("return declaration is bound to another BoardNetlist snapshot")
+        if (
+            self.stackup_context.board_layout_snapshot_fingerprint
+            != self.board_layout_snapshot_fingerprint
+        ):
+            raise ValueError("return declaration stack-up is bound to another BoardLayout")
         object.__setattr__(
             self, "signal_net_names", _ids(self.signal_net_names, "signal_net_names")
         )
@@ -260,6 +352,25 @@ class ReturnPathDeclaration(SemanticIrModel):
         if len({item.signal_layer for item in pairs}) != len(pairs):
             raise ValueError("each signal layer must have exactly one declared reference layer")
         object.__setattr__(self, "layer_pairs", pairs)
+        if self.stackup_context.status == "unknown":
+            if (
+                self.adjacency_model_id not in ADVISORY_MODEL_IDS
+                or self.hard_thresholds
+                or self.transition_stitch_requirement is not None
+            ):
+                raise ValueError("unknown stack-up permits advisory return guidance only")
+        else:
+            stackup_pairs = {
+                (item.signal_layer, item.reference_layer)
+                for item in self.stackup_context.adjacent_reference_pairs
+            }
+            if any(
+                (item.signal_layer, item.reference_layer) not in stackup_pairs
+                for item in pairs
+            ):
+                raise ValueError("declared reference layer is not adjacent in verified stack-up")
+            if self.reference_net_name not in self.stackup_context.reference_net_names:
+                raise ValueError("declared reference net is absent from verified stack-up context")
         legs = tuple(sorted(self.legs, key=lambda item: item.leg_id))
         if len({item.leg_id for item in legs}) != len(legs):
             raise ValueError("return leg identities must be unique")
@@ -476,7 +587,7 @@ class ReturnFinding(SemanticIrModel):
 
 class ReturnAdjacencyResult(SemanticIrModel):
     schema_id: Literal["pcbsmith-return-adjacency-result"] = "pcbsmith-return-adjacency-result"
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     declaration: ReturnPathDeclaration
     reference_fills: tuple[QualifiedReferenceFill, ...]
     stitch_evidence: tuple[ReferenceStitchEvidence, ...]

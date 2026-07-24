@@ -11,7 +11,9 @@ from pcbsmith.decoupling_loop_ir import (
     DecouplingLoopDeclaration,
     DecouplingLoopEvaluationResult,
     DecouplingLoopMetrics,
+    DecouplingLoopPolicy,
     DecouplingPathLegMetrics,
+    decoupling_loop_context_fingerprint,
 )
 from pcbsmith.kicad.board_serialization import parse_canonical_board_netlist_snapshot
 from pcbsmith.routed_copper_graph_ir import (
@@ -24,6 +26,14 @@ from pcbsmith.routed_copper_graph_ir import (
 from pcbsmith.semantic_ir import SemanticDisposition, SemanticVerification
 
 Point = tuple[Fraction, Fraction]
+
+
+def _is_sha256(value: str | None) -> bool:
+    return (
+        value is not None
+        and len(value) == 64
+        and all(character in "0123456789abcdef" for character in value)
+    )
 
 
 def _validate_inputs(
@@ -345,6 +355,64 @@ def _derive_metrics(
     )
 
 
+def _hard_binding_reasons(declaration: DecouplingLoopDeclaration) -> tuple[str, ...]:
+    policy = declaration.policy
+    binding = policy.applicability_binding
+    if binding is None:
+        return ("hard_policy_evidence_missing",)
+    reasons = []
+    if binding.claim_id != policy.policy_id:
+        reasons.append("hard_policy_claim_identity_mismatch")
+    if (
+        not binding.required_conditions
+        or binding.unmatched_conditions
+        or set(binding.matched_conditions) != set(binding.required_conditions)
+        or binding.reviewer_record_id is None
+    ):
+        reasons.append("hard_policy_applicability_incomplete")
+    if binding.geometry_source_fingerprint != decoupling_loop_context_fingerprint(declaration):
+        reasons.append("hard_policy_context_fingerprint_mismatch")
+    binding_conditions = set(binding.required_conditions)
+    if not all(
+        bool(item.source_id and item.source_id.strip())
+        and bool(item.revision and item.revision.strip())
+        and item.source_status == "pinned"
+        and _is_sha256(item.local_sha256)
+        and item.locator_status in {"text_verified", "figure_verified"}
+        and item.applicability_status == "confirmed"
+        and item.required_conditions
+        and set(item.required_conditions).issubset(binding_conditions)
+        for item in binding.evidence
+    ):
+        reasons.append("hard_policy_evidence_not_revisioned_pinned_verified_applicable")
+    return tuple(sorted(reasons))
+
+
+def _policy_violations(
+    metrics: DecouplingLoopMetrics,
+    policy: DecouplingLoopPolicy,
+) -> tuple[str, ...]:
+    violations = []
+    if Fraction(metrics.combined_via_count) > policy.maximum_via_count.fraction():
+        violations.append("maximum_via_count_exceeded")
+    if policy.minimum_track_width_mm is not None:
+        if (
+            metrics.combined_minimum_track_width_mm is not None
+            and metrics.combined_minimum_track_width_mm < policy.minimum_track_width_mm
+        ):
+            violations.append("minimum_track_width_violated")
+    if (
+        policy.maximum_projected_loop_area_mm2 is not None
+        and metrics.projected_loop_area_mm2 is not None
+        and metrics.projected_loop_area_mm2.fraction()
+        > policy.maximum_projected_loop_area_mm2.fraction()
+    ):
+        violations.append("maximum_projected_loop_area_exceeded")
+    if policy.require_dedicated and metrics.terminal_classification == "daisy_chain":
+        violations.append("dedicated_topology_required")
+    return tuple(sorted(violations))
+
+
 def rederive_decoupling_loop(
     graph_result: RoutedCopperGraphResult,
     supply_path: ResolvedCopperPathResult,
@@ -363,7 +431,6 @@ def rederive_decoupling_loop(
         ):
             path_reasons.append(f"{name}_path_not_exact_connected")
     metrics = None if path_reasons else _derive_metrics(graph, supply, return_leg, retained)
-    violations: list[str] = []
     unverified = list(path_reasons)
     if metrics is not None:
         policy = retained.policy
@@ -371,33 +438,27 @@ def rederive_decoupling_loop(
             unverified.append("projected_loop_area_unverified")
         if metrics.terminal_classification == "unverified":
             unverified.append("terminal_inventory_incomplete")
-        if Fraction(metrics.combined_via_count) > policy.maximum_via_count.fraction():
-            violations.append("maximum_via_count_exceeded")
         if policy.minimum_track_width_mm is not None:
             if metrics.combined_minimum_track_width_mm is None:
                 unverified.append("track_width_unavailable")
-            elif metrics.combined_minimum_track_width_mm < policy.minimum_track_width_mm:
-                violations.append("minimum_track_width_violated")
         if policy.maximum_projected_loop_area_mm2 is not None:
             if metrics.projected_loop_area_mm2 is None:
                 unverified.append("projected_loop_area_unverified")
-            elif (
-                metrics.projected_loop_area_mm2.fraction()
-                > policy.maximum_projected_loop_area_mm2.fraction()
-            ):
-                violations.append("maximum_projected_loop_area_exceeded")
-        if policy.require_dedicated:
-            if metrics.terminal_classification == "daisy_chain":
-                violations.append("dedicated_topology_required")
+        if policy.mode == "sourced_hard":
+            unverified.extend(_hard_binding_reasons(retained))
+    violations_tuple = (
+        () if metrics is None or unverified else _policy_violations(metrics, retained.policy)
+    )
+    unverified_tuple = tuple(sorted(set(unverified)))
     disposition = (
-        SemanticDisposition.FAIL
-        if violations
-        else SemanticDisposition.UNVERIFIED
-        if unverified
+        SemanticDisposition.UNVERIFIED
+        if unverified_tuple
+        else SemanticDisposition.ADVISORY
+        if retained.policy.mode == "advisory"
+        else SemanticDisposition.FAIL
+        if violations_tuple
         else SemanticDisposition.PASS
     )
-    violations_tuple = tuple(sorted(violations))
-    unverified_tuple = tuple(sorted(set(unverified)))
     input_fp = fingerprint(
         {
             "graph": graph.result_fingerprint,

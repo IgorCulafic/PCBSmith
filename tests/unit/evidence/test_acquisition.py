@@ -3,11 +3,16 @@ from __future__ import annotations
 import hashlib
 import json
 from pathlib import Path
+from urllib import error
+
+import pytest
 
 from pcbsmith.evidence import (
     EvidenceAcquisitionRequest,
     EvidenceAcquisitionService,
+    EvidenceDownloadError,
     EvidenceSourceCandidate,
+    UrlLibEvidenceDownloader,
 )
 
 
@@ -32,6 +37,114 @@ class RecordingDownloader:
     def download(self, url: str) -> bytes:
         self.urls.append(url)
         return self.payload
+
+
+class FakeUrlResponse:
+    def __init__(
+        self,
+        payload: bytes,
+        *,
+        final_url: str,
+        status: int = 200,
+        content_disposition: str | None = None,
+    ) -> None:
+        self._payload = payload
+        self._final_url = final_url
+        self.status = status
+        self.headers = (
+            {"Content-Disposition": content_disposition} if content_disposition is not None else {}
+        )
+
+    def __enter__(self) -> FakeUrlResponse:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        return None
+
+    def read(self) -> bytes:
+        return self._payload
+
+    def geturl(self) -> str:
+        return self._final_url
+
+
+def test_url_downloader_retries_rate_limit_and_records_final_response(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    url = "https://vendor.example/guide.pdf"
+    calls: list[tuple[str, str | None]] = []
+    responses: list[object] = [
+        error.HTTPError(
+            url,
+            429,
+            "rate limited",
+            {"Retry-After": "7"},
+            None,
+        ),
+        FakeUrlResponse(
+            b"%PDF-1.7\nfixture",
+            final_url="https://downloads.vendor.example/guide.pdf",
+            content_disposition='attachment; filename="guide.pdf"',
+        ),
+    ]
+
+    def fake_urlopen(http_request: object, *, timeout: float) -> object:
+        calls.append((http_request.full_url, http_request.get_header("User-agent")))
+        item = responses.pop(0)
+        if isinstance(item, Exception):
+            raise item
+        return item
+
+    monkeypatch.setattr("pcbsmith.evidence.acquisition.request.urlopen", fake_urlopen)
+    delays: list[float] = []
+    downloader = UrlLibEvidenceDownloader(
+        max_attempts=2,
+        retry_delay_seconds=1.0,
+        max_retry_delay_seconds=10.0,
+        sleeper=delays.append,
+    )
+
+    result = downloader.download_with_metadata(url)
+
+    assert result.final_url == "https://downloads.vendor.example/guide.pdf"
+    assert result.content_disposition == 'attachment; filename="guide.pdf"'
+    assert tuple(attempt.outcome for attempt in result.attempts) == (
+        "retryable_error",
+        "success",
+    )
+    assert result.attempts[0].retry_after == "7"
+    assert result.attempts[0].scheduled_delay_seconds == 7.0
+    assert delays == [7.0]
+    assert calls[0][1] == "pcbsmith-evidence/0.2"
+    assert calls[1][1] is not None and calls[1][1].startswith("Mozilla/5.0")
+
+
+def test_url_downloader_exhausts_transient_failures_with_telemetry(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_urlopen(http_request: object, *, timeout: float) -> object:
+        raise TimeoutError(f"timed out after {timeout}")
+
+    monkeypatch.setattr("pcbsmith.evidence.acquisition.request.urlopen", fail_urlopen)
+    delays: list[float] = []
+    downloader = UrlLibEvidenceDownloader(
+        max_attempts=3,
+        retry_delay_seconds=0.5,
+        max_retry_delay_seconds=1.0,
+        sleeper=delays.append,
+    )
+
+    with pytest.raises(EvidenceDownloadError) as raised:
+        downloader.download("https://vendor.example/guide.pdf")
+
+    assert len(raised.value.attempts) == 3
+    assert tuple(attempt.header_profile for attempt in raised.value.attempts) == (
+        "pcbsmith",
+        "pcbsmith",
+        "browser-compatible",
+    )
+    assert all(attempt.error_type == "TimeoutError" for attempt in raised.value.attempts)
+    assert delays == [0.5, 1.0]
 
 
 def test_acquisition_returns_cache_hit_without_provider_or_downloader(
@@ -113,9 +226,7 @@ def test_acquisition_does_not_download_candidate_without_datasheet_url(tmp_path:
 
     assert report.status == "missing"
     assert downloader.urls == []
-    assert report.findings == (
-        "Provider candidate Example NO-DATASHEET has no datasheet URL.",
-    )
+    assert report.findings == ("Provider candidate Example NO-DATASHEET has no datasheet URL.",)
 
 
 def test_acquisition_downloads_selected_datasheet_and_updates_manifest(

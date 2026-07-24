@@ -11,9 +11,16 @@ phase0-*-pytest*/
 phase0-pytest-basetemp/
 docs/reference/PCB_Application_Specification.docx
 
-# Generated design revisions (historical evidence lives in bundles/commits,
-# not in git; see hardening plan 4.4).
-outputs/
+# Generated design revisions remain local by default. The accepted R005
+# thermometer proof and R006 3D pilot are deliberately retained as bounded
+# project-generated evidence; they contain no copyrighted source documents or
+# third-party model files.
+outputs/*
+!outputs/thermometer-production-r005/
+!outputs/thermometer-production-r005/**
+!outputs/thermometer-3d-model-test-r006/
+!outputs/thermometer-3d-model-test-r006/**
+outputs/thermometer-3d-model-test-r006/.history/
 
 # Vendored standalone ngspice (should eventually live outside the repo).
 Spice64/
@@ -41,5 +48,20 @@ ai_assets/models/
 ai_assets/koboldcpp/
 /Books/
 .book-cache/
+.pcbsmith-private/
+.pcbsmith/evidence/
+.pcbsmith/phase17-exact-part/cache/
+.pcbsmith/phase17-exact-part/private-sources.json
+.pcbsmith/verification/phase17/*-work/
+.pcbsmith/verification/phase17/r5-inputs/
+.pcbsmith/verification/phase17/*.pid
+.pcbsmith/verification/phase17/*.stdout.log
+.pcbsmith/verification/phase17/*.stderr.log
+.pcbsmith/git-push/
+.pcbsmith/**/logs/
+.pcbsmith/**/*.log
+.pcbsmith/**/*.pid
+.pcbsmith/**/*.stdout.*
+.pcbsmith/**/*.stderr.*
 /Old Chat Logs/
 /tmp/

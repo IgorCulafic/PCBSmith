@@ -385,6 +385,38 @@ the `review-comment` CLI as the comment API, and the px↔mm mapping the
 review plot must expose. Acceptance: a UI could be built against the doc
 without reading source. Effort: half a session.
 
+### 4.9 Evidence acquisition and production utilization
+
+**Status (2026-07-18): POLICY AND LOCAL AUDIT COMPLETE; AUTOMATION OPEN.**
+`docs/evidence-acquisition-and-utilization-guide.md` is the operating contract.
+It replaces broad reading as a progress metric with a source-status ladder from
+`discovered` through `production_exercised` and `revision_monitored`. Every new
+source must name its intended rule/profile/card/artifact consumer and acceptance
+fixture before acquisition, then travel through applicability reconciliation,
+passing/firing fixtures, a production caller, saved artifacts, and review.
+
+The local Books audit is
+`docs/reference/books/LOCAL-SOURCE-INVENTORY-2026-07-18.md`. IPC-7352 and IEC
+60664-1:2020 were already present and pinned; new full older copies of IPC-2222
+original and IEC 62368-1:2014 are verified but not current conformance authority.
+Full IPC-7093A and IPC-2152 copies are now pinned. The official Sensirion Version
+2 guide and USB-IF USB 2.0 June 2025 bundle were automatically downloaded,
+hashed, and visually verified on 2026-07-18; the guide and USB base specification
+are extracted/registered, and the complete archive is inventoried. Immediate
+acquisition is therefore limited to exact selected-part/module/CAD evidence and
+selected fab/assembler profiles; targeted distillation of the newly pinned
+sources takes priority over another general research wave.
+
+Implementation backlog:
+
+- [ ] add a machine-readable source-to-code/consumer trace record;
+- [ ] make inventory/hash/revision/duplicate/preview checks repeatable;
+- [ ] fail closed when a production claim depends only on an unverified,
+  mismatched, preview, or out-of-scope source;
+- [ ] report evidence stalled at `distilled` and rules not exercised by any
+  production caller;
+- [ ] add revision monitoring only for sources invoked by active profiles.
+
 ---
 
 ## Track 6 - Component onboarding (new part -> trusted building block)
@@ -449,11 +481,68 @@ the card is the gate. Effort: 2 sessions after 6.1/6.2.
 - card-vs-footprint pad census (every card pin exists on the footprint
   and vice versa) - onboarding level.
 
+### 6.5 3D package and module asset onboarding
+
+Motivation (user, 2026-07-18, during the production thermometer review):
+KiCad can carry a syntactically valid model reference while the referenced
+STEP/WRL file is absent. The 3D Viewer then silently omits the part, as observed
+for the SHT31. Board-mounted modules such as SSD1306 OLED assemblies also need
+the complete module model, not merely the pin-header model. Mechanical review
+therefore needs a source-bound asset pipeline rather than opportunistic model
+strings embedded in footprints.
+
+Acquisition priority:
+
+1. exact model already present in the installed official KiCad library;
+2. manufacturer-hosted STEP/WRL or mechanical CAD for the selected MPN/module;
+3. a trusted distributor or upstream open library with explicit provenance and
+   reusable licensing;
+4. a deterministic proxy made from datasheet dimensions, labelled
+   `visualization_proxy` and never claimed as exact fit evidence.
+
+The component card gains an optional `models_3d` contract for each package or
+complete module: asset role, MPN/module identity, source URL, local cache path,
+SHA-256, license/reuse status, expected body dimensions, board side, model
+origin, scale/rotation/offset transform, and support status. Package models and
+complete carrier/module models remain distinct because their mechanical
+envelopes and connector origins are not interchangeable.
+
+`pcbsmith onboard-component` (or a dedicated `resolve-3d-assets` stage) must:
+
+- collect every model reference from the selected symbol/footprint/card;
+- expand KiCad path variables and verify that each referenced file exists;
+- search the local checksum manifest before any network request;
+- download only the selected missing model and retain URL, timestamp, checksum,
+  license, and original filename under an ignored `ai_assets/3d_models/` cache;
+- vendor only assets whose license permits redistribution; otherwise retain
+  metadata and a local-cache-only reference;
+- bind the model to the generated footprint with a deterministic transform;
+- compare the transformed model bounding box with the footprint Fab/Courtyard
+  and declared module envelope, including pad-1/connector orientation and
+  front/back side;
+- render front, back, and perspective images and report missing, invisible,
+  grossly oversized, mirrored, buried, or floating models explicitly.
+
+Acceptance:
+
+- an absent SHT31-style referenced file produces a machine-readable finding,
+  not a silently incomplete render;
+- exact cached assets replay offline with the same checksum and transform;
+- a complete OLED/module asset is distinguished from its connector/header;
+- proxy models are visually obvious in the review manifest and cannot satisfy
+  exact mechanical-fit gates;
+- at least one front-side package, one back-side package, and one board-mounted
+  module pass saved-board read-back plus rendered visual inspection;
+- the thermometer R006 experiment records the first package-fallback and
+  complete-module transform evidence without changing R005 fabrication copper.
+
 Sequencing: 6.1 alone already upgrades every existing board's schematic
 quality; 6.2+6.4 retire the hand-maintained pin tables; 6.3 makes new
-parts a command instead of a session. Slot after Wave 4's evidence
-fetches (the card generator IS the extraction pipeline pointed at pin
-tables).
+parts a command instead of a session. 6.5 reuses the same selected-part,
+cache, provenance, and review gates and slots after R7 unless a design-specific
+missing model blocks mechanical review. Slot the remaining Track 6 work after
+Wave 4's evidence fetches (the card generator IS the extraction pipeline
+pointed at pin tables and model metadata).
 
 ## Progress (2026-07-06)
 
@@ -543,7 +632,7 @@ rulebook updates in the same commit.
 From the Flux/Quilter/Diode/PCBSchemaGen research
 (`docs/market-notes/`). Ordered by value-per-effort:
 
-- **8.1 Review-artifact bundle (deterministic).** Flux's most-loved
+- **8.1 Review-artifact bundle (deterministic) - PARTIAL.** Flux's most-loved
   copilot features need an LLM; our structured design data does not:
   - test-plan.md from calculator outputs + test-point positions + sim
     expectations ("probe TP1: ~160VDC; VOUT 3.3V +/-3%; opto LED
@@ -553,6 +642,13 @@ From the Flux/Quilter/Diode/PCBSchemaGen research
   - pin-function tables from component cards into the bundle;
   - mermaid block diagram from topology roles/nets;
   - BOM passive-consolidation lint (near-identical passives flag).
+  The R005/R006 thermometer outputs prove useful manual 2D/3D review artifacts,
+  but do not complete a generic deterministic review bundle. The canonical
+  P0-V specification is now in `docs/routing-placement-plan.md`: a dedicated
+  `review/` tree, physical-scale-aware overview and tiled detail renders,
+  layer-isolated fabrication/assembly/routing/electrical profiles, fixed 3D
+  cameras, previous/current comparisons, diagnostics, a versioned manifest,
+  and a fail-closed inspection record. Its implementation remains open.
 - **8.2 A* router reframed as candidates + scorecard (upgrades 2.3).**
   Quilter's physics-scored-candidates lesson: generate N candidate
   placements/routes, score each with what already exists (virtual

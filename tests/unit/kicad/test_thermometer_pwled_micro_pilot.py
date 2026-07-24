@@ -42,8 +42,8 @@ def test_real_r17_d17_pwled_crop_retains_absolute_production_truth() -> None:
         (pose.reference, pose.x_mm, pose.y_mm, pose.rotation_deg, pose.side)
         for pose in pilot.source_absolute_poses
     ) == (
-        ("D17", 31.0, 147.0, 0.0, "front"),
-        ("R17", 35.0, 147.0, 0.0, "front"),
+        ("D17", 50.0, 160.0, 0.0, "front"),
+        ("R17", 54.0, 160.0, 0.0, "front"),
     )
     assert (layout.width_mm, layout.height_mm) == CROP_SIZE_MM
     assert layout.outline == ((0.0, 0.0), (10.0, 0.0), (10.0, 6.0), (0.0, 6.0))
@@ -57,7 +57,7 @@ def test_real_r17_d17_pwled_crop_retains_absolute_production_truth() -> None:
     assert pilot.authority.netlist() == netlist
     assert pilot.authority.layout() == layout
     assert pilot.full_thermometer_outline_fingerprint == (
-        "538c253e6f596c889f3661bd5a4d4f81aa9f1cd3e041b603c76d8f310e72428b"
+        "2d6600448082aadfce290a80af2025e7eed095d09104f154ac05b56c5e1d061d"
     )
 
 
@@ -135,7 +135,7 @@ def test_input_authority_replays_deterministically_without_acceptance_claim() ->
     assert first == second == retained
     assert retained_authority == first.authority
     assert first.input_fingerprint == (
-        "3473b6aaef7778e2f6aff53ab56a9be0b61cd49e5b368ac491a2f5d46af99827"
+        "d03f6603a4c09c2b2452b2bf42c24f2b51d47e40fa088e8afce3f3422d8b9d4a"
     )
     assert first.authority.move_policy.movable_references == ("R17",)
     assert first.authority.move_policy.translation_step_mm == 0.5

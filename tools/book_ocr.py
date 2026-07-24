@@ -20,6 +20,8 @@ CACHE_DIR = Path("D:/AI/PCB designer/.book-cache")
 SCANNED: dict[str, str] = {
     "johnson-hsdd": "High-Speed Digital Design",
     "ipc-7351": "IPC-7351",
+    "ipc-2222-original": "IPC-2222 eng",
+    "ipc-7525-original": "IPC-7525 eng",
 }
 
 

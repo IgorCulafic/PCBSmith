@@ -1,0 +1,112 @@
+{
+  "schema": "pcbsmith-thermometer-production-verification-v1",
+  "status": "proof_of_concept_accepted_with_documented_operational_reviews",
+  "project": "Thermometer_R005",
+  "scope": {
+    "project_outcome": "accepted_complete",
+    "routing_authority": "legacy_route_board",
+    "generic_r2_r6_production_adoption": "not_claimed",
+    "mechanical_3d_fit": "not_claimed"
+  },
+  "geometry": {
+    "board_width_mm": 66.0,
+    "board_height_mm": 178.0,
+    "stem_width_mm": 24.0,
+    "bulb_diameter_mm": 60.0,
+    "bulb_to_stem_ratio": 2.5,
+    "solder_mask": "black",
+    "silkscreen": "white",
+    "finish_intent": "ENIG"
+  },
+  "retention": {
+    "netlisted_components": 63,
+    "board_placements_including_H1": 64,
+    "nets": 53,
+    "pin_nodes": 189
+  },
+  "routing": {
+    "routed_nets": 53,
+    "segments": 567,
+    "vias": 99,
+    "total_track_mm": 2028.65,
+    "unrouted_connections": 0,
+    "negotiated_resource_overuse": "not_measured_legacy_router",
+    "hard_violations": 0,
+    "normalized_copper_sha256": "ee94b7403448c254d02f05d8ca7966c48aa7002c2424d2e1d16ed1e38fbf05af",
+    "independent_r004_r005_copper_replay": "identical"
+  },
+  "verification": {
+    "machine_erc_violations": 0,
+    "reader_erc_violations": 0,
+    "reader_netlist_equality": "passed",
+    "board_netlist_parity_findings": 0,
+    "virtual_drc_findings": 0,
+    "kicad_drc_violations": 0,
+    "kicad_drc_unconnected_items": 0,
+    "design_review": "passed",
+    "design_checks": [
+      "connector_edge",
+      "outline_is_simple",
+      "trace_current",
+      "component_card_contract",
+      "ic_pin_connectivity",
+      "trace_corner_angle",
+      "redundant_copper"
+    ],
+    "semantic_bus_groups": {
+      "segment_drive_members": 16,
+      "led_column_members": 16,
+      "shift_control_members": 4,
+      "terminal_drift": 0
+    },
+    "ngspice": {
+      "status": "passed",
+      "i_seg_a": 0.00558994,
+      "v_f_v": 1.79072,
+      "i_pwled_a": 0.0015787
+    },
+    "repeated_save": {
+      "status": "byte_identical",
+      "first_sha256": "ff466f09e184dee36cd6a6d0f20070d2f2772f1c537196a930d3afc083509ea8",
+      "second_sha256": "ff466f09e184dee36cd6a6d0f20070d2f2772f1c537196a930d3afc083509ea8",
+      "drc_violations_each_pass": 0,
+      "unconnected_items_each_pass": 0
+    },
+    "visual_review": {
+      "status": "passed",
+      "front": "Thermometer_R005-top.png",
+      "back": "Thermometer_R005-bottom.png",
+      "perspective": "Thermometer_R005-perspective.png",
+      "routing": "Thermometer_R005-routing-review.png",
+      "assembly": "Thermometer_R005-assembly-review.png"
+    },
+    "pytest": {
+      "status": "passed",
+      "collected": 2562,
+      "passed": 2546,
+      "skipped": 16
+    },
+    "ruff": "passed",
+    "mypy_strict_python_3_12": {
+      "status": "passed",
+      "source_files": 233
+    }
+  },
+  "artifacts": {
+    "project": "Thermometer_R005.kicad_pro",
+    "schematic": "Thermometer_R005.kicad_sch",
+    "board": "Thermometer_R005.kicad_pcb",
+    "review_bundle": "review-bundle-v2.json",
+    "review_pack": "review-pack.md",
+    "drc_report": ".pcbsmith/kicad/drc.json",
+    "erc_report": ".pcbsmith/kicad/erc.json",
+    "reader_erc_report": ".pcbsmith/kicad/erc-reader.json",
+    "layout_score": ".pcbsmith/layout-score.json"
+  },
+  "documented_reviews": [
+    "Verify the purchased 0.49-inch SSD1306 module pin order is GND/VCC/SCL/SDA before assembly.",
+    "Keep Wi-Fi off or duty-cycled in firmware; the AP2112 thermal budget is intended for the display workload, not continuous worst-case radio transmit.",
+    "R005 used the legacy router; no R2/R3 negotiated-capacity or generic production/default-adoption claim is made.",
+    "R006 3D assets are visualization proxies and do not establish exact module procurement or enclosure fit."
+  ]
+}

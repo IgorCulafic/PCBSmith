@@ -1,0 +1,107 @@
+{
+  "schema": "pcbsmith-verification-checkpoint-v1",
+  "semantic_boundary": "completed_verification_gate",
+  "profile": {
+    "name": "standard",
+    "heartbeat_seconds": 20.0,
+    "memory_limit_mb": 4096,
+    "default_gate_timeout_seconds": 1800.0,
+    "work_budget": {
+      "maximum_expansions": 500000,
+      "maximum_passes": 100
+    },
+    "fail_fast": true
+  },
+  "completed_gates": [
+    {
+      "gate_id": "lock",
+      "termination": "passed",
+      "command": [
+        "C:\\Users\\igori\\.local\\bin\\uv.EXE",
+        "lock",
+        "--check"
+      ],
+      "command_sha256": "82eedd0bff65e1f00297b90b85387ca1b15d5cdb9e5f69c30a3cf76172c12c01",
+      "returncode": 0,
+      "elapsed_seconds": 0.23499999998603016,
+      "memory_limit_mb": 4096,
+      "memory_limit_enforced": true,
+      "peak_job_memory_bytes": 48070656,
+      "stdout_file": "D:\\AI\\PCB designer\\.pcbsmith\\verification\\phase13-final-rerun-2026-07-20\\logs\\lock.stdout.txt",
+      "stderr_file": "D:\\AI\\PCB designer\\.pcbsmith\\verification\\phase13-final-rerun-2026-07-20\\logs\\lock.stderr.txt",
+      "stdout_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "stderr_sha256": "c05b0b86b1ec887cc29ba5945156dfba23a11eaff07562ddc4b71ef45182813b",
+      "findings": []
+    },
+    {
+      "gate_id": "ruff",
+      "termination": "passed",
+      "command": [
+        "D:\\AI\\PCB designer\\.venv\\Scripts\\python.exe",
+        "-m",
+        "ruff",
+        "check",
+        "src",
+        "tests",
+        "tools"
+      ],
+      "command_sha256": "3da09ebb7a87a925a4816965ba8b757284bc3115dbd30da9d0ac7dc0fff00c7c",
+      "returncode": 0,
+      "elapsed_seconds": 0.21799999999348074,
+      "memory_limit_mb": 4096,
+      "memory_limit_enforced": true,
+      "peak_job_memory_bytes": 74391552,
+      "stdout_file": "D:\\AI\\PCB designer\\.pcbsmith\\verification\\phase13-final-rerun-2026-07-20\\logs\\ruff.stdout.txt",
+      "stderr_file": "D:\\AI\\PCB designer\\.pcbsmith\\verification\\phase13-final-rerun-2026-07-20\\logs\\ruff.stderr.txt",
+      "stdout_sha256": "82b3e6a6c090a57601d22943bd23fca9218d1031dbe5a7b754092f9a156b4f18",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "findings": []
+    },
+    {
+      "gate_id": "mypy",
+      "termination": "passed",
+      "command": [
+        "D:\\AI\\PCB designer\\.venv\\Scripts\\python.exe",
+        "-m",
+        "mypy",
+        "src/pcbsmith"
+      ],
+      "command_sha256": "8f3c90604311df412fc60b25cda5658cb9c39262ebb25dc7722367741a17924a",
+      "returncode": 0,
+      "elapsed_seconds": 0.7970000000204891,
+      "memory_limit_mb": 4096,
+      "memory_limit_enforced": true,
+      "peak_job_memory_bytes": 68808704,
+      "stdout_file": "D:\\AI\\PCB designer\\.pcbsmith\\verification\\phase13-final-rerun-2026-07-20\\logs\\mypy.stdout.txt",
+      "stderr_file": "D:\\AI\\PCB designer\\.pcbsmith\\verification\\phase13-final-rerun-2026-07-20\\logs\\mypy.stderr.txt",
+      "stdout_sha256": "874f7fc92621e9d8184d6c4525024bb1431e16e8cdbc34ab6095256262cfc8c0",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "findings": []
+    },
+    {
+      "gate_id": "pytest-full",
+      "termination": "failed",
+      "command": [
+        "D:\\AI\\PCB designer\\.venv\\Scripts\\python.exe",
+        "-m",
+        "pytest",
+        "-q",
+        "-p",
+        "no:cacheprovider",
+        "-W",
+        "error"
+      ],
+      "command_sha256": "9ee676e50453aec4dfcf5502f1aeae8b785705a3349f2e87cee203609fbfabc1",
+      "returncode": 1,
+      "elapsed_seconds": 790.9370000000054,
+      "memory_limit_mb": 4096,
+      "memory_limit_enforced": true,
+      "peak_job_memory_bytes": 2359271424,
+      "stdout_file": "D:\\AI\\PCB designer\\.pcbsmith\\verification\\phase13-final-rerun-2026-07-20\\logs\\pytest-full.stdout.txt",
+      "stderr_file": "D:\\AI\\PCB designer\\.pcbsmith\\verification\\phase13-final-rerun-2026-07-20\\logs\\pytest-full.stderr.txt",
+      "stdout_sha256": "a59df12052e3f2da9094d57323d358523e60bb3248f7cbf1067abdcdb0228799",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "findings": []
+    }
+  ]
+}

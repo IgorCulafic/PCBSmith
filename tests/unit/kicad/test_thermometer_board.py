@@ -29,13 +29,17 @@ from pcbsmith.kicad.thermometer_board import (
     PLACEMENTS,
     SCALE_Y0,
     SCALE_Y50,
+    SENSOR_ISOLATION_CUTOUT,
+    STEM_CX,
+    _unrouted_layout,
     led_y,
     scale_y,
     thermometer_checks_spec,
     thermometer_outline,
     thermometer_silk_graphics,
 )
-from pcbsmith.kicad.virtual_drc import _point_in_polygon
+from pcbsmith.kicad.thermometer_bus import validate_thermometer_bus_groups
+from pcbsmith.kicad.virtual_drc import _point_in_polygon, run_virtual_drc
 
 REQUEST = "thermometer temperature humidity display pcb"
 
@@ -89,7 +93,7 @@ def test_led_column_follows_the_scale_truth() -> None:
         expected = SCALE_Y0 + (SCALE_Y50 - SCALE_Y0) * fraction
         assert abs(led_y(index) - expected) < 1e-9
         x, y, _rot = PLACEMENTS[f"D{index}"]
-        assert (x, y) == (23.0, led_y(index))
+        assert (x, y) == (STEM_CX, led_y(index))
     assert scale_y(0.0) == SCALE_Y0
     assert scale_y(50.0) == SCALE_Y50
 
@@ -124,11 +128,37 @@ def test_checks_spec_declares_the_board_contracts() -> None:
 
 
 def test_fine_pitch_declaration_covers_the_sub_grid_pads() -> None:
-    # USB-C data/CC rows, the DFN sensor bus, the register cascade and
-    # the rails that share their corridors.
-    assert {"/DP", "/DM", "/CC1", "/CC2", "/SDA1", "/SCL1",
-            "/CAS", "/VCC", "/GND"} <= set(FINE_PITCH_NETS)
+    # Only the USB-C data/CC row lacks legal 0.2mm entry cells.  The
+    # sensor, register cascade, and global rails stay on the main graph.
+    assert set(FINE_PITCH_NETS) == {"/DP", "/DM", "/CC1", "/CC2"}
     netlist = _netlist()
     net_names = {net.name for net in netlist.nets}
     assert set(FINE_PITCH_NETS) <= net_names
     assert len(netlist.components) == 63
+
+
+def test_radio_overhang_and_sensor_island_are_explicit_geometry() -> None:
+    assert PLACEMENTS["U1"] == (37.9, 110.0, 270.0)
+    assert PLACEMENTS["U4"] == (12.0, 142.05, 0.0)
+    layout = _unrouted_layout(_netlist())
+    assert layout.cutouts == (SENSOR_ISOLATION_CUTOUT,)
+    # All static physical checks are clean; connectivity is intentionally
+    # absent before the routing phase.
+    assert {
+        finding.check
+        for finding in run_virtual_drc(layout, _netlist())
+        if finding.check != "pad_connectivity"
+    } == set()
+
+
+def test_full_led_and_control_bus_declarations_bind_live_terminals() -> None:
+    groups = validate_thermometer_bus_groups(_netlist())
+    assert tuple(group.bus_id for group in groups) == (
+        "thermometer-segment-drive",
+        "thermometer-led-column",
+        "thermometer-shift-control",
+    )
+    assert tuple(len(group.members) for group in groups) == (16, 16, 4)
+    assert tuple(member.net_name for member in groups[1].members) == tuple(
+        f"/LK{index}" for index in range(1, 17)
+    )

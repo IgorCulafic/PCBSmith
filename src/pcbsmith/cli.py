@@ -5,7 +5,9 @@ import dataclasses
 import json
 import os
 import re
+import shutil
 import sys
+import tempfile
 from collections.abc import Callable
 from pathlib import Path
 
@@ -33,6 +35,7 @@ from pcbsmith.evidence import (
     LOCAL_DEFAULT_BASE_URL,
     LOCAL_DEFAULT_MODEL,
     AnthropicDatasheetClient,
+    CatalogPartResourceProvider,
     DatasheetChatClient,
     DatasheetExtractionError,
     EvidenceAcquisitionRequest,
@@ -41,11 +44,17 @@ from pcbsmith.evidence import (
     EvidenceDownloadError,
     EvidenceExtractionJob,
     EvidenceExtractionService,
+    ExactPartDiscoveryReport,
+    ExactPartDiscoveryRequest,
+    ExactPartDiscoveryService,
+    InstalledPartResource,
     LlmDatasheetExtractor,
     NexarClientCredentialsTokenProvider,
     NexarProviderError,
     NexarSupplyProvider,
     OpenAICompatibleDatasheetClient,
+    PartResourceCandidate,
+    PartResourceStatus,
     UrlLibChatTransport,
     UrlLibEvidenceDownloader,
     UrlLibNexarTransport,
@@ -57,6 +66,13 @@ from pcbsmith.evidence.divider_highpass_led import (
 )
 from pcbsmith.evidence.lm2596_buck import select_lm2596_buck_components
 from pcbsmith.evidence.mpu6050 import select_mpu6050_components
+from pcbsmith.evidence.source_intake import SourceIntakeRequest, SourceIntakeService
+from pcbsmith.execution import (
+    EXECUTION_PROFILES,
+    SubprocessGateRunner,
+    VerificationOrchestrator,
+    standard_verification_gates,
+)
 from pcbsmith.generation.clover import compose_clover, write_clover_project
 from pcbsmith.generation.divider_highpass_led import (
     compose_divider_highpass_led,
@@ -85,6 +101,11 @@ from pcbsmith.generation.servo555 import (
 from pcbsmith.generation.thermometer import (
     compose_thermometer,
     write_thermometer_project,
+)
+from pcbsmith.kicad.asset_install import (
+    KiCadAssetInstallRequest,
+    install_kicad_asset,
+    write_public_asset_record,
 )
 from pcbsmith.kicad.board import (
     BoardGenerationError,
@@ -116,8 +137,19 @@ from pcbsmith.kicad.flyback_board import (
 )
 from pcbsmith.kicad.led_art_board import generate_led_art_board
 from pcbsmith.kicad.metal_detector_board import generate_detector_board
+from pcbsmith.kicad.model_preflight import (
+    ModelPreflightReport,
+    ModelRegistryEntry,
+    ModelRequirement,
+    preflight_board_models,
+)
 from pcbsmith.kicad.pear_board import generate_pear_board, ring_unit_counts
 from pcbsmith.kicad.preview import plot_board_review
+from pcbsmith.kicad.routing_evidence import (
+    RoutingArtifactState,
+    inspect_kicad_drc_report,
+    inspect_saved_board_routing,
+)
 from pcbsmith.kicad.servo555_board import generate_servo555_board
 from pcbsmith.kicad.spice import export_kicad_spice_netlist
 from pcbsmith.kicad.thermometer_board import (
@@ -126,9 +158,37 @@ from pcbsmith.kicad.thermometer_board import (
 )
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
+from pcbsmith.production_workflow import (
+    GenerationTransactionManifest,
+    bind_execution_profile,
+    evaluate_routed_board_release_gate,
+    evaluate_routing_entry_gate,
+    inspect_current_placement_review,
+    persist_placement_and_generate_review,
+)
+from pcbsmith.project_engineering_gate import evaluate_project_engineering_gate
+from pcbsmith.project_engineering_gate_ir import (
+    Phase14EvaluationBundle,
+    ProjectEngineeringContext,
+    ProjectEngineeringGateResult,
+)
+from pcbsmith.prompt_examiner import (
+    ExaminedClaim,
+    PromptExamination,
+    PromptIssue,
+    SourceSpan,
+    TypedSpatialAnchor,
+    examine_prompt,
+)
 from pcbsmith.reporting.review_pack import TestStep as ReviewTestStep
 from pcbsmith.review.authority_bundle import write_authority_review_bundle
 from pcbsmith.review.circuit_bundle import write_circuit_review_bundle
+from pcbsmith.review.visual_package import (
+    ReviewFeatures,
+    VisualReviewManifest,
+    generate_visual_review_package,
+    record_visual_inspection,
+)
 from pcbsmith.revision import (
     build_revision_plan,
     collect_failure_codes,
@@ -154,6 +214,11 @@ from pcbsmith.simulation.ngspice_pear import run_pear_simulation
 from pcbsmith.simulation.ngspice_servo555 import run_servo555_simulation
 from pcbsmith.simulation.ngspice_thermometer import (
     run_thermometer_simulation,
+)
+from pcbsmith.workflow_authority import ProjectContextBundle
+from pcbsmith.workflow_feasibility import (
+    ConceptDriftReport,
+    PreRouteFeasibilityReport,
 )
 
 GENERIC_EVIDENCE_FINDING = "Generic passive and LED components are not datasheet-backed yet."
@@ -351,8 +416,7 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "lm2596_buck_regulator":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit = compose_lm2596_buck(intent, topology)
@@ -405,10 +469,8 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated before "
-            "authority checks.",
-            "ngspice ran a PCBSmith behavioral power-stage netlist, not a "
-            "KiCad-exported netlist.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
+            "ngspice ran a PCBSmith behavioral power-stage netlist, not a KiCad-exported netlist.",
         ),
         findings=(
             "The simulated netlist is a behavioral power stage derived from the "
@@ -421,9 +483,7 @@ def _cmd_design_lm2596_buck_authority(args: argparse.Namespace) -> int:
 
     buck_outputs = solve_lm2596_buck(
         input_voltage_min_v=float(intent.assumptions["input_voltage_min_v"]),
-        input_voltage_nominal_v=float(
-            intent.assumptions["input_voltage_nominal_v"]
-        ),
+        input_voltage_nominal_v=float(intent.assumptions["input_voltage_nominal_v"]),
         input_voltage_max_v=float(intent.assumptions["input_voltage_max_v"]),
         output_voltage_v=float(intent.assumptions["output_voltage_v"]),
         load_current_a=float(intent.assumptions["load_current_a"]),
@@ -514,8 +574,7 @@ def _cmd_design_led_art_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "led_text_matrix":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit, plan = compose_led_art(intent, topology)
@@ -526,8 +585,7 @@ def _cmd_design_led_art_authority(args: argparse.Namespace) -> int:
             "Kingbright datasheet facts in "
             "ai_assets/evidence/divider-highpass-led.manifest.json, but the "
             "manifest is not machine-applied to this topology yet.",
-            "String resistors and the input connector are demo parts without "
-            "datasheet evidence.",
+            "String resistors and the input connector are demo parts without datasheet evidence.",
         ),
     )
 
@@ -557,10 +615,8 @@ def _cmd_design_led_art_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated before "
-            "authority checks.",
-            "ngspice ran a PCBSmith behavioral string netlist, not a "
-            "KiCad-exported netlist.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
+            "ngspice ran a PCBSmith behavioral string netlist, not a KiCad-exported netlist.",
         ),
         findings=(
             "The simulated netlist is built from the circuit object strings; it "
@@ -577,9 +633,7 @@ def _cmd_design_led_art_authority(args: argparse.Namespace) -> int:
         plan=plan,
         power_net_names=frozenset({"VIN", "GND"}),
         design_checks=DesignChecksSpec(
-            led_strings=tuple(
-                (string.resistor_ref, *string.led_refs) for string in plan.strings
-            ),
+            led_strings=tuple((string.resistor_ref, *string.led_refs) for string in plan.strings),
         ),
         extra_findings=(
             "Art-grid placement: LED positions follow the glyph dot grid; every "
@@ -638,8 +692,7 @@ def _cmd_design_mpu6050_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "mpu6050_imu":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit = compose_mpu6050(intent, topology)
@@ -692,10 +745,8 @@ def _cmd_design_mpu6050_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated before "
-            "authority checks.",
-            "ngspice ran a PCBSmith idle-bus netlist, not a KiCad-exported "
-            "netlist.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
+            "ngspice ran a PCBSmith idle-bus netlist, not a KiCad-exported netlist.",
         ),
         findings=(
             "The simulated netlist covers the passive bus conditioning only; "
@@ -781,8 +832,7 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "clover_tilt_indicator":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit = compose_clover(intent, topology)
@@ -835,10 +885,8 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated before "
-            "authority checks.",
-            "ngspice ran a PCBSmith passive-network netlist, not a "
-            "KiCad-exported netlist.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
+            "ngspice ran a PCBSmith passive-network netlist, not a KiCad-exported netlist.",
         ),
         findings=(
             "The simulated netlist covers bus conditioning and LED bias only; "
@@ -878,7 +926,10 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
                 board_netlist,
                 DesignChecksSpec(
                     led_strings=(
-                        ("R3", "D1"), ("R4", "D2"), ("R5", "D3"), ("R6", "D4"),
+                        ("R3", "D1"),
+                        ("R4", "D2"),
+                        ("R5", "D3"),
+                        ("R6", "D4"),
                     ),
                     # The cards carry the reviewed no-connect lists and the
                     # must-tie contracts (CLKIN/FSYNC to ground).
@@ -891,8 +942,13 @@ def _cmd_design_clover_authority(args: argparse.Namespace) -> int:
                     # Rule 11: every trace on this board is bezier
                     # ARTWORK by the design brief, reviewed visually.
                     trace_craft_exempt_nets=(
-                        "/GND", "/VDD", "/SDA", "/SCL",
-                        "/CPOUT", "/INT", "/REGOUT",
+                        "/GND",
+                        "/VDD",
+                        "/SDA",
+                        "/SCL",
+                        "/CPOUT",
+                        "/INT",
+                        "/REGOUT",
                     ),
                 ),
             )
@@ -965,8 +1021,7 @@ def _cmd_design_pear_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "pear_led_rings":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit = compose_pear(intent, topology)
@@ -1002,10 +1057,8 @@ def _cmd_design_pear_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated before "
-            "authority checks.",
-            "ngspice ran a PCBSmith branch netlist, not a KiCad-exported "
-            "netlist.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
+            "ngspice ran a PCBSmith branch netlist, not a KiCad-exported netlist.",
         ),
         findings=(
             "The simulated netlist covers the LED branches only; it is not "
@@ -1045,8 +1098,7 @@ def _cmd_design_pear_authority(args: argparse.Namespace) -> int:
                 board_netlist,
                 DesignChecksSpec(
                     led_strings=tuple(
-                        (f"R{unit}", f"D{unit}")
-                        for unit in range(1, total_units + 1)
+                        (f"R{unit}", f"D{unit}") for unit in range(1, total_units + 1)
                     ),
                 ),
             )
@@ -1116,8 +1168,7 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "metal_detector_coil":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit = compose_metal_detector(intent, topology)
@@ -1155,10 +1206,8 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated before "
-            "authority checks.",
-            "ngspice ran a PCBSmith oscillator netlist, not a KiCad-exported "
-            "netlist.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
+            "ngspice ran a PCBSmith oscillator netlist, not a KiCad-exported netlist.",
         ),
         findings=(
             "The simulation models the spiral as a lumped L+R; parasitics "
@@ -1196,6 +1245,7 @@ def _cmd_design_metal_detector_authority(args: argparse.Namespace) -> int:
                 COIL_CENTER,
                 SPIRAL_OUTER_RADIUS,
             )
+
             design_review = run_design_checks(
                 layout,
                 board_netlist,
@@ -1286,8 +1336,7 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "offline_flyback_3v3":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit = compose_flyback(intent, topology)
@@ -1314,9 +1363,7 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
         reflected_voltage_v=float(intent.assumptions["reflected_voltage_v"]),
     )["outputs"]
 
-    kicad_artifacts = export_flyback_to_kicad(
-        circuit, output_dir, project_name=args.name
-    )
+    kicad_artifacts = export_flyback_to_kicad(circuit, output_dir, project_name=args.name)
     schematic_file = Path(kicad_artifacts["schematic_file"])
 
     erc_report = run_kicad_erc(schematic_file)
@@ -1331,8 +1378,12 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
 
     reader_erc, reader_svg, reader_artifacts, equality_findings, reader_ok = (
         _reader_schematic_checks(
-            circuit, output_dir, args.name, schematic_file,
-            erc_report.status, export_flyback_reader_schematic,
+            circuit,
+            output_dir,
+            args.name,
+            schematic_file,
+            erc_report.status,
+            export_flyback_reader_schematic,
         )
     )
     kicad = erc_report.model_copy(
@@ -1359,8 +1410,7 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated "
-            "before authority checks.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
             "ngspice ran the secondary feedback chain only.",
         ),
         findings=(
@@ -1371,11 +1421,7 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
 
     board: BoardReport
     design_review: DesignReviewReport | None
-    if (
-        erc_report.status != "passed"
-        or simulation.status != "passed"
-        or not reader_ok
-    ):
+    if erc_report.status != "passed" or simulation.status != "passed" or not reader_ok:
         board = BoardReport(
             status="not_run",
             findings=(
@@ -1437,9 +1483,7 @@ def _cmd_design_flyback_authority(args: argparse.Namespace) -> int:
     # Track 9.1: the human-readable schematic is the SVG the bundle
     # links; the row/label-net drawing stays as the machine artifact.
     _add_existing_artifact(artifacts, "kicad_schematic_svg", reader_svg)
-    _add_existing_artifact(
-        artifacts, "kicad_schematic_machine_svg", schematic_svg
-    )
+    _add_existing_artifact(artifacts, "kicad_schematic_machine_svg", schematic_svg)
     _add_existing_artifact(
         artifacts,
         "kicad_reader_schematic",
@@ -1487,8 +1531,7 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "servo_555_tester":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit = compose_servo555(intent, topology)
@@ -1512,9 +1555,7 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
         vcc_v=float(intent.assumptions["supply_voltage_v"]),
     )["outputs"]
 
-    kicad_artifacts = export_servo555_to_kicad(
-        circuit, output_dir, project_name=args.name
-    )
+    kicad_artifacts = export_servo555_to_kicad(circuit, output_dir, project_name=args.name)
     schematic_file = Path(kicad_artifacts["schematic_file"])
 
     erc_report = run_kicad_erc(schematic_file)
@@ -1529,8 +1570,12 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
 
     reader_erc, reader_svg, reader_artifacts, equality_findings, reader_ok = (
         _reader_schematic_checks(
-            circuit, output_dir, args.name, schematic_file,
-            erc_report.status, export_servo555_reader_schematic,
+            circuit,
+            output_dir,
+            args.name,
+            schematic_file,
+            erc_report.status,
+            export_servo555_reader_schematic,
         )
     )
     kicad = erc_report.model_copy(
@@ -1558,23 +1603,17 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated "
-            "before authority checks.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
             "ngspice ran the BC547 inverter stage only.",
         ),
         findings=(
-            "The 555 astable timing is verified by the datasheet design "
-            "equations, not by SPICE.",
+            "The 555 astable timing is verified by the datasheet design equations, not by SPICE.",
         ),
     )
 
     board: BoardReport
     design_review: DesignReviewReport | None
-    if (
-        erc_report.status != "passed"
-        or simulation.status != "passed"
-        or not reader_ok
-    ):
+    if erc_report.status != "passed" or simulation.status != "passed" or not reader_ok:
         board = BoardReport(
             status="not_run",
             findings=(
@@ -1608,9 +1647,7 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
                     net_currents=(("/VCC", 1.0), ("/GND", 1.0)),
                     component_cards=(("U1", "NE555"),),
                     tie_nets=(("GND", "/GND"), ("VCC", "/VCC")),
-                    composition_roles=tuple(
-                        c.role for c in circuit.components
-                    ),
+                    composition_roles=tuple(c.role for c in circuit.components),
                 ),
             )
             board, design_review = _finish_board_authority(
@@ -1641,9 +1678,7 @@ def _cmd_design_servo555_authority(args: argparse.Namespace) -> int:
     # Track 9.1: the human-readable schematic is the SVG the bundle
     # links; the row/label-net drawing stays as the machine artifact.
     _add_existing_artifact(artifacts, "kicad_schematic_svg", reader_svg)
-    _add_existing_artifact(
-        artifacts, "kicad_schematic_machine_svg", schematic_svg
-    )
+    _add_existing_artifact(artifacts, "kicad_schematic_machine_svg", schematic_svg)
     _add_existing_artifact(
         artifacts,
         "kicad_reader_schematic",
@@ -1691,8 +1726,7 @@ def _cmd_design_thermometer_authority(args: argparse.Namespace) -> int:
         raise ValueError("; ".join(intent.unsupported_reasons))
     if intent.intent_id != "thermometer_env_display":
         raise ValueError(
-            "The request classified as a different intent; use the matching "
-            "design command instead."
+            "The request classified as a different intent; use the matching design command instead."
         )
     topology = select_topology(intent)
     circuit = compose_thermometer(intent, topology)
@@ -1720,9 +1754,7 @@ def _cmd_design_thermometer_authority(args: argparse.Namespace) -> int:
 
     design_outputs = solve_thermometer_display()["outputs"]
 
-    kicad_artifacts = export_thermometer_to_kicad(
-        circuit, output_dir, project_name=args.name
-    )
+    kicad_artifacts = export_thermometer_to_kicad(circuit, output_dir, project_name=args.name)
     schematic_file = Path(kicad_artifacts["schematic_file"])
 
     erc_report = run_kicad_erc(schematic_file)
@@ -1737,8 +1769,12 @@ def _cmd_design_thermometer_authority(args: argparse.Namespace) -> int:
 
     reader_erc, reader_svg, reader_artifacts, equality_findings, reader_ok = (
         _reader_schematic_checks(
-            circuit, output_dir, args.name, schematic_file,
-            erc_report.status, export_thermometer_reader_schematic,
+            circuit,
+            output_dir,
+            args.name,
+            schematic_file,
+            erc_report.status,
+            export_thermometer_reader_schematic,
         )
     )
     kicad = erc_report.model_copy(
@@ -1766,10 +1802,8 @@ def _cmd_design_thermometer_authority(args: argparse.Namespace) -> int:
     reconciliation = ReconciliationReport(
         status="warning",
         checks=(
-            "PCBSmith circuit object and KiCad schematic were generated "
-            "before authority checks.",
-            "ngspice ran the LED segment and power-indicator branches "
-            "only.",
+            "PCBSmith circuit object and KiCad schematic were generated before authority checks.",
+            "ngspice ran the LED segment and power-indicator branches only.",
             "The silkscreen graduations and the LED column positions "
             "derive from the same thermometer_scale_fraction - one "
             "scale truth for copper and ink.",
@@ -1783,11 +1817,7 @@ def _cmd_design_thermometer_authority(args: argparse.Namespace) -> int:
 
     board: BoardReport
     design_review: DesignReviewReport | None
-    if (
-        erc_report.status != "passed"
-        or simulation.status != "passed"
-        or not reader_ok
-    ):
+    if erc_report.status != "passed" or simulation.status != "passed" or not reader_ok:
         board = BoardReport(
             status="not_run",
             findings=(
@@ -1818,9 +1848,7 @@ def _cmd_design_thermometer_authority(args: argparse.Namespace) -> int:
                 board_netlist,
                 dataclasses.replace(
                     checks_spec,
-                    composition_roles=tuple(
-                        c.role for c in circuit.components
-                    ),
+                    composition_roles=tuple(c.role for c in circuit.components),
                 ),
             )
             board, design_review = _finish_board_authority(
@@ -1853,9 +1881,7 @@ def _cmd_design_thermometer_authority(args: argparse.Namespace) -> int:
     # Track 9.1: the human-readable schematic is the SVG the bundle
     # links; the row/label-net drawing stays as the machine artifact.
     _add_existing_artifact(artifacts, "kicad_schematic_svg", reader_svg)
-    _add_existing_artifact(
-        artifacts, "kicad_schematic_machine_svg", schematic_svg
-    )
+    _add_existing_artifact(artifacts, "kicad_schematic_machine_svg", schematic_svg)
     _add_existing_artifact(
         artifacts,
         "kicad_reader_schematic",
@@ -1908,8 +1934,7 @@ def _cmd_forge_topology(args: argparse.Namespace) -> int:
     )
     print(f"status: {result.status} after {result.iterations} iteration(s)")
     for index, findings in enumerate(result.findings_history, start=1):
-        print(f"iteration {index}: "
-              f"{'ACCEPTED' if not findings else f'{len(findings)} findings'}")
+        print(f"iteration {index}: {'ACCEPTED' if not findings else f'{len(findings)} findings'}")
         for finding in findings[:8]:
             print(f"  - {finding}")
     if result.spec is not None:
@@ -1946,9 +1971,7 @@ def _cmd_ingest_reference(args: argparse.Namespace) -> int:
     )
 
     try:
-        record = ingest_reference_pack(
-            Path(args.source_dir), slug=args.slug
-        )
+        record = ingest_reference_pack(Path(args.source_dir), slug=args.slug)
         record_file = save_reference_record(record)
     except ReferenceIngestError as exc:
         print(f"Reference ingestion failed: {exc}")
@@ -1990,9 +2013,7 @@ def _cmd_board_diff(args: argparse.Namespace) -> int:
             if not reference_boards:
                 raise ValueError(f"No .kicad_pcb found in {reference_path}.")
             reference_path = reference_boards[0]
-        generated = parse_board_placements(
-            reference_path.read_text(encoding="utf-8")
-        )
+        generated = parse_board_placements(reference_path.read_text(encoding="utf-8"))
     elif snapshot.exists():
         generated = load_layout_snapshot(snapshot)
     else:
@@ -2018,9 +2039,7 @@ def _cmd_board_diff(args: argparse.Namespace) -> int:
     for edit in edits:
         print(f"  {edit.describe()}")
     if edits:
-        append_rule_suggestion(
-            Path("docs/ai-rule-suggestions.md"), str(revision_dir), edits
-        )
+        append_rule_suggestion(Path("docs/ai-rule-suggestions.md"), str(revision_dir), edits)
         print("Draft entries appended to docs/ai-rule-suggestions.md.")
     return 0
 
@@ -2039,10 +2058,7 @@ def _cmd_onboard_component(args: argparse.Namespace) -> int:
     from pcbsmith.kicad.symbols import vendor_symbol
 
     if card_path(args.mpn).exists() and not args.overwrite:
-        raise ValueError(
-            f"A card for {args.mpn} already exists; pass --overwrite to "
-            "replace it."
-        )
+        raise ValueError(f"A card for {args.mpn} already exists; pass --overwrite to replace it.")
     # Verify and vendor both library halves before writing anything.
     vendored_symbol = vendor_symbol(args.symbol)
     load_footprint(args.footprint)
@@ -2111,10 +2127,7 @@ def _cmd_fab_package(args: argparse.Namespace) -> int:
         for (value, footprint), references in sorted(groups.items()):
             if "NetTie" in footprint:
                 note = "copper-only part (net tie); do not order"
-            elif (
-                value.strip().upper() == "DNP"
-                or value.strip().upper().endswith(" DNP")
-            ):
+            elif value.strip().upper() == "DNP" or value.strip().upper().endswith(" DNP"):
                 # Reference-design practice (FLBACK-001): optional parts
                 # keep their location but are marked do-not-populate.
                 note = "DNP - do not populate"
@@ -2217,9 +2230,7 @@ def _revision_history_codes(revision_dir: Path) -> list[tuple[str, ...]]:
     ending with the revision under review."""
     match = re.fullmatch(r"(?P<stem>.+-r)(?P<number>\d+)", revision_dir.name)
     if match is None:
-        bundle = json.loads(
-            (revision_dir / "review-bundle-v2.json").read_text(encoding="utf-8")
-        )
+        bundle = json.loads((revision_dir / "review-bundle-v2.json").read_text(encoding="utf-8"))
         return [collect_failure_codes(bundle)]
     stem = match.group("stem")
     current_number = int(match.group("number"))
@@ -2274,9 +2285,7 @@ def _build_datasheet_client(args: argparse.Namespace) -> DatasheetChatClient:
     if args.provider == "anthropic":
         return AnthropicDatasheetClient(model=args.model or ANTHROPIC_DEFAULT_MODEL)
     base_url = (
-        args.base_url
-        or os.environ.get("PCBSMITH_LOCAL_AI_BASE_URL")
-        or LOCAL_DEFAULT_BASE_URL
+        args.base_url or os.environ.get("PCBSMITH_LOCAL_AI_BASE_URL") or LOCAL_DEFAULT_BASE_URL
     )
     model = args.model or os.environ.get("PCBSMITH_LOCAL_AI_MODEL") or LOCAL_DEFAULT_MODEL
     return OpenAICompatibleDatasheetClient(
@@ -2304,6 +2313,12 @@ def _utc_date() -> str:
     from datetime import UTC, datetime
 
     return datetime.now(UTC).date().isoformat()
+
+
+def _utc_timestamp() -> str:
+    from datetime import UTC, datetime
+
+    return datetime.now(UTC).isoformat()
 
 
 def _cmd_evidence_add_local(args: argparse.Namespace) -> int:
@@ -2376,6 +2391,507 @@ def _cmd_evidence_acquire(args: argparse.Namespace) -> int:
     return 0 if report.status in {"cache_hit", "downloaded"} else 1
 
 
+def _cmd_source_intake(args: argparse.Namespace) -> int:
+    intake = SourceIntakeRequest.model_validate_json(Path(args.request).read_text("utf-8"))
+    service = SourceIntakeService(
+        private_manifest_path=Path(args.private_manifest),
+        public_manifest_path=Path(args.public_manifest),
+        cache_dir=Path(args.cache_dir),
+        downloader=_source_intake_downloader(args),
+        clock=_utc_timestamp,
+    )
+    record = service.acquire(intake)
+    print(json.dumps(record.model_dump(mode="json"), indent=2))
+    return 0 if record.status in {"cache_hit", "downloaded"} else 1
+
+
+def _cmd_source_intake_batch(args: argparse.Namespace) -> int:
+    intakes = _load_source_intake_catalog(Path(args.catalog))
+    service = SourceIntakeService(
+        private_manifest_path=Path(args.private_manifest),
+        public_manifest_path=Path(args.public_manifest),
+        cache_dir=Path(args.cache_dir),
+        downloader=_source_intake_downloader(args),
+        clock=_utc_timestamp,
+    )
+    report = service.acquire_many(intakes)
+    print(json.dumps(report.model_dump(mode="json"), indent=2))
+    return 0 if report.successful else 1
+
+
+def _cmd_part_discover(args: argparse.Namespace) -> int:
+    discovery_request = ExactPartDiscoveryRequest.model_validate_json(
+        Path(args.request).read_text("utf-8")
+    )
+    payload = json.loads(Path(args.candidates).read_text("utf-8"))
+    candidate_payloads = payload.get("candidates") if isinstance(payload, dict) else payload
+    if not isinstance(candidate_payloads, list):
+        raise ValueError("Part-resource candidate catalog must be a list or contain candidates.")
+    candidates = tuple(PartResourceCandidate.model_validate(item) for item in candidate_payloads)
+    installed_payloads: object = []
+    if args.installed:
+        installed_payloads = json.loads(Path(args.installed).read_text("utf-8"))
+    if not isinstance(installed_payloads, list):
+        raise ValueError("Installed part-resource catalog must be a list.")
+    installed = tuple(InstalledPartResource.model_validate(item) for item in installed_payloads)
+    intake = SourceIntakeService(
+        private_manifest_path=Path(args.private_manifest),
+        public_manifest_path=Path(args.public_manifest),
+        cache_dir=Path(args.cache_dir),
+        downloader=_source_intake_downloader(args),
+        clock=_utc_timestamp,
+    )
+    report = ExactPartDiscoveryService(
+        provider=CatalogPartResourceProvider(candidates),
+        source_intake=intake,
+    ).discover(discovery_request, installed_resources=installed)
+    rendered = json.dumps(report.model_dump(mode="json"), indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    else:
+        print(rendered, end="")
+    usable = {PartResourceStatus.INSTALLED, PartResourceStatus.VALIDATED_CACHE}
+    return 0 if all(item.status in usable for item in report.records) else 1
+
+
+def _cmd_project_engineering_gate(args: argparse.Namespace) -> int:
+    context = ProjectEngineeringContext.model_validate_json(
+        Path(args.context).read_text("utf-8")
+    )
+    bundle = Phase14EvaluationBundle.model_validate_json(Path(args.bundle).read_text("utf-8"))
+    reports = tuple(
+        ExactPartDiscoveryReport.model_validate_json(Path(item).read_text("utf-8"))
+        for item in args.discovery_report
+    )
+    result = evaluate_project_engineering_gate(context, bundle, reports)
+    rendered = json.dumps(result.model_dump(mode="json"), indent=2) + "\n"
+    Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if result.outcome.value == "ready" else 1
+
+
+def _source_intake_downloader(args: argparse.Namespace) -> UrlLibEvidenceDownloader:
+    return UrlLibEvidenceDownloader(
+        timeout_seconds=args.timeout,
+        max_attempts=args.attempts,
+        retry_delay_seconds=args.retry_delay,
+        max_retry_delay_seconds=args.max_retry_delay,
+        browser_fallback=not args.no_browser_fallback,
+    )
+
+
+def _load_source_intake_catalog(path: Path) -> tuple[SourceIntakeRequest, ...]:
+    payload = json.loads(path.read_text("utf-8"))
+    if isinstance(payload, dict) and "sources" in payload:
+        source_payloads = payload["sources"]
+    elif isinstance(payload, list):
+        source_payloads = payload
+    else:
+        raise ValueError("Batch source catalog must be a list or contain a 'sources' list.")
+    if not isinstance(source_payloads, list):
+        raise ValueError("Batch source catalog 'sources' must be a list.")
+
+    fields = set(SourceIntakeRequest.model_fields)
+    intakes = tuple(
+        SourceIntakeRequest.model_validate(
+            {key: value for key, value in source.items() if key in fields}
+        )
+        for source in source_payloads
+        if isinstance(source, dict)
+    )
+    if len(intakes) != len(source_payloads):
+        raise ValueError("Every batch source entry must be an object.")
+    source_ids = tuple(intake.source_id for intake in intakes)
+    if len(set(source_ids)) != len(source_ids):
+        raise ValueError("Batch source catalog contains duplicate source_id values.")
+    return intakes
+
+
+def _cmd_model_preflight(args: argparse.Namespace) -> int:
+    registry_payload = json.loads(Path(args.registry).read_text("utf-8")) if args.registry else []
+    requirement_payload = (
+        json.loads(Path(args.requirements).read_text("utf-8")) if args.requirements else []
+    )
+    report = preflight_board_models(
+        Path(args.board),
+        registry=tuple(ModelRegistryEntry.model_validate(item) for item in registry_payload),
+        requirements=tuple(ModelRequirement.model_validate(item) for item in requirement_payload),
+    )
+    rendered = json.dumps(report.model_dump(mode="json", by_alias=True), indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    else:
+        print(rendered, end="")
+    return 0 if report.status != "failed" else 1
+
+
+def _cmd_asset_install(args: argparse.Namespace) -> int:
+    request = KiCadAssetInstallRequest.model_validate_json(Path(args.request).read_text("utf-8"))
+    asset = install_kicad_asset(
+        request,
+        repository_root=Path(args.repository_root),
+        private_asset_root=Path(args.private_asset_root),
+    )
+    if args.public_record:
+        write_public_asset_record(Path(args.public_record), asset)
+    print(json.dumps(asset.model_dump(mode="json", by_alias=True), indent=2))
+    return 0
+
+
+def _cmd_visual_review(args: argparse.Namespace) -> int:
+    features = ReviewFeatures.model_validate_json(Path(args.features).read_text("utf-8"))
+    preflight = ModelPreflightReport.model_validate_json(
+        Path(args.model_preflight).read_text("utf-8")
+    )
+    manifest = generate_visual_review_package(
+        board_file=Path(args.board),
+        output_dir=Path(args.output),
+        stage=args.stage,
+        features=features,
+        model_preflight=preflight,
+        source_revision=args.source_revision,
+        progress=lambda message: print(message, file=sys.stderr, flush=True),
+    )
+    print(json.dumps(manifest.model_dump(mode="json", by_alias=True), indent=2))
+    return 0 if manifest.package_status != "generation_failed" else 1
+
+
+def _cmd_visual_inspect(args: argparse.Namespace) -> int:
+    payload = json.loads(Path(args.decisions).read_text("utf-8"))
+    decisions = {
+        artifact_id: (item["inspection"], tuple(item.get("findings", ())))
+        for artifact_id, item in payload.items()
+    }
+    manifest = record_visual_inspection(
+        Path(args.manifest),
+        reviewer=args.reviewer,
+        mechanism=args.mechanism,
+        decisions=decisions,
+    )
+    print(json.dumps(manifest.model_dump(mode="json", by_alias=True), indent=2))
+    return 0 if manifest.package_status == "accepted" else 1
+
+
+def _cmd_workflow_examine(args: argparse.Namespace) -> int:
+    payload = json.loads(Path(args.request).read_text("utf-8"))
+    examination = examine_prompt(
+        project_id=payload["project_id"],
+        original_text=payload["original_text"],
+        spans=tuple(SourceSpan.model_validate(item) for item in payload["spans"]),
+        claims=tuple(
+            ExaminedClaim.model_validate(item) for item in payload["claims"]
+        ),
+        anchors=tuple(
+            TypedSpatialAnchor.model_validate(item)
+            for item in payload.get("anchors", ())
+        ),
+        issues=tuple(
+            PromptIssue.model_validate(item) for item in payload.get("issues", ())
+        ),
+    )
+    rendered = (
+        json.dumps(examination.model_dump(mode="json"), indent=2) + "\n"
+    )
+    Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if examination.outcome == "ready_for_concept" else 1
+
+
+def _cmd_production_placement_review(args: argparse.Namespace) -> int:
+    board = Path(args.board)
+    features = ReviewFeatures.model_validate_json(
+        Path(args.features).read_text("utf-8")
+    )
+    preflight = ModelPreflightReport.model_validate_json(
+        Path(args.model_preflight).read_text("utf-8")
+    )
+
+    def generate(board_file: Path, output_dir: Path) -> VisualReviewManifest:
+        return generate_visual_review_package(
+            board_file=board_file,
+            output_dir=output_dir,
+            stage="placement",
+            features=features,
+            model_preflight=preflight,
+            source_revision=args.source_revision,
+            progress=lambda message: print(message, file=sys.stderr, flush=True),
+        )
+
+    result = persist_placement_and_generate_review(
+        transaction_root=Path(args.transaction_root),
+        project_id=args.project_id,
+        generation_id=args.generation_id,
+        generation_sha256=args.generation_sha256,
+        board_relative_path=args.board_relative_path,
+        board_payload=board.read_bytes(),
+        review_generator=generate,
+    )
+    rendered = json.dumps(result.model_dump(mode="json"), indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if result.transaction.manifest.status == "committed" else 1
+
+
+def _cmd_workflow_route_gate(args: argparse.Namespace) -> int:
+    examination = PromptExamination.model_validate_json(
+        Path(args.examination).read_text("utf-8")
+    )
+    context = ProjectContextBundle.model_validate_json(
+        Path(args.context).read_text("utf-8")
+    )
+    feasibility = PreRouteFeasibilityReport.model_validate_json(
+        Path(args.feasibility).read_text("utf-8")
+    )
+    drift = ConceptDriftReport.model_validate_json(
+        Path(args.concept_drift).read_text("utf-8")
+    )
+    review = VisualReviewManifest.model_validate_json(
+        Path(args.review_manifest).read_text("utf-8")
+    )
+    transaction = GenerationTransactionManifest.model_validate_json(
+        Path(args.transaction_manifest).read_text("utf-8")
+    )
+    engineering_gate = ProjectEngineeringGateResult.model_validate_json(
+        Path(args.engineering_gate).read_text("utf-8")
+    )
+    report = evaluate_routing_entry_gate(
+        generation_sha256=args.generation_sha256,
+        saved_board_sha256=args.saved_board_sha256,
+        saved_layout_fingerprint=args.saved_layout_fingerprint,
+        examination=examination,
+        context=context,
+        feasibility=feasibility,
+        concept_drift=drift,
+        placement_review=review,
+        committed_review_transaction=transaction,
+        engineering_gate=engineering_gate,
+        budget_bindings=bind_execution_profile(EXECUTION_PROFILES[args.profile]),
+    )
+    rendered = json.dumps(report.model_dump(mode="json"), indent=2) + "\n"
+    Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if report.allowed else 1
+
+
+def _cmd_routing_audit(args: argparse.Namespace) -> int:
+    root = Path(args.root).resolve()
+    board_files = tuple(
+        board
+        for board in sorted(root.rglob("*.kicad_pcb"))
+        if args.include_derived or _is_canonical_project_board(root, board)
+    )
+    records: list[dict[str, object]] = []
+    for board in board_files:
+        evidence = inspect_saved_board_routing(board)
+        drc_payload: dict[str, object] | None = None
+        if args.run_drc:
+            with tempfile.TemporaryDirectory(prefix="pcbsmith-routing-audit-") as temporary:
+                isolated_root = Path(temporary)
+                isolated = _copy_kicad_drc_context(board, isolated_root)
+                drc_report = run_kicad_drc(isolated, schematic_parity=False)
+                report_path = (
+                    None
+                    if drc_report.drc_report is None
+                    else Path(drc_report.drc_report)
+                )
+                if report_path is not None and report_path.exists():
+                    drc_payload = inspect_kicad_drc_report(report_path).model_dump(
+                        mode="json"
+                    )
+                    drc_payload["runner_status"] = drc_report.status
+                    drc_payload["findings"] = drc_report.findings
+                else:
+                    drc_payload = {
+                        "status": drc_report.status,
+                        "findings": drc_report.findings,
+                    }
+        if evidence.state is RoutingArtifactState.PLACEMENT_ONLY:
+            disposition = "placement_only"
+        elif evidence.state is RoutingArtifactState.PARTIALLY_ROUTED:
+            disposition = "partially_routed"
+        elif evidence.state is RoutingArtifactState.INDETERMINATE:
+            disposition = "indeterminate"
+        elif drc_payload is None:
+            disposition = "routed_candidate_unverified"
+        elif drc_payload.get("clean") is True:
+            disposition = "routed_candidate_drc_clean_unreleased"
+        else:
+            disposition = "routed_candidate_drc_failed"
+        records.append(
+            {
+                "relative_path": board.relative_to(root).as_posix(),
+                "disposition": disposition,
+                "routing_evidence": evidence.model_dump(mode="json"),
+                "isolated_kicad_drc": drc_payload,
+            }
+        )
+    summary = {
+        disposition: sum(
+            item["disposition"] == disposition for item in records
+        )
+        for disposition in sorted(
+            {str(item["disposition"]) for item in records}
+        )
+    }
+    projects: list[dict[str, object]] = []
+    project_names = tuple(
+        sorted(
+            {
+                Path(str(item["relative_path"])).parts[0]
+                for item in records
+            }
+        )
+    )
+    disposition_priority = (
+        "routed_candidate_drc_clean_unreleased",
+        "routed_candidate_unverified",
+        "routed_candidate_drc_failed",
+        "partially_routed",
+        "placement_only",
+        "indeterminate",
+    )
+    for project_name in project_names:
+        project_records = tuple(
+            item
+            for item in records
+            if Path(str(item["relative_path"])).parts[0] == project_name
+        )
+        dispositions = {str(item["disposition"]) for item in project_records}
+        project_disposition = next(
+            item for item in disposition_priority if item in dispositions
+        )
+        projects.append(
+            {
+                "project": project_name,
+                "disposition": project_disposition,
+                "board_paths": tuple(
+                    str(item["relative_path"]) for item in project_records
+                ),
+            }
+        )
+    payload = {
+        "schema": "pcbsmith-routing-audit-v1",
+        "root": str(root),
+        "board_count": len(records),
+        "project_count": len(projects),
+        "include_derived_artifacts": bool(args.include_derived),
+        "run_isolated_kicad_drc": bool(args.run_drc),
+        "summary": summary,
+        "projects": projects,
+        "boards": records,
+    }
+    rendered = json.dumps(payload, indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 1 if any(
+        item["disposition"]
+        in {"placement_only", "partially_routed", "routed_candidate_drc_failed"}
+        for item in records
+    ) else 0
+
+
+def _is_canonical_project_board(root: Path, board: Path) -> bool:
+    relative = board.relative_to(root)
+    derived_parts = {
+        ".history",
+        ".pcbsmith",
+        ".render-input",
+        "evidence",
+        "intake",
+        "rejected-routing",
+        "review",
+    }
+    return not any(part in derived_parts or part.startswith(".") for part in relative.parts)
+
+
+def _copy_kicad_drc_context(board: Path, destination: Path) -> Path:
+    """Copy the board plus project DRC configuration into an isolated directory."""
+
+    isolated = destination / board.name
+    shutil.copy2(board, isolated)
+    for table_name in ("fp-lib-table", "sym-lib-table"):
+        source = board.parent / table_name
+        if source.is_file():
+            shutil.copy2(source, destination / table_name)
+    matching_project = board.with_suffix(".kicad_pro")
+    project_files = (
+        (matching_project,)
+        if matching_project.is_file()
+        else tuple(sorted(board.parent.glob("*.kicad_pro")))
+    )
+    if project_files:
+        shutil.copy2(project_files[0], isolated.with_suffix(".kicad_pro"))
+    matching_rules = board.with_suffix(".kicad_dru")
+    rule_files = (
+        (matching_rules,)
+        if matching_rules.is_file()
+        else tuple(sorted(board.parent.glob("*.kicad_dru")))
+    )
+    if rule_files:
+        shutil.copy2(rule_files[0], isolated.with_suffix(".kicad_dru"))
+    return isolated
+
+
+def _cmd_routed_release_gate(args: argparse.Namespace) -> int:
+    review = VisualReviewManifest.model_validate_json(
+        Path(args.review_manifest).read_text("utf-8")
+    )
+    transaction = GenerationTransactionManifest.model_validate_json(
+        Path(args.transaction_manifest).read_text("utf-8")
+    )
+    report = evaluate_routed_board_release_gate(
+        board_file=Path(args.board),
+        drc_report_file=Path(args.drc_report),
+        final_review=review,
+        committed_transaction=transaction,
+        exact_route_accepted=bool(args.exact_route_accepted),
+        readback_verified=bool(args.readback_verified),
+        netlist_equivalent=bool(args.netlist_equivalent),
+    )
+    rendered = json.dumps(report.model_dump(mode="json"), indent=2) + "\n"
+    Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if report.allowed else 1
+
+
+def _cmd_production_visual_inspect(args: argparse.Namespace) -> int:
+    payload = json.loads(Path(args.decisions).read_text("utf-8"))
+    decisions = {
+        artifact_id: (item["inspection"], tuple(item.get("findings", ())))
+        for artifact_id, item in payload.items()
+    }
+    result = inspect_current_placement_review(
+        transaction_root=Path(args.transaction_root),
+        generation_id=args.generation_id,
+        generation_sha256=args.generation_sha256,
+        reviewer=args.reviewer,
+        mechanism=args.mechanism,
+        decisions=decisions,
+    )
+    rendered = json.dumps(result.model_dump(mode="json"), indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if result.review_manifest.package_status == "accepted" else 1
+
+
+def _cmd_verify(args: argparse.Namespace) -> int:
+    profile = EXECUTION_PROFILES[args.profile].with_timeout_scale(args.timeout_scale)
+    orchestrator = VerificationOrchestrator(
+        runner=SubprocessGateRunner(),
+        wall_clock=_utc_timestamp,
+    )
+    run = orchestrator.run(
+        gates=standard_verification_gates(profile_name=args.profile),
+        profile=profile,
+        output_dir=Path(args.output),
+    )
+    print(json.dumps(run.model_dump(mode="json", by_alias=True), indent=2))
+    return 0 if run.status == "passed" else 1
+
+
 def _cmd_datasheet_facts(args: argparse.Namespace) -> int:
     pdf_path = Path(args.pdf)
     if not pdf_path.exists():
@@ -2405,6 +2921,21 @@ def _add_datasheet_provider_arguments(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument("--model")
     parser.add_argument("--base-url")
+
+
+def _add_source_intake_download_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument("--private-manifest", required=True)
+    parser.add_argument("--public-manifest", required=True)
+    parser.add_argument("--cache-dir", required=True)
+    parser.add_argument("--timeout", type=float, default=60.0)
+    parser.add_argument("--attempts", type=int, default=3)
+    parser.add_argument("--retry-delay", type=float, default=1.0)
+    parser.add_argument("--max-retry-delay", type=float, default=30.0)
+    parser.add_argument(
+        "--no-browser-fallback",
+        action="store_true",
+        help="do not use browser-compatible request headers on the final attempt",
+    )
 
 
 def _board_authority(
@@ -2591,8 +3122,7 @@ def _finish_board_authority(
     from pcbsmith.kicad.layout_score import score_layout
 
     (board_file.parent / ".pcbsmith" / "layout-score.json").write_text(
-        json.dumps(score_layout(layout, board_netlist).as_dict(), indent=2)
-        + "\n",
+        json.dumps(score_layout(layout, board_netlist).as_dict(), indent=2) + "\n",
         encoding="utf-8",
     )
     virtual_findings = run_virtual_drc(layout, board_netlist)
@@ -2638,9 +3168,7 @@ def _finish_board_authority(
     if preview_findings or extra_findings:
         return (
             report.model_copy(
-                update={
-                    "findings": (*report.findings, *preview_findings, *extra_findings)
-                }
+                update={"findings": (*report.findings, *preview_findings, *extra_findings)}
             ),
             design_review,
         )
@@ -2880,19 +3408,18 @@ def _reader_schematic_checks(
     equality_findings: tuple[str, ...] = ()
     if machine_erc_status == "passed" and reader_erc.status == "passed":
         machine_netlist = parse_board_netlist(
-            export_kicad_netlist_xml(machine_schematic).read_text(
-                encoding="utf-8"
-            )
+            export_kicad_netlist_xml(machine_schematic).read_text(encoding="utf-8")
         )
         reader_netlist = parse_board_netlist(
-            export_kicad_netlist_xml(reader_schematic).read_text(
-                encoding="utf-8"
-            )
+            export_kicad_netlist_xml(reader_schematic).read_text(encoding="utf-8")
         )
         equality_findings = compare_netlists(machine_netlist, reader_netlist)
     reader_ok = reader_erc.status == "passed" and not equality_findings
     return (
-        reader_erc, reader_svg, reader_artifacts, equality_findings,
+        reader_erc,
+        reader_svg,
+        reader_artifacts,
+        equality_findings,
         reader_ok,
     )
 
@@ -2912,9 +3439,7 @@ def _authority_artifacts(
         "review_bundle": str(output_dir / "review-bundle-v2.json"),
         "kicad_schematic": kicad_artifacts["schematic_file"],
     }
-    _add_existing_artifact(
-        artifacts, "review_pack", str(output_dir / "review-pack.md")
-    )
+    _add_existing_artifact(artifacts, "review_pack", str(output_dir / "review-pack.md"))
     _add_existing_artifact(
         artifacts,
         "layout_score",
@@ -3059,8 +3584,7 @@ def build_parser() -> argparse.ArgumentParser:
 
     mpu_parser = subparsers.add_parser(
         "design-mpu6050-authority",
-        help="generate an MPU-6050 IMU breakout (QFN-24, I2C) with authority "
-        "evidence",
+        help="generate an MPU-6050 IMU breakout (QFN-24, I2C) with authority evidence",
     )
     mpu_parser.add_argument("output")
     mpu_parser.add_argument("--request", required=True)
@@ -3289,6 +3813,204 @@ def build_parser() -> argparse.ArgumentParser:
     )
     acquire_parser.set_defaults(func=_cmd_evidence_acquire)
 
+    source_intake_parser = subparsers.add_parser(
+        "source-intake",
+        help="download an approved official document/CAD source with identity checks",
+    )
+    source_intake_parser.add_argument("request", help="source-intake request JSON")
+    _add_source_intake_download_arguments(source_intake_parser)
+    source_intake_parser.set_defaults(func=_cmd_source_intake)
+
+    source_intake_batch_parser = subparsers.add_parser(
+        "source-intake-batch",
+        help="resume an approved document/CAD source catalog into the local cache",
+    )
+    source_intake_batch_parser.add_argument(
+        "catalog",
+        help="JSON list or object containing a 'sources' list",
+    )
+    _add_source_intake_download_arguments(source_intake_batch_parser)
+    source_intake_batch_parser.set_defaults(func=_cmd_source_intake_batch)
+
+    part_discovery_parser = subparsers.add_parser(
+        "part-discover",
+        help="resolve exact-MPN document and CAD roles through safe source intake",
+    )
+    part_discovery_parser.add_argument("request", help="exact-part discovery request JSON")
+    part_discovery_parser.add_argument("candidates", help="provider/API candidate catalog JSON")
+    part_discovery_parser.add_argument("--installed", help="installed part-resource records JSON")
+    part_discovery_parser.add_argument("--output")
+    _add_source_intake_download_arguments(part_discovery_parser)
+    part_discovery_parser.set_defaults(func=_cmd_part_discover)
+
+    project_gate_parser = subparsers.add_parser(
+        "project-engineering-gate",
+        help="enforce Phase 14 applicability and exact-part resource completeness",
+    )
+    project_gate_parser.add_argument("context", help="project engineering context JSON")
+    project_gate_parser.add_argument("bundle", help="Phase 14 evaluator result bundle JSON")
+    project_gate_parser.add_argument(
+        "--discovery-report",
+        action="append",
+        default=[],
+        help="exact-part discovery report JSON; repeat for each exact part",
+    )
+    project_gate_parser.add_argument("--output", required=True)
+    project_gate_parser.set_defaults(func=_cmd_project_engineering_gate)
+
+    model_preflight_parser = subparsers.add_parser(
+        "model-preflight",
+        help="resolve and classify every KiCad 3D model before rendering",
+    )
+    model_preflight_parser.add_argument("board")
+    model_preflight_parser.add_argument("--registry")
+    model_preflight_parser.add_argument("--requirements")
+    model_preflight_parser.add_argument("--output")
+    model_preflight_parser.set_defaults(func=_cmd_model_preflight)
+
+    asset_install_parser = subparsers.add_parser(
+        "asset-install",
+        help="validate and install a downloaded KiCad symbol, footprint, or 3D model",
+    )
+    asset_install_parser.add_argument("request")
+    asset_install_parser.add_argument("--repository-root", default=".")
+    asset_install_parser.add_argument(
+        "--private-asset-root",
+        default=".pcbsmith-private/kicad-assets",
+    )
+    asset_install_parser.add_argument("--public-record")
+    asset_install_parser.set_defaults(func=_cmd_asset_install)
+
+    visual_review_parser = subparsers.add_parser(
+        "visual-review",
+        help="generate the standardized 2D/3D visual evidence package",
+    )
+    visual_review_parser.add_argument("board")
+    visual_review_parser.add_argument("output")
+    visual_review_parser.add_argument("--stage", choices=("placement", "final"), required=True)
+    visual_review_parser.add_argument("--features", required=True)
+    visual_review_parser.add_argument("--model-preflight", required=True)
+    visual_review_parser.add_argument("--source-revision")
+    visual_review_parser.set_defaults(func=_cmd_visual_review)
+
+    visual_inspect_parser = subparsers.add_parser(
+        "visual-inspect",
+        help="record named artifact inspection decisions and evaluate the review gate",
+    )
+    visual_inspect_parser.add_argument("manifest")
+    visual_inspect_parser.add_argument("--decisions", required=True)
+    visual_inspect_parser.add_argument("--reviewer", required=True)
+    visual_inspect_parser.add_argument("--mechanism", required=True)
+    visual_inspect_parser.set_defaults(func=_cmd_visual_inspect)
+
+    workflow_examine_parser = subparsers.add_parser(
+        "workflow-examine",
+        help="validate a prompt transcription against exact source spans",
+    )
+    workflow_examine_parser.add_argument("request")
+    workflow_examine_parser.add_argument("--output", required=True)
+    workflow_examine_parser.set_defaults(func=_cmd_workflow_examine)
+
+    placement_review_parser = subparsers.add_parser(
+        "production-placement-review",
+        help=(
+            "persist a placement board and automatically commit its canonical "
+            "review package as one generation"
+        ),
+    )
+    placement_review_parser.add_argument("board")
+    placement_review_parser.add_argument("transaction_root")
+    placement_review_parser.add_argument("--project-id", required=True)
+    placement_review_parser.add_argument("--generation-id", required=True)
+    placement_review_parser.add_argument("--generation-sha256", required=True)
+    placement_review_parser.add_argument(
+        "--board-relative-path",
+        default="design/board.kicad_pcb",
+    )
+    placement_review_parser.add_argument("--features", required=True)
+    placement_review_parser.add_argument("--model-preflight", required=True)
+    placement_review_parser.add_argument("--source-revision")
+    placement_review_parser.add_argument("--output")
+    placement_review_parser.set_defaults(func=_cmd_production_placement_review)
+
+    production_inspect_parser = subparsers.add_parser(
+        "production-visual-inspect",
+        help="record placement-review decisions as a new immutable generation",
+    )
+    production_inspect_parser.add_argument("transaction_root")
+    production_inspect_parser.add_argument("--generation-id", required=True)
+    production_inspect_parser.add_argument("--generation-sha256", required=True)
+    production_inspect_parser.add_argument("--decisions", required=True)
+    production_inspect_parser.add_argument("--reviewer", required=True)
+    production_inspect_parser.add_argument("--mechanism", required=True)
+    production_inspect_parser.add_argument("--output")
+    production_inspect_parser.set_defaults(func=_cmd_production_visual_inspect)
+
+    route_gate_parser = subparsers.add_parser(
+        "workflow-route-gate",
+        help="enforce prompt, context, feasibility, drift, review, and budget gates",
+    )
+    route_gate_parser.add_argument("--generation-sha256", required=True)
+    route_gate_parser.add_argument("--saved-board-sha256", required=True)
+    route_gate_parser.add_argument("--saved-layout-fingerprint", required=True)
+    route_gate_parser.add_argument("--examination", required=True)
+    route_gate_parser.add_argument("--context", required=True)
+    route_gate_parser.add_argument("--feasibility", required=True)
+    route_gate_parser.add_argument("--concept-drift", required=True)
+    route_gate_parser.add_argument("--review-manifest", required=True)
+    route_gate_parser.add_argument("--transaction-manifest", required=True)
+    route_gate_parser.add_argument("--engineering-gate", required=True)
+    route_gate_parser.add_argument(
+        "--profile",
+        choices=("quick", "standard", "deep"),
+        default="standard",
+    )
+    route_gate_parser.add_argument("--output", required=True)
+    route_gate_parser.set_defaults(func=_cmd_workflow_route_gate)
+
+    routing_audit_parser = subparsers.add_parser(
+        "routing-audit",
+        help=(
+            "inventory saved-board traces/vias and optionally run isolated KiCad "
+            "DRC without treating copper presence as release proof"
+        ),
+    )
+    routing_audit_parser.add_argument("root")
+    routing_audit_parser.add_argument("--run-drc", action="store_true")
+    routing_audit_parser.add_argument(
+        "--include-derived",
+        action="store_true",
+        help="include history, render inputs, intake references, and rejected evidence",
+    )
+    routing_audit_parser.add_argument("--output")
+    routing_audit_parser.set_defaults(func=_cmd_routing_audit)
+
+    release_gate_parser = subparsers.add_parser(
+        "routed-release-gate",
+        help=(
+            "fail closed unless one exact routed board has clean KiCad DRC, "
+            "read-back/netlist proof, committed final review, and exact acceptance"
+        ),
+    )
+    release_gate_parser.add_argument("board")
+    release_gate_parser.add_argument("--drc-report", required=True)
+    release_gate_parser.add_argument("--review-manifest", required=True)
+    release_gate_parser.add_argument("--transaction-manifest", required=True)
+    release_gate_parser.add_argument("--exact-route-accepted", action="store_true")
+    release_gate_parser.add_argument("--readback-verified", action="store_true")
+    release_gate_parser.add_argument("--netlist-equivalent", action="store_true")
+    release_gate_parser.add_argument("--output", required=True)
+    release_gate_parser.set_defaults(func=_cmd_routed_release_gate)
+
+    verify_parser = subparsers.add_parser(
+        "verify",
+        help="run the existing verification gates with profiles, heartbeats, and typed limits",
+    )
+    verify_parser.add_argument("output")
+    verify_parser.add_argument("--profile", choices=("quick", "standard", "deep"), default="quick")
+    verify_parser.add_argument("--timeout-scale", type=float, default=1.0)
+    verify_parser.set_defaults(func=_cmd_verify)
+
     facts_parser = subparsers.add_parser(
         "datasheet-facts",
         help="extract facts from a single datasheet PDF and print them as JSON",
@@ -3316,6 +4038,7 @@ def main(argv: list[str] | None = None) -> int:
         NexarProviderError,
         DatasheetExtractionError,
         EvidenceDownloadError,
+        RuntimeError,
     ) as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2

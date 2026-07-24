@@ -10,7 +10,6 @@ from __future__ import annotations
 import argparse
 import json
 from collections import defaultdict
-from dataclasses import replace
 from pathlib import Path
 
 from pcbsmith.circuit.intent import classify_circuit_intent
@@ -27,9 +26,8 @@ from pcbsmith.kicad.thermometer_board import (
 )
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
 
-
 REQUEST = "thermometer temperature humidity display pcb"
-CONTROL_ORDER = ("/SER", "/SRCLK", "/RCLK", "/OE")
+CONTROL_ORDER = ("/OE", "/SER", "/SRCLK", "/RCLK")
 
 
 def build_netlist() -> BoardNetlist:
@@ -92,7 +90,14 @@ def main() -> int:
         "/RCLK": 0.2,
         "/OE": 0.2,
     }
-    fine_order = tuple(FINE_PITCH_NETS)
+    # The global rails are fine-pitch at a handful of endpoints but are
+    # also the board's two largest multi-terminal trees.  Routing those
+    # trees on the 0.1mm graph is needlessly quadratic (and was observed
+    # to exhaust memory).  Keep the pad-pinned local signals on the fine
+    # graph and route the rails once on the main graph.
+    fine_order = tuple(
+        net for net in FINE_PITCH_NETS if net not in ("/VCC", "/GND")
+    )
     fine = route_board_negotiated(
         base,
         netlist,
@@ -117,7 +122,7 @@ def main() -> int:
             *CONTROL_ORDER,
             *(net.name for net in netlist.nets),
         )
-        if name not in FINE_PITCH_NETS
+        if name not in fine_order
     )
     remaining = tuple(dict.fromkeys(remaining))
     main_result = route_board_negotiated(
@@ -135,15 +140,11 @@ def main() -> int:
     )
     output["main"] = result_summary(main_result)
     if main_result.run_result.success:
-        final_layout = replace(
-            main_result.layout,
-            segments=tuple((*fine.layout.segments, *main_result.layout.segments)),
-            vias=tuple((*fine.layout.vias, *main_result.layout.vias)),
-        )
+        # route_board_negotiated retains pre-existing copper, so the main
+        # result already contains the fine stage exactly once.
+        final_layout = main_result.layout
         findings = run_virtual_drc(final_layout, netlist)
-        output["virtual_drc"] = tuple(
-            (item.check, item.net_name, item.message) for item in findings
-        )
+        output["virtual_drc"] = tuple(item.as_dict() for item in findings)
         if args.output is not None:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             args.output.write_text(

@@ -39,9 +39,11 @@ from pcbsmith.return_adjacency_ir import (
     ReturnPathDeclaration,
     ReturnPathLeg,
     ReturnSignalClass,
+    StackupReferenceContext,
     TransitionStitchRequirement,
     TransitionStitchSelection,
     return_requirement_context_fingerprint,
+    stackup_reference_context_fingerprint,
 )
 from pcbsmith.routed_copper_graph_ir import (
     CopperTerminalAnchorBinding,
@@ -57,6 +59,68 @@ def _component(reference: str) -> BoardComponent:
         value="fixture",
         footprint="Fixture:Pad",
         uuid_path=f"uuid:{reference}",
+    )
+
+
+def _stackup_context(
+    layout_fingerprint: str,
+    *,
+    pairs: tuple[ReturnLayerPair, ...] | None = None,
+    reference_net_names: tuple[str, ...] = ("GND",),
+    intended_consumer: str = "return-path continuity acceptance",
+) -> StackupReferenceContext:
+    conditions = ("fabricator-stackup=fixture-two-layer",)
+    fields = {
+        "context_id": "stackup:fixture-two-layer",
+        "status": "verified",
+        "board_layout_snapshot_fingerprint": layout_fingerprint,
+        "copper_layer_order": ("F.Cu", "B.Cu"),
+        "adjacent_reference_pairs": pairs
+        or (
+            ReturnLayerPair(signal_layer="B.Cu", reference_layer="F.Cu"),
+            ReturnLayerPair(signal_layer="F.Cu", reference_layer="B.Cu"),
+        ),
+        "reference_net_names": reference_net_names,
+        "intended_consumer": intended_consumer,
+        "evidence_binding": None,
+    }
+    provisional = StackupReferenceContext.model_construct(**fields)
+    binding = EvidenceApplicabilityBinding(
+        binding_id="binding:stackup-fixture",
+        evidence=(
+            EvidenceRef(
+                kind="fabricator_stackup",
+                title="Fixture two-layer stack-up",
+                locator="stack-up table",
+                source_id="source:fixture-stackup",
+                revision="1",
+                local_sha256="e" * 64,
+                source_status="pinned",
+                locator_status="text_verified",
+                applicability_status="confirmed",
+                required_conditions=conditions,
+            ),
+        ),
+        claim_id=fields["context_id"],
+        applicability_record_id="applicability:fixture-stackup",
+        required_conditions=conditions,
+        matched_conditions=conditions,
+        geometry_source_fingerprint=stackup_reference_context_fingerprint(provisional),
+        reviewer_record_id="review:fixture-stackup",
+    )
+    return StackupReferenceContext(**(fields | {"evidence_binding": binding}))
+
+
+def _unknown_stackup(layout_fingerprint: str) -> StackupReferenceContext:
+    return StackupReferenceContext(
+        context_id="stackup:unknown",
+        status="unknown",
+        board_layout_snapshot_fingerprint=layout_fingerprint,
+        copper_layer_order=(),
+        adjacent_reference_pairs=(),
+        reference_net_names=(),
+        intended_consumer="advisory return-path guidance only",
+        evidence_binding=None,
     )
 
 
@@ -154,6 +218,7 @@ def _fixture(*, diagonal: bool = False, fill_kind: str = "full"):
         signal_class=ReturnSignalClass.CLOCK,
         exact_net_class_id="netclass:clock",
         reference_net_name="GND",
+        stackup_context=_stackup_context(graph.board_layout_snapshot_fingerprint),
         layer_pairs=(ReturnLayerPair(signal_layer="F.Cu", reference_layer="B.Cu"),),
         legs=(
             ReturnPathLeg(
@@ -294,6 +359,72 @@ def test_advisory_model_ids_are_distinct_and_never_hard_fail() -> None:
         assert result.findings[-1].disposition is SemanticDisposition.ADVISORY
 
 
+def test_unknown_stackup_is_explicit_and_permits_advisory_guidance_only() -> None:
+    layout, policy, graph_fill, declaration = _fixture(fill_kind="slot")
+    fields = declaration.model_dump(mode="python")
+    fields["stackup_context"] = _unknown_stackup(
+        declaration.board_layout_snapshot_fingerprint
+    )
+    fields["adjacency_model_id"] = ADVISORY_3W_MODEL_ID
+    advisory = ReturnPathDeclaration(**fields)
+    result = evaluate_return_adjacency(
+        advisory,
+        (_reference_fill(layout, policy, graph_fill, fill_kind="slot"),),
+    )
+    assert result.findings[-1].disposition is SemanticDisposition.ADVISORY
+
+    fields["adjacency_model_id"] = EXACT_CONTAINMENT_MODEL_ID
+    with pytest.raises(ValidationError, match="unknown stack-up permits advisory"):
+        ReturnPathDeclaration(**fields)
+
+
+def test_stackup_evidence_is_revisioned_claim_and_exact_context_bound() -> None:
+    _layout, _policy, _graph_fill, declaration = _fixture()
+    payload = declaration.stackup_context.model_dump(mode="python")
+    payload["intended_consumer"] = "changed consumer"
+    with pytest.raises(ValidationError, match="stale for its exact context"):
+        StackupReferenceContext(**payload)
+
+    payload = declaration.stackup_context.model_dump(mode="python")
+    binding = payload["evidence_binding"]
+    binding["claim_id"] = "stackup:other-claim"
+    with pytest.raises(ValidationError, match="claim identity"):
+        StackupReferenceContext(**payload)
+
+    payload = declaration.stackup_context.model_dump(mode="python")
+    binding = payload["evidence_binding"]
+    binding["evidence"][0]["revision"] = None
+    with pytest.raises(ValidationError, match="revisioned pinned applicable evidence"):
+        StackupReferenceContext(**payload)
+
+
+def test_verified_stackup_must_name_declared_adjacency_and_reference_net() -> None:
+    _layout, _policy, _graph_fill, declaration = _fixture()
+    fields = declaration.model_dump(mode="python")
+    fields["stackup_context"] = _stackup_context(
+        declaration.board_layout_snapshot_fingerprint,
+        pairs=(ReturnLayerPair(signal_layer="B.Cu", reference_layer="F.Cu"),),
+    )
+    with pytest.raises(ValidationError, match="not adjacent in verified stack-up"):
+        ReturnPathDeclaration(**fields)
+
+    fields["stackup_context"] = _stackup_context(
+        declaration.board_layout_snapshot_fingerprint,
+        reference_net_names=("AGND",),
+    )
+    with pytest.raises(ValidationError, match="reference net is absent"):
+        ReturnPathDeclaration(**fields)
+
+
+def test_legacy_declaration_without_stackup_fails_closed() -> None:
+    _layout, _policy, _graph_fill, declaration = _fixture()
+    fields = declaration.model_dump(mode="python")
+    fields["schema_version"] = 1
+    fields.pop("stackup_context")
+    with pytest.raises(ValidationError):
+        ReturnPathDeclaration(**fields)
+
+
 def _hard_binding(context: str, binding_id: str) -> EvidenceApplicabilityBinding:
     return EvidenceApplicabilityBinding(
         binding_id=binding_id,
@@ -302,10 +433,13 @@ def _hard_binding(context: str, binding_id: str) -> EvidenceApplicabilityBinding
                 kind="datasheet",
                 title="Qualified hard return threshold",
                 locator="section 2",
+                source_id=f"source:{binding_id}",
+                revision="1",
                 local_sha256="d" * 64,
                 source_status="pinned",
                 locator_status="text_verified",
                 applicability_status="confirmed",
+                required_conditions=("return-model=fixture",),
             ),
         ),
         claim_id=f"claim:{binding_id}",
@@ -332,6 +466,7 @@ def test_hard_discontinuity_threshold_is_context_pinned_and_exact() -> None:
         requirement_id="threshold:max-gap",
         requirement_kind="maximum_discontinuity_length_mm",
         requirement_value=Decimal("9"),
+        stackup_context_fingerprint=declaration.stackup_context.semantic_fingerprint(),
     )
     threshold = ReturnHardThreshold(
         threshold_id="threshold:max-gap",
@@ -353,6 +488,39 @@ def test_hard_discontinuity_threshold_is_context_pinned_and_exact() -> None:
     stale = threshold.model_dump(mode="python")
     stale["value_mm"] = Decimal("10")
     fields["hard_thresholds"] = (ReturnHardThreshold(**stale),)
+    with pytest.raises(ValidationError, match="stale for its full context"):
+        ReturnPathDeclaration(**fields)
+
+
+def test_hard_threshold_cannot_survive_a_verified_stackup_context_change() -> None:
+    _layout, _policy, _graph_fill, declaration = _fixture()
+    context = return_requirement_context_fingerprint(
+        declaration_id=declaration.declaration_id,
+        graph=declaration.graph,
+        signal_net_names=declaration.signal_net_names,
+        signal_class=declaration.signal_class,
+        exact_net_class_id=declaration.exact_net_class_id,
+        reference_net_name=declaration.reference_net_name,
+        layer_pairs=declaration.layer_pairs,
+        legs=declaration.legs,
+        adjacency_model_id=declaration.adjacency_model_id,
+        requirement_id="threshold:coverage",
+        requirement_kind="complete_coverage",
+        requirement_value=None,
+        stackup_context_fingerprint=declaration.stackup_context.semantic_fingerprint(),
+    )
+    threshold = ReturnHardThreshold(
+        threshold_id="threshold:coverage",
+        kind="complete_coverage",
+        value_mm=None,
+        evidence_binding=_hard_binding(context, "binding:coverage"),
+    )
+    fields = declaration.model_dump(mode="python")
+    fields["hard_thresholds"] = (threshold,)
+    fields["stackup_context"] = _stackup_context(
+        declaration.board_layout_snapshot_fingerprint,
+        intended_consumer="changed but independently verified consumer",
+    )
     with pytest.raises(ValidationError, match="stale for its full context"):
         ReturnPathDeclaration(**fields)
 
@@ -417,6 +585,7 @@ def _transition_fixture():
         ReturnLayerPair(signal_layer="F.Cu", reference_layer="B.Cu"),
         ReturnLayerPair(signal_layer="B.Cu", reference_layer="F.Cu"),
     )
+    stackup_context = _stackup_context(graph.board_layout_snapshot_fingerprint)
     context = return_requirement_context_fingerprint(
         declaration_id="return:transition",
         graph=graph,
@@ -430,6 +599,7 @@ def _transition_fixture():
         requirement_id="requirement:stitch",
         requirement_kind="transition_stitch_maximum_distance_mm",
         requirement_value=Decimal("1"),
+        stackup_context_fingerprint=stackup_context.semantic_fingerprint(),
     )
     binding = EvidenceApplicabilityBinding(
         binding_id="binding:stitch",
@@ -438,10 +608,13 @@ def _transition_fixture():
                 kind="datasheet",
                 title="Qualified transition fixture",
                 locator="section 1",
+                source_id="source:fixture-transition",
+                revision="1",
                 local_sha256="c" * 64,
                 source_status="pinned",
                 locator_status="text_verified",
                 applicability_status="confirmed",
+                required_conditions=("return-model=fixture",),
             ),
         ),
         claim_id="claim:stitch",
@@ -460,6 +633,7 @@ def _transition_fixture():
         signal_class="clock",
         exact_net_class_id="netclass:clock",
         reference_net_name="GND",
+        stackup_context=stackup_context,
         layer_pairs=pairs,
         legs=legs,
         adjacency_model_id=EXACT_CONTAINMENT_MODEL_ID,

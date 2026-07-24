@@ -28,6 +28,7 @@ from pcbsmith.oscillator_zone_ir import (
     ReferenceGroundRequirement,
     StitchViaRequirement,
     StrayCapacitanceRequirement,
+    oscillator_declaration_context_fingerprint,
 )
 from pcbsmith.placement_geometry import ExactPlanarCompound, ExactPlanarPolygon
 from pcbsmith.semantic_ir import (
@@ -82,7 +83,7 @@ def _board() -> tuple[BoardLayout, BoardNetlist]:
     )
 
 
-def _binding() -> EvidenceApplicabilityBinding:
+def _binding(context_fingerprint: str) -> EvidenceApplicabilityBinding:
     return EvidenceApplicabilityBinding(
         binding_id="binding:fixture",
         evidence=(
@@ -106,7 +107,7 @@ def _binding() -> EvidenceApplicabilityBinding:
         excluded_conditions=(),
         matched_conditions=("oscillator-revision=1",),
         unmatched_conditions=(),
-        geometry_source_fingerprint=_rect(10, 10, 14, 14).semantic_fingerprint(),
+        geometry_source_fingerprint=context_fingerprint,
         reviewer_record_id="review:fixture",
     )
 
@@ -135,6 +136,7 @@ def _declaration(
     stitch: bool = False,
     capacitance: bool = False,
     io_authority: SemanticAuthorityClass | None = None,
+    intrusion_authority: SemanticAuthorityClass = SemanticAuthorityClass.HARD_GEOMETRY,
 ) -> OscillatorZoneDeclaration:
     layout_json = canonical_board_layout_snapshot_json(layout)
     netlist_json = canonical_board_netlist_snapshot_json(netlist)
@@ -197,24 +199,26 @@ def _declaration(
         if capacitance
         else None
     )
-    return OscillatorZoneDeclaration(
-        declaration_id="declaration:oscillator",
-        board_layout_snapshot_json=layout_json,
-        board_netlist_snapshot_json=netlist_json,
-        board_layout_snapshot_fingerprint=board_layout_snapshot_fingerprint(layout_json),
-        board_netlist_snapshot_fingerprint=netlist_fp,
-        has_external_discrete_zone=external,
-        zone_id="zone:osc",
-        zone_region=_region() if external else None,
-        oscillator_reference="U1",
-        crystal_reference="Y1" if external else None,
-        load_capacitor_references=("C1", "C2") if external else (),
-        oscillator_net_names=("XIN", "XOUT") if external else (),
-        allowed_object_ids=(),
-        allowed_component_refs=("U1", "Y1", "C1", "C2") if external else (),
-        allowed_net_names=(),
-        forbidden_net_class_ids=("class:switching",) if external else (),
-        net_class_memberships=(
+    fields = {
+        "declaration_id": "declaration:oscillator",
+        "policy_claim_id": "claim:oscillator-zone",
+        "intended_consumer": "oscillator-zone placement acceptance",
+        "board_layout_snapshot_json": layout_json,
+        "board_netlist_snapshot_json": netlist_json,
+        "board_layout_snapshot_fingerprint": board_layout_snapshot_fingerprint(layout_json),
+        "board_netlist_snapshot_fingerprint": netlist_fp,
+        "has_external_discrete_zone": external,
+        "zone_id": "zone:osc",
+        "zone_region": _region() if external else None,
+        "oscillator_reference": "U1",
+        "crystal_reference": "Y1" if external else None,
+        "load_capacitor_references": ("C1", "C2") if external else (),
+        "oscillator_net_names": ("XIN", "XOUT") if external else (),
+        "allowed_object_ids": (),
+        "allowed_component_refs": ("C1", "C2", "U1", "Y1") if external else (),
+        "allowed_net_names": (),
+        "forbidden_net_class_ids": ("class:switching",) if external else (),
+        "net_class_memberships": (
             ExactNetClassMembership(
                 net_class_id="class:switching",
                 net_names=("SW",),
@@ -224,14 +228,20 @@ def _declaration(
         )
         if external
         else (),
-        intrusion_rule_id="rule:intrusion",
-        applicability_rule_id="rule:applicability",
-        reference_ground_requirement=ground_requirement,
-        stitch_via_requirement=stitch_requirement,
-        io_separation_requirement=io_requirement,
-        stray_capacitance_requirement=cap_requirement,
-        evidence_bindings=(_binding(),),
+        "intrusion_rule_id": "rule:intrusion",
+        "intrusion_authority": intrusion_authority,
+        "applicability_rule_id": "rule:applicability",
+        "reference_ground_requirement": ground_requirement,
+        "stitch_via_requirement": stitch_requirement,
+        "io_separation_requirement": io_requirement,
+        "stray_capacitance_requirement": cap_requirement,
+        "evidence_bindings": (_binding("0" * 64),),
+    }
+    provisional = OscillatorZoneDeclaration.model_construct(**fields)
+    fields["evidence_bindings"] = (
+        _binding(oscillator_declaration_context_fingerprint(provisional)),
     )
+    return OscillatorZoneDeclaration(**fields)
 
 
 def _object(
@@ -477,6 +487,29 @@ def test_scoped_advisory_io_separation_cannot_hard_fail() -> None:
     assert not result.semantic_result.summary.route_acceptance_blocked
 
 
+def test_advisory_intrusion_zone_reports_without_hard_acceptance() -> None:
+    layout, netlist = _board()
+    declaration = _declaration(
+        layout,
+        netlist,
+        intrusion_authority=SemanticAuthorityClass.ADVISORY_HYPOTHESIS,
+    )
+    result = evaluate_oscillator_zone(
+        layout,
+        netlist,
+        declaration,
+        (_object(declaration, "object:advisory-foreign"),),
+    )
+
+    assert result.intrusion_evidence[0].disposition is SemanticDisposition.ADVISORY
+    finding = next(
+        item for item in result.semantic_result.findings if item.rule_id == "rule:intrusion"
+    )
+    assert finding.authority is SemanticAuthorityClass.ADVISORY_HYPOTHESIS
+    assert finding.disposition is SemanticDisposition.ADVISORY
+    assert not result.semantic_result.summary.route_acceptance_blocked
+
+
 def test_internal_module_oscillator_is_typed_not_applicable_with_empty_evidence() -> None:
     layout, netlist = _board()
     declaration = _declaration(layout, netlist, external=False)
@@ -532,6 +565,60 @@ def test_stale_snapshot_owner_net_class_and_evidence_are_rejected() -> None:
         evaluate_oscillator_zone(
             layout, netlist, declaration, (OscillatorPhysicalObject.model_validate(owner),)
         )
+
+
+def test_hard_policy_claim_revision_and_context_are_fail_closed() -> None:
+    layout, netlist = _board()
+    declaration = _declaration(layout, netlist, ground=True)
+
+    wrong_claim = deepcopy(declaration.model_dump(mode="json"))
+    wrong_claim["evidence_bindings"][0]["claim_id"] = "claim:wrong"
+    with pytest.raises(ValidationError, match="claim identity"):
+        OscillatorZoneDeclaration.model_validate(wrong_claim)
+
+    missing_revision = deepcopy(declaration.model_dump(mode="json"))
+    missing_revision["evidence_bindings"][0]["evidence"][0]["revision"] = None
+    with pytest.raises(ValidationError, match="pinned applicable reviewed evidence"):
+        OscillatorZoneDeclaration.model_validate(missing_revision)
+
+    stale_context = deepcopy(declaration.model_dump(mode="json"))
+    stale_context["evidence_bindings"][0]["geometry_source_fingerprint"] = "f" * 64
+    with pytest.raises(ValidationError, match="stale or inexact context"):
+        OscillatorZoneDeclaration.model_validate(stale_context)
+
+
+@pytest.mark.parametrize(
+    "mutate",
+    (
+        lambda payload: payload.update({"intended_consumer": "different consumer"}),
+        lambda payload: payload["allowed_component_refs"].remove("C2"),
+        lambda payload: payload["reference_ground_requirement"].update(
+            {"minimum_coverage_basis_points": 8000}
+        ),
+        lambda payload: payload["net_class_memberships"][0].update(
+            {"net_names": ["IO"]}
+        ),
+    ),
+)
+def test_hard_binding_cannot_authorize_changed_oscillator_context(mutate) -> None:
+    layout, netlist = _board()
+    payload = _declaration(layout, netlist, ground=True).model_dump(mode="json")
+    mutate(payload)
+
+    with pytest.raises(ValidationError, match="stale or inexact context"):
+        OscillatorZoneDeclaration.model_validate(payload)
+
+
+def test_legacy_oscillator_declaration_fails_closed() -> None:
+    layout, netlist = _board()
+    payload = _declaration(layout, netlist).model_dump(mode="json")
+    payload["schema_version"] = 1
+    payload.pop("policy_claim_id")
+    payload.pop("intended_consumer")
+    payload.pop("intrusion_authority")
+
+    with pytest.raises(ValidationError):
+        OscillatorZoneDeclaration.model_validate(payload)
 
 
 def test_replay_json_reversal_tamper_and_caller_immutability() -> None:

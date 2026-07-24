@@ -62,16 +62,24 @@ def _identities(values: tuple[str, ...], name: str) -> tuple[str, ...]:
 
 
 def _binding_is_complete(binding: EvidenceApplicabilityBinding) -> bool:
+    binding_conditions = set(binding.required_conditions)
     return (
         binding.reviewer_record_id is not None
         and bool(binding.required_conditions)
         and not binding.unmatched_conditions
+        and set(binding.matched_conditions) == binding_conditions
         and bool(binding.evidence)
         and all(
-            item.source_status == "pinned"
+            bool(item.source_id and item.source_id.strip())
+            and bool(item.revision and item.revision.strip())
+            and item.source_status == "pinned"
             and item.local_sha256 is not None
-            and item.locator_status in {"text_verified", "figure_verified", "figure_bound"}
+            and len(item.local_sha256) == 64
+            and all(character in "0123456789abcdef" for character in item.local_sha256)
+            and item.locator_status in {"text_verified", "figure_verified"}
             and item.applicability_status == "confirmed"
+            and bool(item.required_conditions)
+            and set(item.required_conditions).issubset(binding_conditions)
             for item in binding.evidence
         )
     )
@@ -271,8 +279,10 @@ class OscillatorZoneDeclaration(SemanticIrModel):
     schema_id: Literal["pcbsmith-oscillator-zone-declaration"] = (
         "pcbsmith-oscillator-zone-declaration"
     )
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     declaration_id: str
+    policy_claim_id: str
+    intended_consumer: str
     board_layout_snapshot_json: str
     board_netlist_snapshot_json: str
     board_layout_snapshot_fingerprint: str
@@ -290,6 +300,10 @@ class OscillatorZoneDeclaration(SemanticIrModel):
     forbidden_net_class_ids: tuple[str, ...] = ()
     net_class_memberships: tuple[ExactNetClassMembership, ...] = ()
     intrusion_rule_id: str
+    intrusion_authority: Literal[
+        SemanticAuthorityClass.HARD_GEOMETRY,
+        SemanticAuthorityClass.ADVISORY_HYPOTHESIS,
+    ]
     applicability_rule_id: str
     reference_ground_requirement: ReferenceGroundRequirement | None = None
     stitch_via_requirement: StitchViaRequirement | None = None
@@ -301,6 +315,8 @@ class OscillatorZoneDeclaration(SemanticIrModel):
     def replay_scope_is_complete(self) -> Self:
         for name in (
             "declaration_id",
+            "policy_claim_id",
+            "intended_consumer",
             "zone_id",
             "oscillator_reference",
             "intrusion_rule_id",
@@ -398,39 +414,72 @@ class OscillatorZoneDeclaration(SemanticIrModel):
         if not required_bindings.issubset(binding_ids):
             raise ValueError("declaration geometry/threshold references unknown evidence")
         binding_by_id = {item.binding_id: item for item in bindings}
-        hard_threshold_bindings: set[str] = set()
+        hard_policy_bindings: set[str] = set()
         if (
             self.reference_ground_requirement is not None
             and self.reference_ground_requirement.authority is SemanticAuthorityClass.HARD_GEOMETRY
         ):
-            hard_threshold_bindings.update(self.reference_ground_requirement.source_binding_ids)
+            hard_policy_bindings.update(self.reference_ground_requirement.source_binding_ids)
         if (
             self.stitch_via_requirement is not None
             and self.stitch_via_requirement.authority is SemanticAuthorityClass.HARD_GEOMETRY
         ):
-            hard_threshold_bindings.update(self.stitch_via_requirement.source_binding_ids)
+            hard_policy_bindings.update(self.stitch_via_requirement.source_binding_ids)
         if (
             self.io_separation_requirement is not None
             and self.io_separation_requirement.authority is SemanticAuthorityClass.HARD_GEOMETRY
         ):
-            hard_threshold_bindings.update(
+            hard_policy_bindings.update(
                 self.io_separation_requirement.minimum_separation.source_binding_ids
             )
         if (
             self.stray_capacitance_requirement is not None
             and self.stray_capacitance_requirement.authority is SemanticAuthorityClass.HARD_GEOMETRY
         ):
-            hard_threshold_bindings.update(
+            hard_policy_bindings.update(
                 self.stray_capacitance_requirement.maximum_capacitance.source_binding_ids
             )
-        if any(
-            not _binding_is_complete(binding_by_id[binding_id])
-            for binding_id in hard_threshold_bindings
+        if (
+            self.has_external_discrete_zone
+            and self.zone_region is not None
+            and self.intrusion_authority is SemanticAuthorityClass.HARD_GEOMETRY
         ):
-            raise ValueError("hard sourced thresholds require pinned applicable reviewed evidence")
+            hard_policy_bindings.update(self.zone_region.source_binding_ids)
+            for membership in memberships:
+                hard_policy_bindings.update(membership.source_binding_ids)
+        if any(not _binding_is_complete(binding_by_id[item]) for item in hard_policy_bindings):
+            raise ValueError("hard oscillator rules require pinned applicable reviewed evidence")
+        if any(
+            binding_by_id[item].claim_id != self.policy_claim_id
+            for item in hard_policy_bindings
+        ):
+            raise ValueError("hard oscillator evidence claim identity does not match policy")
+        context_fp = oscillator_declaration_context_fingerprint(self)
+        if any(
+            binding_by_id[item].geometry_source_fingerprint != context_fp
+            for item in hard_policy_bindings
+        ):
+            raise ValueError("hard oscillator evidence has stale or inexact context")
         object.__setattr__(self, "evidence_bindings", bindings)
         object.__setattr__(self, "net_class_memberships", memberships)
         return self
+
+
+def oscillator_declaration_context_fingerprint(
+    declaration: OscillatorZoneDeclaration,
+) -> str:
+    """Bind sourced oscillator rules to every retained declaration input."""
+
+    return fingerprint(
+        {
+            "schema_id": "pcbsmith-oscillator-zone-source-context",
+            "schema_version": 1,
+            "declaration": declaration.model_dump(
+                mode="json",
+                exclude={"evidence_bindings"},
+            ),
+        }
+    )
 
 
 class OscillatorPhysicalObject(SemanticIrModel):

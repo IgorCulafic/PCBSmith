@@ -1,0 +1,298 @@
+{
+  "schema": "pcbsmith-advanced-pcb-rule-catalog-v1",
+  "created_at": "2026-07-22",
+  "scope": "Research catalogue for future rule promotion. This file is not a production rulebook and contains no universal geometry values.",
+  "authority_order": [
+    "selected product safety and regulatory standard",
+    "selected fabricator and assembler capability profile",
+    "exact component datasheet errata and manufacturer design guide",
+    "exact manufacturer reference design with matching topology and package",
+    "interface or device-family guide",
+    "industry standard",
+    "generic application note or textbook",
+    "community advice"
+  ],
+  "rule_classes": {
+    "hard": "Fail-closed requirement derived from declared project context and an applicable authority.",
+    "derived": "Numerical constraint computed from declared inputs such as stack-up, timing budget, load step, or environment.",
+    "advisory": "Evidence-backed review prompt that needs engineering judgement or measurement.",
+    "simulation": "Constraint requiring an identified solver, model, measurement, or laboratory acceptance method."
+  },
+  "families": [
+    {
+      "id": "architecture-and-part-identity",
+      "name": "Architecture, exact MPN identity, and support circuits",
+      "triggers": ["every design", "new IC", "package migration", "alternate part"],
+      "required_context": ["exact MPN and package", "silicon revision", "operating modes", "unused-pin policy", "firmware and boot requirements", "environment"],
+      "hard_checks": ["all power, ground, exposed-pad, reset, boot, programming, and reference pins resolved", "pin and package identity verified against manufacturer data", "support roles traced to evidence"],
+      "advisory_checks": ["reference design divergence recorded with consequence", "errata and lifecycle review", "alternate parts do not silently inherit the original pin or layout rules"],
+      "validation": ["schematic evidence review", "pin-table reconciliation", "bring-up checklist"],
+      "source_ids": ["microchip-an2519-avr-hardware-design", "ti-spra953d-hardware-design-guide", "amd-ug583", "intel-agilex5-pcb-guide"],
+      "implementation_state": "research-ready"
+    },
+    {
+      "id": "power-tree-budget-and-sequencing",
+      "name": "Power tree, current budget, sequencing, ramp, and reset",
+      "triggers": ["multiple rails", "SoC or FPGA", "high load step", "battery or hot-plug input"],
+      "required_context": ["rail tolerances", "static and transient current by mode", "startup order and ramp limits", "brownout behavior", "power-good dependencies", "source impedance"],
+      "hard_checks": ["regulator capacity includes declared transients and margin", "sequencing and reset dependencies are explicit", "no rail is back-powered through I/O or protection structures"],
+      "advisory_checks": ["power domains can be measured independently during bring-up", "enable defaults are deterministic", "fault states and discharge paths are documented"],
+      "validation": ["power-tree calculation", "startup simulation or vendor tool", "oscilloscope bring-up plan"],
+      "source_ids": ["ti-spra953d-hardware-design-guide", "ti-slva673a-robust-hot-swap", "amd-ug583", "intel-agilex5-pcb-guide"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "power-entry-protection",
+      "name": "Power entry, reverse polarity, inrush, surge, fuse, and hot-swap",
+      "triggers": ["external power", "hot-plug", "automotive or industrial supply", "large input capacitance"],
+      "required_context": ["source fault envelope", "maximum cable and supply impedance", "surge standard", "input capacitance", "MOSFET transient SOA", "ambient and cooling"],
+      "hard_checks": ["protection chain order is explicit", "MOSFET and resistor pulse energy are checked", "inrush and connector ratings are checked", "reverse and fault current paths are bounded"],
+      "advisory_checks": ["TVS clamping and downstream absolute maximum use the same current assumption", "fuse clearing and wiring capability are coordinated"],
+      "validation": ["transient simulation", "SOA calculation", "bench fault test plan"],
+      "source_ids": ["ti-slva673a-robust-hot-swap", "ti-slva680a-system-level-esd"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "pdn-and-decoupling",
+      "name": "Power-distribution network and decoupling",
+      "triggers": ["digital IC", "converter", "ADC or DAC", "FPGA or SoC", "fast load step"],
+      "required_context": ["rail load-step spectrum", "allowed droop", "VRM control response", "stack-up and plane geometry", "capacitor MPNs with DC-bias curves", "mounting inductance"],
+      "hard_checks": ["every required supply pin has an evidence-backed local network", "decoupling current loop is topologically minimized", "plane necks and via current paths are checked"],
+      "advisory_checks": ["target impedance is derived as delta-V over delta-I for a declared time or frequency range", "anti-resonance and package inductance are reviewed", "capacitor value is not accepted without voltage-bias derating"],
+      "validation": ["PDN impedance simulation", "rail transient simulation", "post-layout power-integrity review"],
+      "source_ids": ["adi-mt-101-decoupling", "adi-an-1142-high-speed-adc-layout", "amd-ug583", "intel-agilex5-pcb-guide"],
+      "implementation_state": "partial-ir-only"
+    },
+    {
+      "id": "stackup-and-impedance",
+      "name": "Stack-up, materials, controlled impedance, and reference structure",
+      "triggers": ["controlled-impedance interface", "fast edge", "RF", "dense BGA", "high current plane"],
+      "required_context": ["selected fabricator stack-up", "finished copper and plating", "dielectric thickness and Dk/Df", "roughness model", "impedance tolerance", "lamination and via process"],
+      "hard_checks": ["routing dimensions are generated from the selected stack-up", "critical signals have a continuous declared reference", "layer transitions include an appropriate return-current transition"],
+      "advisory_checks": ["reference-guide widths are not copied to a different stack-up", "glass weave and loss tangent are evaluated where data rate requires it"],
+      "validation": ["fabricator field solver or approved impedance model", "stack-up signoff", "coupon requirement"],
+      "source_ids": ["ti-scaa082a-high-speed-layout", "ti-spraar7j-high-speed-interface-layout", "amd-ug583", "intel-agilex5-pcb-guide"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "return-current-and-emc-zoning",
+      "name": "Return-current continuity, partitioning, and EMC zoning",
+      "triggers": ["fast edge", "mixed signal", "split power domains", "layer transition", "connector boundary"],
+      "required_context": ["signal and return path", "reference-plane ownership", "current source and destination", "chassis strategy", "cross-domain interfaces"],
+      "hard_checks": ["no critical signal crosses an unintended plane void or split", "return transitions are colocated with signal transitions", "no arbitrary ground split is used as a substitute for current-path design"],
+      "advisory_checks": ["zoning is based on current paths and susceptibility rather than component labels", "common-mode conversion risks are reviewed"],
+      "validation": ["layer-isolated visual review", "return-path topology check", "EMC pre-compliance plan"],
+      "source_ids": ["adi-mt-031-grounding", "ti-scaa082a-high-speed-layout", "ti-slla284g-digital-isolator", "ti-slva959b-motor-driver-layout"],
+      "implementation_state": "partial-ir-only"
+    },
+    {
+      "id": "clocks-crystals-and-plls",
+      "name": "Clocks, crystals, oscillators, PLLs, and jitter",
+      "triggers": ["crystal or resonator", "reference clock", "PLL", "SerDes", "precision converter"],
+      "required_context": ["exact crystal and oscillator circuit", "load capacitance and parasitics", "drive level", "startup margin", "jitter and phase-noise limit", "supply-noise limit"],
+      "hard_checks": ["load network is calculated for the exact parts", "clock pins and unused references follow manufacturer rules", "reference clock has a continuous quiet return path"],
+      "advisory_checks": ["negative-resistance or transconductance margin is verified", "probe loading and test method are planned", "clock supply isolation is justified by the exact IC"],
+      "validation": ["startup-margin calculation", "frequency and startup measurement", "phase-noise or jitter analysis where required"],
+      "source_ids": ["microchip-an2648b-crystal-oscillator", "microchip-an2519-avr-hardware-design", "amd-ug583"],
+      "implementation_state": "partial-zone-only"
+    },
+    {
+      "id": "high-speed-digital",
+      "name": "High-speed single-ended and differential digital routing",
+      "triggers": ["fast edge relative to flight time", "USB", "PCIe", "SATA", "HDMI", "MIPI", "SGMII", "LVDS"],
+      "required_context": ["interface revision", "edge rate or unit interval", "impedance and loss budget", "topology", "connector and package models", "via count and stub length", "skew budget"],
+      "hard_checks": ["net classes are interface-specific", "reference continuity and transition symmetry are enforced", "AC coupling location and orientation follow the exact interface", "stubs and test points obey the channel budget"],
+      "advisory_checks": ["pair coupling is not maximized blindly", "fiber weave mitigation is considered", "package delays are included before board-level length matching"],
+      "validation": ["channel compliance analysis", "IBIS or S-parameter simulation", "post-layout insertion and return loss review"],
+      "source_ids": ["ti-spraar7j-high-speed-interface-layout", "ti-scaa082a-high-speed-layout", "amd-ug583", "intel-agilex5-pcb-guide"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "ddr-and-source-synchronous-memory",
+      "name": "DDR, LPDDR, and source-synchronous memory",
+      "triggers": ["DDR3 or newer", "LPDDR", "wide source-synchronous bus"],
+      "required_context": ["processor and memory exact parts", "memory topology and rank count", "vendor routing guide", "package delays", "stack-up propagation", "ODT and drive settings", "training capability"],
+      "hard_checks": ["vendor-defined byte lanes and timing groups are preserved", "topology-specific termination and placement are explicit", "all length constraints are derived from timing rather than copied globally"],
+      "advisory_checks": ["address mirroring and clamshell tradeoffs are documented", "via and layer asymmetry are included", "power and reference-noise budgets are reviewed"],
+      "validation": ["vendor memory tool", "pre-layout topology simulation", "post-layout timing and SI simulation", "training-margin capture plan"],
+      "source_ids": ["ti-sprad06c-ddr-layout", "amd-ug583", "intel-agilex5-pcb-guide"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "ethernet-and-transformer-interfaces",
+      "name": "Ethernet PHY, magnetics, chassis, and MDI routing",
+      "triggers": ["copper Ethernet", "integrated magnetics connector", "external PHY"],
+      "required_context": ["PHY exact part", "magnetics topology", "connector shield strategy", "Bob Smith termination requirements", "MDI and MAC interface modes", "ESD environment"],
+      "hard_checks": ["PHY-to-magnetics placement and MDI routing follow the exact guide", "chassis and circuit-ground strategy is declared", "center taps and terminations are resolved"],
+      "advisory_checks": ["magnetics metal keepout and pair-to-pair coupling are reviewed", "return vias and shield current paths are visible in review images"],
+      "validation": ["interface checklist", "TDR or compliance plan", "ESD and emissions review"],
+      "source_ids": ["ti-snla387-ethernet-phy-layout-checklist", "ti-slva680a-system-level-esd"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "rf-and-antennas",
+      "name": "RF paths, antennas, matching, shielding, and enclosure effects",
+      "triggers": ["antenna", "RF transceiver", "GNSS", "Wi-Fi or Bluetooth", "RF connector"],
+      "required_context": ["frequency bands", "exact RF part or module", "reference layout", "selected stack-up", "antenna and feed geometry", "enclosure battery cable and metal geometry", "certification path"],
+      "hard_checks": ["antenna all-layer keepout and board-edge placement are declared", "feed impedance is stack-up-derived", "matching network and tuning access are provided", "RF ground and stitching follow the exact reference design"],
+      "advisory_checks": ["reference-layout divergence is recorded", "final tuning is performed in the assembled enclosure", "shield and coexistence needs are reviewed"],
+      "validation": ["VNA tuning", "radiated test", "conducted RF test", "certification plan"],
+      "source_ids": ["ti-swru458-cc31xx-cc32xx-layout", "amd-ug583"],
+      "implementation_state": "partial-ir-only"
+    },
+    {
+      "id": "switching-power",
+      "name": "Switching regulators, gate drive, hot loops, and switch nodes",
+      "triggers": ["buck", "boost", "flyback", "inverter", "external MOSFET gate drive"],
+      "required_context": ["exact topology and operating modes", "switching frequency and edge rate", "power-stage parts", "hot-loop membership", "switch-node capacitance", "feedback and current-sense topology", "thermal target"],
+      "hard_checks": ["critical hot loops are explicitly modeled and minimized", "switch-node copper is bounded", "feedback and Kelvin sense avoid power-current voltage drop", "gate-drive source and return form a controlled loop"],
+      "advisory_checks": ["EMI versus thermal copper tradeoff is recorded", "snubber and damping footprints are considered", "light-load and fault modes are reviewed"],
+      "validation": ["topology simulation", "thermal calculation", "switch-node and ripple measurement", "EMI pre-scan"],
+      "source_ids": ["adi-an-136-switching-regulator-layout", "ti-slva773-boost-layout", "ti-slva959b-motor-driver-layout"],
+      "implementation_state": "partial-ir-only"
+    },
+    {
+      "id": "motor-and-high-current",
+      "name": "Motor drivers, high-current switching, current sense, and regenerative energy",
+      "triggers": ["motor", "solenoid", "H-bridge", "high-current load", "shunt measurement"],
+      "required_context": ["phase and stall current", "PWM edge rate", "regenerative path", "MOSFET SOA", "shunt topology and full-scale voltage", "thermal stack", "connector and cable ratings"],
+      "hard_checks": ["power and gate-current loops are identified", "shunt Kelvin nodes are protected from load copper", "regenerative and fault energy have a destination", "copper and via current paths are calculated"],
+      "advisory_checks": ["layout symmetry and phase balance are reviewed", "dead-time and shoot-through risks are recorded", "measurement amplifier common-mode transients are checked"],
+      "validation": ["switching simulation", "current and temperature measurement", "fault and stall test plan"],
+      "source_ids": ["ti-slva959b-motor-driver-layout", "ti-slva673a-robust-hot-swap"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "precision-analog-and-mixed-signal",
+      "name": "Precision analog, converters, high-impedance nodes, and mixed signal",
+      "triggers": ["ADC or DAC", "precision reference", "instrumentation amplifier", "low-level sensor", "high source impedance"],
+      "required_context": ["signal bandwidth and source impedance", "noise and error budget", "reference and common-mode requirements", "leakage limits", "input protection", "thermal gradients", "converter sampling transients"],
+      "hard_checks": ["signal and return current paths are controlled", "reference and analog supply support circuits match the exact IC", "high-impedance nodes have declared leakage and contamination controls"],
+      "advisory_checks": ["guarding and shielding are considered", "thermal EMF and matched-component gradients are reviewed", "digital partitioning does not create ground slots"],
+      "validation": ["noise and error budget", "SPICE model where suitable", "bench calibration and noise test plan"],
+      "source_ids": ["adi-an-1142-high-speed-adc-layout", "adi-mt-031-grounding", "adi-mt-101-decoupling", "amd-ug583"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "sensors-and-environmental-coupling",
+      "name": "Sensors, airflow, contamination, self-heating, and mechanical coupling",
+      "triggers": ["temperature or humidity sensor", "pressure or gas sensor", "IMU", "microphone", "magnetic sensor"],
+      "required_context": ["measurand coupling path", "heat and airflow sources", "board stress and vibration", "contamination risk", "required response time", "manufacturer design-in guide"],
+      "hard_checks": ["sensor package and apertures follow manufacturer constraints", "known heat sources and copper thermal bridges are declared", "environmental access is not blocked by coating or enclosure"],
+      "advisory_checks": ["self-heating and duty cycle are evaluated", "removal slots or isolation are evidence-backed", "calibration and field placement are considered"],
+      "validation": ["thermal or airflow review", "orientation and enclosure review", "comparison against reference sensor"],
+      "source_ids": [],
+      "implementation_state": "partial-ir-only-local-sensirion-source"
+    },
+    {
+      "id": "thermal-and-current-density",
+      "name": "Thermal paths, current density, copper, vias, and component derating",
+      "triggers": ["power dissipation", "high current", "hot component", "small enclosure", "BGA or exposed pad"],
+      "required_context": ["loss by component and mode", "ambient and airflow", "board construction", "copper and plating", "transient duration", "component SOA and derating", "enclosure thermal path"],
+      "hard_checks": ["temperature rise and voltage drop are both evaluated", "via arrays use real geometry and process assumptions", "component and interconnect current ratings include duty and transient behavior"],
+      "advisory_checks": ["theta-JA is not treated as a universal board property", "thermal vias do not silently violate paste or assembly constraints", "copper balance and warpage are reviewed"],
+      "validation": ["thermal network or simulation", "IR camera or thermocouple plan", "current-density analysis"],
+      "source_ids": ["ipc-6012f", "ipc-7095d-am1"],
+      "implementation_state": "partial-ir-only-local-ipc2152-and-jesd51"
+    },
+    {
+      "id": "esd-emc-and-external-interfaces",
+      "name": "ESD, EFT, surge, conducted and radiated EMC",
+      "triggers": ["external connector", "long cable", "user-accessible control", "industrial or automotive environment", "high dV/dt switching"],
+      "required_context": ["applicable immunity standard", "connector shield and chassis strategy", "threat waveform", "protected IC absolute maximum", "TVS dynamic behavior", "return path to discharge entry"],
+      "hard_checks": ["connector to protection to protected IC ordering is enforced", "unprotected trace length and coupling are bounded", "protection return path is short and low inductance", "shield current does not traverse logic ground unintentionally"],
+      "advisory_checks": ["filter and TVS parasitics are compatible with the interface", "spark gaps and chassis coupling need explicit process authority"],
+      "validation": ["pre-compliance immunity test", "current-path review", "interface signal-quality test"],
+      "source_ids": ["ti-slva680a-system-level-esd", "adi-an-0971-isolated-circuits-emissions", "ti-slla284g-digital-isolator"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "isolation-and-safety",
+      "name": "Galvanic isolation, creepage, clearance, insulation, and safety",
+      "triggers": ["mains", "hazardous voltage", "isolated communication", "medical or reinforced insulation", "high altitude"],
+      "required_context": ["applicable product standard", "working and transient voltage", "insulation class", "pollution degree", "material group and CTI", "altitude", "coating and slot process", "isolation component certificates"],
+      "hard_checks": ["creepage and clearance are derived from the selected safety context", "barrier geometry is checked on every conductive layer", "slots and coating receive credit only when the applicable standard and process allow it"],
+      "advisory_checks": ["EMI return path across the barrier does not undermine isolation", "test access and fixture clearances preserve the barrier"],
+      "validation": ["safety review", "hi-pot and production test plan", "certification evidence"],
+      "source_ids": ["ti-slla284g-digital-isolator", "adi-an-0971-isolated-circuits-emissions"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "bga-hdi-and-advanced-packaging",
+      "name": "BGA, HDI, microvias, via-in-pad, escape, and assembly",
+      "triggers": ["BGA", "pitch below ordinary through-via escape", "HDI", "via-in-pad", "stacked or staggered microvia"],
+      "required_context": ["exact package drawing and ball map", "fabricator and assembler capability", "stack-up and lamination cycles", "via fill and cap process", "escape-layer budget", "inspection and rework plan", "microvia reliability class"],
+      "hard_checks": ["escape feasibility is proven before part and layer-count lock", "via-in-pad uses a declared fill and cap process", "solder mask and paste strategy match package and assembly evidence", "inspection access is planned"],
+      "advisory_checks": ["microvia stacking and high-stress structures receive reliability review", "BGA breakout is coordinated with PDN and return vias", "X-ray and rework limitations are recorded"],
+      "validation": ["fabricator DFM", "assembly DFM", "X-ray acceptance plan", "cross-section or coupon plan where justified"],
+      "source_ids": ["ipc-2226a", "ipc-7095d-am1", "ipc-4761", "ipc-6012f", "amd-ug583", "intel-agilex5-pcb-guide"],
+      "implementation_state": "future-paid-source-gap"
+    },
+    {
+      "id": "dfm-assembly-and-fabrication",
+      "name": "Fabrication, solder mask, paste, assembly, panelization, and finish",
+      "triggers": ["every manufactured board", "fine pitch", "bottom termination component", "odd outline", "selective finish"],
+      "required_context": ["fabricator capability profile", "assembler process and stencil policy", "board class", "finish", "panel and depanel method", "component package data", "inspection class"],
+      "hard_checks": ["DRC limits come from the selected process profile", "mask and paste apertures are process-aware", "panel rails tooling fiducials and breakaway geometry are resolved", "component overhang and handling constraints are checked"],
+      "advisory_checks": ["copper balance and thieving are coordinated with the fabricator", "finish choice is justified for pitch storage life and contact use"],
+      "validation": ["fabricator and assembler DFM", "manufacturing output diff", "first-article inspection"],
+      "source_ids": ["ipc-6012f", "ipc-4552b", "ipc-7095d-am1", "ipc-4761"],
+      "implementation_state": "partial"
+    },
+    {
+      "id": "test-debug-programming-and-bringup",
+      "name": "Test access, debug, programming, boundary scan, and bring-up",
+      "triggers": ["every prototype", "production test", "BGA or dense board", "multiple power rails", "high-speed interface"],
+      "required_context": ["bring-up order", "programming and recovery interface", "required rail and signal observability", "test fixture", "production coverage", "critical-net stub budget"],
+      "hard_checks": ["programming and recovery path remains accessible", "required rails and resets have safe measurement access", "test points are prohibited where their stubs violate a critical channel"],
+      "advisory_checks": ["boundary scan and built-in self-test are considered", "boot straps can be verified without destructive probing", "current-limited first-power procedure is documented"],
+      "validation": ["bring-up checklist", "fixture review", "test-coverage report"],
+      "source_ids": ["ti-spra953d-hardware-design-guide", "amd-ug583", "intel-agilex5-pcb-guide"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "reliability-lifecycle-and-environment",
+      "name": "Reliability, lifecycle, derating, contamination, vibration, and service",
+      "triggers": ["long-life product", "automotive or industrial use", "temperature cycling", "vibration", "conformal coating", "supply-risk constraint"],
+      "required_context": ["mission profile", "temperature and humidity range", "vibration and shock", "service life", "allowed failure rate", "component lifecycle and PCN policy", "cleanliness and coating process"],
+      "hard_checks": ["component voltage current power and temperature derating are declared", "mechanical retention and strain-sensitive packages are reviewed", "lifecycle state and replacement strategy are recorded"],
+      "advisory_checks": ["MLCC flex cracking and DC-bias loss are considered", "CAF dendrite and contamination risks are considered", "field-update and recovery strategy are documented"],
+      "validation": ["mission-profile review", "environmental test plan", "supply-chain monitoring"],
+      "source_ids": ["ipc-6012f", "digikey-product-information-v4", "mouser-search-api", "element14-product-search-api", "nexar-api"],
+      "implementation_state": "future"
+    },
+    {
+      "id": "cad-assets-and-3d-models",
+      "name": "Symbols, footprints, 3D models, mechanical fit, and asset provenance",
+      "triggers": ["new component", "connector", "enclosure-sensitive part", "missing KiCad model"],
+      "required_context": ["exact MPN and package", "manufacturer drawing", "asset source and license", "coordinate and unit convention", "height and mating envelope", "courtyard and keepout"],
+      "hard_checks": ["symbol pins are reconciled with the datasheet", "footprint geometry is measured against the package drawing", "3D model is aligned 1:1 in millimeters", "model fidelity is labelled exact package complete module connector-only or proxy"],
+      "advisory_checks": ["manufacturer CAD is preferred over aggregators", "every imported asset is visually inspected", "model presence is not treated as footprint correctness"],
+      "validation": ["library lint", "footprint and model overlay", "3D render", "STEP enclosure check"],
+      "source_ids": ["kicad-packages3d", "snapmagic", "ultra-librarian"],
+      "implementation_state": "foundation-implemented-automatic-resolution-open"
+    }
+  ],
+  "complexity_escalation": [
+    {
+      "level": "L0",
+      "description": "Simple low-speed two-layer board",
+      "required_gates": ["exact-part evidence", "power and support-circuit audit", "ERC and DRC", "fabrication profile", "standard visual package"]
+    },
+    {
+      "level": "L1",
+      "description": "Moderate mixed-signal, switching, RF module, motor, or external-interface board",
+      "required_gates": ["all L0 gates", "current-path and return-path declarations", "topology-specific placement zones", "thermal and transient calculations", "focused layer-isolated visual review", "bench validation plan"]
+    },
+    {
+      "level": "L2",
+      "description": "Controlled-impedance, dense BGA, DDR, isolation, or multi-rail SoC board",
+      "required_gates": ["all L1 gates", "fabricator stack-up signoff", "package and escape feasibility", "PDN and SI simulation plan", "sequencing and bring-up plan", "assembler DFM"]
+    },
+    {
+      "level": "L3",
+      "description": "Multi-gigabit SerDes, FPGA, RFSoC, safety-critical, HDI, or certification-bound board",
+      "required_gates": ["all L2 gates", "channel and PDN simulation with controlled models", "product-standard compliance matrix", "thermal or airflow simulation", "pre-compliance laboratory plan", "formal design review with unresolved-risk register"]
+    }
+  ]
+}

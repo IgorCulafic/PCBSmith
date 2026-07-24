@@ -776,7 +776,7 @@ the named evidence closes.
 | IPC-7352 BGA middle courtyard | The local page visibly and literally says `100 mm`; it is a source-document anomaly, not an OCR failure. | Obtain an official IPC correction or corrected licensed copy; do not silently substitute 1.00 mm. |
 | Universal 0.25 mm Level-B courtyard | IPC-7352 values vary by termination family. | Package-family selection plus manufacturer/process data. |
 | Old IPC-7351 table mappings | Local copy is original 2005 and some OCR tables are ambiguous. | Use IPC-7352/current manufacturer drawing; preserve revision labels. |
-| Generic QFN/DFN/BTC paste, voiding or thermal-via recipe | IPC-7352 does not solve the assembly process and IPC-7093A is absent. | IPC-7093A Rev A 10/20 or equivalent package/assembler evidence. |
+| Generic QFN/DFN/BTC paste, voiding or thermal-via recipe | IPC-7352 does not solve the assembly process; IPC-7093A is now pinned but has not yet been distilled into production authority. | Targeted IPC-7093A Rev A 10/20 distillation plus selected-package/assembler evidence. |
 | Universal double-sided QFN retention blocker | Two QFN types and one defined SAC305 process do not span all assemblies. | Process profile plus wider package/oven validation. |
 | Fixed 1.0 mm sensor moat/bridge | Sensirion supports isolation but gives no universal dimensions. | Exact sensor/housing thermal target, fab limit and validation. |
 | "No termination below 150 mm at 3 ns" | Johnson/Bogatin review threshold is near 76 mm and is not a termination command. | Per-net transmission-line analysis. |
@@ -907,6 +907,17 @@ Checked on 2026-07-14:
 These URLs establish publisher identity and status but do not replace pinning
 the exact source, hash, revision, and rights/acquisition record.
 
+### Later local-intake amendment - 2026-07-18
+
+The official Sensirion Version 2 guide and USB-IF USB 2.0 June 2025 bundle are
+now downloaded, hashed, and visually verified locally. The guide and USB base
+specification are extracted/registered, and the complete archive is inventoried.
+Full IPC-7093A and historical IPC-2152 copies are also pinned. This closes their
+acquisition/provenance gaps; it does not imply that their numeric tables or
+process guidance have been distilled, independently verified, or promoted into
+production rules. See `docs/reference/books/LOCAL-SOURCE-INVENTORY-2026-07-18.md`
+for exact paths, revisions, hashes, and remaining work.
+
 ## Ranked evidence and acquisition priorities
 
 1. **Applicable end-product safety standard per generated design family.**
@@ -915,25 +926,27 @@ the exact source, hash, revision, and rights/acquisition record.
 2. **IEC 60664-1 AMD1:2025/consolidated edition plus IEC 60664-4:2005** for
    flyback/high-frequency insulation.
 3. **IPC-2221C and IPC-2222B** for current generic/rigid-board design.
-4. **IPC-7093A** for BTC/QFN/DFN paste, voiding, exposed-pad and thermal-via
-   decisions.
+4. **Targeted IPC-7093A integration** for BTC/QFN/DFN paste, voiding,
+   exposed-pad and thermal-via decisions; acquisition is complete.
 5. **Current IPC-A-610J and J-STD-001J** only if PCBSmith will make current
    assembly acceptance/process claims.
 6. **EN 55032 A11/CISPR AMD1 and EN 55035 A11**, selected by actual product
    scope, plus current OJEU status at declaration time.
-7. **USB-IF USB 2.0 base/electrical sources** for USB2 profiles; keep separate
-   from Type-C mechanics and SuperSpeed.
+7. **USB-IF USB 2.0 targeted extraction** for USB2 profiles; the official base
+   and ECN bundle is now pinned and remains separate from Type-C mechanics and
+   SuperSpeed.
 8. **Current selected-part vendor sources**, including exact Espressif guide
    revisions, ST AN2867 Rev. 24 where relevant, connector drawings and crystal
    data.
-9. **Local pinning of the verified Sensirion and SMTA papers**, with hashes and
-   full metadata. Their text is now verified online; local provenance is not.
+9. **Sensirion integration and SMTA local pinning:** Sensirion is now locally
+   pinned with hash and metadata; the SMTA paper still needs equivalent local
+   provenance.
 10. **Selected fabricator/assembler capability profiles**, including finished
     hole, registration, mask, paste, via-fill, panel and reflow constraints.
 
 IPC-2152 remains valuable historical measured data but IPC now marks it no
-longer maintained. Acquire it if accessible for model validation, but describe
-its status accurately.
+longer maintained. The full copy is now pinned for model validation; describe
+its status accurately and do not turn it into a universal equation.
 
 ## Research-process requirements
 

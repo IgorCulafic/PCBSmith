@@ -1,5 +1,10 @@
 # R5.7 thermometer pilot prerequisite evidence audit — 2026-07-17
 
+> **Historical prerequisite audit.** Its generic gap analysis remains useful,
+> but the proposed thermometer pilot is retired. The user accepted R005/R006 and
+> directed that generality be tested on a new unseen project. This file is not a
+> current thermometer work queue.
+
 ## Scope and verification basis
 
 This is a read-only prerequisite audit of the current worktree. It does not

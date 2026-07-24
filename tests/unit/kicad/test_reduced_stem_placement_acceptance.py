@@ -551,7 +551,7 @@ def test_reduced_stem_full_acceptance_chain_fires_and_replays() -> None:
     assert not acceptance.thermometer_readiness_claimed
     assert "no circuit-to-board equivalence" in acceptance.authority_scope_note
     assert acceptance.authority_fingerprint == (
-        "cbe2f70a3221d3b1c3440422ed6b9c9f2e6e25b6dfa508bc9a10e47dc3d24709"
+        "a81f4479bc959156175b4a9e3947878ba1831f44935f3ca905924ccf683b13a9"
     )
     assert acceptance.candidate_search_fingerprint == (
         "6d48a718387be3451de84de2d12d697baf9af1e3db38ca0bc76f402c947e946a"
@@ -563,7 +563,7 @@ def test_reduced_stem_full_acceptance_chain_fires_and_replays() -> None:
         "2438c4bf884adf4f38d7a36e759ede937618401fc6baed155ed97f851f0faa95"
     )
     assert acceptance.acceptance_fingerprint == (
-        "a8f5960f4fd29f098518d4c999e8a7b2e4eb23c863aad3bdf484b7d82dd24cd7"
+        "fd7c67bdeb06cd767fcc3c0e719c0a8cb931c8e506a9f44470e6f2479a615044"
     )
     assert acceptance == PlacementPilotAcceptance.model_validate_json(acceptance.model_dump_json())
 

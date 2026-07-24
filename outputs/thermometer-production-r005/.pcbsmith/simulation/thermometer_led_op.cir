@@ -1,0 +1,14 @@
+* thermometer LED branches: segment and power indicator
+VCC vcc 0 DC 3.3
+VSEG vcc seg_in DC 0
+R1 seg_in seg_a 270
+D1 seg_a 0 DLED
+VPWR vcc pwr_in DC 0
+R17 pwr_in pwr_a 1000
+D17 pwr_a 0 DLED
+.model DLED D(IS=5.761e-18 N=2 RS=1)
+.tran 10u 1m
+.meas tran i_seg FIND I(VSEG) AT=0.5m
+.meas tran v_f FIND V(seg_a) AT=0.5m
+.meas tran i_pwled FIND I(VPWR) AT=0.5m
+.end

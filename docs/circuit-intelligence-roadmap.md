@@ -3,7 +3,7 @@
 > **Historical document.** This May 18 reset roadmap preserves the
 > rationale for the circuit-first architecture, but its "Current Repo
 > Reality," phases, and immediate actions are no longer current. Use
-> `docs/project-catchup-2026-07-12.md` for status and
+> `docs/current-state.md` for status and
 > `docs/routing-placement-plan.md` for active execution order.
 Date: 2026-05-18
 
@@ -910,14 +910,68 @@ These sources guide the roadmap:
 
 ## Immediate Next Actions
 
-These May reset actions are complete or superseded. Current execution order is
-maintained in `docs/routing-placement-plan.md`. As of 2026-07-18 the immediate
-work is to apply the accepted generic R2-R6 authority chain to bounded,
-source-bound real thermometer inputs; close its complete geometry, escape,
-BusGroup/order, policy/budget, live-ngspice, and semantic declarations; persist
-and read back an accepted artifact only after exact acceptance; then run the R7
-full regression and visual review. Do not infer a production/default migration
-or a routed full-board golden from the bounded input slice.
+The 2026-07-24 routing-omission correction is now implemented and exercised on
+Retro-Pad 3x3 R001 and R003. Both exact saved candidates have complete
+copper-carrier coverage and clean KiCad DRC. The work added fail-closed routing
+state, a routed persistence/review transaction, cutout-aware obstacles,
+completed-net checkpoints, selective rip-up, deterministic Type-C/ISP fanout,
+and stable domain ordering. Phase 17 remains active because all generators have
+not migrated to the transaction, typed read-back/netlist evidence has not
+replaced every release boolean, and the complete visual packages are not yet
+accepted.
+
+These May reset actions are complete or superseded. The bounded thermometer
+pilot and its review work are complete, and Retro-Pad R002 has completed the
+staged concept-to-routed-board proof. As of 2026-07-22 the materially different
+BLDC ESC R002 has completed the next bounded thermal-mechanical placement
+revision while preserving R001. It adds a common isolated heatsink envelope,
+six TIM envelopes, four clamp/support holes, paired heatsink-installed/hidden
+4K reviews, a full GLB assembly, and machine-read GLB center/interface checks.
+The placement, pin/net, model, and GLB-alignment gates pass; the native STEP
+artifact is explicitly partial because KiCad omits project-local VRML proxies.
+R002 is deliberately paused at user mechanical-placement approval. After
+approval, the next bounded step is one phase-cell plus battery-to-local-DC-link
+routing under explicit stack-up, copper, switching-loop, switch-node,
+Kelvin-sense, thermal, and return-path authority. Do not infer fabrication
+readiness, heatsink adequacy, or a 60 A current proof from this result.
+
+The 2026-07-22 Phase 15 research now separates thermal intent/geometry from a
+real multi-physics workflow. The new work is tracked under Phase 15 in
+`docs/routing-placement-plan.md`: workflow-conformance enforcement, operating
+scenarios, loss/stress ledger, electrothermal networks, exact cooling assembly,
+airflow/enclosure, fault-energy coordination, mechanical/reliability/process
+corners, and prediction-to-measurement correlation. Research and source intake
+are complete. Workflow conformance, typed scenarios/evidence/losses, point
+steady/transient thermal solvers, and cooling-assembly fail-closed foundations
+are implemented; coupled electrothermal iteration, selected cooling hardware,
+fault coordination, correlation, and signoff remain open.
+
+The 2026-07-24 schematic-review/simulation housekeeping audit adds a Phase 17
+applicability-to-execution closure requirement. Repository tests, callable
+checks, and a `checks_run` label are not proof that every rule applicable to
+one saved board executed over the relevant objects. Phase 17 now requires a
+hash-bound project execution manifest and connected functional-sheet review
+exports from the canonical schematic authority. Phase 18 owns complete
+track/zone/via/pad/connector current-path and voltage-drop authority. Phase 20
+keeps ngspice as the canonical automated backend, adds a provenance-bound model
+registry, and treats LTspice only as an optional ADI-focused cross-check. The
+research and exact corrective finding are retained in
+`docs/housekeeping-schematic-review-simulation-check-closure-2026-07-24.md`.
+
+The follow-up Pinscope audit inspected its Claude extraction skills,
+per-component graph context, bounded evidence tools, reviewer loop,
+deterministic checks, normalization/deduplication, and operational regression
+tests at pinned commit `b26ad3509f4a19878fb7050aad3da9eacba8d914`.
+The first Phase 17 implementation slice now provides exact-package pin
+evidence, deterministic per-IC neighborhoods, applicability-aware review
+obligations, evidence-query budgets, replay binding, and exact coverage
+closure. These mechanisms are internal generator safeguards, not a plan to
+turn PCBSmith into an assistant-style reviewer. Automatic transactional
+invocation, trace/recovery, neighbor-evidence retrieval, and repair-loop
+integration remain open. The user-supplied schematic/PCB conventions are
+classified as release, applicability-dependent, or presentation obligations
+rather than being made unconditional blockers. See
+`docs/pinscope-method-audit-and-review-convention-integration-2026-07-24.md`.
 
 ## Done Means
 

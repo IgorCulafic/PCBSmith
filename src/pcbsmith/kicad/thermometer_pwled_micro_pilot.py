@@ -81,7 +81,10 @@ MICRO_EXCLUDED_CLAIMS = (
     "not_routing",
     "not_exact_acceptance",
 )
-CROP_ORIGIN_MM = (28.0, 144.0)
+# The production bulb was enlarged and the power indicator moved with it.
+# Preserve the historical pilot's exact 3mm/7mm local geometry by translating
+# the crop to the new canonical absolute R17/D17 positions.
+CROP_ORIGIN_MM = (47.0, 157.0)
 CROP_SIZE_MM = (10.0, 6.0)
 CROP_TRANSLATION: Literal["absolute_xy_minus_crop_origin_to_local_xy"] = (
     "absolute_xy_minus_crop_origin_to_local_xy"

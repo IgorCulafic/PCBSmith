@@ -164,6 +164,86 @@ The whole chain is deterministic; the CLI entrypoints live in
 - `review_pack.py`: human-readable markdown pack + bench test steps.
 - `revision.py`: failure-code → revision-plan mapping.
 
+### workflow_authority.py — Phase 16 contract boundary
+
+- Defines the versioned raw-prompt → normalized-brief → concept → schematic →
+  placement → routing → review → verification → manufacturing state machine,
+  including explicit incomplete/failure states and checkpoint-bound resume.
+- Reconciles raw/object/generation/brief/concept/schematic/board/route/evidence/
+  review/verification/manufacturing identities. Downstream identities retain
+  exact upstream digests and are invalidated transitively when an input changes.
+- Composes the required interface, firmware, assembly, environment,
+  safety/protection, power/sequencing, timing/signals, validation, fabricator,
+  and exact-part contexts without treating missing context as permission.
+- Owns the canonical Phase 1-15 capability map and shared-authority registry.
+  The registry permits one active owner per semantic scope and requires
+  explicit same-scope replacements for deprecated authority-like shortcuts.
+- Evaluates always, board-triggered, external, and human-decision
+  applicability without authorizing substitutes. Legacy board generators are
+  bounded compatibility adapters, not alternate production workflow owners.
+- Phase 17 implements normal callers against this contract; Phase 16 does not
+  itself claim production-default invocation.
+
+### prompt_examiner.py — Phase 17 intake boundary
+
+- Validates structured prompt claims against exact character spans in the
+  original prompt; explicit and derived values cannot enter without replayable
+  source support, while unknown values cannot carry guesses.
+- Represents edge-offset, center, spacing, tolerance, access, aperture,
+  orientation, and side constraints as typed spatial anchors instead of
+  free-text placement semantics.
+- Requires hard feasibility conflicts to retain typed affected-domain
+  consequences and at least two spirit-preserving alternatives.
+- Populates all ten shared project-context axes and turns absent inputs into
+  explicit unresolved records. It does not infer missing fabricator, safety,
+  firmware, validation, or exact-part context.
+- `workflow-examine` is its normal CLI boundary. Older topology-specific
+  generators remain compatibility paths until Phase 17 migration evidence is
+  complete.
+
+### workflow_feasibility.py — pre-route proof boundary
+
+- Evaluates exact substrate/keepout containment for component, courtyard, pad,
+  and connector-access envelopes supplied by geometry authorities.
+- Allocates nets across alternative declared necks with a bounded,
+  repository-deterministic search. Budget exhaustion yields `unverified`;
+  exhaustive lack of capacity yields `blocked` with net, terminal, neck,
+  blocker, and next-action records.
+- Compares measured saved-design anchors to the approved concept and rejects
+  missing, foreign, or tolerance-exceeding geometry/semantic observations.
+
+### production_workflow.py — production coordinator
+
+- Publishes immutable generation directories through an atomic current-pointer
+  swap. A failed candidate is retained under `failed/` and cannot mix with the
+  prior current generation.
+- Persists the placement board and invokes the canonical review package in one
+  transaction. Inspection decisions create a new immutable generation.
+- Blocks routing until prompt, context, feasibility, concept drift, exact
+  saved-board review, transaction, execution-profile, and project-engineering
+  identities agree. The engineering gate must be ready, have a complete
+  reviewed inventory, and bind the exact saved neutral-layout fingerprint.
+- Owns deterministic topological route-domain ordering and permits resume only
+  from an exact-accepted, replay-equivalent prefix whose board hashes form a
+  continuous chain.
+- Binds quick/standard/deep limits to the native A* production router and
+  verification runner. Actual router passes/expansions update the shared work
+  ledger and checkpoint heartbeats; a separate exact checker must accept the
+  result before completion. Placement and per-artifact rendering have
+  controller contracts but remain pending operative production-caller binding.
+
+### review/visual_package.py and kicad/model_preflight.py
+
+- The canonical review matrix includes physical scale, high-resolution tiles,
+  front/back mirroring, fixed 3D cameras, layer identities, diagnostic
+  overlays, content hashes, and named inspection records.
+- Typed triggered diagnostic declarations cover stack-up/reference,
+  return-current, power-domain, thermal/current-density, high-speed, BGA, and
+  DFM views. Applicable but unresolved views fail closed.
+- Model preflight is bound to the saved board revision and can compare each
+  registered model transform against an expected offset, scale, and rotation
+  tolerance; required shifted models fail before rendering.
+
 ### services/, core/ — the older interactive layer
 Project/schematic/board JSON io and a built-in symbol library used by
 `new/erc` CLI commands and the frontend contract; mostly stable, not

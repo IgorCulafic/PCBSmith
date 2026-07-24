@@ -284,13 +284,20 @@ pages were targeted; this is not a protocol distillation.
 
 ## Unclosed gaps
 
-1. Sensirion v2 is online-verified but locally unpinned; no universal moat.
+> **2026-07-18 intake update:** The numbered list preserves the second-wave
+> technical gaps, but acquisition status has changed as noted below. See
+> `LOCAL-SOURCE-INVENTORY-2026-07-18.md` for exact paths and hashes.
+
+1. Sensirion v2 is now locally pinned and extracted; targeted integration is
+   open, and the source still provides no universal moat geometry.
 2. Use IPC-7352:2023 plus manufacturer geometry; quarantine the anomalous BGA
    middle courtyard pending official correction.
 3. Acquire current applicable end-product safety and IEC insulation sources.
-4. IPC-2152 is absent/no-longer-maintained; historical validation only.
-5. IPC-7093A is needed for directly assembled SHT31 DFN and MPU6050 QFN
-   process gaps; ESP32-C3-WROOM is a module, not the QFN justification.
+4. IPC-2152 is now locally pinned but remains no-longer-maintained; use it only
+   as historical validation evidence.
+5. IPC-7093A is now locally pinned; targeted distillation remains needed for
+   directly assembled SHT31 DFN and MPU6050 QFN process gaps. ESP32-C3-WROOM is
+   a module, not the QFN justification.
 6. Books/klc-master is v3.0.67; upstream commit/acquisition is unknown.
 
 ## First-wave corrections required before hard-coding

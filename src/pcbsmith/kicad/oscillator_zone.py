@@ -90,10 +90,9 @@ def _intrusion(
         assert region.compound is not None and item.compound is not None
         relation = compound_relation(region.compound, item.compound)
         verification = SemanticVerification.EXACT
-        disposition = (
-            SemanticDisposition.PASS
-            if relation is PlanarRelation.DISJOINT
-            else SemanticDisposition.FAIL
+        disposition = _disposition(
+            declaration.intrusion_authority,
+            passed=relation is PlanarRelation.DISJOINT,
         )
     class_ids = tuple(
         membership.net_class_id
@@ -365,15 +364,26 @@ def _capacitance_evidence(
 
 
 def _binding_is_complete(binding: Any) -> bool:
+    binding_conditions = set(binding.required_conditions)
     return (
         binding.reviewer_record_id is not None
         and bool(binding.required_conditions)
         and not binding.unmatched_conditions
+        and set(binding.matched_conditions) == binding_conditions
         and all(
-            evidence.source_status == "pinned"
+            bool(evidence.source_id and evidence.source_id.strip())
+            and bool(evidence.revision and evidence.revision.strip())
+            and evidence.source_status == "pinned"
             and evidence.local_sha256 is not None
-            and evidence.locator_status in {"text_verified", "figure_verified", "figure_bound"}
+            and len(evidence.local_sha256) == 64
+            and all(
+                character in "0123456789abcdef"
+                for character in evidence.local_sha256
+            )
+            and evidence.locator_status in {"text_verified", "figure_verified"}
             and evidence.applicability_status == "confirmed"
+            and bool(evidence.required_conditions)
+            and set(evidence.required_conditions).issubset(binding_conditions)
             for evidence in binding.evidence
         )
     )
@@ -388,12 +398,15 @@ def _finding_for_intrusion(
             "Object is outside layer scope or explicitly local/allowed."
         ),
         SemanticDisposition.UNVERIFIED: "Applicable object geometry is unsupported.",
+        SemanticDisposition.ADVISORY: (
+            "Exact foreign-object relation is reported as advisory evidence."
+        ),
         SemanticDisposition.PASS: "Exact foreign object is disjoint from the oscillator zone.",
         SemanticDisposition.FAIL: "Exact foreign object touches or intersects the oscillator zone.",
     }
     return SemanticFinding(
         rule_id=declaration.intrusion_rule_id,
-        authority=SemanticAuthorityClass.HARD_GEOMETRY,
+        authority=declaration.intrusion_authority,
         disposition=evidence.disposition,
         verification=evidence.verification,
         object_ids=(evidence.object_id,),

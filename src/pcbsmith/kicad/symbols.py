@@ -17,6 +17,7 @@ helpers here do that flip so exporters never think about it.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -32,6 +33,7 @@ from pcbsmith.kicad.library import (
 )
 
 VENDORED_DIR = Path(__file__).resolve().parents[3] / "ai_assets" / "kicad_symbols"
+PRIVATE_ASSET_ROOT_ENV = "PCBSMITH_PRIVATE_ASSET_ROOT"
 INSTALLED_SHARE_DIRS = (
     Path(r"C:\Program Files\KiCad\10.0\share\kicad\symbols"),
     Path(r"C:\Program Files\KiCad\9.0\share\kicad\symbols"),
@@ -122,9 +124,18 @@ def _vendored_file(lib_id: str) -> Path:
 
 def _symbol_tree(lib_id: str) -> SList:
     """The flattened symbol node for a lib id, vendored or installed."""
-    vendored = _vendored_file(lib_id)
-    if vendored.exists():
-        wrapper = parse_sexpr(vendored.read_text(encoding="utf-8"))
+    candidates = [_vendored_file(lib_id)]
+    private_root = os.environ.get(PRIVATE_ASSET_ROOT_ENV)
+    if private_root:
+        library, name = lib_id.split(":", 1)
+        safe = name.replace("/", "_")
+        candidates.insert(
+            0,
+            Path(private_root) / "symbols" / f"{library}__{safe}.kicad_sym",
+        )
+    cached = next((candidate for candidate in candidates if candidate.exists()), None)
+    if cached is not None:
+        wrapper = parse_sexpr(cached.read_text(encoding="utf-8"))
         symbols = _children(wrapper, "symbol")
         if not symbols:
             raise SymbolLibraryError(f"Vendored file for {lib_id} has no symbol.")

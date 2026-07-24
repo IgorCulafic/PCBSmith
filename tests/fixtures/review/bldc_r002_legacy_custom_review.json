@@ -1,0 +1,27 @@
+{
+  "schema": "pcbsmith-workflow-failure-corpus-v1",
+  "case_id": "bldc-esc-r002-custom-review-bypassed-canonical-package",
+  "description": "The useful thermal-mechanical review-images set existed without the canonical review profile, manifest, report, routing matrix, or complete camera set.",
+  "observed_artifact_ids": [
+    "legacy:top-heatsink-installed",
+    "legacy:top-heatsink-hidden",
+    "legacy:top-heatsink-installed-oblique",
+    "legacy:front-heatsink-installed",
+    "legacy:bottom-assembly",
+    "legacy:front-placement",
+    "legacy:back-placement",
+    "legacy:front-courtyard",
+    "legacy:front-mechanical-fab",
+    "legacy:front-copper-only",
+    "legacy:heatsink-installed-detail",
+    "legacy:mosfet-tim-detail"
+  ],
+  "must_remain_missing": [
+    "visual.review.manifest",
+    "visual.review.report",
+    "visual.2d.back-copper.png",
+    "visual.2d.combined-copper.png",
+    "visual.3d.populated.rear-low",
+    "visual.3d.bare.top"
+  ]
+}

@@ -1,0 +1,187 @@
+{
+  "schema": "pcbsmith-research-source-request-catalog-v1",
+  "created_at": "2026-07-22",
+  "purpose": "Official, freely accessible sources selected for the advanced PCB design-rule research dossier. Payloads remain in the private cache; only identities and metadata are public.",
+  "sources": [
+    {
+      "source_id": "microchip-avr042-hardware-design",
+      "title": "AVR042: AVR Hardware Design Considerations",
+      "category": "mcu-foundation",
+      "source_url": "https://ww1.microchip.com/downloads/en/appnotes/atmel-2521-avr-hardware-design-considerations_applicationnote_avr042.pdf",
+      "approved_hosts": ["ww1.microchip.com"],
+      "intended_consumer": "Advanced PCB rule research: MCU power, reset, programming, oscillator, and layout foundations.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "microchip-an2519-avr-hardware-design",
+      "title": "AN2519: AVR Microcontroller Hardware Design Considerations",
+      "category": "mcu-foundation",
+      "source_url": "https://ww1.microchip.com/downloads/en/Appnotes/AN2519-AVR-Microcontroller-Hardware-Design-Considerations-00002519B.pdf",
+      "approved_hosts": ["ww1.microchip.com"],
+      "intended_consumer": "Advanced PCB rule research: modern Microchip MCU hardware-design guidance and comparison with AVR042.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "adi-an-1142-high-speed-adc-layout",
+      "title": "AN-1142: Techniques for High Speed ADC PCB Layout",
+      "category": "mixed-signal-pdn",
+      "source_url": "https://www.analog.com/media/en/technical-documentation/app-notes/an-1142.pdf",
+      "approved_hosts": ["www.analog.com"],
+      "intended_consumer": "Advanced PCB rule research: high-speed converters, PDN impedance, exposed pads, and return-current-aware layout.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "adi-an-136-switching-regulator-layout",
+      "title": "AN-136: PCB Layout Considerations for Non-Isolated Switching Power Supplies",
+      "category": "switching-power",
+      "source_url": "https://www.analog.com/media/en/technical-documentation/app-notes/an-136.pdf",
+      "approved_hosts": ["www.analog.com"],
+      "intended_consumer": "Advanced PCB rule research: hot loops, switch-node tradeoffs, Kelvin feedback, and power-stage ordering.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-spra953d-hardware-design-guide",
+      "title": "Hardware Design Guide for KeyStone I Devices",
+      "category": "complex-soc",
+      "source_url": "https://www.ti.com/lit/an/spra953d/spra953d.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: complex SoC power, clocks, reset, memory, interfaces, and bring-up planning.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "adi-mt-101-decoupling",
+      "title": "MT-101: Decoupling Techniques",
+      "category": "pdn-decoupling",
+      "source_url": "https://www.analog.com/media/en/training-seminars/tutorials/MT-101.pdf",
+      "approved_hosts": ["www.analog.com"],
+      "intended_consumer": "Advanced PCB rule research: decoupling networks, parasitics, resonances, and placement topology.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "adi-mt-031-grounding",
+      "title": "MT-031: Grounding Data Converters and Solving the Mystery of AGND and DGND",
+      "category": "mixed-signal-grounding",
+      "source_url": "https://www.analog.com/media/en/training-seminars/tutorials/MT-031.pdf",
+      "approved_hosts": ["www.analog.com"],
+      "intended_consumer": "Advanced PCB rule research: mixed-signal current paths, grounding, partitioning, and converter placement.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-scaa082a-high-speed-layout",
+      "title": "High-Speed Layout Guidelines",
+      "category": "signal-integrity",
+      "source_url": "https://www.ti.com/lit/an/scaa082a/scaa082a.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: edge-rate-aware routing, reference planes, crosstalk, terminations, and differential pairs.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-spraar7j-high-speed-interface-layout",
+      "title": "High-Speed Interface Layout Guidelines",
+      "category": "serdes-high-speed",
+      "source_url": "https://www.ti.com/lit/an/spraar7j/spraar7j.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: USB 3, PCIe, SATA, HDMI, SGMII, CSI, via stubs, backdrilling, and skew budgets.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-sprad06c-ddr-layout",
+      "title": "AM62x and AM62Lx DDR Board Design and Layout Guidelines",
+      "category": "ddr-memory",
+      "source_url": "https://www.ti.com/lit/an/sprad06c/sprad06c.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: DDR4 and LPDDR4 stack-up, topology, placement, net classes, timing, and simulation.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-slla284g-digital-isolator",
+      "title": "Digital Isolator Design Guide",
+      "category": "isolation-emc",
+      "source_url": "https://www.ti.com/lit/an/slla284g/slla284g.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: isolation architecture, creepage, clearance, return paths, and emissions.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-slva959b-motor-driver-layout",
+      "title": "Best Practices for Board Layout of Motor Drivers",
+      "category": "motor-high-current",
+      "source_url": "https://www.ti.com/lit/an/slva959b/slva959b.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: motor power stages, current sensing, gate loops, thermal layout, and EMI.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-swru458-cc31xx-cc32xx-layout",
+      "title": "CC3120, CC3220 SimpleLink Wi-Fi and IoT Solution Layout Guidelines",
+      "category": "rf-wireless",
+      "source_url": "https://www.ti.com/lit/ug/swru458/swru458.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: RF reference layouts, antenna keepouts, matching, controlled impedance, and enclosure-aware tuning.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-slva673a-robust-hot-swap",
+      "title": "Robust Hot Swap Design",
+      "category": "power-entry-protection",
+      "source_url": "https://www.ti.com/lit/an/slva673a/slva673a.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: inrush, fault energy, MOSFET SOA, current limiting, and power-entry protection.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-slva773-boost-layout",
+      "title": "Five Steps to a Good PCB Layout of a Boost Converter",
+      "category": "switching-power",
+      "source_url": "https://www.ti.com/lit/an/slva773/slva773.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: boost-converter hot loops, feedback, grounding, and thermal copper.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "microchip-an2648b-crystal-oscillator",
+      "title": "AN2648: Selecting and Testing 32 kHz Crystal Oscillators for AVR Microcontrollers",
+      "category": "clock-oscillator",
+      "source_url": "https://ww1.microchip.com/downloads/aemDocuments/documents/MCU08/ApplicationNotes/ApplicationNotes/AN2648-Selecting_Testing-32KHz-Crystal-Osc-for-AVR-MCUs-00002648B.pdf",
+      "approved_hosts": ["ww1.microchip.com"],
+      "intended_consumer": "Advanced PCB rule research: crystal selection, load capacitance, startup margin, negative resistance, and layout.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "adi-an-0971-isolated-circuits-emissions",
+      "title": "AN-0971: Recommendations for Control of Radiated Emissions with isoPower Devices",
+      "category": "isolation-emc",
+      "source_url": "https://www.analog.com/media/en/technical-documentation/app-notes/AN-0971.pdf",
+      "approved_hosts": ["www.analog.com"],
+      "intended_consumer": "Advanced PCB rule research: isolated-power emissions, stitching capacitance, edge emissions, and safety-aware mitigation.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-snla387-ethernet-phy-layout-checklist",
+      "title": "Ethernet PHY PCB Design Layout Checklist",
+      "category": "ethernet-high-speed",
+      "source_url": "https://www.ti.com/lit/an/snla387/snla387.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Advanced PCB rule research: Ethernet PHY placement, magnetics, MDI routing, clocks, power, and checklist structure.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    }
+  ]
+}

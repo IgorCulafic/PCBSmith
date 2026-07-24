@@ -12,6 +12,7 @@ approximations. See docs/pcb-design-rules.md section 8.
 from __future__ import annotations
 
 import math
+import os
 from dataclasses import dataclass, field
 from functools import cache
 from pathlib import Path
@@ -132,9 +133,7 @@ def _atom(node: SExpr) -> str:
 
 def _children(node: SList, name: str) -> list[SList]:
     return [
-        child
-        for child in node
-        if isinstance(child, list) and child and _safe_head(child) == name
+        child for child in node if isinstance(child, list) and child and _safe_head(child) == name
     ]
 
 
@@ -196,9 +195,7 @@ class PadSpec:
     def __post_init__(self) -> None:
         if self.hole is None and self.drill_mm > 0:
             plating = (
-                HolePlating.PLATED
-                if self.kind in {"tht", "thru_hole"}
-                else HolePlating.NON_PLATED
+                HolePlating.PLATED if self.kind in {"tht", "thru_hole"} else HolePlating.NON_PLATED
             )
             object.__setattr__(
                 self,
@@ -220,6 +217,7 @@ class PadSpec:
             ):
                 raise ValueError("drill_mm must equal the hole's maximum axis")
             object.__setattr__(self, "drill_mm", self.hole.major_mm)
+
     shape: str = ""
     # Source fields are defaulted so manually constructed/legacy PadSpecs keep
     # their existing meaning. An empty layer tuple means unknown/unparsed,
@@ -314,6 +312,7 @@ def rotate_offset(dx: float, dy: float, rotation: float) -> tuple[float, float]:
 # Loading and measuring official footprints.
 
 VENDORED_DIR = Path(__file__).resolve().parents[3] / "ai_assets" / "kicad_footprints"
+PRIVATE_ASSET_ROOT_ENV = "PCBSMITH_PRIVATE_ASSET_ROOT"
 INSTALLED_SHARE_DIRS = (
     Path(r"C:\Program Files\KiCad\10.0\share\kicad\footprints"),
     Path(r"C:\Program Files\KiCad\9.0\share\kicad\footprints"),
@@ -366,6 +365,11 @@ def _footprint_file(library_id: str) -> Path:
     vendored = VENDORED_DIR / f"{library}__{name}.kicad_mod"
     if vendored.exists():
         return vendored
+    private_root = os.environ.get(PRIVATE_ASSET_ROOT_ENV)
+    if private_root:
+        private = Path(private_root) / "footprints" / f"{library}__{name}.kicad_mod"
+        if private.exists():
+            return private
     for share in INSTALLED_SHARE_DIRS:
         candidate = share / f"{library}.pretty" / f"{name}.kicad_mod"
         if candidate.exists():
@@ -383,9 +387,7 @@ def load_footprint(library_id: str) -> ImportedFootprint:
     if _safe_head(tree) != "footprint":
         raise FootprintLibraryError(f"{source} is not a footprint file.")
     spec = _measure(tree, library_id)
-    return ImportedFootprint(
-        library_id=library_id, spec=spec, source_file=source, tree=tree
-    )
+    return ImportedFootprint(library_id=library_id, spec=spec, source_file=source, tree=tree)
 
 
 def _measure(tree: SList, library_id: str) -> FootprintSpec:
@@ -440,15 +442,9 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
             if not isinstance(position, list)
         )
         solder_mask_margin = _optional_float_clause(pad, "solder_mask_margin")
-        solder_mask_margin_ratio = _optional_float_clause(
-            pad, "solder_mask_margin_ratio"
-        )
+        solder_mask_margin_ratio = _optional_float_clause(pad, "solder_mask_margin_ratio")
         custom_source = _custom_pad_source(pad) if pad_shape == "custom" else None
-        hole = (
-            _parse_hole_geometry(drill_nodes[0], kind, angle_deg)
-            if drill_nodes
-            else None
-        )
+        hole = _parse_hole_geometry(drill_nodes[0], kind, angle_deg) if drill_nodes else None
         drill = hole.major_mm if hole is not None else 0.0
         if kind == "np_thru_hole":
             # Keep NPTH distinct: no copper, but the HOLE is a physical
@@ -540,7 +536,7 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
                         )
                     )
 
-    extent_points = courtyard or [
+    pad_extent_points = [
         point
         for pad in pads
         for point in (
@@ -548,11 +544,15 @@ def _measure(tree: SList, library_id: str) -> FootprintSpec:
             (pad.x_mm + pad.width_mm / 2, pad.y_mm + pad.height_mm / 2),
         )
     ]
+    # Padless board-only mechanical footprints (heatsinks, shields, enclosure
+    # envelopes) are legitimately measurable from F.Fab even when they omit a
+    # courtyard to avoid intentional component-overlap DRC noise.
+    extent_points = courtyard or pad_extent_points or fab_points
     if not extent_points:
         raise FootprintLibraryError(f"{library_id} has no measurable geometry.")
     xs = [x for x, _ in extent_points]
     ys = [y for _, y in extent_points]
-    margin = 0.0 if courtyard else BODY_MARGIN_MM
+    margin = 0.0 if courtyard or (not pads and fab_points) else BODY_MARGIN_MM
 
     fab_xs = [x for x, _ in fab_points] or xs
     fab_ys = [y for _, y in fab_points] or ys
@@ -665,16 +665,13 @@ def _circle_extent_points(
     ]
 
 
-def _convex_hull(
-    points: list[tuple[float, float]]
-) -> tuple[tuple[float, float], ...]:
+def _convex_hull(points: list[tuple[float, float]]) -> tuple[tuple[float, float], ...]:
     """Monotone-chain convex hull (CCW), degenerate inputs passed through."""
     unique = sorted(set(points))
     if len(unique) <= 2:
         return tuple(unique)
 
-    def cross(o: tuple[float, float], a: tuple[float, float],
-              b: tuple[float, float]) -> float:
+    def cross(o: tuple[float, float], a: tuple[float, float], b: tuple[float, float]) -> float:
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0])
 
     lower: list[tuple[float, float]] = []
@@ -708,34 +705,25 @@ def _is_number(token: str) -> bool:
         return False
     return True
 
+
 def _parse_hole_geometry(
     drill_node: SList,
     pad_kind: str,
     angle_deg: float,
 ) -> HoleGeometry:
     """Preserve KiCad ``drill`` axes and metadata before pad-kind folding."""
-    atoms = [
-        _atom(child)
-        for child in drill_node[1:]
-        if not isinstance(child, list)
-    ]
+    atoms = [_atom(child) for child in drill_node[1:] if not isinstance(child, list)]
     shape = HoleShape.OVAL if atoms and atoms[0] == "oval" else HoleShape.ROUND
     dimensions = [float(atom) for atom in atoms if _is_number(atom)]
     needed = 2 if shape is HoleShape.OVAL else 1
     if len(dimensions) < needed:
-        raise FootprintLibraryError(
-            f"Malformed {shape.value} drill geometry: {drill_node!r}"
-        )
+        raise FootprintLibraryError(f"Malformed {shape.value} drill geometry: {drill_node!r}")
     width = dimensions[0]
     height = dimensions[1] if shape is HoleShape.OVAL else width
     offset_nodes = _children(drill_node, "offset")
     offset_x = float(_atom(offset_nodes[0][1])) if offset_nodes else 0.0
     offset_y = float(_atom(offset_nodes[0][2])) if offset_nodes else 0.0
-    plating = (
-        HolePlating.PLATED
-        if pad_kind == "thru_hole"
-        else HolePlating.NON_PLATED
-    )
+    plating = HolePlating.PLATED if pad_kind == "thru_hole" else HolePlating.NON_PLATED
     return HoleGeometry(
         shape=shape,
         width_mm=width,
@@ -804,7 +792,8 @@ def render_embedded_footprint(
 
     pad_occurrences: dict[str, int] = {}
     for child in body:
-        if isinstance(child, list) and _safe_head(child) == "property":
+        child_head = _safe_head(child) if isinstance(child, list) else ""
+        if isinstance(child, list) and child_head == "property":
             prop_name = _atom(child[1])
             if prop_name == "Reference":
                 child[2] = QuotedString(reference)
@@ -815,6 +804,17 @@ def render_embedded_footprint(
                     # sits above the hole and crossed the board edge.
                     child.append(["hide", "yes"])
             elif prop_name == "Value":
+                child[2] = QuotedString(value)
+        elif isinstance(child, list) and child_head == "fp_text" and len(child) > 2:
+            # KiCad 7-era manufacturer libraries still use
+            # ``(fp_text reference "REF**" ...)`` rather than properties.
+            # Preserve those exact footprints while binding real board refs.
+            text_kind = _atom(child[1]).lower()
+            if text_kind == "reference":
+                child[2] = QuotedString(reference)
+                if (hide_reference or force_board_only) and "hide" not in child:
+                    child.append("hide")
+            elif text_kind == "value":
                 child[2] = QuotedString(value)
         if isinstance(child, list) and _safe_head(child) == "attr" and force_board_only:
             flags = [_atom(flag) for flag in child[1:] if not isinstance(flag, list)]
@@ -844,11 +844,7 @@ def render_embedded_footprint(
             )
             if rotation:
                 _add_rotation(child, rotation)
-        if (
-            rotation
-            and isinstance(child, list)
-            and _safe_head(child) in ("property", "fp_text")
-        ):
+        if rotation and isinstance(child, list) and _safe_head(child) in ("property", "fp_text"):
             # KiCad board files store pad and text angles as TOTAL angles
             # (footprint + local); rotating the footprint without adjusting
             # them leaves pads physically unrotated (live DRC shorted every
@@ -860,8 +856,8 @@ def render_embedded_footprint(
         # (dense layouts park labels clear of neighbours). The angle is a
         # TOTAL angle like every board-file text angle: 0 keeps it upright.
         for child in body:
-            if isinstance(child, list) and _safe_head(child) == "property":
-                if _atom(child[1]) == "Reference":
+            if isinstance(child, list) and _safe_head(child) in {"property", "fp_text"}:
+                if _atom(child[1]).lower() == "reference":
                     for at in _children(child, "at"):
                         at[1:] = [
                             _fmt(reference_at[0]),
@@ -932,9 +928,7 @@ def _ensure_board_standard_properties(body: SList, rotation: float) -> None:
     property_names = {
         _atom(child[1])
         for child in body
-        if isinstance(child, list)
-        and _safe_head(child) == "property"
-        and len(child) > 1
+        if isinstance(child, list) and _safe_head(child) == "property" and len(child) > 1
     }
     insertion = next(
         (
@@ -970,11 +964,7 @@ def _set_uuid(node: SList, value: str) -> None:
     node[:] = [
         child
         for child in node
-        if not (
-            isinstance(child, list)
-            and child
-            and _safe_head(child) in {"uuid", "tstamp"}
-        )
+        if not (isinstance(child, list) and child and _safe_head(child) in {"uuid", "tstamp"})
     ]
     node.append(["uuid", QuotedString(value)])
 
@@ -1058,9 +1048,7 @@ def _stable_schematic_path(uuid_path: str, footprint_uuid: str) -> str:
     """
     atoms = tuple(atom for atom in uuid_path.strip("/").split("/") if atom)
     if not atoms:
-        return "/" + stable_kicad_uuid(
-            "board-footprint-path-v1", footprint_uuid, "0", "empty"
-        )
+        return "/" + stable_kicad_uuid("board-footprint-path-v1", footprint_uuid, "0", "empty")
     stable_atoms: list[str] = []
     for index, atom in enumerate(atoms):
         try:
@@ -1126,11 +1114,7 @@ def _swap_layer(name: str) -> str:
 
 
 def _children_named(nodes: SList, name: str) -> list[SList]:
-    return [
-        node
-        for node in nodes
-        if isinstance(node, list) and node and _safe_head(node) == name
-    ]
+    return [node for node in nodes if isinstance(node, list) and node and _safe_head(node) == name]
 
 
 def _silk_text_node(
@@ -1240,6 +1224,21 @@ LIBRARY_FOOTPRINT_IDS = (
     "LED_SMD:LED_0805_2012Metric",
     "Capacitor_SMD:C_0805_2012Metric",
     "Fuse:Fuse_1206_3216Metric",
+    # Retro-Pad USB macro keyboard.
+    "Package_QFP:TQFP-44_10x10mm_P0.8mm",
+    "Package_TO_SOT_SMD:SOT-23-6_Handsoldering",
+    "Connector_PinHeader_2.54mm:PinHeader_2x03_P2.54mm_Vertical",
+    "Crystal:Crystal_SMD_Abracon_ABM8G-4Pin_3.2x2.5mm",
+    "Button_Switch_Keyboard:SW_Cherry_MX_1.00u_PCB",
+    "Diode_SMD:D_SOD-123",
+    "Rotary_Encoder:RotaryEncoder_Alps_EC11E-Switch_Vertical_H20mm",
+    "LED_SMD:LED_SK6812MINI-E_3.2x2.8mm_P1.5mm_ReverseMount",
+    "Capacitor_SMD:CP_Elec_6.3x5.8",
+    "MountingHole:MountingHole_2.7mm_M2.5",
+    # Synthetic, repository-owned R2 retained-corpus terminal. Keeping it in
+    # the normal resolver makes the serialized adversarial case independently
+    # reconstructible instead of dependent on a pytest monkeypatch.
+    "Test:NegotiatedMazeTerminal",
 )
 
 # The pin header doubles as the off-board power connector; PCBSmith wires the
@@ -1261,7 +1260,12 @@ _CONNECTOR_EXTRA_MARKS: dict[str, tuple[SilkLine | SilkText, ...]] = {
 
 # Mounting holes exist only on the board; the attr keeps schematic parity
 # checks from reporting them as missing from the netlist.
-_BOARD_ONLY_IDS = frozenset({"MountingHole:MountingHole_3.2mm_M3"})
+_BOARD_ONLY_IDS = frozenset(
+    {
+        "MountingHole:MountingHole_3.2mm_M3",
+        "MountingHole:MountingHole_2.7mm_M2.5",
+    }
+)
 
 
 def build_footprint_library() -> dict[str, FootprintSpec]:

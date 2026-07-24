@@ -69,9 +69,7 @@ class DesignChecksSpec:
     led_strings: tuple[tuple[str, ...], ...] = ()
     # Rule 9.1 keepouts: (center_x, center_y, radius, allowed net names).
     # No zone may intersect the circle; only allowed-net copper may.
-    copper_keepouts: tuple[
-        tuple[float, float, float, tuple[str, ...]], ...
-    ] = ()
+    copper_keepouts: tuple[tuple[float, float, float, tuple[str, ...]], ...] = ()
     # Rule 5.3: (net name, load current in amps) pairs. The selected
     # profile names the thermal model, copper thickness, and temperature rise.
     net_currents: tuple[tuple[str, float], ...] = ()
@@ -91,9 +89,9 @@ class DesignChecksSpec:
     # left-side nets, right-side nets, straddle refs). ``legacy_gap_mm`` is
     # retained for call/serialization compatibility but is not enforced here.
     # This declaration cannot establish insulation clearance or creepage.
-    isolation_barrier: tuple[
-        float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]
-    ] | None = None
+    isolation_barrier: (
+        tuple[float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]] | None
+    ) = None
     # Rule 10.4: pairwise copper clearance between two net GROUPS with no
     # barrier-line geometry - e.g. protective EARTH vs the mains nets,
     # where only the certified line Y-caps may bridge. Each entry is
@@ -107,6 +105,10 @@ class DesignChecksSpec:
     # The trace-craft checks skip them; declaring them here keeps the
     # exemption visible and reviewable instead of silent.
     trace_craft_exempt_nets: tuple[str, ...] = ()
+    # Rule 11.1 is policy-scoped, not a universal electrical/fabrication
+    # blocker.  Enable it only when a selected craft/fabricator/HV policy
+    # declares the applicability and desired disposition.
+    trace_corner_policy: Literal["off", "advisory", "blocker"] = "off"
     # Rule 1.1 exemption: connector-footprint parts that carry ON-BOARD
     # modules (display headers) rather than off-board wiring; declared
     # per reference so the exemption is visible.
@@ -126,9 +128,7 @@ def run_design_checks(
     findings: list[ReviewFinding] = []
 
     checks_run.append("connector_edge")
-    findings.extend(
-        _check_connector_edges(layout, spec.connector_edge_exempt_refs)
-    )
+    findings.extend(_check_connector_edges(layout, spec.connector_edge_exempt_refs))
 
     body_edge_mm = profile.geometry.minimum_component_body_to_edge_mm
     if body_edge_mm is not None:
@@ -243,9 +243,7 @@ def run_design_checks(
 
     if spec.net_currents:
         checks_run.append("trace_current")
-        findings.extend(
-            _check_trace_currents(layout, spec.net_currents, profile)
-        )
+        findings.extend(_check_trace_currents(layout, spec.net_currents, profile))
 
     allowed_unconnected = set(spec.allowed_unconnected_pins)
     if spec.component_cards:
@@ -260,15 +258,11 @@ def run_design_checks(
         roles = set(spec.composition_roles)
         for reference, mpn in spec.component_cards:
             card = load_card(mpn)
-            findings.extend(
-                card_contract_findings(card, reference, netlist, tie_map)
-            )
+            findings.extend(card_contract_findings(card, reference, netlist, tie_map))
             if roles:
                 findings.extend(support_findings(card, reference, roles))
             # The card's reviewed NC pins feed rule 7.3's whitelist.
-            allowed_unconnected.update(
-                (reference, pin) for pin in card.nc_pins()
-            )
+            allowed_unconnected.update((reference, pin) for pin in card.nc_pins())
 
     if spec.net_group_clearances:
         checks_run.append("net_group_clearance")
@@ -277,30 +271,24 @@ def run_design_checks(
 
     if spec.isolation_barrier is not None:
         checks_run.append("barrier_side_review")
+        findings.extend(_check_barrier_side_discipline(layout, netlist, spec.isolation_barrier))
+
+    checks_run.append("ic_pin_connectivity")
+    findings.extend(_check_ic_pin_connectivity(layout, netlist, tuple(sorted(allowed_unconnected))))
+
+    if spec.trace_corner_policy != "off":
+        checks_run.append("trace_corner_angle")
         findings.extend(
-            _check_barrier_side_discipline(
-                layout, netlist, spec.isolation_barrier
+            _check_trace_corners(
+                layout,
+                netlist,
+                spec.trace_craft_exempt_nets,
+                severity=spec.trace_corner_policy,
             )
         )
 
-    checks_run.append("ic_pin_connectivity")
-    findings.extend(
-        _check_ic_pin_connectivity(
-            layout, netlist, tuple(sorted(allowed_unconnected))
-        )
-    )
-
-    checks_run.append("trace_corner_angle")
-    findings.extend(
-        _check_trace_corners(layout, netlist, spec.trace_craft_exempt_nets)
-    )
-
     checks_run.append("redundant_copper")
-    findings.extend(
-        _check_redundant_copper(
-            layout, netlist, spec.trace_craft_exempt_nets
-        )
-    )
+    findings.extend(_check_redundant_copper(layout, netlist, spec.trace_craft_exempt_nets))
 
     findings.extend(spec.extra_model_findings)
 
@@ -323,9 +311,7 @@ def _segments_intersect(
     b1: tuple[float, float],
     b2: tuple[float, float],
 ) -> bool:
-    def orient(
-        p: tuple[float, float], q: tuple[float, float], r: tuple[float, float]
-    ) -> float:
+    def orient(p: tuple[float, float], q: tuple[float, float], r: tuple[float, float]) -> float:
         return (q[0] - p[0]) * (r[1] - p[1]) - (q[1] - p[1]) * (r[0] - p[0])
 
     d1 = orient(b1, b2, a1)
@@ -447,11 +433,7 @@ def _check_ic_pin_connectivity(
     # kind of failure - ERC cannot see it (the symbol simply lacks the
     # wire) and DRC cannot see it (no net means no ratsnest). Compare the
     # FOOTPRINT's named pads against the netlist for every 3+ pin part.
-    connected = {
-        (reference, pin)
-        for net in netlist.nets
-        for reference, pin in net.nodes
-    }
+    connected = {(reference, pin) for net in netlist.nets for reference, pin in net.nodes}
     allowed = set(allowed_unconnected)
     findings: list[ReviewFinding] = []
     for component, _anchor_x in layout.placements:
@@ -505,7 +487,8 @@ def _check_net_group_clearance(
     items = _collect_items(layout, netlist)
     exempt_set = set(exempt)
     group_a = [
-        item for item in items
+        item
+        for item in items
         if (
             item.kind is _PhysicalItemKind.COPPER
             and item.net in nets_a
@@ -513,7 +496,8 @@ def _check_net_group_clearance(
         )
     ]
     group_b = [
-        item for item in items
+        item
+        for item in items
         if (
             item.kind is _PhysicalItemKind.COPPER
             and item.net in nets_b
@@ -525,10 +509,7 @@ def _check_net_group_clearance(
     worst_pair = None
     for one in group_a:
         for two in group_b:
-            distance = (
-                _seg_seg_distance(one.a, one.b, two.a, two.b)
-                - one.radius - two.radius
-            )
+            distance = _seg_seg_distance(one.a, one.b, two.a, two.b) - one.radius - two.radius
             if distance < worst_distance:
                 worst_distance = distance
                 worst_pair = (one, two)
@@ -558,9 +539,7 @@ def _check_net_group_clearance(
 def _check_barrier_side_discipline(
     layout: BoardLayout,
     netlist: BoardNetlist,
-    barrier: tuple[
-        float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]
-    ],
+    barrier: tuple[float, float, tuple[str, ...], tuple[str, ...], tuple[str, ...]],
 ) -> tuple[ReviewFinding, ...]:
     """Review a declared placement divider without claiming safety approval.
 
@@ -573,7 +552,8 @@ def _check_barrier_side_discipline(
     barrier_x, _legacy_gap_mm, left_nets, right_nets, straddle = barrier
     items = _collect_items(layout, netlist)
     left = [
-        item for item in items
+        item
+        for item in items
         if (
             item.kind is _PhysicalItemKind.COPPER
             and item.net in left_nets
@@ -581,7 +561,8 @@ def _check_barrier_side_discipline(
         )
     ]
     right = [
-        item for item in items
+        item
+        for item in items
         if (
             item.kind is _PhysicalItemKind.COPPER
             and item.net in right_nets
@@ -595,9 +576,7 @@ def _check_barrier_side_discipline(
     ):
         max_x = max(item.a[0], item.b[0]) + item.radius
         min_x = min(item.a[0], item.b[0]) - item.radius
-        crossed = (side == "left" and max_x > barrier_x) or (
-            side == "right" and min_x < barrier_x
-        )
+        crossed = (side == "left" and max_x > barrier_x) or (side == "right" and min_x < barrier_x)
         if not crossed:
             continue
         extent = (
@@ -625,6 +604,7 @@ def _check_barrier_side_discipline(
         )
     return tuple(findings)
 
+
 def _check_trace_currents(
     layout: BoardLayout,
     net_currents: tuple[tuple[str, float], ...],
@@ -643,8 +623,7 @@ def _check_trace_currents(
                 scope="global",
                 where=profile.profile_id,
                 evidence=(
-                    f"Trace-current model {model_id!r} has no registered "
-                    "deterministic evaluator."
+                    f"Trace-current model {model_id!r} has no registered deterministic evaluator."
                 ),
                 suggested_action=(
                     "Register and fixture-test the selected profile-table model "
@@ -654,19 +633,34 @@ def _check_trace_currents(
             ),
         )
     for net_name, current_a in net_currents:
-        widths = [
-            segment.width_mm
-            for segment in layout.segments
-            if segment.net_name == net_name
-        ]
+        widths = [segment.width_mm for segment in layout.segments if segment.net_name == net_name]
         if not widths:
+            findings.append(
+                ReviewFinding(
+                    rule="5.3",
+                    severity="warning",
+                    scope="net",
+                    where=net_name,
+                    evidence=(
+                        f"No routed track segments were available for declared "
+                        f"{net_name} current {current_a:g}A, so trace-current "
+                        "capacity was not evaluated. Zones, planes, vias, pads, "
+                        "parallel paths, and connector conductors are outside "
+                        "this legacy evaluator."
+                    ),
+                    suggested_action=(
+                        "Route and materialize the complete current path, then "
+                        "evaluate its narrowest tracks, zones, vias, pads, "
+                        "connectors, voltage drop, and thermal context."
+                    ),
+                    source="check",
+                )
+            )
             continue
         narrowest_mm = min(widths)
         capacity = solve_trace_current_capacity(
             trace_width_m=narrowest_mm / 1000.0,
-            copper_thickness_m=(
-                profile.geometry.outer_copper_thickness_um * 1e-6
-            ),
+            copper_thickness_m=(profile.geometry.outer_copper_thickness_um * 1e-6),
             temperature_rise_c=profile.geometry.trace_temperature_rise_c,
         )
         capacity_a = float(capacity["outputs"]["capacity_a"])
@@ -685,10 +679,7 @@ def _check_trace_currents(
                         "but the net carries "
                         f"{current_a:g}A."
                     ),
-                    suggested_action=(
-                        "Widen the net's trace width or reduce the load "
-                        "current."
-                    ),
+                    suggested_action=("Widen the net's trace width or reduce the load current."),
                     source="check",
                 )
             )
@@ -714,21 +705,15 @@ def _check_component_body_to_edge(
         (0.0, layout.height_mm),
     )
     outline_edges = [
-        (outline[index], outline[(index + 1) % len(outline)])
-        for index in range(len(outline))
+        (outline[index], outline[(index + 1) % len(outline)]) for index in range(len(outline))
     ]
     exempt = set(exempt_references)
     findings: list[ReviewFinding] = []
     for reference, _side, body in _body_polys(layout):
         if reference in exempt:
             continue
-        body_edges = [
-            (body[index], body[(index + 1) % len(body)])
-            for index in range(len(body))
-        ]
-        outside = any(
-            not _point_in_polygon(point, tuple(outline)) for point in body
-        )
+        body_edges = [(body[index], body[(index + 1) % len(body)]) for index in range(len(body))]
+        outside = any(not _point_in_polygon(point, tuple(outline)) for point in body)
         crossing = any(
             _segments_intersect(*body_edge, *outline_edge)
             for body_edge in body_edges
@@ -753,8 +738,7 @@ def _check_component_body_to_edge(
                 scope="component",
                 where=reference,
                 evidence=(
-                    f"{reference} fab body {condition}; profile requires "
-                    f">= {minimum_mm:g}mm."
+                    f"{reference} fab body {condition}; profile requires >= {minimum_mm:g}mm."
                 ),
                 suggested_action=(
                     "Move the component inward or declare a reviewed connector/"
@@ -859,9 +843,7 @@ def _check_outer_copper_exposure(
     return tuple(findings)
 
 
-def _mask_pair_scope(
-    first: MaskAperture, second: MaskAperture
-) -> Literal["component", "region"]:
+def _mask_pair_scope(first: MaskAperture, second: MaskAperture) -> Literal["component", "region"]:
     if first.owner_ref is not None and first.owner_ref == second.owner_ref:
         return "component"
     return "region"
@@ -1214,9 +1196,7 @@ def _check_connector_edges(
             continue
         rotation = placement_rotation(layout, component.reference)
         anchor_y = placement_y(layout, component.reference)
-        pad_positions = [
-            rotate_offset(pad.x_mm, pad.y_mm, rotation) for pad in spec.pads
-        ]
+        pad_positions = [rotate_offset(pad.x_mm, pad.y_mm, rotation) for pad in spec.pads]
         pad_xs = [anchor_x + dx for dx, _ in pad_positions]
         pad_ys = [anchor_y + dy for _, dy in pad_positions]
         near_left = min(pad_xs) <= CONNECTOR_EDGE_ZONE_MM
@@ -1285,8 +1265,7 @@ def _check_switching_cluster(
                 "are interleaved into the high di/dt path."
             ),
             suggested_action=(
-                "Increase the power-net span weight or pin the cluster "
-                "adjacent in the row order."
+                "Increase the power-net span weight or pin the cluster adjacent in the row order."
             ),
             source="check",
         ),
@@ -1304,9 +1283,7 @@ def _check_series_led_polarity(
     it in the string; otherwise an LED is reverse-biased and the string never
     lights, even though ERC, DRC, and parity all pass.
     """
-    net_by_node = {
-        (reference, pin): net for net in netlist.nets for reference, pin in net.nodes
-    }
+    net_by_node = {(reference, pin): net for net in netlist.nets for reference, pin in net.nodes}
     findings: list[ReviewFinding] = []
     for string in led_strings:
         for upper, lower in zip(string, string[1:], strict=False):
@@ -1403,6 +1380,8 @@ def _check_trace_corners(
     layout: BoardLayout,
     netlist: BoardNetlist,
     exempt_nets: tuple[str, ...] = (),
+    *,
+    severity: Literal["advisory", "blocker"],
 ) -> tuple[ReviewFinding, ...]:
     """Rule 11.1: no acute (<90 deg) corner where two same-net tracks
     meet OUTSIDE pad/via copper. Sharp interior corners trap etchant
@@ -1423,11 +1402,10 @@ def _check_trace_corners(
     items = _collect_items(layout, netlist)
     masks: dict[str, list[_Stadium]] = {}
     for item in items:
-        if (
-            item.kind is _PhysicalItemKind.COPPER
-            and item.source_role
-            in {_PhysicalSourceRole.PAD, _PhysicalSourceRole.VIA}
-        ):
+        if item.kind is _PhysicalItemKind.COPPER and item.source_role in {
+            _PhysicalSourceRole.PAD,
+            _PhysicalSourceRole.VIA,
+        }:
             masks.setdefault(item.net, []).append(item)
 
     findings: list[ReviewFinding] = []
@@ -1440,17 +1418,20 @@ def _check_trace_corners(
         if segment.net_name in exempt:
             continue
         away_from_start = (
-            segment.x2 - segment.x1, segment.y2 - segment.y1,
+            segment.x2 - segment.x1,
+            segment.y2 - segment.y1,
         )
         away_from_end = (
-            segment.x1 - segment.x2, segment.y1 - segment.y2,
+            segment.x1 - segment.x2,
+            segment.y1 - segment.y2,
         )
         for point, away in (
             ((segment.x1, segment.y1), away_from_start),
             ((segment.x2, segment.y2), away_from_end),
         ):
             key = (
-                segment.net_name, segment.layer,
+                segment.net_name,
+                segment.layer,
                 (round(point[0], 3), round(point[1], 3)),
             )
             ends.setdefault(key, []).append(away)
@@ -1459,10 +1440,7 @@ def _check_trace_corners(
         if len(aways) < 2:
             continue
         masked = any(
-            (
-                item.layer == layer
-                or item.source_role is _PhysicalSourceRole.VIA
-            )
+            (item.layer == layer or item.source_role is _PhysicalSourceRole.VIA)
             and _point_seg_distance(point, item.a, item.b) <= item.radius
             for item in masks.get(net, ())
         )
@@ -1470,7 +1448,7 @@ def _check_trace_corners(
             continue
         worst = 180.0
         for index, one in enumerate(aways):
-            for two in aways[index + 1:]:
+            for two in aways[index + 1 :]:
                 norm = math.hypot(*one) * math.hypot(*two)
                 if norm < 1e-12:
                     continue
@@ -1481,7 +1459,7 @@ def _check_trace_corners(
             findings.append(
                 ReviewFinding(
                     rule="11.1",
-                    severity="blocker",
+                    severity=severity,
                     scope="net",
                     where=net,
                     evidence=(

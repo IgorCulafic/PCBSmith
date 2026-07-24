@@ -1,0 +1,119 @@
+{
+  "schema": "pcbsmith-research-source-request-catalog-v1",
+  "created_at": "2026-07-22",
+  "purpose": "Official free sources selected for multi-physics, thermal-mechanical, reliability, and workflow-governance research. Payloads remain private; only identity metadata is committed.",
+  "sources": [
+    {
+      "source_id": "infineon-designing-with-power-mosfets-v1.1",
+      "source_url": "https://www.infineon.com/assets/row/public/documents/24/42/infineon-designing-with-power-mosfets-applicationnotes-en.pdf",
+      "approved_hosts": ["www.infineon.com"],
+      "intended_consumer": "Power MOSFET loss, SOA, paralleling, gate-drive, and whole-path thermal design research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "infineon-to-package-assembly",
+      "source_url": "https://www.infineon.com/assets/row/public/documents/24/42/infineon-applicationnote-package-recommendations-assembly-topackages-applicationnotes-en.pdf",
+      "approved_hosts": ["www.infineon.com"],
+      "intended_consumer": "Heatsink mounting, insulation, torque, package stress, soldering, and assembly-process research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-slvaf66-high-power-motor-driver",
+      "source_url": "https://www.ti.com/lit/an/slvaf66/slvaf66.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "High-power motor-stage parasitics, gate drive, snubbers, current sense, faults, and layout research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-slua566a-thermal-calculation-tools",
+      "source_url": "https://www.ti.com/lit/an/slua566a/slua566a.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "PCB/package thermal-network assumptions, boundary conditions, and first-pass thermal estimation research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-slvae30e-transient-loads",
+      "source_url": "https://www.ti.com/lit/an/slvae30e/slvae30e.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "Transient load, inrush, inductive energy, and Foster thermal-impedance model research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ti-sprace6-pdn-dynamic-analysis",
+      "source_url": "https://www.ti.com/lit/an/sprace6/sprace6.pdf",
+      "approved_hosts": ["www.ti.com"],
+      "intended_consumer": "PDN target impedance, anti-resonance, mounting inductance, and post-layout analysis research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "nexperia-an50019-thermal-boundary",
+      "source_url": "https://assets.nexperia.com/documents/application-note/AN50019.pdf",
+      "approved_hosts": ["assets.nexperia.com"],
+      "intended_consumer": "MOSFET loss categories, PCB boundary-condition sensitivity, Cauer models, and electrothermal research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "nexperia-an50006-linear-mode",
+      "source_url": "https://assets.nexperia.com/documents/application-note/AN50006.pdf",
+      "approved_hosts": ["assets.nexperia.com"],
+      "intended_consumer": "Linear-mode SOA, transient thermal impedance, and hot-swap/precharge stress research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "tdk-aluminum-electrolytic-general-technical",
+      "source_url": "https://www.tdk-electronics.tdk.com/download/185386/31a5416e653dd6e4e428b8208d65cc2e/pdf-generaltechnicalinformation.pdf",
+      "approved_hosts": ["www.tdk-electronics.tdk.com"],
+      "intended_consumer": "Capacitor ripple-current heating, cooling assumptions, useful-life, and derating research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "te-108-160952-power-tab-spec",
+      "source_url": "https://www.te.com/content/dam/te-com/documents/appliances/global/power-tab-assembly-product-specification.pdf",
+      "approved_hosts": ["www.te.com"],
+      "intended_consumer": "Connector contact temperature rise, PCB/current dependence, and qualification-test research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "nasa-eee-inst-002-add1",
+      "source_url": "https://nepp.nasa.gov/docuploads/FFB52B88-36AE-4378-A05B2C084B5EE2CC/EEE-INST-002_add1.pdf",
+      "approved_hosts": ["nepp.nasa.gov"],
+      "intended_consumer": "Mission-profile parts selection, stress derating, qualification, and retained-analysis research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "nasa-gsfc-std-8001",
+      "source_url": "https://standards.nasa.gov/sites/default/files/standards/GSFC/Baseline/0/gsfc-std-8001.pdf",
+      "approved_hosts": ["standards.nasa.gov"],
+      "intended_consumer": "High-reliability PCB design, procurement, fabrication, and quality-assurance workflow research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ecss-q-st-70-60c-pcb-qualification",
+      "source_url": "https://ecss.nl/wp-content/uploads/2018/05/ECSS-Q-ST-70-60C%281June2018%29.pdf",
+      "approved_hosts": ["ecss.nl"],
+      "intended_consumer": "PCB technology qualification, thermomechanical process stress, inspection, and procurement research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    },
+    {
+      "source_id": "ecss-q-st-20-10c-ots",
+      "source_url": "https://ecss.nl/wp-content/uploads/standards/ecss-q/ECSS-Q-ST-20-10C8October2010.pdf",
+      "approved_hosts": ["ecss.nl"],
+      "intended_consumer": "OTS equipment derating, thermography, thermal modeling, simulation, and test research.",
+      "expected_kind": "pdf",
+      "license_status": "local_cache_only"
+    }
+  ]
+}

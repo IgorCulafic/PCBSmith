@@ -33,6 +33,33 @@ BOOKS: dict[str, str] = {
     "coombs-pch": "Printed Circuits Handbook",
 }
 
+# Exact relative paths for later acquisitions. These avoid ambiguous substring
+# matching, preserve nested official bundles, and keep misleading filenames
+# from being accepted as the wrong source identity.
+EXACT_BOOKS: dict[str, str] = {
+    "iec-62368-1-2014": (
+        "[IEC 62368-1_2014] Audio_video, information and communication "
+        "technology equipment - Part 1_ Safety requirements{International "
+        "Electrotechnical Commission}(2014, International Electrotechnical "
+        "Commission){104610101.pdf"
+    ),
+    "ipc-2221a": "IPC-2221A.pdf",
+    "ipc-2222-original": "[IPC-2222 eng]{104591038} libgen.li.pdf",
+    "ipc-7525-original": "[IPC-7525 eng]{104591070} libgen.li.pdf",
+    "ipc-2152": "IPC-2152.pdf",
+    "ipc-7093-original": "IPC-7093.pdf",
+    "ipc-7093a": "IPC-7093A.pdf",
+    "ipc-tm-650-2016-snapshot": "IPC-TM-650.pdf",
+    "sensirion-sht-sts-design-guide": (
+        "Public Sources/Sensirion/"
+        "Sensirion_Humidity_Temperature_Design_Guide_V2_2024-03.pdf"
+    ),
+    "usb-2.0-r2.0-2025-bundle": (
+        "USB 2.0 Specification 20250603/contents/usb_20_20250603/"
+        "usb_20_20240927/usb_20_20240927/usb_20.pdf"
+    ),
+}
+
 
 class _TextExtractor(HTMLParser):
     def __init__(self) -> None:
@@ -63,6 +90,12 @@ def _html_to_text(html: str) -> str:
 
 
 def _file_for(slug: str) -> Path:
+    exact = EXACT_BOOKS.get(slug)
+    if exact is not None:
+        path = BOOKS_DIR / exact
+        if not path.is_file():
+            raise SystemExit(f"No exact book file at {path}")
+        return path
     needle = BOOKS[slug]
     for path in BOOKS_DIR.iterdir():
         if needle.lower() in path.name.lower():
@@ -122,7 +155,9 @@ def main() -> None:
         else:
             info = extract_pdf(slug)
         manifest[slug] = {
-            "file": path.name, "sha256": digest, **info,
+            "file": str(path.relative_to(BOOKS_DIR)),
+            "sha256": digest,
+            **info,
         }
         print(slug, json.dumps(info))
     manifest_path = CACHE_DIR / "manifest.json"

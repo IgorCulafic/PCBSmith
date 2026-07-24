@@ -73,7 +73,7 @@ from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE
 MOVABLE = ("J1", "J2")
 REDUCED_STEM_AGGREGATE_CHECKER_ID = (
     "synthetic-routing-only-placement-checker@2:"
-    "ae4a787d7d6dc8eaaa4c076cafab8a223e7d69e4ddedae8a7311bdde2a700894"
+    "a98e1dacdb1125a0dc2ee1f6dff414490bca78b7aae3a792dfe1c68d11ed60c7"
 )
 
 
@@ -311,7 +311,7 @@ def test_reduced_stem_authority_and_base_and_translated_candidate_replay_exactly
     assert retained.authority_scope == "input_only_no_algorithm_routing_acceptance_or_readiness"
     assert (
         retained.authority_fingerprint
-            == "cbe2f70a3221d3b1c3440422ed6b9c9f2e6e25b6dfa508bc9a10e47dc3d24709"
+            == "a81f4479bc959156175b4a9e3947878ba1831f44935f3ca905924ccf683b13a9"
     )
 
     base_poses = tuple(

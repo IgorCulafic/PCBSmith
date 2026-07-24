@@ -1,0 +1,101 @@
+{
+  "schema": "pcbsmith-source-intake-v2",
+  "records": [
+    {
+      "source_id": "part:Sensirion:SHT31-DIS:datasheet",
+      "status": "downloaded",
+      "source_url": "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf",
+      "intended_consumer": "Phase 17 exact-MPN production workflow exercise",
+      "license_status": "local_cache_only",
+      "retrieved_at": "2026-07-23T05:31:03.315551+00:00",
+      "identity": {
+        "sha256": "095b1853e7f4328f5897c9ca6c392a7dd8b0202eda66b0a2629f9cb840dd496d",
+        "kind": "pdf",
+        "byte_count": 810136,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://sensirion.com/media/documents/213E6A3B/63A5A569/Datasheet_SHT3x_DIS.pdf",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": null
+      }
+    },
+    {
+      "source_id": "part:Sensirion:SHT31-DIS:kicad_footprint",
+      "status": "downloaded",
+      "source_url": "https://gitlab.com/kicad/libraries/kicad-footprints/-/raw/10.0.3/Sensor_Humidity.pretty/Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm.kicad_mod",
+      "intended_consumer": "Phase 17 exact-MPN production workflow exercise",
+      "license_status": "redistributable",
+      "retrieved_at": "2026-07-23T05:31:03.526550+00:00",
+      "identity": {
+        "sha256": "a6af9f807d4214a1828b37901485ed729d7a2eca6e6e2bb33f1a4aea0f198e66",
+        "kind": "text",
+        "byte_count": 5597,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://gitlab.com/kicad/libraries/kicad-footprints/-/raw/10.0.3/Sensor_Humidity.pretty/Sensirion_DFN-8-1EP_2.5x2.5mm_P0.5mm_EP1.1x1.7mm.kicad_mod",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": "inline"
+      }
+    },
+    {
+      "source_id": "part:Sensirion:SHT31-DIS:kicad_symbol",
+      "status": "downloaded",
+      "source_url": "https://gitlab.com/kicad/libraries/kicad-symbols/-/raw/10.0.3/Sensor_Humidity.kicad_symdir/SHT31-DIS.kicad_sym",
+      "intended_consumer": "Phase 17 exact-MPN production workflow exercise",
+      "license_status": "redistributable",
+      "retrieved_at": "2026-07-23T05:31:03.732959+00:00",
+      "identity": {
+        "sha256": "2e6b9f9a1c2c4cdd0e41a539a813d497bf908364734f4ec1bf73f4c5023e02e0",
+        "kind": "text",
+        "byte_count": 4125,
+        "archive_members": []
+      },
+      "blocked_reason": null,
+      "findings": [],
+      "retrieval": {
+        "final_url": "https://gitlab.com/kicad/libraries/kicad-symbols/-/raw/10.0.3/Sensor_Humidity.kicad_symdir/SHT31-DIS.kicad_sym",
+        "attempt_count": 1,
+        "attempts": [
+          {
+            "attempt": 1,
+            "header_profile": "pcbsmith",
+            "outcome": "success",
+            "status_code": 200,
+            "error_type": null,
+            "retry_after": null,
+            "scheduled_delay_seconds": null
+          }
+        ],
+        "content_disposition": "inline"
+      }
+    }
+  ]
+}
