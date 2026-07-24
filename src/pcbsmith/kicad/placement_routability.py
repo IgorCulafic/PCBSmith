@@ -20,6 +20,10 @@ from typing import Any, Literal
 from pydantic import BaseModel
 
 from pcbsmith.kicad.board import BoardComponent, BoardLayout, placement_rotation, placement_y
+from pcbsmith.kicad.board_serialization import (
+    board_layout_snapshot_fingerprint,
+    canonical_board_layout_snapshot_json,
+)
 from pcbsmith.placement_geometry import (
     ExactPlanarCompound,
     ExactPlanarPolygon,
@@ -653,6 +657,9 @@ def legalize_placement_probe(
     geometry_by_ref = {component.reference: component for component in catalog.components}
     side_permission_by_ref = {item.reference: item for item in policy.side_permissions}
     exception_by_ref = {item.reference: item for item in policy.edge_exceptions}
+    probe_layout_snapshot_fingerprint = board_layout_snapshot_fingerprint(
+        canonical_board_layout_snapshot_json(probe.layout)
+    )
     findings_list: list[PlacementLegalizationFinding] = []
     raw_edge_cuts_unverified = any(
         _raw_graphic_boundary_unverified(graphic) for graphic in probe.layout.graphics
@@ -758,10 +765,28 @@ def legalize_placement_probe(
         waive_containment = False
         rule_id = "r5.body.outer_edge"
         if exception is not None:
-            required_outer = exception.minimum_outer_edge_clearance_mm
-            waive_containment = exception.waive_outer_edge_containment
-            rule_id = exception.rule_id
-            applied_exception_rule_ids.add(exception.rule_id)
+            authority = exception.interface_authority
+            authority_matches = (
+                authority is not None
+                and authority.declaration.board_layout_snapshot_fingerprint
+                == probe_layout_snapshot_fingerprint
+            )
+            if authority_matches:
+                required_outer = exception.minimum_outer_edge_clearance_mm
+                waive_containment = exception.waive_outer_edge_containment
+                rule_id = exception.rule_id
+                applied_exception_rule_ids.add(exception.rule_id)
+            else:
+                findings_list.append(
+                    _finding(
+                        PlacementLegalizationFindingKind.EDGE_INTERFACE_AUTHORITY,
+                        PlacementFindingDisposition.VIOLATION,
+                        (body.reference,),
+                        rule_id="r5.edge_interface.authority_context",
+                        region_ids=(body.region_id,),
+                        verification=body.verification,
+                    )
+                )
         required_with_error = required_outer + body.maximum_error_mm
         contained = compound_inside_polygon(body.compound, outer)
         exception_scope_ok = (
@@ -814,6 +839,17 @@ def legalize_placement_probe(
 
     if policy.require_courtyard_containment:
         for courtyard in courtyards:
+            exception = exception_by_ref.get(courtyard.reference)
+            authority = exception.interface_authority if exception is not None else None
+            courtyard_waived = (
+                exception is not None
+                and exception.waive_courtyard_outer_edge_containment
+                and authority is not None
+                and authority.declaration.board_layout_snapshot_fingerprint
+                == probe_layout_snapshot_fingerprint
+            )
+            if courtyard_waived:
+                continue
             required = policy.minimum_courtyard_outer_edge_clearance_mm + courtyard.maximum_error_mm
             contained = compound_inside_polygon(courtyard.compound, outer)
             clearance_ok = _boundary_clearance_at_least(

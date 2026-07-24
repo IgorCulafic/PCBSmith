@@ -6,7 +6,22 @@ import math
 import pytest
 from pydantic import ValidationError
 
+from pcbsmith.connector_zone_ir import outline_edge_id
+from pcbsmith.edge_interface_ir import (
+    EdgeInterfaceDeclaration,
+    EdgeInterfaceKind,
+    EdgeInterfaceLocalGeometry,
+    fingerprint,
+)
 from pcbsmith.kicad.board import BoardComponent, BoardCutoutPolygon, BoardLayout
+from pcbsmith.kicad.board_serialization import (
+    board_layout_snapshot_fingerprint,
+    canonical_board_layout_snapshot_json,
+)
+from pcbsmith.kicad.edge_interface import (
+    evaluate_edge_interface,
+    placement_edge_exception_from_authority,
+)
 from pcbsmith.kicad.placement_routability import (
     bind_component_placement_geometry,
     build_placement_geometry_catalog,
@@ -220,6 +235,54 @@ def _policy(
     )
 
 
+def _controlled_edge_exception(layout: BoardLayout) -> PlacementEdgeException:
+    retained = _rect(0.1, -0.4, 1.0, 0.4)
+    pad = _rect(0.2, -0.2, 0.6, 0.2)
+    overhang = _rect(-1.0, -0.4, 0.0, 0.4)
+    component = layout.placements[0][0]
+    geometry_payload = {
+        "schema_id": "pcbsmith-edge-interface-local-geometry",
+        "schema_version": 1,
+        "installed_footprint_id": component.footprint,
+        "component_uuid_path": component.uuid_path,
+        "source_file_sha256": "a" * 64,
+        "source_binding_id": "fixture.edge-interface",
+        "retained_support_compounds": [retained.model_dump(mode="json")],
+        "pad_compounds": [pad.model_dump(mode="json")],
+        "overhang_compound": overhang.model_dump(mode="json"),
+    }
+    geometry = EdgeInterfaceLocalGeometry(
+        installed_footprint_id=component.footprint,
+        component_uuid_path=component.uuid_path,
+        source_file_sha256="a" * 64,
+        source_binding_id="fixture.edge-interface",
+        retained_support_compounds=(retained,),
+        pad_compounds=(pad,),
+        overhang_compound=overhang,
+        geometry_fingerprint=fingerprint(geometry_payload),
+    )
+    snapshot = canonical_board_layout_snapshot_json(layout)
+    declaration = EdgeInterfaceDeclaration(
+        declaration_id="fixture.J1.edge-interface",
+        reference="J1",
+        interface_kind=EdgeInterfaceKind.CONNECTOR,
+        selected_outline_edge_id=outline_edge_id((0.0, 0.0), (0.0, layout.height_mm)),
+        board_layout_snapshot_json=snapshot,
+        board_layout_snapshot_fingerprint=board_layout_snapshot_fingerprint(snapshot),
+        local_geometry=geometry,
+        minimum_useful_overhang_mm=0.5,
+        maximum_allowed_overhang_mm=1.5,
+        minimum_retained_edge_clearance_mm=0.05,
+        minimum_pad_edge_clearance_mm=0.1,
+        exception_rule_id="assembly.connector-j1-overhang",
+        retained_rule_id="assembly.connector-j1-retained",
+        pad_rule_id="assembly.connector-j1-pads",
+        selected_edge_rule_id="assembly.connector-j1-edge",
+        overhang_rule_id="assembly.connector-j1-projection",
+    )
+    return placement_edge_exception_from_authority(evaluate_edge_interface(declaration))
+
+
 def _kinds(result: PlacementLegalizationResult) -> set[PlacementLegalizationFindingKind]:
     return {finding.kind for finding in result.findings}
 
@@ -382,12 +445,14 @@ def test_edge_exception_is_reference_and_rule_scoped_only() -> None:
     rejected = legalize_placement_probe(_probe(layout), _catalog(layout, body=body), _policy())
     assert rejected.outcome is PlacementLegalizationOutcome.REJECTED
 
-    exception = PlacementEdgeException(
-        reference="J1",
-        rule_id="assembly.connector-j1-overhang",
-        waive_outer_edge_containment=True,
-        minimum_outer_edge_clearance_mm=0.0,
-    )
+    with pytest.raises(ValidationError, match="requires interface authority"):
+        PlacementEdgeException(
+            reference="J1",
+            rule_id="assembly.connector-j1-overhang",
+            waive_outer_edge_containment=True,
+            minimum_outer_edge_clearance_mm=0.0,
+        )
+    exception = _controlled_edge_exception(layout)
     accepted = legalize_placement_probe(
         _probe(layout),
         _catalog(layout, body=body),
@@ -413,6 +478,7 @@ def test_edge_exception_is_reference_and_rule_scoped_only() -> None:
         _policy(exceptions=(exception,)),
     )
     assert off_board.outcome is PlacementLegalizationOutcome.REJECTED
+    assert PlacementLegalizationFindingKind.EDGE_INTERFACE_AUTHORITY in _kinds(off_board)
 
 
 def test_bounded_safe_geometry_is_legal_bounded_but_failed_proofs_are_unverified() -> None:

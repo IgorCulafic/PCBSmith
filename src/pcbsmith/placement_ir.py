@@ -15,6 +15,7 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from pcbsmith.edge_interface_ir import EdgeInterfaceAuthorityResult
 from pcbsmith.placement_geometry import ExactPlanarCompound
 
 
@@ -394,19 +395,35 @@ class PlacementSidePermission(PlacementIrModel):
 
 
 class PlacementEdgeException(PlacementIrModel):
-    """Explicitly scoped connector/breakaway outer-edge exception."""
+    """Explicitly scoped outer-edge exception backed by replayed interface geometry."""
 
     schema_id: Literal["pcbsmith-placement-edge-exception"] = "pcbsmith-placement-edge-exception"
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     reference: str = Field(min_length=1)
     rule_id: str = Field(min_length=1)
     waive_outer_edge_containment: bool = False
+    waive_courtyard_outer_edge_containment: bool = False
     minimum_outer_edge_clearance_mm: float = Field(default=0.0, ge=0)
+    interface_authority: EdgeInterfaceAuthorityResult | None = None
 
     @model_validator(mode="after")
-    def identities_are_canonical(self) -> Self:
+    def identities_and_authority_are_canonical(self) -> Self:
         object.__setattr__(self, "reference", _require_identity(self.reference, "reference"))
         object.__setattr__(self, "rule_id", _require_identity(self.rule_id, "rule_id"))
+        waives = (
+            self.waive_outer_edge_containment
+            or self.waive_courtyard_outer_edge_containment
+        )
+        if waives and self.interface_authority is None:
+            raise ValueError("outer-edge containment waiver requires interface authority")
+        if self.interface_authority is not None:
+            declaration = self.interface_authority.declaration
+            if not self.interface_authority.approved:
+                raise ValueError("edge-interface authority must be approved")
+            if declaration.reference != self.reference:
+                raise ValueError("edge-interface authority reference is stale")
+            if declaration.exception_rule_id != self.rule_id:
+                raise ValueError("edge-interface authority rule is stale")
         return self
 
 
@@ -452,6 +469,7 @@ class PlacementLegalizationFindingKind(StrEnum):
     COURTYARD_CONTAINMENT = "courtyard_containment"
     REGION_UNSUPPORTED = "region_unsupported"
     BOARD_GEOMETRY_UNSUPPORTED = "board_geometry_unsupported"
+    EDGE_INTERFACE_AUTHORITY = "edge_interface_authority"
     LEGALIZATION_BUDGET = "legalization_budget"
 
 

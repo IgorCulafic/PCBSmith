@@ -251,6 +251,19 @@ class ExactSegmentDistanceWitness:
             raise ValueError("zero-distance segment witness points must coincide")
 
 
+@dataclass(frozen=True)
+class ExactSegmentMaximumDistanceWitness:
+    """Exact farthest boundary-vertex distance from a compound to one segment."""
+
+    squared_distance: Fraction
+    compound_point: RationalPoint
+    segment_point: RationalPoint
+
+    def __post_init__(self) -> None:
+        if self.squared_distance < 0:
+            raise ValueError("maximum segment distance cannot be negative")
+
+
 def canonical_simple_polygon(
     points: tuple[Point2d, ...], *, label: str = "polygon"
 ) -> tuple[Point2d, ...]:
@@ -775,6 +788,40 @@ def compound_to_segment_distance_witness(
         candidates, key=lambda item: (item[0], item[1], item[2])
     )
     return ExactSegmentDistanceWitness(squared, compound_point, segment_point)
+
+
+def compound_to_segment_maximum_distance_witness(
+    compound: ExactPlanarCompound,
+    segment_start: Point2d,
+    segment_end: Point2d,
+) -> ExactSegmentMaximumDistanceWitness:
+    """Return the exact farthest boundary-vertex distance to a segment.
+
+    Squared distance to a closed line segment is convex, so its maximum over
+    each polygon edge occurs at an endpoint.  Inspecting every outer and hole
+    boundary vertex therefore gives the exact maximum for polygonal geometry.
+    """
+
+    start = _rational_point(segment_start)
+    end = _rational_point(segment_end)
+    if start == end:
+        raise ValueError("distance segment must be non-degenerate")
+    candidates = tuple(
+        _point_segment_distance_witness(point, start, end)
+        for polygon in compound.polygons
+        for boundary in _polygon_boundaries(polygon)
+        for point in boundary
+    )
+    if not candidates:
+        raise ValueError("cannot measure empty geometry")
+    squared, compound_point, segment_point = max(
+        candidates, key=lambda item: (item[0], item[1], item[2])
+    )
+    return ExactSegmentMaximumDistanceWitness(
+        squared_distance=squared,
+        compound_point=compound_point,
+        segment_point=segment_point,
+    )
 
 
 def compound_minimum_squared_distance(
