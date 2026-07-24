@@ -1,1 +1,1 @@
-"""KiCad CLI and native-artifact integration."""
+"""KiCad CLI, native-artifact, validation, preview, and fabrication integration."""

@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbsmith.local/schema/run-log.schema.json",
+  "title": "PCBSmith Run Log Event",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "run_id",
+    "event_id",
+    "timestamp",
+    "event_type",
+    "task",
+    "payload"
+  ],
+  "properties": {
+    "schema": {
+      "const": "pcbsmith-run-log-event-v1"
+    },
+    "run_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "event_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "event_type": {
+      "type": "string",
+      "enum": [
+        "user_request",
+        "design_snapshot",
+        "model_output",
+        "tool_call",
+        "validation_result",
+        "repair_attempt",
+        "human_review",
+        "artifact_export"
+      ]
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["intent"],
+      "properties": {
+        "intent": {
+          "type": "string"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["simple", "intermediate", "complex"]
+        }
+      }
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": true
+    }
+  }
+}

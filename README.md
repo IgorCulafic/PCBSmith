@@ -44,6 +44,25 @@ The Phase 0 CLI is available through the installed `pcbsmith` script or as a Pyt
 
 The CLI can create and inspect headless PCBSmith projects, load all referenced schematic and board files, derive the first schematic netlist from built-in symbols, and run the minimal Phase 0 ERC.
 
+## Prototype GUI and component catalog
+
+The consolidated repository retains the earlier PySide6 schematic-editor,
+component-catalog, structured AI-command, and KiCad handoff prototypes. They are
+useful test harnesses and research material, but they do not override the
+current independent-generator architecture or its fail-closed production
+workflow.
+
+After installing project dependencies, launch the prototype with:
+
+```powershell
+pcbsmith-gui
+```
+
+The historical design and implementation records are retained under
+[`docs/superpowers`](docs/superpowers). Current engineering status and execution
+order remain authoritative in [`docs/current-state.md`](docs/current-state.md)
+and [`docs/routing-placement-plan.md`](docs/routing-placement-plan.md).
+
 ## Verification
 
 The maintained development and verification environment is Python 3.12. The

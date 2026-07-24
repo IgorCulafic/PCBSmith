@@ -3,12 +3,29 @@
 __pycache__/
 *.py[cod]
 .pytest_cache/
+.pcbsmith/
 .codex-tmp/
 .tmp/
+.cleanup-archive/
+old_files/
+outputs/*
+!outputs/README.md
+ai_assets/models/*
+!ai_assets/models/.gitkeep
+ai_assets/local-ai-config.json
+ai_assets/loras/*
+!ai_assets/loras/.gitkeep
+ai_assets/rag_indexes/*
+!ai_assets/rag_indexes/.gitkeep
+ai_assets/koboldcpp/*
+!ai_assets/koboldcpp/.gitkeep
+.pytest-*/
+.venv.broken-*/
 pytest-*/
 pytest-cache-files-*/
 phase0-*-pytest*/
 phase0-pytest-basetemp/
+ai-context.json
 docs/reference/PCB_Application_Specification.docx
 
 # Generated design revisions remain local by default. The accepted R005
@@ -43,9 +60,8 @@ pcbsmith-demo.html
 # Archived pre-restructure snapshots (reference material, kept locally).
 old_files/
 
-# Local AI runtimes and model weights - never in git (purged from history 2026-07-07)
-ai_assets/models/
-ai_assets/koboldcpp/
+# Local AI runtimes and model weights remain ignored above; only their
+# documented .gitkeep placeholders are versioned.
 /Books/
 .book-cache/
 .pcbsmith-private/

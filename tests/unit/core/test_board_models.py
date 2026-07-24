@@ -3,7 +3,17 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from pcbsmith.core.board import Board, FootprintInstance, Layer, Trace, Via
+from pcbsmith.core.board import (
+    Board,
+    BoardEdgeLoop,
+    BoardEdgeLoopRole,
+    BoardGraphic,
+    BoardGraphicKind,
+    FootprintInstance,
+    Layer,
+    Trace,
+    Via,
+)
 from pcbsmith.core.geom import Point
 
 
@@ -26,6 +36,26 @@ def test_board_keeps_footprints_and_traces_separate_from_symbols() -> None:
             )
         ],
         vias=[Via(net_name="OUT", position=Point(x=5, y=0), drill=300_000, diameter=600_000)],
+        graphics=[
+            BoardGraphic(
+                kind=BoardGraphicKind.RECT,
+                layer=Layer.F_SILK,
+                start=Point(x=1, y=1),
+                end=Point(x=5, y=5),
+                stroke_width=150_000,
+            )
+        ],
+        edge_cuts=[
+            BoardEdgeLoop(
+                role=BoardEdgeLoopRole.OUTLINE,
+                points=(
+                    Point.from_mm(0, 0),
+                    Point.from_mm(40, 0),
+                    Point.from_mm(40, 20),
+                    Point.from_mm(0, 20),
+                ),
+            )
+        ],
     )
     assert board.footprints[0].reference == "R1"
     assert board.traces[0].layer == Layer.F_CU
@@ -63,6 +93,26 @@ def test_board_round_trips_json_collections_as_tuples() -> None:
             )
         ],
         vias=[Via(net_name="OUT", position=Point(x=5, y=0), drill=300_000, diameter=600_000)],
+        graphics=[
+            BoardGraphic(
+                kind=BoardGraphicKind.RECT,
+                layer=Layer.F_SILK,
+                start=Point(x=1, y=1),
+                end=Point(x=5, y=5),
+                stroke_width=150_000,
+            )
+        ],
+        edge_cuts=[
+            BoardEdgeLoop(
+                role=BoardEdgeLoopRole.OUTLINE,
+                points=(
+                    Point.from_mm(0, 0),
+                    Point.from_mm(40, 0),
+                    Point.from_mm(40, 20),
+                    Point.from_mm(0, 20),
+                ),
+            )
+        ],
     )
 
     restored = Board.model_validate_json(board.model_dump_json())
@@ -71,6 +121,11 @@ def test_board_round_trips_json_collections_as_tuples() -> None:
     assert isinstance(restored.traces, tuple)
     assert isinstance(restored.traces[0].points, tuple)
     assert isinstance(restored.vias, tuple)
+    assert isinstance(restored.graphics, tuple)
+    assert restored.graphics[0].kind == BoardGraphicKind.RECT
+    assert isinstance(restored.edge_cuts, tuple)
+    assert restored.edge_cuts[0].role == BoardEdgeLoopRole.OUTLINE
+    assert isinstance(restored.edge_cuts[0].points, tuple)
 
 
 def test_board_rejects_unknown_fields() -> None:

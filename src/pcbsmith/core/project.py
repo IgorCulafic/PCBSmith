@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
+from pcbsmith.core.catalog import CatalogPreferences
+
 
 class DesignRules(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -34,3 +36,4 @@ class Project(BaseModel):
     boards: tuple[str, ...] = Field(default_factory=lambda: ("boards/main.brd.json",))
     libraries: tuple[LibraryRef, ...] = Field(default_factory=lambda: (LibraryRef(id="stdlib"),))
     design_rules: DesignRules = Field(default_factory=DesignRules)
+    catalog_preferences: CatalogPreferences = Field(default_factory=CatalogPreferences)

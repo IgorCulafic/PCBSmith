@@ -1,0 +1,133 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://pcbsmith.local/schema/training-sample.schema.json",
+  "title": "PCBSmith Training Sample",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema",
+    "sample_id",
+    "timestamp",
+    "task",
+    "input_context",
+    "model_output",
+    "validation",
+    "label"
+  ],
+  "properties": {
+    "schema": {
+      "const": "pcbsmith-training-sample-v1"
+    },
+    "sample_id": {
+      "type": "string",
+      "minLength": 1
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "source_run_id": {
+      "type": "string"
+    },
+    "task": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["user_request", "intent"],
+      "properties": {
+        "user_request": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "difficulty": {
+          "type": "string",
+          "enum": ["simple", "intermediate", "complex"]
+        }
+      }
+    },
+    "input_context": {
+      "type": "object",
+      "additionalProperties": true,
+      "properties": {
+        "design_snapshot": {
+          "type": ["object", "null"]
+        },
+        "available_tools": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "available_components": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "artifact_paths": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "model_output": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["raw", "parsed"],
+      "properties": {
+        "raw": {
+          "type": "string"
+        },
+        "parsed": {
+          "type": ["object", "array", "null"]
+        }
+      }
+    },
+    "validation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["status", "failure_type", "errors"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["accepted", "rejected", "failed_validation", "needs_human_review"]
+        },
+        "failure_type": {
+          "type": ["string", "null"]
+        },
+        "errors": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "erc": {
+          "type": ["object", "null"]
+        },
+        "drc": {
+          "type": ["object", "null"]
+        }
+      }
+    },
+    "label": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["quality", "reason"],
+      "properties": {
+        "quality": {
+          "type": "string",
+          "enum": ["positive", "negative", "mixed"]
+        },
+        "reason": {
+          "type": "string"
+        },
+        "preferred_response": {
+          "type": ["string", "null"]
+        }
+      }
+    }
+  }
+}

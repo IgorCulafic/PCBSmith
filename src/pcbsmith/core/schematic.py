@@ -14,6 +14,7 @@ class SymbolInstance(BaseModel):
     position: Point
     rotation_deg: int = 0
     footprint_id: str | None = None
+    mirrored_x: bool = False
 
 
 class Wire(BaseModel):

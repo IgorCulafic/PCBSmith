@@ -56,6 +56,45 @@ class Zone(BaseModel):
     outline: tuple[Point, ...] = Field(min_length=3)
 
 
+class BoardText(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    text: str
+    layer: Layer
+    position: Point
+    rotation_deg: int = 0
+    size: int = Field(default=1_500_000, gt=0)
+    thickness: int = Field(default=150_000, gt=0)
+
+
+class BoardGraphicKind(StrEnum):
+    LINE = "line"
+    RECT = "rect"
+
+
+class BoardGraphic(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    kind: BoardGraphicKind
+    layer: Layer
+    start: Point
+    end: Point
+    stroke_width: int = Field(default=150_000, gt=0)
+
+
+class BoardEdgeLoopRole(StrEnum):
+    OUTLINE = "outline"
+    CUTOUT = "cutout"
+
+
+class BoardEdgeLoop(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    role: BoardEdgeLoopRole
+    points: tuple[Point, ...] = Field(min_length=3)
+    stroke_width: int = Field(default=100_000, gt=0)
+
+
 class Board(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
@@ -64,3 +103,6 @@ class Board(BaseModel):
     traces: tuple[Trace, ...] = ()
     vias: tuple[Via, ...] = ()
     zones: tuple[Zone, ...] = ()
+    texts: tuple[BoardText, ...] = ()
+    graphics: tuple[BoardGraphic, ...] = ()
+    edge_cuts: tuple[BoardEdgeLoop, ...] = ()

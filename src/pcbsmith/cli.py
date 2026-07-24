@@ -223,6 +223,46 @@ from pcbsmith.workflow_feasibility import (
 
 GENERIC_EVIDENCE_FINDING = "Generic passive and LED components are not datasheet-backed yet."
 
+_PROTOTYPE_COMMANDS = frozenset(
+    {
+        "ai-brief",
+        "ai-demo-plan",
+        "ai-openai-plan",
+        "ai-openai-review",
+        "ai-plan-check",
+        "ai-plan-review",
+        "ai-planner-package",
+        "ai-proposal-bundle",
+        "board-check",
+        "calculator",
+        "circuit-rules",
+        "circuit-topologies",
+        "component-knowledge-index",
+        "component-knowledge-search",
+        "component-select",
+        "component-selection",
+        "design-attiny-led-controller",
+        "design-buck-converter",
+        "design-led-art",
+        "design-silkscreen-artwork",
+        "kicad-context",
+        "kicad-doctor",
+        "kicad-export",
+        "kicad-library-index",
+        "kicad-new",
+        "kicad-part-resolve",
+        "kicad-plan",
+        "kicad-preview",
+        "kicad-review-bundle",
+        "kicad-status",
+        "kicad-validate",
+        "local-agent-review",
+        "local-ai-config-check",
+        "local-ai-config-template",
+        "local-ai-review",
+    }
+)
+
 
 def _cmd_new(args: argparse.Namespace) -> int:
     project_dir = Path(args.project)
@@ -2455,9 +2495,7 @@ def _cmd_part_discover(args: argparse.Namespace) -> int:
 
 
 def _cmd_project_engineering_gate(args: argparse.Namespace) -> int:
-    context = ProjectEngineeringContext.model_validate_json(
-        Path(args.context).read_text("utf-8")
-    )
+    context = ProjectEngineeringContext.model_validate_json(Path(args.context).read_text("utf-8"))
     bundle = Phase14EvaluationBundle.model_validate_json(Path(args.bundle).read_text("utf-8"))
     reports = tuple(
         ExactPartDiscoveryReport.model_validate_json(Path(item).read_text("utf-8"))
@@ -2578,20 +2616,13 @@ def _cmd_workflow_examine(args: argparse.Namespace) -> int:
         project_id=payload["project_id"],
         original_text=payload["original_text"],
         spans=tuple(SourceSpan.model_validate(item) for item in payload["spans"]),
-        claims=tuple(
-            ExaminedClaim.model_validate(item) for item in payload["claims"]
-        ),
+        claims=tuple(ExaminedClaim.model_validate(item) for item in payload["claims"]),
         anchors=tuple(
-            TypedSpatialAnchor.model_validate(item)
-            for item in payload.get("anchors", ())
+            TypedSpatialAnchor.model_validate(item) for item in payload.get("anchors", ())
         ),
-        issues=tuple(
-            PromptIssue.model_validate(item) for item in payload.get("issues", ())
-        ),
+        issues=tuple(PromptIssue.model_validate(item) for item in payload.get("issues", ())),
     )
-    rendered = (
-        json.dumps(examination.model_dump(mode="json"), indent=2) + "\n"
-    )
+    rendered = json.dumps(examination.model_dump(mode="json"), indent=2) + "\n"
     Path(args.output).write_text(rendered, encoding="utf-8")
     print(rendered, end="")
     return 0 if examination.outcome == "ready_for_concept" else 1
@@ -2599,9 +2630,7 @@ def _cmd_workflow_examine(args: argparse.Namespace) -> int:
 
 def _cmd_production_placement_review(args: argparse.Namespace) -> int:
     board = Path(args.board)
-    features = ReviewFeatures.model_validate_json(
-        Path(args.features).read_text("utf-8")
-    )
+    features = ReviewFeatures.model_validate_json(Path(args.features).read_text("utf-8"))
     preflight = ModelPreflightReport.model_validate_json(
         Path(args.model_preflight).read_text("utf-8")
     )
@@ -2634,21 +2663,13 @@ def _cmd_production_placement_review(args: argparse.Namespace) -> int:
 
 
 def _cmd_workflow_route_gate(args: argparse.Namespace) -> int:
-    examination = PromptExamination.model_validate_json(
-        Path(args.examination).read_text("utf-8")
-    )
-    context = ProjectContextBundle.model_validate_json(
-        Path(args.context).read_text("utf-8")
-    )
+    examination = PromptExamination.model_validate_json(Path(args.examination).read_text("utf-8"))
+    context = ProjectContextBundle.model_validate_json(Path(args.context).read_text("utf-8"))
     feasibility = PreRouteFeasibilityReport.model_validate_json(
         Path(args.feasibility).read_text("utf-8")
     )
-    drift = ConceptDriftReport.model_validate_json(
-        Path(args.concept_drift).read_text("utf-8")
-    )
-    review = VisualReviewManifest.model_validate_json(
-        Path(args.review_manifest).read_text("utf-8")
-    )
+    drift = ConceptDriftReport.model_validate_json(Path(args.concept_drift).read_text("utf-8"))
+    review = VisualReviewManifest.model_validate_json(Path(args.review_manifest).read_text("utf-8"))
     transaction = GenerationTransactionManifest.model_validate_json(
         Path(args.transaction_manifest).read_text("utf-8")
     )
@@ -2690,15 +2711,9 @@ def _cmd_routing_audit(args: argparse.Namespace) -> int:
                 isolated_root = Path(temporary)
                 isolated = _copy_kicad_drc_context(board, isolated_root)
                 drc_report = run_kicad_drc(isolated, schematic_parity=False)
-                report_path = (
-                    None
-                    if drc_report.drc_report is None
-                    else Path(drc_report.drc_report)
-                )
+                report_path = None if drc_report.drc_report is None else Path(drc_report.drc_report)
                 if report_path is not None and report_path.exists():
-                    drc_payload = inspect_kicad_drc_report(report_path).model_dump(
-                        mode="json"
-                    )
+                    drc_payload = inspect_kicad_drc_report(report_path).model_dump(mode="json")
                     drc_payload["runner_status"] = drc_report.status
                     drc_payload["findings"] = drc_report.findings
                 else:
@@ -2727,22 +2742,11 @@ def _cmd_routing_audit(args: argparse.Namespace) -> int:
             }
         )
     summary = {
-        disposition: sum(
-            item["disposition"] == disposition for item in records
-        )
-        for disposition in sorted(
-            {str(item["disposition"]) for item in records}
-        )
+        disposition: sum(item["disposition"] == disposition for item in records)
+        for disposition in sorted({str(item["disposition"]) for item in records})
     }
     projects: list[dict[str, object]] = []
-    project_names = tuple(
-        sorted(
-            {
-                Path(str(item["relative_path"])).parts[0]
-                for item in records
-            }
-        )
-    )
+    project_names = tuple(sorted({Path(str(item["relative_path"])).parts[0] for item in records}))
     disposition_priority = (
         "routed_candidate_drc_clean_unreleased",
         "routed_candidate_unverified",
@@ -2753,21 +2757,15 @@ def _cmd_routing_audit(args: argparse.Namespace) -> int:
     )
     for project_name in project_names:
         project_records = tuple(
-            item
-            for item in records
-            if Path(str(item["relative_path"])).parts[0] == project_name
+            item for item in records if Path(str(item["relative_path"])).parts[0] == project_name
         )
         dispositions = {str(item["disposition"]) for item in project_records}
-        project_disposition = next(
-            item for item in disposition_priority if item in dispositions
-        )
+        project_disposition = next(item for item in disposition_priority if item in dispositions)
         projects.append(
             {
                 "project": project_name,
                 "disposition": project_disposition,
-                "board_paths": tuple(
-                    str(item["relative_path"]) for item in project_records
-                ),
+                "board_paths": tuple(str(item["relative_path"]) for item in project_records),
             }
         )
     payload = {
@@ -2785,11 +2783,15 @@ def _cmd_routing_audit(args: argparse.Namespace) -> int:
     if args.output:
         Path(args.output).write_text(rendered, encoding="utf-8")
     print(rendered, end="")
-    return 1 if any(
-        item["disposition"]
-        in {"placement_only", "partially_routed", "routed_candidate_drc_failed"}
-        for item in records
-    ) else 0
+    return (
+        1
+        if any(
+            item["disposition"]
+            in {"placement_only", "partially_routed", "routed_candidate_drc_failed"}
+            for item in records
+        )
+        else 0
+    )
 
 
 def _is_canonical_project_board(root: Path, board: Path) -> bool:
@@ -2835,9 +2837,7 @@ def _copy_kicad_drc_context(board: Path, destination: Path) -> Path:
 
 
 def _cmd_routed_release_gate(args: argparse.Namespace) -> int:
-    review = VisualReviewManifest.model_validate_json(
-        Path(args.review_manifest).read_text("utf-8")
-    )
+    review = VisualReviewManifest.model_validate_json(Path(args.review_manifest).read_text("utf-8"))
     transaction = GenerationTransactionManifest.model_validate_json(
         Path(args.transaction_manifest).read_text("utf-8")
     )
@@ -4026,8 +4026,13 @@ def build_parser() -> argparse.ArgumentParser:
 
 
 def main(argv: list[str] | None = None) -> int:
+    effective_argv = list(sys.argv[1:] if argv is None else argv)
+    if effective_argv and effective_argv[0] in _PROTOTYPE_COMMANDS:
+        from pcbsmith.prototype_cli import main as prototype_main
+
+        return prototype_main(effective_argv)
     parser = build_parser()
-    args = parser.parse_args(argv)
+    args = parser.parse_args(effective_argv)
     try:
         command: Callable[[argparse.Namespace], int] = args.func
         return command(args)

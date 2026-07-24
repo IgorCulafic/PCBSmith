@@ -1,0 +1,88 @@
+from __future__ import annotations
+
+from PySide6.QtCore import QRectF
+from PySide6.QtGui import QPainter
+from PySide6.QtWidgets import QGraphicsRectItem, QGraphicsScene
+
+from pcbsmith.core.geom import Point, mm_to_nm
+from pcbsmith.core.schematic import SymbolInstance
+from pcbsmith.ui.items import SymbolItem
+from pcbsmith.ui.schematic_view import (
+    GRID_NM,
+    ZOOM_IN_FACTOR,
+    ZOOM_OUT_FACTOR,
+    SchematicView,
+)
+
+
+def test_view_has_expected_navigation_defaults(qtbot) -> None:  # type: ignore[no-untyped-def]
+    scene = QGraphicsScene()
+    view = SchematicView(scene)
+    qtbot.addWidget(view)
+
+    assert view.dragMode() == SchematicView.DragMode.NoDrag
+    assert view.transformationAnchor() == SchematicView.ViewportAnchor.AnchorUnderMouse
+    assert view.resizeAnchor() == SchematicView.ViewportAnchor.AnchorUnderMouse
+    assert view.renderHints() & QPainter.RenderHint.Antialiasing
+    assert view.renderHints() & QPainter.RenderHint.TextAntialiasing
+    assert GRID_NM == 2_540_000
+    assert ZOOM_IN_FACTOR == 1.15
+    assert ZOOM_OUT_FACTOR == 1 / ZOOM_IN_FACTOR
+    assert view.sceneRect() == QRectF(
+        -mm_to_nm(500),
+        -mm_to_nm(500),
+        mm_to_nm(1000),
+        mm_to_nm(1000),
+    )
+    assert scene.sceneRect() == view.sceneRect()
+
+
+def test_fit_to_contents_changes_transform(qtbot) -> None:  # type: ignore[no-untyped-def]
+    scene = QGraphicsScene()
+    scene.addItem(QGraphicsRectItem(QRectF(-1_000_000, -1_000_000, 2_000_000, 2_000_000)))
+    view = SchematicView(scene)
+    view.resize(400, 300)
+    qtbot.addWidget(view)
+
+    before = view.transform()
+    view.fit_to_contents()
+
+    assert view.transform() != before
+
+
+def test_fit_to_contents_uses_centered_default_view_when_empty(
+    qtbot,
+) -> None:  # type: ignore[no-untyped-def]
+    class RecordingSchematicView(SchematicView):
+        fitted_rect: QRectF | None = None
+
+        def fitInView(self, rect, aspect_ratio_mode) -> None:  # type: ignore[no-untyped-def]
+            self.fitted_rect = QRectF(rect)
+            super().fitInView(rect, aspect_ratio_mode)
+
+    scene = QGraphicsScene()
+    view = RecordingSchematicView(scene)
+    view.resize(400, 300)
+    qtbot.addWidget(view)
+
+    view.fit_to_contents()
+
+    assert view.fitted_rect == view.default_view_rect()
+
+
+def test_symbol_item_uses_library_pin_positions_for_connection_handles() -> None:
+    item = SymbolItem(
+        SymbolInstance(
+            reference="R1",
+            symbol_id="stdlib:R",
+            value="10k",
+            position=Point(x=0, y=0),
+        )
+    )
+
+    assert item.local_pin_positions() == (
+        Point(x=-mm_to_nm(5.08), y=0),
+        Point(x=mm_to_nm(5.08), y=0),
+    )
+    assert item.boundingRect().contains(-mm_to_nm(5.08), 0)
+    assert item.boundingRect().contains(mm_to_nm(5.08), 0)

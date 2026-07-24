@@ -12,9 +12,9 @@ from pathlib import Path
 from typing import Any
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
-from generate_bunny_board import BunnyGeometry, extract_bunny_geometry
 from shapely.geometry import Point as ShapePoint
 
+from generate_bunny_board import BunnyGeometry, extract_bunny_geometry
 from pcbsmith.kicad.astar_router import route_board
 from pcbsmith.kicad.board import (
     BOARD_SHEET_ORIGIN_MM,

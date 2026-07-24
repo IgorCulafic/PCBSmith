@@ -15,7 +15,6 @@ from generate_bldc_esc_r001 import (
     _run,
     _sha256,
 )
-
 from pcbsmith.generation.bldc_esc import compose_bldc_esc
 from pcbsmith.generation.bldc_esc_engineering import (
     write_bldc_esc_engineering_evidence,
