@@ -77,6 +77,25 @@ Verification:
 - production-workflow tests: 15 passed, including success and omitted
   per-artifact accounting.
 
+### Typed review conventions
+
+The supplied schematic/PCB review guidance now has a typed convention model
+that separates release requirements, conditional electrical/layout guidance,
+and presentation preferences. Each convention is source-span and
+source-document bound and has explicit always, board-triggered,
+space-conditional, or human-decision applicability.
+
+Only an applicable release-class failure or unresolved required release check
+can block release. A presentation preference cannot become a universal blocker,
+and a dormant RF/antenna/high-current-style trigger cannot affect an unrelated
+board. Exact saved-design check evidence is required for applicable execution.
+
+Verification:
+
+- focused Ruff format/check: passed;
+- strict mypy: passed;
+- convention applicability tests: 3 passed.
+
 ## Phase 18
 
 ### Manufacturing authority and neutral package

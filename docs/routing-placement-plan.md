@@ -1231,7 +1231,7 @@ verification.
   bounded neighbor-evidence retrieval, conservative normalization/
   deduplication, and production invocation of the new manifest. Do not create
   a separate assistant-style or routine human-operated review workflow.
-- [ ] Turn the user-supplied schematic/PCB review conventions into typed
+- [x] Turn the user-supplied schematic/PCB review conventions into typed
   release, conditional electrical/layout, and presentation obligations.
   Universal blocker promotion is forbidden without applicable authority.
 
