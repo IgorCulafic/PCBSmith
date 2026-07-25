@@ -108,14 +108,31 @@ Verification:
 
 - focused Ruff format/check: passed;
 - strict mypy for both manufacturing modules: passed;
-- manufacturing release tests: 7 passed, including deliberate invalid
+- manufacturing release tests: 9 passed, including deliberate invalid
   V-cut, version-mismatch, unknown-current-path, fake-Gerber, and approval
   failure cases.
 
+The pinned tool runtime was then installed locally. Corrected headless
+InteractiveHtmlBom execution and live KiCad neutral export succeeded on the
+regular Retro-Pad 3x3 and irregular Retro-Pad R003 candidates. A first
+InteractiveHtmlBom launcher caused a wxWidgets action-plugin assertion because
+it omitted `INTERACTIVE_HTML_BOM_CLI_MODE`; the launcher now forces both CLI
+mode and no-display mode and has a dedicated regression test.
+
+Baseline DFM/DFT execution now automatically consumes exact saved-board
+identities and KiCad DRC for courtyard/process clearance, checks SMD/paste
+aperture coverage, checks explicit test-point identities, and reports every
+unsupported category as unverified unless exact supplemental evidence is
+retained. Unsupported thermal-via, panel-feature, probe-access, orientation,
+assembly-sequence, or rework scopes cannot become green by omission.
+
+KiKit generated both proof panels, but panel DRC rejected both. These failures
+are retained as corrective evidence, not counted as completion.
+
 Open acceptance work:
 
-- install and execute the exact pinned KiKit and InteractiveHtmlBom versions;
-- add live KiCad exporter orchestration and automatic DFM/DFT evaluators;
-- generate, reimport/inspect, and retain regular and irregular/cutout packages;
+- correct panel configuration and pass panel-level DRC;
+- complete current-path and unsupported DFM/DFT evidence for both boards;
+- assemble and inspect the regular and irregular/cutout package manifests;
 - collect actual human, fabricator, and assembler approvals only when a package
   is genuinely released.

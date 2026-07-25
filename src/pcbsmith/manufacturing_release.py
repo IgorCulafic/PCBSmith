@@ -19,6 +19,9 @@ from pydantic import Field, model_validator
 from pcbsmith.manufacturing_ir import (
     CurrentPathAuthority,
     CurrentPathRecord,
+    DfmDftCategory,
+    DfmDftDisposition,
+    DfmDftEvidence,
     DfmDftReport,
     FabricationElectricalProfile,
     ManufacturingApproval,
@@ -80,6 +83,7 @@ def inspect_version_pinned_tool(
     tool_id: str,
     command: Sequence[str],
     pinned_version: str,
+    environment: Mapping[str, str] | None = None,
 ) -> ManufacturingToolEvidence:
     """Inspect a tool without installing or silently substituting it."""
 
@@ -88,11 +92,16 @@ def inspect_version_pinned_tool(
     stderr = b""
     status = ManufacturingToolStatus.UNAVAILABLE
     limitations: tuple[str, ...] = ()
+    process_environment = None
+    if environment is not None:
+        process_environment = os.environ.copy()
+        process_environment.update(environment)
     try:
         completed = subprocess.run(
             list(command),
             capture_output=True,
             check=False,
+            env=process_environment,
         )
         stdout = completed.stdout
         stderr = completed.stderr
@@ -402,7 +411,11 @@ class PanelizationProfile(SemanticIrModel):
                 "vspace": f"{self.vertical_spacing_mm:g}mm",
             },
             "source": {"type": "auto", "tolerance": "1mm"},
-            "tabs": {"type": "spacing", "width": f"{self.tabs_width_mm:g}mm"},
+            "tabs": (
+                {"type": "full"}
+                if self.cut_method is PanelCutMethod.V_CUTS
+                else {"type": "spacing", "width": f"{self.tabs_width_mm:g}mm"}
+            ),
             "cuts": cuts,
             "framing": {"type": frame_type, "width": f"{self.rail_width_mm:g}mm"},
             "tooling": {"type": "3hole" if self.tooling_hole_count >= 3 else "none"},
@@ -439,6 +452,7 @@ def generate_kikit_panel(
     profile: PanelizationProfile,
     tool_evidence: ManufacturingToolEvidence,
     executable: str = "kikit",
+    command_prefix: Sequence[str] | None = None,
 ) -> Path:
     """Run the pinned KiKit CLI and retain its resolved configuration."""
 
@@ -454,8 +468,9 @@ def generate_kikit_panel(
         json.dumps(profile.kikit_configuration(), indent=2) + "\n",
         encoding="utf-8",
     )
+    prefix = tuple(command_prefix) if command_prefix is not None else (executable,)
     command = (
-        executable,
+        *prefix,
         "panelize",
         "-p",
         str(configuration),
@@ -479,6 +494,7 @@ def generate_interactive_html_bom(
     profile: InteractiveBomProfile,
     tool_evidence: ManufacturingToolEvidence,
     executable: str = "generate_interactive_bom",
+    command_prefix: Sequence[str] | None = None,
 ) -> Path:
     """Generate one self-contained assembly BOM with explicit side/variant data."""
 
@@ -494,8 +510,9 @@ def generate_interactive_html_bom(
         if profile.include_front and profile.include_back
         else ("F" if profile.include_front else "B")
     )
+    prefix = tuple(command_prefix) if command_prefix is not None else (executable,)
     command: list[str] = [
-        executable,
+        *prefix,
         "--no-browser",
         "--dest-dir",
         str(output_directory),
@@ -516,7 +533,16 @@ def generate_interactive_html_bom(
         command.extend(("--blacklist", ",".join(profile.dnp_reference_ids)))
     command.append(str(board_file))
     before = set(output_directory.glob("*.html"))
-    completed = subprocess.run(command, capture_output=True, text=True, check=False)
+    environment = os.environ.copy()
+    environment["INTERACTIVE_HTML_BOM_NO_DISPLAY"] = "1"
+    environment["INTERACTIVE_HTML_BOM_CLI_MODE"] = "1"
+    completed = subprocess.run(
+        command,
+        capture_output=True,
+        text=True,
+        check=False,
+        env=environment,
+    )
     produced = tuple(sorted(set(output_directory.glob("*.html")) - before))
     if completed.returncode != 0 or len(produced) != 1:
         raise RuntimeError(
@@ -778,6 +804,404 @@ def assemble_neutral_manufacturing_package(
         )
     )
     return manifest, archive
+
+
+def export_kicad_neutral_sources(
+    *,
+    board_file: Path,
+    output_directory: Path,
+    profile: FabricationElectricalProfile,
+    identities: ManufacturingIdentityRegistry,
+    interactive_bom_file: Path,
+    kicad_cli: Path,
+    kicad_version: str,
+) -> tuple[
+    dict[ManufacturingArtifactRole, tuple[Path, ...]],
+    ManufacturingToolEvidence,
+]:
+    """Export the canonical neutral source set with KiCad's headless CLI."""
+
+    if output_directory.exists():
+        raise ValueError(f"neutral export target already exists: {output_directory}")
+    output_directory.mkdir(parents=True)
+    tool = inspect_version_pinned_tool(
+        tool_id="kicad-cli",
+        command=(str(kicad_cli), "version"),
+        pinned_version=kicad_version,
+    )
+    if tool.status is not ManufacturingToolStatus.AVAILABLE:
+        raise ValueError("KiCad CLI version does not match the manufacturing pin")
+    gerber_dir = output_directory / "gerber"
+    drill_dir = output_directory / "drill"
+    drawing_dir = output_directory / "drawings"
+    gerber_dir.mkdir()
+    drill_dir.mkdir()
+    drawing_dir.mkdir()
+    commands = (
+        (
+            str(kicad_cli),
+            "pcb",
+            "export",
+            "gerbers",
+            "--layers",
+            "F.Cu,B.Cu,F.Mask,B.Mask,F.Silkscreen,B.Silkscreen,Edge.Cuts,F.Paste,B.Paste",
+            "--check-zones",
+            "--output",
+            str(gerber_dir) + os.sep,
+            str(board_file),
+        ),
+        (
+            str(kicad_cli),
+            "pcb",
+            "export",
+            "drill",
+            "--format",
+            "excellon",
+            "--generate-map",
+            "--map-format",
+            "gerberx2",
+            "--output",
+            str(drill_dir) + os.sep,
+            str(board_file),
+        ),
+        (
+            str(kicad_cli),
+            "pcb",
+            "export",
+            "ipcd356",
+            "--output",
+            str(output_directory / "netlist.ipc"),
+            str(board_file),
+        ),
+        (
+            str(kicad_cli),
+            "pcb",
+            "export",
+            "pos",
+            "--format",
+            "csv",
+            "--units",
+            "mm",
+            "--side",
+            "both",
+            "--exclude-dnp",
+            "--output",
+            str(output_directory / "placement.csv"),
+            str(board_file),
+        ),
+        _pdf_export_command(
+            kicad_cli=kicad_cli,
+            board_file=board_file,
+            output=drawing_dir / "fabrication.pdf",
+            layers="F.Fab,B.Fab,Edge.Cuts",
+            mirror=False,
+        ),
+        _pdf_export_command(
+            kicad_cli=kicad_cli,
+            board_file=board_file,
+            output=drawing_dir / "assembly-front.pdf",
+            layers="F.Silkscreen,F.Fab,Edge.Cuts",
+            mirror=False,
+        ),
+        _pdf_export_command(
+            kicad_cli=kicad_cli,
+            board_file=board_file,
+            output=drawing_dir / "assembly-back.pdf",
+            layers="B.Silkscreen,B.Fab,Edge.Cuts",
+            mirror=True,
+        ),
+    )
+    for command in commands:
+        completed = subprocess.run(
+            command,
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        if completed.returncode != 0:
+            raise RuntimeError(
+                "KiCad neutral export failed: "
+                + (completed.stderr.strip() or completed.stdout.strip())
+            )
+    bom_file = output_directory / "bom.csv"
+    _write_identity_bom(bom_file, identities)
+    stackup_file = output_directory / "stackup-notes.md"
+    _write_stackup_notes(stackup_file, profile)
+    readme_file = output_directory / "README.md"
+    readme_file.write_text(
+        "# Manufacturer-neutral outputs\n\n"
+        "These files are generated evidence, not fabrication or assembly "
+        "approval. Read the package manifest, DFM/DFT report, current-path "
+        "records, limitations, and approval records before release.\n",
+        encoding="utf-8",
+    )
+    retained_ibom = output_directory / "interactive-bom.html"
+    shutil.copy2(interactive_bom_file, retained_ibom)
+    gerbers = tuple(sorted(gerber_dir.glob("*")))
+    paste = tuple(
+        path
+        for path in gerbers
+        if "paste" in path.name.casefold() or path.suffix.casefold() in {".gtp", ".gbp"}
+    )
+    ordinary_gerbers = tuple(path for path in gerbers if path not in paste)
+    drill_files = tuple(
+        path for path in drill_dir.glob("*") if path.suffix.casefold() in {".drl", ".xln"}
+    )
+    drill_maps = tuple(path for path in drill_dir.glob("*") if path not in drill_files)
+    sources = {
+        ManufacturingArtifactRole.GERBER: ordinary_gerbers,
+        ManufacturingArtifactRole.DRILL: drill_files,
+        ManufacturingArtifactRole.DRILL_MAP: drill_maps,
+        ManufacturingArtifactRole.NETLIST: (output_directory / "netlist.ipc",),
+        ManufacturingArtifactRole.STACKUP_NOTES: (stackup_file,),
+        ManufacturingArtifactRole.FABRICATION_DRAWING: (drawing_dir / "fabrication.pdf",),
+        ManufacturingArtifactRole.ASSEMBLY_DRAWING_FRONT: (drawing_dir / "assembly-front.pdf",),
+        ManufacturingArtifactRole.ASSEMBLY_DRAWING_BACK: (drawing_dir / "assembly-back.pdf",),
+        ManufacturingArtifactRole.BOM: (bom_file,),
+        ManufacturingArtifactRole.PLACEMENT: (output_directory / "placement.csv",),
+        ManufacturingArtifactRole.PASTE: paste,
+        ManufacturingArtifactRole.INTERACTIVE_BOM: (retained_ibom,),
+        ManufacturingArtifactRole.README: (readme_file,),
+    }
+    missing_files = tuple(
+        role.value
+        for role, paths in sources.items()
+        if not paths or any(not path.is_file() for path in paths)
+    )
+    if missing_files:
+        raise RuntimeError("KiCad neutral export omitted roles: " + ", ".join(missing_files))
+    return sources, tool
+
+
+def evaluate_baseline_dfm_dft(
+    *,
+    board_file: Path,
+    drc_report_file: Path,
+    supplemental_evidence: Mapping[DfmDftCategory, DfmDftEvidence] | None = None,
+) -> DfmDftReport:
+    """Run deterministic baseline checks and expose unsupported scopes."""
+
+    from pcbsmith.kicad.routing_evidence import inspect_kicad_drc_report
+
+    board_sha256 = _bytes_sha256(board_file.read_bytes())
+    identities = extract_saved_board_manufacturing_identities(board_file)
+    drc = inspect_kicad_drc_report(drc_report_file)
+    supplied = {} if supplemental_evidence is None else dict(supplemental_evidence)
+    evidence: list[DfmDftEvidence] = []
+
+    footprint_count = sum(
+        item.kind is ManufacturingIdentityKind.FOOTPRINT for item in identities.identities
+    )
+    evidence.append(
+        _dfm_evidence(
+            category=DfmDftCategory.COURTYARD_PROCESS_CLEARANCE,
+            board_sha256=board_sha256,
+            disposition=(DfmDftDisposition.PASS if drc.clean else DfmDftDisposition.FAIL),
+            count=max(1, footprint_count),
+            findings=(
+                ()
+                if drc.clean
+                else (
+                    "KiCad DRC contains violations/unconnected/parity findings; "
+                    "courtyard/process clearance is not accepted.",
+                )
+            ),
+            source_sha256=drc.report_sha256,
+        )
+    )
+    pad_identities = tuple(
+        item for item in identities.identities if item.kind is ManufacturingIdentityKind.PAD
+    )
+    smd_pads = tuple(item for item in pad_identities if "pad_type=smd" in item.source_keys)
+    paste_apertures = tuple(
+        item
+        for item in identities.identities
+        if item.kind is ManufacturingIdentityKind.APERTURE
+        and any(key in {"layer=F.Paste", "layer=B.Paste"} for key in item.source_keys)
+    )
+    paste_findings: tuple[str, ...]
+    if not smd_pads:
+        paste_disposition = DfmDftDisposition.NOT_APPLICABLE
+        paste_findings = ("saved board contains no SMD pads",)
+        paste_count = 0
+    elif len(paste_apertures) >= len(smd_pads):
+        paste_disposition = DfmDftDisposition.PASS
+        paste_findings = ()
+        paste_count = len(smd_pads)
+    else:
+        paste_disposition = DfmDftDisposition.FAIL
+        paste_findings = (
+            f"{len(smd_pads)} SMD pads but only {len(paste_apertures)} "
+            "front/back paste apertures were identified",
+        )
+        paste_count = len(smd_pads)
+    evidence.append(
+        _dfm_evidence(
+            category=DfmDftCategory.PASTE_STRATEGY,
+            board_sha256=board_sha256,
+            disposition=paste_disposition,
+            count=paste_count,
+            findings=paste_findings,
+            source_sha256=identities.registry_fingerprint,
+        )
+    )
+    reference_keys = tuple(
+        key.removeprefix("reference=")
+        for item in identities.identities
+        if item.kind is ManufacturingIdentityKind.COMPONENT
+        for key in item.source_keys
+        if key.startswith("reference=")
+    )
+    test_points = tuple(ref for ref in reference_keys if ref.upper().startswith("TP"))
+    evidence.append(
+        _dfm_evidence(
+            category=DfmDftCategory.TEST_POINTS,
+            board_sha256=board_sha256,
+            disposition=(DfmDftDisposition.PASS if test_points else DfmDftDisposition.UNVERIFIED),
+            count=len(test_points),
+            findings=(() if test_points else ("no explicit TP reference identities were found",)),
+            source_sha256=identities.registry_fingerprint,
+        )
+    )
+    automatic_categories = {item.category for item in evidence}
+    for category in DfmDftCategory:
+        if category in automatic_categories:
+            if category in supplied:
+                raise ValueError(f"supplemental evidence conflicts with automatic {category.value}")
+            continue
+        if category in supplied:
+            item = supplied[category]
+            if board_sha256 not in item.exact_input_sha256s:
+                raise ValueError(f"supplemental {category.value} evidence targets another board")
+            evidence.append(item)
+        else:
+            evidence.append(
+                _dfm_evidence(
+                    category=category,
+                    board_sha256=board_sha256,
+                    disposition=DfmDftDisposition.UNVERIFIED,
+                    count=0,
+                    findings=("no retained qualified evidence was supplied for this scope",),
+                    source_sha256=identities.registry_fingerprint,
+                )
+            )
+    return DfmDftReport.build(
+        board_sha256=board_sha256,
+        evidence=tuple(evidence),
+    )
+
+
+def _dfm_evidence(
+    *,
+    category: DfmDftCategory,
+    board_sha256: str,
+    disposition: DfmDftDisposition,
+    count: int,
+    findings: tuple[str, ...],
+    source_sha256: str,
+) -> DfmDftEvidence:
+    payload = {
+        "category": category.value,
+        "board_sha256": board_sha256,
+        "disposition": disposition.value,
+        "count": count,
+        "findings": findings,
+        "source_sha256": source_sha256,
+    }
+    return DfmDftEvidence(
+        category=category,
+        disposition=disposition,
+        producer_id="pcbsmith.phase18.baseline-dfm-dft",
+        tool_version="1",
+        exact_input_sha256s=tuple(sorted({board_sha256, source_sha256})),
+        evaluated_object_count=count,
+        findings=findings,
+        evidence_sha256=fingerprint(payload),
+    )
+
+
+def _pdf_export_command(
+    *,
+    kicad_cli: Path,
+    board_file: Path,
+    output: Path,
+    layers: str,
+    mirror: bool,
+) -> tuple[str, ...]:
+    command = [
+        str(kicad_cli),
+        "pcb",
+        "export",
+        "pdf",
+        "--mode-single",
+        "--black-and-white",
+        "--sketch-pads-on-fab-layers",
+        "--layers",
+        layers,
+        "--output",
+        str(output),
+    ]
+    if mirror:
+        command.append("--mirror")
+    command.append(str(board_file))
+    return tuple(command)
+
+
+def _write_identity_bom(
+    path: Path,
+    identities: ManufacturingIdentityRegistry,
+) -> None:
+    import csv
+
+    rows = tuple(
+        item for item in identities.identities if item.kind is ManufacturingIdentityKind.BOM_ROW
+    )
+    with path.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.writer(handle)
+        writer.writerow(("Ref", "Value", "Footprint", "StableId"))
+        for item in rows:
+            keys = dict(key.split("=", 1) for key in item.source_keys if "=" in key)
+            writer.writerow(
+                (
+                    keys.get("reference", ""),
+                    keys.get("value", ""),
+                    keys.get("library_id", ""),
+                    item.stable_id,
+                )
+            )
+
+
+def _write_stackup_notes(
+    path: Path,
+    profile: FabricationElectricalProfile,
+) -> None:
+    lines = [
+        f"# Stack-up and process profile: {profile.profile_id}",
+        "",
+        f"- Board thickness: {profile.board_thickness_mm:g} mm",
+        f"- Base material: {profile.base_material}",
+        f"- Material Tg: {profile.material_tg_c:g} °C",
+        f"- Surface finish: {profile.surface_finish}",
+        f"- Insulation basis: {profile.insulation_basis}",
+        "",
+        "| Sequence | Layer | Kind | Material | Thickness | Copper weight |",
+        "| ---: | --- | --- | --- | ---: | ---: |",
+    ]
+    for layer in profile.stackup:
+        copper = f"{layer.copper_weight_oz:g} oz" if layer.copper_weight_oz is not None else "n/a"
+        lines.append(
+            f"| {layer.sequence} | {layer.layer_id} | {layer.kind.value} | "
+            f"{layer.material} | {layer.thickness_um:g} µm | {copper} |"
+        )
+    lines.extend(
+        (
+            "",
+            "This selected profile is a design requirement. The fabricator "
+            "must confirm its achievable process and tolerances.",
+            "",
+        )
+    )
+    path.write_text("\n".join(lines), encoding="utf-8")
 
 
 def _validate_manufacturing_artifact(

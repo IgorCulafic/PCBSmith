@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import subprocess
 import sys
 from pathlib import Path
 
@@ -26,8 +27,10 @@ from pcbsmith.manufacturing_ir import (
     StackupLayerKind,
 )
 from pcbsmith.manufacturing_release import (
+    INTERACTIVE_HTML_BOM_PINNED_VERSION,
     MANDATORY_NEUTRAL_ROLES,
     BoardOutlineClass,
+    InteractiveBomProfile,
     ManufacturingArtifactRole,
     ManufacturingToolStatus,
     NeutralManufacturingPackage,
@@ -35,7 +38,9 @@ from pcbsmith.manufacturing_release import (
     PanelFrameKind,
     PanelizationProfile,
     assemble_neutral_manufacturing_package,
+    evaluate_baseline_dfm_dft,
     extract_saved_board_manufacturing_identities,
+    generate_interactive_html_bom,
     inspect_version_pinned_tool,
 )
 
@@ -313,6 +318,71 @@ def test_version_pin_is_machine_checked() -> None:
 
     assert available.status is ManufacturingToolStatus.AVAILABLE
     assert mismatch.status is ManufacturingToolStatus.VERSION_MISMATCH
+
+
+def test_interactive_bom_launcher_forces_cli_mode_without_plugin_registration(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    board = _board(tmp_path / "board.kicad_pcb")
+    output = tmp_path / "ibom"
+    evidence = inspect_version_pinned_tool(
+        tool_id="interactive-html-bom",
+        command=(
+            sys.executable,
+            "-c",
+            f"print('{INTERACTIVE_HTML_BOM_PINNED_VERSION}')",
+        ),
+        pinned_version=INTERACTIVE_HTML_BOM_PINNED_VERSION,
+    )
+    retained_environment: dict[str, str] = {}
+
+    def fake_run(*args, **kwargs):
+        retained_environment.update(kwargs["env"])
+        output.mkdir(parents=True, exist_ok=True)
+        (output / "interactive.html").write_text(
+            "<html><body>fixture</body></html>",
+            encoding="utf-8",
+        )
+        return subprocess.CompletedProcess(args[0], 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    generated = generate_interactive_html_bom(
+        board_file=board,
+        output_directory=output,
+        profile=InteractiveBomProfile(),
+        tool_evidence=evidence,
+        command_prefix=("fixture-python", "fixture-launcher"),
+    )
+
+    assert generated.name == "interactive.html"
+    assert retained_environment["INTERACTIVE_HTML_BOM_NO_DISPLAY"] == "1"
+    assert retained_environment["INTERACTIVE_HTML_BOM_CLI_MODE"] == "1"
+
+
+def test_baseline_dfm_dft_runs_supported_checks_and_exposes_missing_authority(
+    tmp_path: Path,
+) -> None:
+    board = _board(tmp_path / "board.kicad_pcb")
+    drc = tmp_path / "drc.json"
+    drc.write_text(
+        '{"violations": [], "unconnected_items": [], "schematic_parity": []}',
+        encoding="utf-8",
+    )
+
+    report = evaluate_baseline_dfm_dft(
+        board_file=board,
+        drc_report_file=drc,
+    )
+    by_category = {item.category: item for item in report.evidence}
+
+    assert (
+        by_category[DfmDftCategory.COURTYARD_PROCESS_CLEARANCE].disposition
+        is DfmDftDisposition.PASS
+    )
+    assert by_category[DfmDftCategory.PASTE_STRATEGY].disposition is DfmDftDisposition.PASS
+    assert by_category[DfmDftCategory.REWORK_ACCESS].disposition is DfmDftDisposition.UNVERIFIED
+    assert not report.ready
 
 
 def test_neutral_package_is_atomic_hashed_and_not_release_approved(

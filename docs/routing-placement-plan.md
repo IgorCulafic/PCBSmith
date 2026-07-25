@@ -1357,10 +1357,10 @@ assembler, stack-up, process, and human release review.
 - [ ] Evaluate and version-pin KiKit for panelization and manufacturing-package
   generation. Cover irregular outlines, rails, tabs, mouse bites, V-cuts,
   fiducials, tooling holes, coupons, and panel-level DRC.
-- [ ] Add InteractiveHtmlBom as a self-contained assembly/review artifact with
+- [x] Add InteractiveHtmlBom as a self-contained assembly/review artifact with
   correct side, rotation, DNP, variant, BOM grouping, and optional net/copper
   rendering.
-- [ ] Add DFM/DFT checks for courtyard/process clearance, paste strategy,
+- [x] Add DFM/DFT checks for courtyard/process clearance, paste strategy,
   exposed pads/thermal vias, fiducials, tooling, test points, probe access,
   polarity/orientation, assembly sequence, and rework access.
 - [ ] Evaluate optional manufacturer adapters, beginning with JLCPCB only when
