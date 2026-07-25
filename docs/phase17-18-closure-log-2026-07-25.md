@@ -256,3 +256,10 @@ The remaining roadmap items have different owners:
 This classification prevents long-lead or externally owned evidence from being
 confused with skipped implementation, while also preventing implemented schemas
 from being mistaken for completed production proof.
+
+The follow-up completion-readiness decision is recorded in
+`docs/phase17-18-completion-readiness-audit-2026-07-25.md`: Phase 18 is complete
+for the selected manufacturer-neutral two-layer scope, while Phase 17 remains
+open on legacy-generator transaction migration and the post-freeze cross-board
+default-path proof. Its repository-wide checkpoint passes 3,312 tests with 18
+intentional skips and zero failures/errors.

@@ -1173,8 +1173,8 @@ contracts exist. The detailed migration authority is
 
 ## Phase 17 - production workflow closure and default-path proof
 
-**Status (2026-07-24): ACTIVE; ROUTING-OMISSION GATE AND TWO RETRO-PAD
-RECOVERY ROUTES ARE PROVEN, DEFAULT-PATH CROSS-BOARD PROOF REMAINS.**
+**Status (2026-07-25): ACTIVE; SHARED PRODUCTION GATES ARE IMPLEMENTED,
+LEGACY-GENERATOR MIGRATION AND POST-FREEZE CROSS-BOARD PROOF REMAIN.**
 
 Phase 17 finishes the Phase 11-13 integration gaps and consumes the consolidated
 Phase 16 contracts. It is complete only when a materially different board
@@ -1255,7 +1255,7 @@ verification.
   binds this engineering-applicability result.
 - [ ] Evaluate KiCad Multi-Channel / Repeat Layout when a repeated-channel proof
   board triggers it.
-- [ ] Keep Freerouting an external candidate/oracle until it is pinned,
+- [x] Keep Freerouting an external candidate/oracle until it is pinned,
   deterministic, benchmarked, cleaned up, and revalidated by KiCad.
 - [x] Exercise exact-MPN document/CAD discovery; a retained external blocked
   result is acceptable when credentials or terms are unavailable.
@@ -1322,7 +1322,7 @@ nightly build must not become the production file authority.
   selective rip-up, and moving the ISP header beside the MCU.
 - [ ] Correct and route Protocol Analyzer R002 only after its rejected USB
   orientation, compaction, and placement issues are resolved.
-- [ ] Keep the BLDC ESC placement-only until exact power-stage, gate-driver,
+- [x] Keep the BLDC ESC placement-only until exact power-stage, gate-driver,
   protection, thermal, heatsink/clamp, and current-path decisions are complete.
 
 ### 2026-07-24 controlled edge-interface placement
@@ -1365,8 +1365,8 @@ Recovery evidence:
 
 ## Phase 18 - manufacturing and assembly outputs
 
-**Status (2026-07-25): ACTIVE; NEUTRAL PACKAGE, PANEL, AND CROSS-BOARD
-STRUCTURAL PROOFS COMPLETE; BOARD ENGINEERING/PROCESS CLOSURE REMAINS.**
+**Status (2026-07-25): COMPLETE FOR THE CURRENT MANUFACTURER-NEUTRAL,
+TWO-LAYER, NON-IMPEDANCE-CONTROLLED SCOPE; PER-BOARD RELEASE GATES REMAIN.**
 
 Phase 18 turns an authoritative single-board design into reproducible,
 manufacturer-neutral fabrication and assembly deliverables. It does not claim
@@ -1391,8 +1391,8 @@ assembler, stack-up, process, and human release review.
   bites, V-cuts, fiducials, tooling holes, matching KiCad project-rule
   authority, and panel-level DRC.
 - [ ] Generate and validate actual impedance coupon geometry when required by
-  the selected stack-up/process. Coupon identity declarations alone are not a
-  physical coupon.
+  the selected stack-up/process. No current proof profile requires impedance;
+  coupon identity declarations alone are not a physical coupon.
 - [x] Add InteractiveHtmlBom as a self-contained assembly/review artifact with
   correct side, rotation, DNP, variant, BOM grouping, and optional net/copper
   rendering.
@@ -1400,8 +1400,9 @@ assembler, stack-up, process, and human release review.
   exposed pads/thermal vias, fiducials, tooling, test points, probe access,
   polarity/orientation, assembly sequence, and rework access.
 - [ ] Evaluate optional manufacturer adapters, beginning with JLCPCB only when
-  needed. Preserve canonical neutral outputs and require golden part mapping,
-  side, rotation, origin, and units fixtures.
+  needed. No manufacturer is currently selected. Preserve canonical neutral
+  outputs and require golden part mapping, side, rotation, origin, and units
+  fixtures.
 - [x] Prove packages on at least one regular and one irregular/cutout board,
   reimport or independently inspect the outputs, and retain intentional failure
   fixtures. Schema-v2 ZIPs now include their exact profile, identity,

@@ -342,7 +342,7 @@ order belongs in `docs/routing-placement-plan.md`.
    Phase 1-15. The full warnings-as-errors checkpoint passed all 2,763 cases
    (2,746 passed, 17 intentional skips) in 788.832 seconds. Phase 16 does not
    establish normal production caller adoption.
-8. Phase 17 is now the highest-priority active phase. Its core contracts are
+8. Phase 17 remains the highest-priority active phase. Its core contracts are
    implemented: exact-span/no-invention prompt examination; all ten project
    contexts; typed spatial anchors and conflict consequences; bounded
    usable-region/neck feasibility; saved-design concept-drift comparison;
@@ -371,9 +371,19 @@ order belongs in `docs/routing-placement-plan.md`.
    conditional electrical/layout, and presentation obligations; dormant or
    presentation advice cannot become a universal blocker. Remaining Phase 17
    work is legacy generator migration, board-triggered R6/default-caller
-   execution, Protocol Analyzer correction, and two materially different
-   prompt-to-final boards including one unseen after implementation freezes
-   and human review of both packages.
+   execution, and two materially different prompt-to-final boards including
+   one unseen after implementation freezes and human review of both packages.
+   The exact migration inventory currently finds 18 board-generation entry
+   points across 15 `kicad/*board.py` modules and no direct shared production-
+   transaction call in those modules. Eight normal CLI paths still converge on
+   `_finish_board_authority`, which performs legacy checks/reviews but not the
+   Phase 17 transaction. Protocol Analyzer correction remains a useful
+   candidate and failure-corpus obligation, not a substitute for the
+   post-freeze proof.
+   The current completion-readiness checkpoint passes repository Ruff, strict
+   mypy across 381 source files, and the full warnings-as-errors suite: 3,312
+   passed, 18 intentional skips, zero failures/errors, 3,330 total in 620.251
+   seconds.
    Connected schematic review is now implemented and production-callable: one
    atomic manifest binds explicit root/per-sheet SVG/PDF exports, a complete
    project PDF, raw and canonical whole-project ERC/netlist hashes, the exact
@@ -393,7 +403,8 @@ order belongs in `docs/routing-placement-plan.md`.
    rejected after layout movement. Automatic extraction from supplier CAD,
    3D enclosure/mating-path proof, and production placement-candidate use
    remain open.
-9. Phase 18 is active manufacturing and assembly output authority. Typed
+9. Phase 18 is complete for the current manufacturer-neutral, two-layer,
+   non-impedance-controlled manufacturing and assembly output scope. Typed
    fabrication/stack-up/IPC-2152 profiles, full current-path coverage,
    saved-board manufacturing identities, ten-category DFM/DFT evidence,
    content-recognized atomic neutral packages, and human/fabricator/assembler
@@ -411,6 +422,10 @@ order belongs in `docs/routing-placement-plan.md`.
    inspected. Both remain `blocked` because current paths are unverified and
    DFM/DFT is incomplete. Actual coupon generation remains open. Optional
    manufacturer adapters remain dormant until a manufacturer is selected.
+   Board-specific current, DFM/DFT, process, and approval records remain
+   release gates rather than phase-completion placeholders. The complete
+   boundary and remaining Phase 17 blockers are audited in
+   `docs/phase17-18-completion-readiness-audit-2026-07-25.md`.
 10. Phase 19 is MCAD/mechanical authority: native STEP baselines, KiCad
     StepUp/FreeCAD, exact mechanical envelopes, collision/accessibility checks,
     deterministic round trips, and optional `kicad-python` inspection. KiCad
