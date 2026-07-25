@@ -203,12 +203,25 @@ unsupported category as unverified unless exact supplemental evidence is
 retained. Unsupported thermal-via, panel-feature, probe-access, orientation,
 assembly-sequence, or rework scopes cannot become green by omission.
 
-KiKit generated both proof panels, but panel DRC rejected both. These failures
-are retained as corrective evidence, not counted as completion.
+KiKit generated both first proof panels, but panel DRC rejected both. Those
+failures are retained as corrective evidence. Follow-up implementation added
+explicit tooling/fiducial geometry, exact annotated-tab authority, matching
+`.kicad_pro` rule requirements, and atomic panel/DRC proof manifests.
+
+Three corrected live panels now pass KiCad 10.0.3 DRC with zero findings:
+
+- regular Retro-Pad 3x3 with mouse bites and a full frame;
+- irregular Lucky Clover with mouse bites and a full frame; and
+- regular Retro-Pad 3x3 with V-cuts and top/bottom rails.
+
+Top/bottom 1920×1080 renders and front/back SVGs were inspected. R003 is
+deliberately still classified as not panel-ready: after tab placement was
+corrected, its existing ground pours still produced 16 hole-clearance
+violations. No exclusion or process-rule weakening was used.
 
 Open acceptance work:
 
-- correct panel configuration and pass panel-level DRC;
+- generate and validate actual impedance coupon geometry when applicable;
 - complete current-path and unsupported DFM/DFT evidence for both boards;
 - assemble and inspect the regular and irregular/cutout package manifests;
 - collect actual human, fabricator, and assembler approvals only when a package

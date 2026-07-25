@@ -16,6 +16,7 @@ from typing import Any, Literal, Self
 
 from pydantic import Field, model_validator
 
+from pcbsmith.kicad.routing_evidence import KiCadDrcEvidence, inspect_kicad_drc_report
 from pcbsmith.manufacturing_ir import (
     CurrentPathAuthority,
     CurrentPathRecord,
@@ -345,6 +346,12 @@ class PanelFrameKind(StrEnum):
     FULL_FRAME = "full_frame"
 
 
+class PanelTabPlacement(StrEnum):
+    SPACING = "spacing"
+    FIXED_COUNT = "fixed_count"
+    ANNOTATED = "annotated"
+
+
 class PanelizationProfile(SemanticIrModel):
     schema_id: Literal["pcbsmith-panelization-profile"] = "pcbsmith-panelization-profile"
     schema_version: Literal[1] = 1
@@ -357,10 +364,26 @@ class PanelizationProfile(SemanticIrModel):
     cut_method: PanelCutMethod
     mouse_bite_drill_mm: float | None = Field(default=None, gt=0)
     mouse_bite_spacing_mm: float | None = Field(default=None, gt=0)
+    mouse_bite_offset_mm: float = Field(default=0, ge=0)
+    mouse_bite_prolongation_mm: float = Field(default=0, ge=0)
+    tab_placement: PanelTabPlacement = PanelTabPlacement.SPACING
+    tab_maximum_spacing_mm: float = Field(default=10, gt=0)
+    horizontal_tab_count: int = Field(default=1, gt=0)
+    vertical_tab_count: int = Field(default=1, gt=0)
+    tab_annotation_reference_ids: tuple[str, ...] = ()
     frame_kind: PanelFrameKind
     rail_width_mm: float = Field(gt=0)
-    fiducial_count: int = Field(ge=0)
-    tooling_hole_count: int = Field(ge=0)
+    fiducial_count: Literal[0, 3, 4]
+    fiducial_horizontal_offset_mm: float = Field(default=7, gt=0)
+    fiducial_vertical_offset_mm: float = Field(default=7, gt=0)
+    fiducial_copper_diameter_mm: float = Field(default=1, gt=0)
+    fiducial_opening_diameter_mm: float = Field(default=2, gt=0)
+    tooling_hole_count: Literal[0, 3, 4]
+    tooling_horizontal_offset_mm: float = Field(default=3, gt=0)
+    tooling_vertical_offset_mm: float = Field(default=3, gt=0)
+    tooling_hole_diameter_mm: float = Field(default=2, gt=0)
+    tooling_solder_mask_margin_mm: float = Field(default=0, ge=0)
+    panel_feature_clearance_mm: float = Field(default=0.25, ge=0)
     impedance_coupon_ids: tuple[str, ...] = ()
     panel_drc_required: Literal[True] = True
 
@@ -376,11 +399,49 @@ class PanelizationProfile(SemanticIrModel):
             and self.outline_class is not BoardOutlineClass.REGULAR_RECTANGULAR
         ):
             raise ValueError("irregular/cutout boards require routed tabs, not V-cuts")
+        annotations = tuple(sorted(self.tab_annotation_reference_ids))
+        if len(annotations) != len(set(annotations)):
+            raise ValueError("tab annotation reference identities must be unique")
+        for reference_id in annotations:
+            require_identity(reference_id, "tab_annotation_reference_id")
+        if self.tab_placement is PanelTabPlacement.ANNOTATED and not annotations:
+            raise ValueError("annotated tab placement requires exact reference identities")
+        if self.tab_placement is not PanelTabPlacement.ANNOTATED and annotations:
+            raise ValueError("tab annotation references require annotated tab placement")
+        object.__setattr__(self, "tab_annotation_reference_ids", annotations)
         if self.rows * self.columns > 1:
             if self.fiducial_count < 3:
                 raise ValueError("multi-board panel requires at least three fiducials")
             if self.tooling_hole_count < 3:
                 raise ValueError("multi-board panel requires at least three tooling holes")
+        if self.fiducial_opening_diameter_mm < self.fiducial_copper_diameter_mm:
+            raise ValueError("fiducial opening cannot be smaller than its copper target")
+        feature_extents = (
+            self.fiducial_horizontal_offset_mm + self.fiducial_opening_diameter_mm / 2,
+            self.fiducial_vertical_offset_mm + self.fiducial_opening_diameter_mm / 2,
+            self.tooling_horizontal_offset_mm
+            + self.tooling_hole_diameter_mm / 2
+            + self.tooling_solder_mask_margin_mm,
+            self.tooling_vertical_offset_mm
+            + self.tooling_hole_diameter_mm / 2
+            + self.tooling_solder_mask_margin_mm,
+        )
+        if max(feature_extents) > self.rail_width_mm:
+            raise ValueError("panel feature geometry extends beyond the declared rail width")
+        if self.fiducial_count and self.tooling_hole_count:
+            horizontal_delta = (
+                self.fiducial_horizontal_offset_mm - self.tooling_horizontal_offset_mm
+            )
+            vertical_delta = self.fiducial_vertical_offset_mm - self.tooling_vertical_offset_mm
+            center_distance = (horizontal_delta**2 + vertical_delta**2) ** 0.5
+            minimum_distance = (
+                self.fiducial_opening_diameter_mm / 2
+                + self.tooling_hole_diameter_mm / 2
+                + self.tooling_solder_mask_margin_mm
+                + self.panel_feature_clearance_mm
+            )
+            if center_distance < minimum_distance:
+                raise ValueError("panel fiducial and tooling-hole envelopes overlap")
         coupons = tuple(sorted(self.impedance_coupon_ids))
         if len(coupons) != len(set(coupons)):
             raise ValueError("panel coupon identities must be unique")
@@ -394,6 +455,8 @@ class PanelizationProfile(SemanticIrModel):
                 "type": "mousebites",
                 "drill": f"{self.mouse_bite_drill_mm:g}mm",
                 "spacing": f"{self.mouse_bite_spacing_mm:g}mm",
+                "offset": f"{self.mouse_bite_offset_mm:g}mm",
+                "prolong": f"{self.mouse_bite_prolongation_mm:g}mm",
             }
         else:
             cuts = {"type": "vcuts"}
@@ -402,6 +465,37 @@ class PanelizationProfile(SemanticIrModel):
             PanelFrameKind.LEFT_RIGHT_RAILS: "railslr",
             PanelFrameKind.FULL_FRAME: "frame",
         }[self.frame_kind]
+        tabs: dict[str, object]
+        if self.cut_method is PanelCutMethod.V_CUTS:
+            tabs = {"type": "full"}
+        elif self.tab_placement is PanelTabPlacement.SPACING:
+            tabs = {
+                "type": "spacing",
+                "width": f"{self.tabs_width_mm:g}mm",
+                "spacing": f"{self.tab_maximum_spacing_mm:g}mm",
+            }
+        elif self.tab_placement is PanelTabPlacement.FIXED_COUNT:
+            tabs = {
+                "type": "fixed",
+                "width": f"{self.tabs_width_mm:g}mm",
+                "hcount": self.horizontal_tab_count,
+                "vcount": self.vertical_tab_count,
+            }
+        else:
+            tabs = {
+                "type": "annotation",
+                "tabfootprints": "kikit:Tab",
+            }
+        tooling_type = {
+            0: "none",
+            3: "3hole",
+            4: "4hole",
+        }[self.tooling_hole_count]
+        fiducial_type = {
+            0: "none",
+            3: "3fid",
+            4: "4fid",
+        }[self.fiducial_count]
         return {
             "layout": {
                 "type": "grid",
@@ -411,17 +505,137 @@ class PanelizationProfile(SemanticIrModel):
                 "vspace": f"{self.vertical_spacing_mm:g}mm",
             },
             "source": {"type": "auto", "tolerance": "1mm"},
-            "tabs": (
-                {"type": "full"}
-                if self.cut_method is PanelCutMethod.V_CUTS
-                else {"type": "spacing", "width": f"{self.tabs_width_mm:g}mm"}
-            ),
+            "tabs": tabs,
             "cuts": cuts,
             "framing": {"type": frame_type, "width": f"{self.rail_width_mm:g}mm"},
-            "tooling": {"type": "3hole" if self.tooling_hole_count >= 3 else "none"},
-            "fiducials": {"type": "3fid" if self.fiducial_count >= 3 else "none"},
+            "tooling": {
+                "type": tooling_type,
+                "hoffset": f"{self.tooling_horizontal_offset_mm:g}mm",
+                "voffset": f"{self.tooling_vertical_offset_mm:g}mm",
+                "size": f"{self.tooling_hole_diameter_mm:g}mm",
+                "soldermaskmargin": f"{self.tooling_solder_mask_margin_mm:g}mm",
+            },
+            "fiducials": {
+                "type": fiducial_type,
+                "hoffset": f"{self.fiducial_horizontal_offset_mm:g}mm",
+                "voffset": f"{self.fiducial_vertical_offset_mm:g}mm",
+                "coppersize": f"{self.fiducial_copper_diameter_mm:g}mm",
+                "opening": f"{self.fiducial_opening_diameter_mm:g}mm",
+            },
             "post": {"type": "auto", "dimensions": True},
         }
+
+
+class PanelizationProof(SemanticIrModel):
+    schema_id: Literal["pcbsmith-panelization-proof"] = "pcbsmith-panelization-proof"
+    schema_version: Literal[1] = 1
+    panel_source_file: str
+    panel_source_sha256: str
+    panel_source_project_file: str
+    panel_source_project_sha256: str
+    panel_source_custom_rules_file: str | None
+    panel_source_custom_rules_sha256: str | None
+    panel_file: str
+    panel_sha256: str
+    panel_project_file: str
+    panel_project_sha256: str
+    panel_custom_rules_file: str | None
+    panel_custom_rules_sha256: str | None
+    profile_fingerprint: str
+    kikit_evidence_fingerprint: str
+    kicad_cli_evidence_fingerprint: str
+    drc_command: tuple[str, ...]
+    drc_exit_code: int
+    drc_evidence: KiCadDrcEvidence
+    accepted: bool
+    proof_fingerprint: str
+
+    @model_validator(mode="after")
+    def proof_is_exact_and_fail_closed(self) -> Self:
+        for name in (
+            "panel_source_sha256",
+            "panel_source_project_sha256",
+            "panel_sha256",
+            "panel_project_sha256",
+            "profile_fingerprint",
+            "kikit_evidence_fingerprint",
+            "kicad_cli_evidence_fingerprint",
+            "proof_fingerprint",
+        ):
+            require_sha256(getattr(self, name), name)
+        for file_name, digest_name in (
+            ("panel_source_custom_rules_file", "panel_source_custom_rules_sha256"),
+            ("panel_custom_rules_file", "panel_custom_rules_sha256"),
+        ):
+            file_value = getattr(self, file_name)
+            digest_value = getattr(self, digest_name)
+            if (file_value is None) != (digest_value is None):
+                raise ValueError(f"{file_name} and {digest_name} must be declared together")
+            if digest_value is not None:
+                require_sha256(digest_value, digest_name)
+        if not self.drc_command:
+            raise ValueError("panel proof requires the exact DRC command")
+        expected_acceptance = self.drc_exit_code == 0 and self.drc_evidence.clean
+        if self.accepted != expected_acceptance:
+            raise ValueError("panel proof acceptance is stale")
+        payload = self.model_dump(mode="json", exclude={"proof_fingerprint"})
+        if self.proof_fingerprint != fingerprint(payload):
+            raise ValueError("panel proof fingerprint is stale")
+        return self
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        panel_source_file: Path,
+        panel_file: Path,
+        profile: PanelizationProfile,
+        kikit_evidence: ManufacturingToolEvidence,
+        kicad_cli_evidence: ManufacturingToolEvidence,
+        drc_command: Sequence[str],
+        drc_exit_code: int,
+        drc_evidence: KiCadDrcEvidence,
+    ) -> PanelizationProof:
+        source_project = panel_source_file.with_suffix(".kicad_pro")
+        source_rules = panel_source_file.with_suffix(".kicad_dru")
+        panel_project = panel_file.with_suffix(".kicad_pro")
+        panel_rules = panel_file.with_suffix(".kicad_dru")
+        fields: dict[str, Any] = {
+            "panel_source_file": str(panel_source_file.resolve()),
+            "panel_source_sha256": _bytes_sha256(panel_source_file.read_bytes()),
+            "panel_source_project_file": str(source_project.resolve()),
+            "panel_source_project_sha256": _bytes_sha256(source_project.read_bytes()),
+            "panel_source_custom_rules_file": (
+                str(source_rules.resolve()) if source_rules.is_file() else None
+            ),
+            "panel_source_custom_rules_sha256": (
+                _bytes_sha256(source_rules.read_bytes()) if source_rules.is_file() else None
+            ),
+            "panel_file": str(panel_file.resolve()),
+            "panel_sha256": _bytes_sha256(panel_file.read_bytes()),
+            "panel_project_file": str(panel_project.resolve()),
+            "panel_project_sha256": _bytes_sha256(panel_project.read_bytes()),
+            "panel_custom_rules_file": (
+                str(panel_rules.resolve()) if panel_rules.is_file() else None
+            ),
+            "panel_custom_rules_sha256": (
+                _bytes_sha256(panel_rules.read_bytes()) if panel_rules.is_file() else None
+            ),
+            "profile_fingerprint": fingerprint(profile.model_dump(mode="json")),
+            "kikit_evidence_fingerprint": kikit_evidence.evidence_fingerprint,
+            "kicad_cli_evidence_fingerprint": kicad_cli_evidence.evidence_fingerprint,
+            "drc_command": tuple(drc_command),
+            "drc_exit_code": drc_exit_code,
+            "drc_evidence": drc_evidence,
+            "accepted": drc_exit_code == 0 and drc_evidence.clean,
+        }
+        provisional = cls.model_construct(**fields, proof_fingerprint="0" * 64)
+        return cls(
+            **fields,
+            proof_fingerprint=fingerprint(
+                provisional.model_dump(mode="json", exclude={"proof_fingerprint"})
+            ),
+        )
 
 
 class InteractiveBomProfile(SemanticIrModel):
@@ -445,6 +659,26 @@ class InteractiveBomProfile(SemanticIrModel):
         return self
 
 
+def _panel_tab_annotation_reference_ids(board_file: Path) -> tuple[str, ...]:
+    text = board_file.read_text(encoding="utf-8")
+    references: list[str] = []
+    for block in _sexpr_blocks(text, "footprint"):
+        library_match = re.match(r'\(footprint\s+"([^"]+)"', block)
+        if library_match is None:
+            continue
+        library_id = library_match.group(1).lower()
+        if library_id not in {"kikit:tab", "pcm_kikit:tab"}:
+            continue
+        reference_match = re.search(
+            r'\(property\s+"Reference"\s+"([^"]+)"|\(fp_text\s+reference\s+"([^"]+)"',
+            block,
+        )
+        if reference_match is None:
+            raise ValueError("KiKit tab annotation is missing an exact reference identity")
+        references.append(reference_match.group(1) or reference_match.group(2))
+    return tuple(sorted(references))
+
+
 def generate_kikit_panel(
     *,
     board_file: Path,
@@ -462,6 +696,15 @@ def generate_kikit_panel(
         or tool_evidence.status is not ManufacturingToolStatus.AVAILABLE
     ):
         raise ValueError("panelization requires available pinned KiKit evidence")
+    if not board_file.is_file():
+        raise ValueError("panelization source board does not exist")
+    source_project = board_file.with_suffix(".kicad_pro")
+    if not source_project.is_file():
+        raise ValueError("panelization source requires its matching KiCad project rule authority")
+    if profile.tab_placement is PanelTabPlacement.ANNOTATED:
+        observed_references = _panel_tab_annotation_reference_ids(board_file)
+        if observed_references != profile.tab_annotation_reference_ids:
+            raise ValueError("panel tab annotation identities do not match the exact source board")
     panel_file.parent.mkdir(parents=True, exist_ok=True)
     configuration = panel_file.with_suffix(".kikit.json")
     configuration.write_text(
@@ -480,11 +723,93 @@ def generate_kikit_panel(
         str(panel_file),
     )
     completed = subprocess.run(command, capture_output=True, text=True, check=False)
-    if completed.returncode != 0 or not panel_file.is_file():
+    panel_project = panel_file.with_suffix(".kicad_pro")
+    if completed.returncode != 0 or not panel_file.is_file() or not panel_project.is_file():
         raise RuntimeError(
             "KiKit panelization failed: " + (completed.stderr.strip() or completed.stdout.strip())
         )
     return panel_file
+
+
+def generate_and_verify_kikit_panel(
+    *,
+    board_file: Path,
+    panel_file: Path,
+    profile: PanelizationProfile,
+    kikit_evidence: ManufacturingToolEvidence,
+    kicad_cli_evidence: ManufacturingToolEvidence,
+    kikit_executable: str = "kikit",
+    kikit_command_prefix: Sequence[str] | None = None,
+    kicad_cli_executable: str = "kicad-cli",
+    kicad_cli_command_prefix: Sequence[str] | None = None,
+) -> PanelizationProof:
+    """Generate a panel, run exact panel DRC, and retain fail-closed proof."""
+
+    if (
+        kicad_cli_evidence.tool_id != "kicad-cli"
+        or kicad_cli_evidence.status is not ManufacturingToolStatus.AVAILABLE
+    ):
+        raise ValueError("panel DRC requires available pinned kicad-cli evidence")
+    generate_kikit_panel(
+        board_file=board_file,
+        panel_file=panel_file,
+        profile=profile,
+        tool_evidence=kikit_evidence,
+        executable=kikit_executable,
+        command_prefix=kikit_command_prefix,
+    )
+    drc_report = panel_file.with_suffix(".drc.json")
+    drc_report.unlink(missing_ok=True)
+    prefix = (
+        tuple(kicad_cli_command_prefix)
+        if kicad_cli_command_prefix is not None
+        else (kicad_cli_executable,)
+    )
+    command = (
+        *prefix,
+        "pcb",
+        "drc",
+        "--format",
+        "json",
+        "--exit-code-violations",
+        "-o",
+        str(drc_report),
+        str(panel_file),
+    )
+    completed = subprocess.run(command, capture_output=True, text=True, check=False)
+    if not drc_report.is_file():
+        detail = completed.stderr.strip() or completed.stdout.strip() or "no DRC report"
+        raise RuntimeError(f"KiCad panel DRC failed without evidence: {detail}")
+    drc_evidence = inspect_kicad_drc_report(drc_report)
+    proof = PanelizationProof.build(
+        panel_source_file=board_file,
+        panel_file=panel_file,
+        profile=profile,
+        kikit_evidence=kikit_evidence,
+        kicad_cli_evidence=kicad_cli_evidence,
+        drc_command=command,
+        drc_exit_code=completed.returncode,
+        drc_evidence=drc_evidence,
+    )
+    manifest_file = panel_file.with_suffix(".panel-proof.json")
+    temporary_name: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=manifest_file.parent,
+            prefix=f".{manifest_file.name}.",
+            suffix=".tmp",
+            delete=False,
+        ) as handle:
+            json.dump(proof.model_dump(mode="json"), handle, indent=2)
+            handle.write("\n")
+            temporary_name = handle.name
+        os.replace(temporary_name, manifest_file)
+    finally:
+        if temporary_name is not None:
+            Path(temporary_name).unlink(missing_ok=True)
+    return proof
 
 
 def generate_interactive_html_bom(

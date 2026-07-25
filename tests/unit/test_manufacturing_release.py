@@ -37,10 +37,13 @@ from pcbsmith.manufacturing_release import (
     PanelCutMethod,
     PanelFrameKind,
     PanelizationProfile,
+    PanelTabPlacement,
     assemble_neutral_manufacturing_package,
     evaluate_baseline_dfm_dft,
     extract_saved_board_manufacturing_identities,
+    generate_and_verify_kikit_panel,
     generate_interactive_html_bom,
+    generate_kikit_panel,
     inspect_version_pinned_tool,
 )
 
@@ -306,6 +309,256 @@ def test_panelization_rejects_vcuts_for_irregular_or_cutout_boards() -> None:
             fiducial_count=3,
             tooling_hole_count=3,
         )
+
+
+def test_panelization_emits_explicit_non_overlapping_panel_features() -> None:
+    profile = PanelizationProfile(
+        outline_class=BoardOutlineClass.REGULAR_RECTANGULAR,
+        rows=2,
+        columns=2,
+        horizontal_spacing_mm=3,
+        vertical_spacing_mm=3,
+        tabs_width_mm=4,
+        cut_method=PanelCutMethod.MOUSE_BITES,
+        mouse_bite_drill_mm=0.5,
+        mouse_bite_spacing_mm=0.8,
+        tab_placement=PanelTabPlacement.FIXED_COUNT,
+        horizontal_tab_count=1,
+        vertical_tab_count=1,
+        frame_kind=PanelFrameKind.FULL_FRAME,
+        rail_width_mm=10,
+        fiducial_count=3,
+        tooling_hole_count=3,
+    )
+
+    configuration = profile.kikit_configuration()
+
+    assert configuration["tabs"] == {
+        "type": "fixed",
+        "width": "4mm",
+        "hcount": 1,
+        "vcount": 1,
+    }
+    assert configuration["tooling"] == {
+        "type": "3hole",
+        "hoffset": "3mm",
+        "voffset": "3mm",
+        "size": "2mm",
+        "soldermaskmargin": "0mm",
+    }
+    assert configuration["fiducials"] == {
+        "type": "3fid",
+        "hoffset": "7mm",
+        "voffset": "7mm",
+        "coppersize": "1mm",
+        "opening": "2mm",
+    }
+
+
+def test_panelization_rejects_overlapping_or_out_of_rail_features() -> None:
+    base = {
+        "outline_class": BoardOutlineClass.REGULAR_RECTANGULAR,
+        "rows": 2,
+        "columns": 2,
+        "horizontal_spacing_mm": 3,
+        "vertical_spacing_mm": 3,
+        "tabs_width_mm": 4,
+        "cut_method": PanelCutMethod.MOUSE_BITES,
+        "mouse_bite_drill_mm": 0.5,
+        "mouse_bite_spacing_mm": 0.8,
+        "frame_kind": PanelFrameKind.FULL_FRAME,
+        "rail_width_mm": 10,
+        "fiducial_count": 3,
+        "tooling_hole_count": 3,
+    }
+    with pytest.raises(ValidationError, match="envelopes overlap"):
+        PanelizationProfile(
+            **base,
+            fiducial_horizontal_offset_mm=3,
+            fiducial_vertical_offset_mm=3,
+        )
+    with pytest.raises(ValidationError, match="extends beyond"):
+        PanelizationProfile(
+            **base,
+            fiducial_horizontal_offset_mm=10,
+        )
+
+
+def test_panelization_rejects_missing_project_rule_authority(tmp_path: Path) -> None:
+    board = _board(tmp_path / "board.kicad_pcb")
+    profile = PanelizationProfile(
+        outline_class=BoardOutlineClass.REGULAR_RECTANGULAR,
+        rows=2,
+        columns=1,
+        horizontal_spacing_mm=3,
+        vertical_spacing_mm=3,
+        tabs_width_mm=4,
+        cut_method=PanelCutMethod.MOUSE_BITES,
+        mouse_bite_drill_mm=0.5,
+        mouse_bite_spacing_mm=0.8,
+        frame_kind=PanelFrameKind.FULL_FRAME,
+        rail_width_mm=10,
+        fiducial_count=3,
+        tooling_hole_count=3,
+    )
+    tool = inspect_version_pinned_tool(
+        tool_id="kikit",
+        command=(sys.executable, "-c", "print('1.8.0')"),
+        pinned_version="1.8.0",
+    )
+
+    with pytest.raises(ValueError, match="project rule authority"):
+        generate_kikit_panel(
+            board_file=board,
+            panel_file=tmp_path / "panel.kicad_pcb",
+            profile=profile,
+            tool_evidence=tool,
+        )
+
+
+def test_annotated_panelization_requires_exact_source_identities(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    board = tmp_path / "annotated.kicad_pcb"
+    board.write_text(
+        """(kicad_pcb
+  (version 20250101)
+  (footprint "kikit:Tab"
+    (layer "F.Cu")
+    (at 10 20)
+    (property "Reference" "TAB1")
+    (fp_text user "KIKIT: width: 4mm" (at 0 0) (layer "Dwgs.User"))
+  )
+)""",
+        encoding="utf-8",
+    )
+    board.with_suffix(".kicad_pro").write_text("{}\n", encoding="utf-8")
+    profile = PanelizationProfile(
+        outline_class=BoardOutlineClass.IRREGULAR,
+        rows=1,
+        columns=2,
+        horizontal_spacing_mm=3,
+        vertical_spacing_mm=3,
+        tabs_width_mm=4,
+        cut_method=PanelCutMethod.MOUSE_BITES,
+        mouse_bite_drill_mm=0.5,
+        mouse_bite_spacing_mm=0.8,
+        tab_placement=PanelTabPlacement.ANNOTATED,
+        tab_annotation_reference_ids=("TAB1",),
+        frame_kind=PanelFrameKind.FULL_FRAME,
+        rail_width_mm=10,
+        fiducial_count=3,
+        tooling_hole_count=3,
+    )
+    tool = inspect_version_pinned_tool(
+        tool_id="kikit",
+        command=(sys.executable, "-c", "print('1.8.0')"),
+        pinned_version="1.8.0",
+    )
+
+    def fake_run(*args, **kwargs):
+        Path(args[0][-1]).write_text("(kicad_pcb)", encoding="utf-8")
+        Path(args[0][-1]).with_suffix(".kicad_pro").write_text("{}\n", encoding="utf-8")
+        return subprocess.CompletedProcess(args[0], 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    panel = generate_kikit_panel(
+        board_file=board,
+        panel_file=tmp_path / "panel.kicad_pcb",
+        profile=profile,
+        tool_evidence=tool,
+    )
+
+    assert panel.is_file()
+    invalid = profile.model_copy(update={"tab_annotation_reference_ids": ("TAB1", "TAB2")})
+    with pytest.raises(ValueError, match="do not match"):
+        generate_kikit_panel(
+            board_file=board,
+            panel_file=tmp_path / "invalid-panel.kicad_pcb",
+            profile=invalid,
+            tool_evidence=tool,
+        )
+
+
+@pytest.mark.parametrize(
+    ("drc_payload", "drc_exit_code", "accepted"),
+    (
+        (
+            '{"violations": [], "unconnected_items": [], "schematic_parity": []}',
+            0,
+            True,
+        ),
+        (
+            (
+                '{"violations": [{"description": "fixture"}], '
+                '"unconnected_items": [], "schematic_parity": []}'
+            ),
+            5,
+            False,
+        ),
+    ),
+)
+def test_panelization_proof_runs_and_retains_panel_drc(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    drc_payload: str,
+    drc_exit_code: int,
+    accepted: bool,
+) -> None:
+    board = _board(tmp_path / "board.kicad_pcb")
+    board.with_suffix(".kicad_pro").write_text("{}\n", encoding="utf-8")
+    profile = PanelizationProfile(
+        outline_class=BoardOutlineClass.REGULAR_RECTANGULAR,
+        rows=2,
+        columns=1,
+        horizontal_spacing_mm=3,
+        vertical_spacing_mm=3,
+        tabs_width_mm=4,
+        cut_method=PanelCutMethod.MOUSE_BITES,
+        mouse_bite_drill_mm=0.5,
+        mouse_bite_spacing_mm=0.8,
+        tab_placement=PanelTabPlacement.FIXED_COUNT,
+        frame_kind=PanelFrameKind.FULL_FRAME,
+        rail_width_mm=10,
+        fiducial_count=3,
+        tooling_hole_count=3,
+    )
+    kikit_tool = inspect_version_pinned_tool(
+        tool_id="kikit",
+        command=(sys.executable, "-c", "print('1.8.0')"),
+        pinned_version="1.8.0",
+    )
+    kicad_tool = inspect_version_pinned_tool(
+        tool_id="kicad-cli",
+        command=(sys.executable, "-c", "print('10.0.3')"),
+        pinned_version="10.0.3",
+    )
+
+    def fake_run(*args, **kwargs):
+        command = args[0]
+        if "panelize" in command:
+            Path(command[-1]).write_text("(kicad_pcb)", encoding="utf-8")
+            Path(command[-1]).with_suffix(".kicad_pro").write_text("{}\n", encoding="utf-8")
+            return subprocess.CompletedProcess(command, 0, "", "")
+        report = Path(command[command.index("-o") + 1])
+        report.write_text(drc_payload, encoding="utf-8")
+        return subprocess.CompletedProcess(command, drc_exit_code, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    panel = tmp_path / "panel.kicad_pcb"
+    proof = generate_and_verify_kikit_panel(
+        board_file=board,
+        panel_file=panel,
+        profile=profile,
+        kikit_evidence=kikit_tool,
+        kicad_cli_evidence=kicad_tool,
+    )
+
+    assert proof.accepted is accepted
+    assert proof.drc_evidence.clean is accepted
+    assert panel.with_suffix(".drc.json").is_file()
+    assert panel.with_suffix(".panel-proof.json").is_file()
 
 
 def test_version_pin_is_machine_checked() -> None:

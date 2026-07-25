@@ -17,20 +17,40 @@ retained and all output is independently hashed and checked.
   project-local `.pcbsmith/runtime/phase18` runtime under KiCad Python 3.11.
 
 The typed panel profile covers regular, irregular, and cutout sources; grid
-layout; spacing; routed tabs; mouse bites; rectangular-only V-cuts; top/bottom
-or left/right rails and full frames; fiducials; tooling holes; impedance
-coupons; and mandatory panel DRC. Irregular/cutout V-cuts fail before tool
-invocation. The adapter writes and retains both requested and KiKit-resolved
-configuration.
+layout; automatic or exact annotated tabs; mouse bites; rectangular-only
+V-cuts; top/bottom or left/right rails and full frames; explicit non-overlapping
+fiducial/tooling geometry; coupon identity declarations; and mandatory panel
+DRC. Irregular/cutout V-cuts fail before tool invocation. Actual impedance
+coupon geometry is not yet produced and remains a separate open item.
 
-Both a rectangular V-cut panel and an irregular mouse-bite panel were generated.
-They remain rejected proof candidates: KiCad panel DRC reported 19 and 231
-violations respectively. The rectangular failures include NPTH/courtyard,
-copper-edge, solder-mask-bridge, and invalid-outline findings. The irregular
-panel is dominated by 205 mouse-bite hole-clearance findings, plus
-NPTH/courtyard, copper-edge, and solder-mask-bridge findings. The Phase 18
-roadmap item remains open until both configurations are corrected and the exact
-saved panels pass KiCad DRC and visual inspection.
+The first rectangular V-cut and irregular mouse-bite configurations remain
+retained failure candidates. Their failures exposed three real defects:
+
+- default zero offsets placed tooling holes and fiducials on top of each other
+  and on the panel edge;
+- automatic tab spacing placed breakaway holes through component courtyards,
+  routing, and copper; and
+- a board file without its matching `.kicad_pro` silently changed the DRC
+  rules used for the generated panel.
+
+The production adapter now requires the matching KiCad project rule authority,
+hashes source and output project/custom-rule files, emits exact feature
+geometry, supports board-specific tab annotation identities, runs panel DRC,
+and atomically retains a fail-closed proof manifest. No DRC exclusions were
+added.
+
+Three corrected live proofs pass KiCad 10.0.3 DRC with zero violations and zero
+unconnected items:
+
+- regular Retro-Pad 3x3, two-board mouse-bite/full-frame panel;
+- irregular Lucky Clover, two-board mouse-bite/full-frame panel; and
+- regular Retro-Pad 3x3, two-board V-cut/top-bottom-rail panel.
+
+Top and bottom 1920×1080 renders and front/back SVGs were inspected. Board
+outlines, tabs/cuts, rails, tooling holes, fiducials, copper, and component
+orientation are coherent in those views. Exact hashes and the failure
+progression are recorded in
+`docs/phase18-panelization-proof-2026-07-25.md`.
 
 ## InteractiveHtmlBom
 

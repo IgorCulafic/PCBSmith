@@ -399,11 +399,15 @@ order belongs in `docs/routing-placement-plan.md`.
    content-recognized atomic neutral packages, and human/fabricator/assembler
    release-language gates are implemented. KiCad 10.0.3 neutral exports and
    pinned InteractiveHtmlBom 2.11.2 ran successfully on the regular Retro-Pad
-   3x3 and irregular Retro-Pad R003 candidates. KiKit 1.8.0 generated both
-   first panels, but KiCad panel DRC rejected them with 19 and 231 findings;
-   panelization and cross-board package proof remain open rather than being
-   promoted through exclusions. Optional manufacturer adapters remain dormant
-   until a manufacturer is selected.
+   3x3 and irregular Retro-Pad R003 candidates. KiKit 1.8.0 now has
+   zero-finding panel DRC proofs for a regular mouse-bite panel, an irregular
+   Lucky Clover mouse-bite panel, and a regular V-cut panel. The panel adapter
+   requires matching `.kicad_pro` rule authority, exact annotated tab
+   identities where needed, explicit non-overlapping rail features, and an
+   atomic DRC proof. R003 remains honestly not panel-ready because its ground
+   pours violate mouse-bite clearance. Actual coupon generation and complete
+   cross-board neutral-package evidence remain open. Optional manufacturer
+   adapters remain dormant until a manufacturer is selected.
 10. Phase 19 is MCAD/mechanical authority: native STEP baselines, KiCad
     StepUp/FreeCAD, exact mechanical envelopes, collision/accessibility checks,
     deterministic round trips, and optional `kicad-python` inspection. KiCad

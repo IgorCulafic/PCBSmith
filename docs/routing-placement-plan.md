@@ -1386,9 +1386,13 @@ assembler, stack-up, process, and human release review.
 - [x] Generate one canonical manufacturer-neutral package: Gerber, drill/map,
   netlist, stack-up notes, fabrication drawing, assembly drawings, BOM, pick-
   and-place, paste, readme, hashes, tool versions, and release status.
-- [ ] Evaluate and version-pin KiKit for panelization and manufacturing-package
-  generation. Cover irregular outlines, rails, tabs, mouse bites, V-cuts,
-  fiducials, tooling holes, coupons, and panel-level DRC.
+- [x] Evaluate and version-pin KiKit for panelization and manufacturing-package
+  generation. Cover regular/irregular outlines, rails, exact tabs, mouse
+  bites, V-cuts, fiducials, tooling holes, matching KiCad project-rule
+  authority, and panel-level DRC.
+- [ ] Generate and validate actual impedance coupon geometry when required by
+  the selected stack-up/process. Coupon identity declarations alone are not a
+  physical coupon.
 - [x] Add InteractiveHtmlBom as a self-contained assembly/review artifact with
   correct side, rotation, DNP, variant, BOM grouping, and optional net/copper
   rendering.
