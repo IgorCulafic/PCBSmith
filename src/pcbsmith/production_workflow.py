@@ -19,6 +19,7 @@ from pcbsmith.applicability_execution import (
     ProjectApplicabilityExecutionManifest,
     ProjectExecutionAuthority,
 )
+from pcbsmith.component_review_execution import ProjectComponentReviewExecution
 from pcbsmith.execution import (
     ExecutionProfile,
     WorkBudgetExhausted,
@@ -368,6 +369,7 @@ class PlacementReviewTransactionResult(SemanticIrModel):
     schema_version: Literal[1] = 1
     transaction: GenerationTransactionResult
     review_manifest: VisualReviewManifest
+    component_review_execution: ProjectComponentReviewExecution
 
 
 class BudgetedPlacementReviewResult(SemanticIrModel):
@@ -431,6 +433,7 @@ def produce_budgeted_placement_review(
     rendering_binding: AlgorithmBudgetBinding,
     placement_generator: Callable[[NativeStageController], bytes],
     review_generator: Callable[[NativeStageController, Path, Path], VisualReviewManifest],
+    component_review_generator: Callable[[Path], ProjectComponentReviewExecution],
     clock: Callable[[], float] = time.monotonic,
     heartbeat_sink: Callable[[str, Mapping[str, object]], None] | None = None,
 ) -> BudgetedPlacementReviewResult:
@@ -514,6 +517,7 @@ def produce_budgeted_placement_review(
                 board_relative_path=board_relative_path,
                 board_payload=board_payload,
                 review_generator=bounded_review_generator,
+                component_review_generator=component_review_generator,
             )
             if transaction.transaction.manifest.status != "committed":
                 raise ValueError("placement/review transaction did not commit")
@@ -595,6 +599,7 @@ def persist_placement_and_generate_review(
     board_relative_path: str,
     board_payload: bytes,
     review_generator: Callable[[Path, Path], VisualReviewManifest],
+    component_review_generator: Callable[[Path], ProjectComponentReviewExecution],
 ) -> PlacementReviewTransactionResult:
     """Persist a placement board and invoke its canonical review in one revision.
 
@@ -613,6 +618,9 @@ def persist_placement_and_generate_review(
         _require_descendant(work_root, board_file)
         board_file.parent.mkdir(parents=True, exist_ok=True)
         board_file.write_bytes(board_payload)
+        component_review = component_review_generator(board_file)
+        if component_review.project_id != project_id:
+            raise ValueError("component review execution belongs to another project")
         review_output = work_root / "review-output"
         generated_manifest = review_generator(board_file, review_output)
         board_sha256 = _bytes_sha256(board_payload)
@@ -637,6 +645,35 @@ def persist_placement_and_generate_review(
         )
         payloads: dict[str, bytes] = {board_relative_path: board_payload}
         roles: dict[str, ArtifactRole] = {board_relative_path: "board"}
+        component_review_path = "evidence/component-review/execution.json"
+        payloads[component_review_path] = (
+            json.dumps(
+                component_review.model_dump(mode="json", by_alias=True),
+                indent=2,
+            )
+            + "\n"
+        ).encode("utf-8")
+        roles[component_review_path] = "evidence"
+        for index, manifest in enumerate(component_review.manifests, start=1):
+            manifest_relative_path = f"evidence/component-review/components/{index:04d}.json"
+            payloads[manifest_relative_path] = (
+                json.dumps(
+                    manifest.model_dump(mode="json", by_alias=True),
+                    indent=2,
+                )
+                + "\n"
+            ).encode("utf-8")
+            roles[manifest_relative_path] = "evidence"
+        for index, trace in enumerate(component_review.traces, start=1):
+            trace_relative_path = f"evidence/component-review/traces/{index:04d}.json"
+            payloads[trace_relative_path] = (
+                json.dumps(
+                    trace.model_dump(mode="json", by_alias=True),
+                    indent=2,
+                )
+                + "\n"
+            ).encode("utf-8")
+            roles[trace_relative_path] = "evidence"
         if review_output.exists():
             for path in sorted(item for item in review_output.rglob("*") if item.is_file()):
                 relative = PurePosixPath("review") / path.relative_to(review_output).as_posix()
@@ -670,6 +707,7 @@ def persist_placement_and_generate_review(
     return PlacementReviewTransactionResult(
         transaction=result,
         review_manifest=retained_manifest,
+        component_review_execution=component_review,
     )
 
 
@@ -839,6 +877,16 @@ def inspect_current_placement_review(
     )
     if review_artifact is None:
         raise ValueError("current generation has no canonical review manifest")
+    component_review_artifact = next(
+        (
+            item
+            for item in current.artifacts
+            if item.relative_path == "evidence/component-review/execution.json"
+        ),
+        None,
+    )
+    if component_review_artifact is None:
+        raise ValueError("current generation has no component review execution")
     work_parent = root / ".review-work"
     work_parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(
@@ -858,6 +906,11 @@ def inspect_current_placement_review(
             reviewer=reviewer,
             mechanism=mechanism,
             decisions=decisions,
+        )
+        component_review_execution = ProjectComponentReviewExecution.model_validate_json(
+            (work_root / PurePosixPath(component_review_artifact.relative_path)).read_text(
+                encoding="utf-8"
+            )
         )
         board_artifacts = tuple(item for item in current.artifacts if item.role == "board")
         if len(board_artifacts) != 1:
@@ -903,6 +956,157 @@ def inspect_current_placement_review(
     return PlacementReviewTransactionResult(
         transaction=result,
         review_manifest=updated_manifest,
+        component_review_execution=component_review_execution,
+    )
+
+
+def repair_current_component_review(
+    *,
+    transaction_root: Path,
+    generation_id: str,
+    generation_sha256: str,
+    component_review_generator: Callable[[Path], ProjectComponentReviewExecution],
+) -> PlacementReviewTransactionResult:
+    """Replace component-review evidence in a new immutable placement revision."""
+
+    root = transaction_root.resolve()
+    current = resolve_current_generation(root)
+    current_dir = root / "generations" / current.generation_id
+    board_artifacts = tuple(item for item in current.artifacts if item.role == "board")
+    if len(board_artifacts) != 1:
+        raise ValueError("component review repair requires one canonical board")
+    review_artifact = next(
+        (item for item in current.artifacts if item.relative_path == "review/manifest.json"),
+        None,
+    )
+    existing_component_artifact = next(
+        (
+            item
+            for item in current.artifacts
+            if item.relative_path == "evidence/component-review/execution.json"
+        ),
+        None,
+    )
+    if review_artifact is None or existing_component_artifact is None:
+        raise ValueError("component review repair requires retained visual and component manifests")
+
+    work_parent = root / ".review-work"
+    work_parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(
+        prefix=f"{generation_id}-component-repair-",
+        dir=work_parent,
+    ) as temporary:
+        work_root = Path(temporary)
+        roles: dict[str, ArtifactRole] = {}
+        for artifact in current.artifacts:
+            if artifact.relative_path.startswith("evidence/component-review/"):
+                continue
+            source = current_dir / PurePosixPath(artifact.relative_path)
+            destination = work_root / PurePosixPath(artifact.relative_path)
+            _require_descendant(work_root, destination)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(source, destination)
+            roles[artifact.relative_path] = artifact.role
+
+        board_relative_path = board_artifacts[0].relative_path
+        board_file = work_root / PurePosixPath(board_relative_path)
+        existing_execution = ProjectComponentReviewExecution.model_validate_json(
+            (current_dir / PurePosixPath(existing_component_artifact.relative_path)).read_text(
+                encoding="utf-8"
+            )
+        )
+        repaired_execution = component_review_generator(board_file)
+        if repaired_execution.project_id != current.project_id:
+            raise ValueError("repaired component review belongs to another project")
+        if (
+            repaired_execution.board_netlist_snapshot_fingerprint
+            != existing_execution.board_netlist_snapshot_fingerprint
+        ):
+            raise ValueError("component review repair changed the BoardNetlist")
+
+        final_board = root / "generations" / generation_id / PurePosixPath(board_relative_path)
+        review_path = work_root / PurePosixPath(review_artifact.relative_path)
+        review_manifest = VisualReviewManifest.model_validate_json(
+            review_path.read_text(encoding="utf-8")
+        )
+        review_manifest = review_manifest.model_copy(
+            update={
+                "board_file": str(final_board),
+                "routing_evidence": (
+                    None
+                    if review_manifest.routing_evidence is None
+                    else retarget_saved_board_routing_evidence(
+                        review_manifest.routing_evidence,
+                        final_board,
+                    )
+                ),
+            }
+        )
+        write_visual_review_manifest(review_path, review_manifest)
+
+        component_root = work_root / "evidence" / "component-review"
+        component_root.mkdir(parents=True)
+        (component_root / "execution.json").write_text(
+            json.dumps(
+                repaired_execution.model_dump(mode="json", by_alias=True),
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
+        roles["evidence/component-review/execution.json"] = "evidence"
+        for index, manifest in enumerate(repaired_execution.manifests, start=1):
+            relative_path = f"evidence/component-review/components/{index:04d}.json"
+            destination = work_root / PurePosixPath(relative_path)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(
+                json.dumps(
+                    manifest.model_dump(mode="json", by_alias=True),
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            roles[relative_path] = "evidence"
+        for index, trace in enumerate(repaired_execution.traces, start=1):
+            relative_path = f"evidence/component-review/traces/{index:04d}.json"
+            destination = work_root / PurePosixPath(relative_path)
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_text(
+                json.dumps(
+                    trace.model_dump(mode="json", by_alias=True),
+                    indent=2,
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            roles[relative_path] = "evidence"
+
+        payloads = {
+            path.relative_to(work_root).as_posix(): path.read_bytes()
+            for path in sorted(item for item in work_root.rglob("*") if item.is_file())
+        }
+        for path in payloads:
+            roles.setdefault(path, "other")
+        _, previous_current_sha256 = _read_current_pointer(root / "CURRENT.json")
+        staged = prepare_generation_transaction(
+            project_id=current.project_id,
+            generation_id=generation_id,
+            generation_sha256=generation_sha256,
+            stage=WorkflowStage.PLACEMENT,
+            payloads=payloads,
+            roles=roles,
+            previous_current_sha256=previous_current_sha256,
+        )
+        result = commit_generation_transaction(
+            transaction_root=root,
+            manifest=staged,
+            payloads=payloads,
+        )
+    return PlacementReviewTransactionResult(
+        transaction=result,
+        review_manifest=review_manifest,
+        component_review_execution=repaired_execution,
     )
 
 
@@ -1322,6 +1526,7 @@ class RoutingEntryGateReport(SemanticIrModel):
     concept_drift_fingerprint: str
     review_transaction_fingerprint: str
     engineering_gate_fingerprint: str
+    component_review_execution_fingerprint: str
     budget_profile_name: Literal["quick", "standard", "deep"]
     report_fingerprint: str
 
@@ -1337,6 +1542,7 @@ class RoutingEntryGateReport(SemanticIrModel):
             "concept_drift_fingerprint",
             "review_transaction_fingerprint",
             "engineering_gate_fingerprint",
+            "component_review_execution_fingerprint",
             "report_fingerprint",
         ):
             require_sha256(getattr(self, field_name), field_name)
@@ -1360,6 +1566,7 @@ def evaluate_routing_entry_gate(
     placement_review: VisualReviewManifest,
     committed_review_transaction: GenerationTransactionManifest,
     engineering_gate: ProjectEngineeringGateResult,
+    component_review_execution: ProjectComponentReviewExecution,
     budget_bindings: tuple[AlgorithmBudgetBinding, ...],
 ) -> RoutingEntryGateReport:
     """Fail closed before routing unless every shared production gate passed."""
@@ -1417,6 +1624,15 @@ def evaluate_routing_entry_gate(
         blockers.append("engineering component/feature inventory is not complete and reviewed")
     if engineering_gate.outcome is not ProjectGateOutcome.READY:
         blockers.append(f"engineering applicability gate is {engineering_gate.outcome.value}")
+    if component_review_execution.project_id != context.project_id:
+        blockers.append("component review execution belongs to another project")
+    if (
+        component_review_execution.board_netlist_snapshot_fingerprint
+        != engineering_gate.context.board_netlist_snapshot_fingerprint
+    ):
+        blockers.append("component review execution targets another BoardNetlist")
+    if not component_review_execution.ready_for_routing:
+        blockers.append(f"component review execution is {component_review_execution.outcome.value}")
     retained_board = tuple(
         item
         for item in committed_review_transaction.artifacts
@@ -1440,10 +1656,33 @@ def evaluate_routing_entry_gate(
             and item.content_sha256 == expected_review_sha256
         )
     )
+    expected_component_review_sha256 = _bytes_sha256(
+        (
+            json.dumps(
+                component_review_execution.model_dump(
+                    mode="json",
+                    by_alias=True,
+                ),
+                indent=2,
+            )
+            + "\n"
+        ).encode("utf-8")
+    )
+    retained_component_review = tuple(
+        item
+        for item in committed_review_transaction.artifacts
+        if (
+            item.role == "evidence"
+            and item.relative_path == "evidence/component-review/execution.json"
+            and item.content_sha256 == expected_component_review_sha256
+        )
+    )
     if not retained_board:
         blockers.append("committed transaction lacks the reviewed saved board")
     if not retained_review:
         blockers.append("committed transaction lacks the exact canonical review manifest")
+    if not retained_component_review:
+        blockers.append("committed transaction lacks the exact component review execution")
     algorithms = tuple(item.algorithm for item in budget_bindings)
     if len(algorithms) != len(set(algorithms)) or set(algorithms) != set(NativeAlgorithm):
         blockers.append("execution profile is not bound to every native algorithm")
@@ -1465,6 +1704,9 @@ def evaluate_routing_entry_gate(
         "concept_drift_fingerprint": concept_drift.report_fingerprint,
         "review_transaction_fingerprint": (committed_review_transaction.transaction_fingerprint),
         "engineering_gate_fingerprint": engineering_gate.result_fingerprint,
+        "component_review_execution_fingerprint": (
+            component_review_execution.execution_fingerprint
+        ),
         "budget_profile_name": profile_name,
     }
     provisional = RoutingEntryGateReport.model_construct(**fields, report_fingerprint="0" * 64)

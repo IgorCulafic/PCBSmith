@@ -29,6 +29,41 @@ Verification:
 - live KiCad 10.0.3 Retro-Pad 3x3 root-page SVG/PDF, whole-project PDF, ERC,
   and netlist export: passed with clean ERC.
 
+### Automatic component-review execution and repair
+
+The exact-package component-review obligations are now production-executed
+rather than merely constructible. The runner derives the complete IC set from
+the exact `BoardNetlist`, requires pin evidence or records the component as
+blocked, builds bounded electrical neighborhoods, and invokes every applicable
+obligation. Neighbor evidence is limited to the obligation's declared adjacent
+ICs. Evidence-query budgets are shared across retries and accounted at both
+trace and project level.
+
+Every deterministic decision, accepted result, missing submission, exception,
+invalid cross-obligation result, and conservative recovery has a replay-bound
+trace. Invalid or duplicate evidence is normalized conservatively; absence
+becomes `unverified`, never a pass. One component failure does not omit later
+components.
+
+Placement generation now invokes the runner inside the immutable transaction
+and retains the project execution, per-IC manifests, and individual traces.
+The repair command replaces those artifacts only in a new immutable generation
+and rejects a changed project or BoardNetlist. The routing-entry gate requires
+the complete same-netlist execution and verifies that its exact JSON is inside
+the committed placement transaction.
+
+Verification:
+
+- complete two-IC cross-interface execution: passed;
+- bounded retry, shared query budget, and evidence deduplication: passed;
+- no-submission, exception isolation, invalid-result, and missing-pin-evidence
+  recovery fixtures: passed;
+- immutable component-review repair transaction: passed;
+- routing-entry rejection for blocked or non-retained component review: passed;
+- focused component, schematic-review, production-workflow, routed-release,
+  and package-architecture checkpoint: 32 tests passed;
+- strict mypy and Ruff for all changed production modules: passed.
+
 ### Retained routed-board release evidence
 
 The routed-board release gate no longer accepts caller-supplied booleans for
@@ -186,7 +221,6 @@ The remaining roadmap items have different owners:
 
 | Phase | Remaining scope | Classification |
 | --- | --- | --- |
-| 17 | Automatic component-review invocation/recovery | production integration |
 | 17 | Every legacy board generator behind shared transactions | migration |
 | 17 | Protocol Analyzer R002 correction/routing | known failed-board repair |
 | 17 | Complete R6/default path on a post-freeze unseen board | new user project evidence |

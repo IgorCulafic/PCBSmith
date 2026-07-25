@@ -6,6 +6,7 @@ from pathlib import Path
 
 import pytest
 
+from pcbsmith.component_review_execution import execute_project_component_reviews
 from pcbsmith.execution import EXECUTION_PROFILES, WorkBudgetExhausted
 from pcbsmith.kicad.board import (
     BoardComponent,
@@ -33,6 +34,7 @@ from pcbsmith.production_workflow import (
     prepare_generation_transaction,
     produce_budgeted_placement_review,
     remaining_route_domains,
+    repair_current_component_review,
     resolve_current_generation,
     route_native_board,
 )
@@ -69,6 +71,16 @@ SHA_A = "a" * 64
 SHA_B = "b" * 64
 SHA_C = "c" * 64
 SHA_D = "d" * 64
+
+
+def _empty_component_review(project_id: str = "project"):
+    return execute_project_component_reviews(
+        project_id=project_id,
+        board_revision="r001",
+        netlist=BoardNetlist(components=(), nets=()),
+        pin_evidence_by_reference={},
+        reviewer=lambda _request: pytest.fail("empty review must not invoke reviewer"),
+    )
 
 
 def _transaction(
@@ -186,15 +198,39 @@ def test_placement_persistence_automatically_invokes_review_and_commits_it(
         board_relative_path="design/board.kicad_pcb",
         board_payload=board_payload,
         review_generator=review_generator,
+        component_review_generator=lambda _board: _empty_component_review(),
     )
 
     assert len(calls) == 1
     assert result.transaction.manifest.status == "committed"
-    assert {item.role for item in result.transaction.manifest.artifacts} == {"board", "review"}
+    assert result.component_review_execution.ready_for_routing
+    assert {item.role for item in result.transaction.manifest.artifacts} == {
+        "board",
+        "review",
+        "evidence",
+    }
     assert Path(result.review_manifest.board_file).read_bytes() == board_payload
     assert (
         tmp_path / "generations" / "placement-1" / "review" / "front.png"
     ).read_bytes() == b"review-image"
+    assert (
+        tmp_path
+        / "generations"
+        / "placement-1"
+        / "evidence"
+        / "component-review"
+        / "execution.json"
+    ).is_file()
+
+    repaired = repair_current_component_review(
+        transaction_root=tmp_path,
+        generation_id="placement-component-repair",
+        generation_sha256=SHA_D,
+        component_review_generator=lambda _board: _empty_component_review(),
+    )
+    assert repaired.component_review_execution.ready_for_routing
+    assert resolve_current_generation(tmp_path).generation_id == ("placement-component-repair")
+    assert Path(repaired.review_manifest.board_file).read_bytes() == board_payload
 
     inspected = inspect_current_placement_review(
         transaction_root=tmp_path,
@@ -274,6 +310,7 @@ def test_budgeted_placement_and_per_artifact_rendering_are_operative(
         rendering_binding=bindings[NativeAlgorithm.RENDERING],
         placement_generator=placement,
         review_generator=render,
+        component_review_generator=lambda _board: _empty_component_review(),
     )
 
     assert result.allowed
@@ -343,6 +380,7 @@ def test_budgeted_rendering_cannot_omit_per_artifact_accounting(
         rendering_binding=bindings[NativeAlgorithm.RENDERING],
         placement_generator=placement,
         review_generator=unaccounted_render,
+        component_review_generator=lambda _board: _empty_component_review(),
     )
 
     assert not result.allowed
@@ -692,6 +730,14 @@ def _ready_gate_inputs():
         )
         + "\n"
     ).encode("utf-8")
+    component_review = _empty_component_review()
+    component_review_bytes = (
+        json.dumps(
+            component_review.model_dump(mode="json", by_alias=True),
+            indent=2,
+        )
+        + "\n"
+    ).encode("utf-8")
     committed = GenerationTransactionManifest.build(
         project_id="project",
         generation_id="generation-1",
@@ -710,6 +756,12 @@ def _ready_gate_inputs():
                 role="review",
                 relative_path="review/manifest.json",
                 content_sha256=hashlib.sha256(review_bytes).hexdigest(),
+            ),
+            GenerationArtifact(
+                artifact_id="generation-1.0003",
+                role="evidence",
+                relative_path="evidence/component-review/execution.json",
+                content_sha256=hashlib.sha256(component_review_bytes).hexdigest(),
             ),
         ),
     )
@@ -736,6 +788,7 @@ def _ready_gate_inputs():
         review,
         committed,
         engineering_gate,
+        component_review,
     )
 
 
@@ -748,6 +801,7 @@ def test_routing_entry_gate_requires_reviewed_transactional_saved_board() -> Non
         review,
         committed,
         engineering_gate,
+        component_review,
     ) = _ready_gate_inputs()
     report = evaluate_routing_entry_gate(
         generation_sha256=SHA_A,
@@ -760,6 +814,7 @@ def test_routing_entry_gate_requires_reviewed_transactional_saved_board() -> Non
         placement_review=review,
         committed_review_transaction=committed,
         engineering_gate=engineering_gate,
+        component_review_execution=component_review,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
     )
 
@@ -775,6 +830,7 @@ def test_routing_entry_gate_requires_reviewed_transactional_saved_board() -> Non
         placement_review=review,
         committed_review_transaction=committed,
         engineering_gate=engineering_gate,
+        component_review_execution=component_review,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
     )
     assert not rejected.allowed
@@ -806,10 +862,47 @@ def test_routing_entry_gate_requires_reviewed_transactional_saved_board() -> Non
         placement_review=review,
         committed_review_transaction=committed,
         engineering_gate=incomplete_engineering,
+        component_review_execution=component_review,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
     )
     assert not engineering_rejected.allowed
     assert any("engineering" in item for item in engineering_rejected.blockers)
+
+    blocked_component_review = execute_project_component_reviews(
+        project_id="project",
+        board_revision="r001",
+        netlist=BoardNetlist(
+            components=(
+                BoardComponent(
+                    "U1",
+                    "MISSING-EVIDENCE",
+                    "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+                    "fixture-u1",
+                ),
+            ),
+            nets=(),
+        ),
+        pin_evidence_by_reference={},
+        reviewer=lambda _request: pytest.fail("missing evidence must not invoke reviewer"),
+    )
+    component_rejected = evaluate_routing_entry_gate(
+        generation_sha256=SHA_A,
+        saved_board_sha256=SHA_B,
+        saved_layout_fingerprint=SHA_B,
+        examination=examination,
+        context=context,
+        feasibility=feasibility,
+        concept_drift=drift,
+        placement_review=review,
+        committed_review_transaction=committed,
+        engineering_gate=engineering_gate,
+        component_review_execution=blocked_component_review,
+        budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
+    )
+    assert not component_rejected.allowed
+    assert any(
+        "component review execution is blocked" in item for item in component_rejected.blockers
+    )
 
 
 def test_native_router_consumes_gate_profile_budget_and_emits_pass_telemetry() -> None:
@@ -821,6 +914,7 @@ def test_native_router_consumes_gate_profile_budget_and_emits_pass_telemetry() -
         review,
         committed,
         engineering_gate,
+        component_review,
     ) = _ready_gate_inputs()
     bindings = bind_execution_profile(EXECUTION_PROFILES["quick"])
     gate = evaluate_routing_entry_gate(
@@ -834,6 +928,7 @@ def test_native_router_consumes_gate_profile_budget_and_emits_pass_telemetry() -
         placement_review=review,
         committed_review_transaction=committed,
         engineering_gate=engineering_gate,
+        component_review_execution=component_review,
         budget_bindings=bindings,
     )
     components = (

@@ -28,6 +28,10 @@ from pcbsmith.circuit.models import (
     SimulationReport,
 )
 from pcbsmith.circuit.topologies import select_topology
+from pcbsmith.component_review_execution import (
+    ProjectComponentReviewExecution,
+    execute_project_component_reviews,
+)
 from pcbsmith.core.netops import derive_netlist
 from pcbsmith.core.schematic import Schematic
 from pcbsmith.evidence import (
@@ -60,6 +64,7 @@ from pcbsmith.evidence import (
     UrlLibNexarTransport,
     register_local_evidence,
 )
+from pcbsmith.evidence.component_pin_evidence import ComponentPinEvidence
 from pcbsmith.evidence.divider_highpass_led import (
     apply_component_selection,
     select_divider_highpass_led_components,
@@ -117,6 +122,7 @@ from pcbsmith.kicad.board import (
     parse_board_netlist,
     render_board_previews,
 )
+from pcbsmith.kicad.board_serialization import parse_canonical_board_netlist_snapshot
 from pcbsmith.kicad.clover_board import generate_clover_board
 from pcbsmith.kicad.design_checks import DesignChecksSpec, run_design_checks
 from pcbsmith.kicad.export_clover import export_clover_to_kicad
@@ -165,6 +171,7 @@ from pcbsmith.production_workflow import (
     evaluate_routing_entry_gate,
     inspect_current_placement_review,
     persist_placement_and_generate_review,
+    repair_current_component_review,
 )
 from pcbsmith.project_engineering_gate import evaluate_project_engineering_gate
 from pcbsmith.project_engineering_gate_ir import (
@@ -194,6 +201,7 @@ from pcbsmith.revision import (
     collect_failure_codes,
     revision_for_authority_failure,
 )
+from pcbsmith.schematic_review_ir import ComponentReviewResult
 from pcbsmith.schematic_review_package import generate_connected_schematic_review
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
@@ -2605,6 +2613,38 @@ def _cmd_schematic_review_package(args: argparse.Namespace) -> int:
     return 0 if manifest.ready_for_review else 1
 
 
+def _execute_component_review_request(path: Path) -> ProjectComponentReviewExecution:
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    netlist = parse_canonical_board_netlist_snapshot(payload["board_netlist_snapshot_json"])
+    pin_evidence = {
+        reference: ComponentPinEvidence.model_validate(value)
+        for reference, value in payload.get("pin_evidence_by_reference", {}).items()
+    }
+    results = {
+        obligation_id: ComponentReviewResult.model_validate(value)
+        for obligation_id, value in payload.get("results_by_obligation", {}).items()
+    }
+    return execute_project_component_reviews(
+        project_id=payload["project_id"],
+        board_revision=payload["board_revision"],
+        netlist=netlist,
+        pin_evidence_by_reference=pin_evidence,
+        reviewer=lambda request: results.get(request.obligation.obligation_id),
+        max_attempts=int(payload.get("max_attempts", 2)),
+        evidence_query_budget_per_obligation=int(
+            payload.get("evidence_query_budget_per_obligation", 4)
+        ),
+    )
+
+
+def _cmd_component_review_execute(args: argparse.Namespace) -> int:
+    execution = _execute_component_review_request(Path(args.request))
+    rendered = json.dumps(execution.model_dump(mode="json"), indent=2) + "\n"
+    Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if execution.ready_for_routing else 1
+
+
 def _cmd_visual_inspect(args: argparse.Namespace) -> int:
     payload = json.loads(Path(args.decisions).read_text("utf-8"))
     decisions = {
@@ -2665,6 +2705,9 @@ def _cmd_production_placement_review(args: argparse.Namespace) -> int:
         board_relative_path=args.board_relative_path,
         board_payload=board.read_bytes(),
         review_generator=generate,
+        component_review_generator=lambda _board: _execute_component_review_request(
+            Path(args.component_review_request)
+        ),
     )
     rendered = json.dumps(result.model_dump(mode="json"), indent=2) + "\n"
     if args.output:
@@ -2687,6 +2730,9 @@ def _cmd_workflow_route_gate(args: argparse.Namespace) -> int:
     engineering_gate = ProjectEngineeringGateResult.model_validate_json(
         Path(args.engineering_gate).read_text("utf-8")
     )
+    component_review_execution = ProjectComponentReviewExecution.model_validate_json(
+        Path(args.component_review_execution).read_text("utf-8")
+    )
     report = evaluate_routing_entry_gate(
         generation_sha256=args.generation_sha256,
         saved_board_sha256=args.saved_board_sha256,
@@ -2698,6 +2744,7 @@ def _cmd_workflow_route_gate(args: argparse.Namespace) -> int:
         placement_review=review,
         committed_review_transaction=transaction,
         engineering_gate=engineering_gate,
+        component_review_execution=component_review_execution,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES[args.profile]),
     )
     rendered = json.dumps(report.model_dump(mode="json"), indent=2) + "\n"
@@ -2925,6 +2972,22 @@ def _cmd_production_visual_inspect(args: argparse.Namespace) -> int:
         Path(args.output).write_text(rendered, encoding="utf-8")
     print(rendered, end="")
     return 0 if result.review_manifest.package_status == "accepted" else 1
+
+
+def _cmd_production_component_review_repair(args: argparse.Namespace) -> int:
+    result = repair_current_component_review(
+        transaction_root=Path(args.transaction_root),
+        generation_id=args.generation_id,
+        generation_sha256=args.generation_sha256,
+        component_review_generator=lambda _board: _execute_component_review_request(
+            Path(args.component_review_request)
+        ),
+    )
+    rendered = json.dumps(result.model_dump(mode="json"), indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if result.component_review_execution.ready_for_routing else 1
 
 
 def _cmd_verify(args: argparse.Namespace) -> int:
@@ -3955,6 +4018,17 @@ def build_parser() -> argparse.ArgumentParser:
     schematic_review_parser.add_argument("--project-id", required=True)
     schematic_review_parser.set_defaults(func=_cmd_schematic_review_package)
 
+    component_review_parser = subparsers.add_parser(
+        "component-review-execute",
+        help=(
+            "execute every per-IC review obligation with bounded conservative "
+            "recovery and exact coverage"
+        ),
+    )
+    component_review_parser.add_argument("request")
+    component_review_parser.add_argument("--output", required=True)
+    component_review_parser.set_defaults(func=_cmd_component_review_execute)
+
     visual_inspect_parser = subparsers.add_parser(
         "visual-inspect",
         help="record named artifact inspection decisions and evaluate the review gate",
@@ -3991,6 +4065,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     placement_review_parser.add_argument("--features", required=True)
     placement_review_parser.add_argument("--model-preflight", required=True)
+    placement_review_parser.add_argument(
+        "--component-review-request",
+        required=True,
+        help=(
+            "exact BoardNetlist, pin-evidence, and review-result request executed "
+            "inside the generation transaction"
+        ),
+    )
     placement_review_parser.add_argument("--source-revision")
     placement_review_parser.add_argument("--output")
     placement_review_parser.set_defaults(func=_cmd_production_placement_review)
@@ -4008,6 +4090,23 @@ def build_parser() -> argparse.ArgumentParser:
     production_inspect_parser.add_argument("--output")
     production_inspect_parser.set_defaults(func=_cmd_production_visual_inspect)
 
+    component_repair_parser = subparsers.add_parser(
+        "production-component-review-repair",
+        help=(
+            "rerun component obligations and commit repaired evidence as a new "
+            "immutable placement generation"
+        ),
+    )
+    component_repair_parser.add_argument("transaction_root")
+    component_repair_parser.add_argument(
+        "--component-review-request",
+        required=True,
+    )
+    component_repair_parser.add_argument("--generation-id", required=True)
+    component_repair_parser.add_argument("--generation-sha256", required=True)
+    component_repair_parser.add_argument("--output")
+    component_repair_parser.set_defaults(func=_cmd_production_component_review_repair)
+
     route_gate_parser = subparsers.add_parser(
         "workflow-route-gate",
         help="enforce prompt, context, feasibility, drift, review, and budget gates",
@@ -4022,6 +4121,7 @@ def build_parser() -> argparse.ArgumentParser:
     route_gate_parser.add_argument("--review-manifest", required=True)
     route_gate_parser.add_argument("--transaction-manifest", required=True)
     route_gate_parser.add_argument("--engineering-gate", required=True)
+    route_gate_parser.add_argument("--component-review-execution", required=True)
     route_gate_parser.add_argument(
         "--profile",
         choices=("quick", "standard", "deep"),

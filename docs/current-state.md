@@ -370,15 +370,21 @@ order belongs in `docs/routing-placement-plan.md`.
    native budgets. Typed user review conventions now distinguish release,
    conditional electrical/layout, and presentation obligations; dormant or
    presentation advice cannot become a universal blocker. Remaining Phase 17
-   work is automatic per-component review invocation/recovery, legacy generator migration,
-   board-triggered R6/default-caller execution, Protocol Analyzer correction,
-   and two materially different prompt-to-final boards including one unseen
-   after implementation freezes and human review of both packages.
+   work is legacy generator migration, board-triggered R6/default-caller
+   execution, Protocol Analyzer correction, and two materially different
+   prompt-to-final boards including one unseen after implementation freezes
+   and human review of both packages.
    Connected schematic review is now implemented and production-callable: one
    atomic manifest binds explicit root/per-sheet SVG/PDF exports, a complete
    project PDF, raw and canonical whole-project ERC/netlist hashes, the exact
    root schematic, and KiCad version. A three-page fixture and live KiCad
    10.0.3 Retro-Pad export pass.
+   Automatic component review is also production-integrated. Exact-netlist
+   obligations execute inside placement and immutable repair transactions with
+   retained per-IC manifests/traces, shared retry/query budgets, bounded
+   neighbor evidence, conservative no-submission/exception recovery, and
+   evidence deduplication. Routing now requires the complete same-netlist
+   execution and its exact retained transaction artifact.
    A controlled edge-interface slice is also implemented for components that
    must be clicked, plugged, or accessed at an edge. New containment waivers
    require replay-bound geometry that separately proves retained support and

@@ -1229,11 +1229,16 @@ verification.
 - [x] Add exact-package pin evidence, deterministic per-IC neighborhoods,
   applicability-aware review obligations, bounded evidence-query accounting,
   and an exact-coverage manifest that cannot silently omit a review area.
-- [ ] Invoke component-review obligations automatically inside transactional
+- [x] Invoke component-review obligations automatically inside transactional
   generation and repair. Add retained per-IC traces, no-submission recovery,
   bounded neighbor-evidence retrieval, conservative normalization/
   deduplication, and production invocation of the new manifest. Do not create
-  a separate assistant-style or routine human-operated review workflow.
+  a separate assistant-style or routine human-operated review workflow. The
+  2026-07-25 runner covers every `U*` component from the exact BoardNetlist,
+  shares evidence-query budgets across retries, retains exceptions/invalid or
+  absent submissions, and recovers unresolved work as unverified. Placement
+  and repair transactions retain the execution, per-IC manifests, and traces;
+  routing requires the same-netlist retained execution to be complete.
 - [x] Turn the user-supplied schematic/PCB review conventions into typed
   release, conditional electrical/layout, and presentation obligations.
   Universal blocker promotion is forbidden without applicable authority.
