@@ -155,3 +155,27 @@ Open acceptance work:
 - assemble and inspect the regular and irregular/cutout package manifests;
 - collect actual human, fabricator, and assembler approvals only when a package
   is genuinely released.
+
+## End-of-session closure classification
+
+Neither phase is marked complete merely because its core machinery now works.
+The remaining roadmap items have different owners:
+
+| Phase | Remaining scope | Classification |
+| --- | --- | --- |
+| 17 | Connected canonical schematic SVG/PDF views | production implementation |
+| 17 | Automatic component-review invocation/recovery | production integration |
+| 17 | Every legacy board generator behind shared transactions | migration |
+| 17 | Protocol Analyzer R002 correction/routing | known failed-board repair |
+| 17 | Complete R6/default path on a post-freeze unseen board | new user project evidence |
+| 17 | Two complete package inspections | human visual acceptance |
+| 17 | Multi-Channel, Freerouting, automatic CAD responsibility regions | trigger-dependent, not universally required |
+| 18 | Regular and irregular panel DRC | failed proof requiring correction |
+| 18 | Complete current-path and unsupported DFM/DFT evidence | board-specific engineering evidence |
+| 18 | Neutral package reinspection on both proof boards | independent/human acceptance |
+| 18 | Manufacturer adapter | dormant until a manufacturer is selected |
+| 18 | Human/fabricator/assembler approval records | external release authority |
+
+This classification prevents long-lead or externally owned evidence from being
+confused with skipped implementation, while also preventing implemented schemas
+from being mistaken for completed production proof.

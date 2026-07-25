@@ -363,10 +363,18 @@ order belongs in `docs/routing-placement-plan.md`.
    failures/errors in 647.047 seconds. Its stewardship audit counts 2,069
    authored functions and 93 name-matched production checks, preventing the
    collected-case count from being misread as 2,799 independent rules.
-   Remaining Phase 17 work is production placement/rendering budget
-   integration, board-triggered R6/default-caller execution, and two materially
-   different prompt-to-final boards including one unseen after implementation
-   freezes.
+   The 2026-07-25 closure slice replaced final-release booleans with exact
+   producer/version/input-bound verification records, made the
+   applicability-to-execution manifest mandatory at routed release, and made
+   production placement plus every emitted review render consume operative
+   native budgets. Typed user review conventions now distinguish release,
+   conditional electrical/layout, and presentation obligations; dormant or
+   presentation advice cannot become a universal blocker. Remaining Phase 17
+   work is canonical connected schematic SVG/PDF generation, automatic
+   per-component review invocation/recovery, legacy generator migration,
+   board-triggered R6/default-caller execution, Protocol Analyzer correction,
+   and two materially different prompt-to-final boards including one unseen
+   after implementation freezes and human review of both packages.
    A controlled edge-interface slice is also implemented for components that
    must be clicked, plugged, or accessed at an edge. New containment waivers
    require replay-bound geometry that separately proves retained support and
@@ -375,9 +383,17 @@ order belongs in `docs/routing-placement-plan.md`.
    rejected after layout movement. Automatic extraction from supplier CAD,
    3D enclosure/mating-path proof, and production placement-candidate use
    remain open.
-9. Phase 18 is manufacturing and assembly output authority: neutral release
-   packages, fabrication/process profiles, KiKit, InteractiveHtmlBom, DFM/DFT,
-   panelization, and optional manufacturer adapters.
+9. Phase 18 is active manufacturing and assembly output authority. Typed
+   fabrication/stack-up/IPC-2152 profiles, full current-path coverage,
+   saved-board manufacturing identities, ten-category DFM/DFT evidence,
+   content-recognized atomic neutral packages, and human/fabricator/assembler
+   release-language gates are implemented. KiCad 10.0.3 neutral exports and
+   pinned InteractiveHtmlBom 2.11.2 ran successfully on the regular Retro-Pad
+   3x3 and irregular Retro-Pad R003 candidates. KiKit 1.8.0 generated both
+   first panels, but KiCad panel DRC rejected them with 19 and 231 findings;
+   panelization and cross-board package proof remain open rather than being
+   promoted through exclusions. Optional manufacturer adapters remain dormant
+   until a manufacturer is selected.
 10. Phase 19 is MCAD/mechanical authority: native STEP baselines, KiCad
    StepUp/FreeCAD, exact mechanical envelopes, collision/accessibility checks,
    deterministic round trips, and optional `kicad-python` inspection.
