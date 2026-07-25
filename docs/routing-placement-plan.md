@@ -1262,6 +1262,30 @@ verification.
 - [ ] Publish a Phase 17 completion audit mapping every migrated implementation
   item to code, caller, test, artifact, and limitation.
 
+### KiCad 11 PCB diff/merge watchpoint - not a Phase 17 completion blocker
+
+KiCad's post-v10 development branch now contains native PCB diff and merge
+support with GUI and command-line entry points, including `git mergetool`
+integration. This is potentially valuable as an independent CAD-aware review
+and conflict-resolution tool, but it is not required to close Phase 17 and a
+nightly build must not become the production file authority.
+
+- [ ] After a pinned KiCad 11 release candidate or stable release is available,
+  evaluate the PCB diff/merge CLI in an isolated copy of the cross-board corpus.
+  Record tool version, invocation, base/ours/theirs/output hashes, exit state,
+  and retained diff/merge artifacts.
+- [ ] Compare its detected changes with PCBSmith's semantic board identities,
+  generation transactions, concept-drift checks, and routed-board evidence.
+  Determine whether it adds useful change classes rather than duplicating a
+  textual or object-hash comparison.
+- [ ] Exercise clean, conflicting, and deliberately unsafe merges. A
+  syntactically valid merged board must still pass read-back, netlist
+  equivalence, routing coverage, DRC, applicability-to-execution, and review
+  gates before it can replace a canonical artifact.
+- [ ] If stable and headless, add it as an optional independent change-review
+  oracle and Git merge adapter. Do not make a nightly file format, GUI-only
+  interaction, or the merge tool's own success message a release authority.
+
 ### 2026-07-24 routing-omission corrective gate
 
 - [x] Add saved-board routing evidence that records segment/via/zone counts,
@@ -1400,6 +1424,20 @@ fit authority merely because they look plausible.
 - [ ] Prototype the official `kicad-python` IPC API as an optional interactive
   inspection/highlight/guided-repair companion. It must not replace direct file
   generation, headless `kicad-cli`, or retained deterministic evidence.
+- [ ] Evaluate KiCad 11's FreeCAD `planegcs`-based geometric constraint solver
+  in an isolated, version-pinned corpus. Target board outlines, radii,
+  tangency, symmetry, mounting-hole patterns, connector datums, panel openings,
+  and other mechanical relations; do not misapply it to electrical,
+  current-path, routing, thermal, or enclosure-fit authority.
+- [ ] Build any adopted solver integration as an adapter from PCBSmith's typed
+  spatial and mechanical constraints. Retain constraint identities, units,
+  tolerances, degrees of freedom, solver version, solve result, and the exact
+  before/after board hashes.
+- [ ] Characterize deterministic replay, serialization, under-constrained and
+  over-constrained states, conflicting constraints, tolerance behavior, and
+  failure recovery before solver output can update a canonical board. The
+  typed PCBSmith requirement remains authoritative even if KiCad performs the
+  geometric solve.
 - [ ] Prove the MCAD gate on a connector/enclosure-critical board and a
   heatsink/mechanical-assembly board with exact and proxy-model failure cases.
 

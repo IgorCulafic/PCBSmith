@@ -254,6 +254,47 @@ Detailed experiment design can wait until the planned paper-focused period, but 
 - Predeclared exclusions, failure handling, and stopping rules.
 - A contribution-ownership matrix showing which figures, tables, and experiments belong to each paper.
 
+## Milestone review and evidence freeze before paper drafting
+
+The project does not need to finish Phases 19-21 before paper work begins.
+However, implementation progress alone is not a defensible publication
+milestone. Before drafting claims or running paper comparisons, perform one
+repository-wide review and freeze the evidence relevant to each paper.
+
+The review must produce:
+
+- A capability matrix that distinguishes `implemented`, `production-invoked`,
+  `cross-board proven`, `human-inspected`, and `release-qualified`.
+- A phase-by-phase map of completed work, remaining blockers, deliberately
+  deferred work, and version-gated external capabilities.
+- An artifact and evidence index linking each prospective claim to exact
+  boards, prompts, code revisions, tool versions, hashes, checks, review
+  decisions, and known limitations.
+- A normalized failure corpus covering failed sessions, rejected candidates,
+  omissions, user corrections, regressions, dead ends, recovery work, and
+  defects that escaped existing checks.
+- A check inventory that separates authored tests, parametrized cases,
+  production checks, project executions, and actual engineering rules so raw
+  test counts cannot be presented as rule coverage.
+- A paper claims/readiness matrix showing available evidence, missing
+  baselines, required ablations, human-review needs, contamination risks, and
+  claims that must be narrowed.
+- A frozen experiment protocol and milestone tag or reproducibility bundle for
+  every paper that begins data collection.
+
+Paper 1 and Paper 2 may begin from their own frozen Phase 16-18 evidence while
+later engineering phases continue. Paper 1 already has a separate
+vector-conditioned image-study plan. Paper 3 can proceed to experiment design
+once its instrumentation and ablation boundaries are verified. Paper 5 remains
+behind a frozen multi-condition benchmark and compute plan. No paper should
+silently use a later, repaired implementation for only one comparison arm.
+
 ## Immediate recommendation
 
-Resume PCBSmith implementation after adopting this portfolio as a working map. Do not interrupt the engineering roadmap to manufacture paper results. Preserve structured evidence during development, then begin Paper 1 and Paper 2 preparation in parallel when the two-week writing and experiment-planning window begins. Instrument Paper 3 now, but run its ablations only after the conditions can be isolated cleanly. Keep Paper 5 behind a benchmark freeze and compute plan.
+Finish the active Phase 17 and Phase 18 proof gaps without waiting for
+nightly-only KiCad capabilities, then run the milestone review and evidence
+freeze above. Begin Paper 1 and Paper 2 preparation from their frozen evidence
+in parallel with later engineering work. Instrument Paper 3 now, but run its
+ablations only after the conditions can be isolated cleanly. Keep Paper 5
+behind a benchmark freeze and compute plan. Do not interrupt the engineering
+roadmap merely to manufacture favorable paper results.

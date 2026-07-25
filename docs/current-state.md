@@ -395,14 +395,31 @@ order belongs in `docs/routing-placement-plan.md`.
    promoted through exclusions. Optional manufacturer adapters remain dormant
    until a manufacturer is selected.
 10. Phase 19 is MCAD/mechanical authority: native STEP baselines, KiCad
-   StepUp/FreeCAD, exact mechanical envelopes, collision/accessibility checks,
-   deterministic round trips, and optional `kicad-python` inspection.
+    StepUp/FreeCAD, exact mechanical envelopes, collision/accessibility checks,
+    deterministic round trips, and optional `kicad-python` inspection. KiCad
+    11's developing FreeCAD `planegcs`-based geometric solver is now a
+    version-gated Phase 19 evaluation target for outlines, hole patterns, and
+    mechanical datums; it will not replace PCBSmith's typed constraints or
+    electrical and release authorities.
 11. Phase 20 is context-triggered advanced analysis: complete loss/thermal/
     protection authority, PDN/SI/power transients, EMC/reliability adapters, and
     structured ngspice with optional advanced model frontends.
 12. Phase 21 is correlated validation and release qualification: measurement
     plans, uncertainty, raw-data/model identity, calibration-versus-validation,
     cross-board failure corpus, claim vocabulary, and named human approval.
+
+KiCad 11's native PCB diff/merge support is also recorded as a non-blocking
+Phase 17 watchpoint. After a stable, pinned command-line interface exists, it
+may become an independent CAD-aware change-review and Git merge adapter. It
+must remain subordinate to exact hashes, semantic identities, transactions,
+read-back, netlist equivalence, DRC, routing coverage, and review gates.
+
+Before paper drafting, the publication plan now requires a repository-wide
+milestone review and evidence freeze. That review will separate implementation
+from production invocation, cross-board proof, human inspection, and release
+qualification; index claim evidence and failures; audit check-count semantics;
+and freeze paper-specific experiment protocols. Papers 1 and 2 do not need to
+wait for Phases 19-21 once their own evidence is frozen.
 
 ## Authority order
 
