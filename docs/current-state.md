@@ -405,9 +405,12 @@ order belongs in `docs/routing-placement-plan.md`.
    requires matching `.kicad_pro` rule authority, exact annotated tab
    identities where needed, explicit non-overlapping rail features, and an
    atomic DRC proof. R003 remains honestly not panel-ready because its ground
-   pours violate mouse-bite clearance. Actual coupon generation and complete
-   cross-board neutral-package evidence remain open. Optional manufacturer
-   adapters remain dormant until a manufacturer is selected.
+   pours violate mouse-bite clearance. Regular R001 and irregular R003
+   schema-v2 neutral-package ZIPs have now been independently extracted,
+   file-set/hash/source-binding checked, typed-evidence reloaded, and visually
+   inspected. Both remain `blocked` because current paths are unverified and
+   DFM/DFT is incomplete. Actual coupon generation remains open. Optional
+   manufacturer adapters remain dormant until a manufacturer is selected.
 10. Phase 19 is MCAD/mechanical authority: native STEP baselines, KiCad
     StepUp/FreeCAD, exact mechanical envelopes, collision/accessibility checks,
     deterministic round trips, and optional `kicad-python` inspection. KiCad

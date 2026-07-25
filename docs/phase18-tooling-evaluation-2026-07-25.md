@@ -75,16 +75,20 @@ without a running application and raised a wxWidgets `PgmOrNull()` assertion.
 That invocation was stopped. The production launcher now always sets both
 variables; a regression test verifies them.
 
-Corrected live runs produced one self-contained HTML artifact for each proof
-board:
+Corrected live runs produced one self-contained HTML artifact for each final
+schema-v2 proof package:
 
-- regular 3x3 board: 306,571 bytes,
-  SHA-256 `a9eb8ac82cfb5502d40fd017cc4b99b2f935f4a69fb2186a8c7d7758d147fbfe`;
-- irregular Retro-Pad board: 260,951 bytes,
-  SHA-256 `7fd8986af101b4c0e4301bb7ff4738a8a3d07385957ffae057c3d09fdab8a21f`.
+- regular 3x3 board: 304,455 bytes,
+  SHA-256 `05644d1c7e656319818d60af75c9c797832a5cc36717001d4c25645dbb6cccc4`;
+- irregular Retro-Pad board: 259,215 bytes,
+  SHA-256 `a48ca3c5a646e58724a07841f04d66ec4291a7beaadbf4347ff95e119d9c780a`.
 
 Each live KiCad neutral export also produced 8 ordinary Gerbers, 2 paste
-Gerbers, Excellon drill and Gerber drill map, IPC-D-356, front/back assembly
-drawings, fabrication drawing, BOM, placement CSV, stack-up notes, and README.
-Formal package acceptance remains open because current-path and unsupported
-DFM/DFT authorities have not been supplied or approved.
+Gerbers, Excellon drill and PDF drill map, IPC-D-356, front/back assembly
+drawings, a prototype drill/fabrication sheet, drill report, BOM, placement
+CSV, stack-up notes, and README. The final schema-v2 package also embeds its
+exact fabrication profile, manufacturing identity registry, current-path
+record, and DFM/DFT report. Independent ZIP/hash/model and visual checks are
+recorded in `docs/phase18-neutral-package-proof-2026-07-25.md`. Formal package
+acceptance remains blocked because current-path and unsupported DFM/DFT
+authorities have not been supplied or approved.

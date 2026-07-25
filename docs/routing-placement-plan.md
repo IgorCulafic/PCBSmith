@@ -1365,8 +1365,8 @@ Recovery evidence:
 
 ## Phase 18 - manufacturing and assembly outputs
 
-**Status (2026-07-25): ACTIVE; NEUTRAL PACKAGE AND RELEASE AUTHORITY
-IMPLEMENTED, LIVE TOOL/PACKAGE PROOFS REMAIN.**
+**Status (2026-07-25): ACTIVE; NEUTRAL PACKAGE, PANEL, AND CROSS-BOARD
+STRUCTURAL PROOFS COMPLETE; BOARD ENGINEERING/PROCESS CLOSURE REMAINS.**
 
 Phase 18 turns an authoritative single-board design into reproducible,
 manufacturer-neutral fabrication and assembly deliverables. It does not claim
@@ -1402,9 +1402,11 @@ assembler, stack-up, process, and human release review.
 - [ ] Evaluate optional manufacturer adapters, beginning with JLCPCB only when
   needed. Preserve canonical neutral outputs and require golden part mapping,
   side, rotation, origin, and units fixtures.
-- [ ] Prove packages on at least one regular and one irregular/cutout board,
+- [x] Prove packages on at least one regular and one irregular/cutout board,
   reimport or independently inspect the outputs, and retain intentional failure
-  fixtures.
+  fixtures. Schema-v2 ZIPs now include their exact profile, identity,
+  current-path, and DFM/DFT evidence; all files and hashes were independently
+  checked and the six assembly/drill-map PDFs were visually inspected.
 - [x] Require explicit human/fabricator/assembler approval before using
   `fabrication_ready`, `assembly_ready`, or equivalent release language.
 

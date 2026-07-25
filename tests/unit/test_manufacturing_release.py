@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import subprocess
 import sys
 from pathlib import Path
@@ -28,6 +29,7 @@ from pcbsmith.manufacturing_ir import (
 )
 from pcbsmith.manufacturing_release import (
     INTERACTIVE_HTML_BOM_PINNED_VERSION,
+    MANDATORY_NEUTRAL_EVIDENCE_ROLES,
     MANDATORY_NEUTRAL_ROLES,
     BoardOutlineClass,
     InteractiveBomProfile,
@@ -40,6 +42,7 @@ from pcbsmith.manufacturing_release import (
     PanelTabPlacement,
     assemble_neutral_manufacturing_package,
     evaluate_baseline_dfm_dft,
+    export_kicad_neutral_sources,
     extract_saved_board_manufacturing_identities,
     generate_and_verify_kikit_panel,
     generate_interactive_html_bom,
@@ -613,6 +616,79 @@ def test_interactive_bom_launcher_forces_cli_mode_without_plugin_registration(
     assert retained_environment["INTERACTIVE_HTML_BOM_CLI_MODE"] == "1"
 
 
+def test_neutral_export_retains_gerber_job_without_misclassifying_it(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    board = _board(tmp_path / "board.kicad_pcb")
+    interactive_bom = tmp_path / "interactive.html"
+    interactive_bom.write_text(
+        "<html><body>fixture</body></html>",
+        encoding="utf-8",
+    )
+
+    def fake_run(*args, **kwargs):
+        command = args[0]
+        if command[1] == "version":
+            return subprocess.CompletedProcess(command, 0, b"10.0.3\n", b"")
+        output = Path(command[command.index("--output") + 1])
+        if "gerbers" in command:
+            output.mkdir(parents=True, exist_ok=True)
+            (output / "board-F_Cu.gbr").write_text(
+                "G04 copper*\n%FSLAX46Y46*%\nM02*\n",
+                encoding="utf-8",
+            )
+            (output / "board-F_Paste.gtp").write_text(
+                "G04 paste*\n%FSLAX46Y46*%\nM02*\n",
+                encoding="utf-8",
+            )
+            (output / "board-job.gbrjob").write_text(
+                '{"Header": {"GenerationSoftware": "fixture"}}',
+                encoding="utf-8",
+            )
+        elif "drill" in command:
+            output.mkdir(parents=True, exist_ok=True)
+            (output / "board-PTH.drl").write_text(
+                "M48\nMETRIC\n%\nM30\n",
+                encoding="utf-8",
+            )
+            (output / "board-PTH-drl_map.pdf").write_bytes(b"%PDF-1.4\n% fixture drill map\n")
+            Path(command[command.index("--report-path") + 1]).write_text(
+                "Drill report fixture\n",
+                encoding="utf-8",
+            )
+        elif "ipcd356" in command:
+            output.write_text("C  IPC-D-356 fixture\nP  JOB fixture\n", encoding="utf-8")
+        elif "pos" in command:
+            output.write_text(
+                "Ref,Val,Package,PosX,PosY,Rot,Side\nU1,TEST,SOIC,1,2,0,top\n",
+                encoding="utf-8",
+            )
+        elif "pdf" in command:
+            output.write_bytes(b"%PDF-1.4\n% fixture\n")
+        return subprocess.CompletedProcess(command, 0, "", "")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    sources, tool = export_kicad_neutral_sources(
+        board_file=board,
+        output_directory=tmp_path / "neutral",
+        profile=_profile(),
+        identities=extract_saved_board_manufacturing_identities(board),
+        interactive_bom_file=interactive_bom,
+        kicad_cli=Path("fixture-kicad-cli"),
+        kicad_version="10.0.3",
+    )
+
+    assert tool.status is ManufacturingToolStatus.AVAILABLE
+    assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.GERBER]) == (".gbr",)
+    assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.DRILL_MAP]) == (".pdf",)
+    assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.PASTE]) == (".gtp",)
+    assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.OTHER]) == (
+        ".gbrjob",
+        ".txt",
+    )
+
+
 def test_baseline_dfm_dft_runs_supported_checks_and_exposes_missing_authority(
     tmp_path: Path,
 ) -> None:
@@ -668,6 +744,22 @@ def test_neutral_package_is_atomic_hashed_and_not_release_approved(
     assert (tmp_path / "release-package" / "SHA256SUMS").is_file()
     assert manifest.release_status is ManufacturingReleaseStatus.PACKAGE_GENERATED
     assert manifest.approvals == ()
+    artifact_roles = {artifact.role for artifact in manifest.artifacts}
+    assert MANDATORY_NEUTRAL_EVIDENCE_ROLES <= artifact_roles
+    assert manifest.schema_version == 2
+    current_path_file = (
+        tmp_path / "release-package" / "files" / "current_path_evidence" / "current-paths.json"
+    )
+    current_path_payload = json.loads(current_path_file.read_text(encoding="utf-8"))
+    assert current_path_payload["board_sha256"] == board_sha256
+    assert current_path_payload["records"][0]["record_fingerprint"] in (
+        manifest.current_path_record_fingerprints
+    )
+    dfm_file = tmp_path / "release-package" / "files" / "dfm_dft_evidence" / "dfm-dft.json"
+    assert (
+        json.loads(dfm_file.read_text(encoding="utf-8"))["report_fingerprint"]
+        == manifest.dfm_dft_report_fingerprint
+    )
 
     payload = manifest.model_dump(mode="json")
     payload["release_status"] = "fabrication_ready"
@@ -739,6 +831,38 @@ def test_neutral_package_rejects_role_labels_on_unrecognizable_content(
         sources[role] = (artifact,)
 
     with pytest.raises(ValueError, match="not recognizable Gerber"):
+        assemble_neutral_manufacturing_package(
+            output_directory=tmp_path / "release-package",
+            project_id="fixture-project",
+            board_file=board,
+            profile=profile,
+            identities=extract_saved_board_manufacturing_identities(board),
+            current_paths=(_current_path(board_sha256, profile),),
+            dfm_dft=_dfm(board_sha256),
+            source_artifacts=sources,
+            tool_evidence=(_tool(),),
+        )
+
+
+def test_neutral_package_rejects_caller_supplied_generated_evidence(
+    tmp_path: Path,
+) -> None:
+    board = _board(tmp_path / "board.kicad_pcb")
+    board_sha256 = _sha(board.read_bytes())
+    profile = _profile()
+    sources: dict[ManufacturingArtifactRole, tuple[Path, ...]] = {}
+    for role in MANDATORY_NEUTRAL_ROLES:
+        artifact = tmp_path / f"{role.value}.dat"
+        artifact.write_bytes(_artifact_payload(role))
+        sources[role] = (artifact,)
+    spoofed = tmp_path / "spoofed-profile.json"
+    spoofed.write_text('{"profile_id": "caller-controlled"}\n', encoding="utf-8")
+    sources[ManufacturingArtifactRole.FABRICATION_PROFILE] = (spoofed,)
+
+    with pytest.raises(
+        ValueError,
+        match="generated manufacturing evidence roles cannot be supplied",
+    ):
         assemble_neutral_manufacturing_package(
             output_directory=tmp_path / "release-package",
             project_id="fixture-project",

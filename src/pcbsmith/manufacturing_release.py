@@ -882,6 +882,10 @@ class ManufacturingArtifactRole(StrEnum):
     DRILL = "drill"
     DRILL_MAP = "drill_map"
     NETLIST = "netlist"
+    FABRICATION_PROFILE = "fabrication_profile"
+    MANUFACTURING_IDENTITIES = "manufacturing_identities"
+    CURRENT_PATH_EVIDENCE = "current_path_evidence"
+    DFM_DFT_EVIDENCE = "dfm_dft_evidence"
     STACKUP_NOTES = "stackup_notes"
     FABRICATION_DRAWING = "fabrication_drawing"
     ASSEMBLY_DRAWING_FRONT = "assembly_drawing_front"
@@ -914,6 +918,15 @@ MANDATORY_NEUTRAL_ROLES = frozenset(
     }
 )
 
+MANDATORY_NEUTRAL_EVIDENCE_ROLES = frozenset(
+    {
+        ManufacturingArtifactRole.FABRICATION_PROFILE,
+        ManufacturingArtifactRole.MANUFACTURING_IDENTITIES,
+        ManufacturingArtifactRole.CURRENT_PATH_EVIDENCE,
+        ManufacturingArtifactRole.DFM_DFT_EVIDENCE,
+    }
+)
+
 
 class ManufacturingArtifact(SemanticIrModel):
     artifact_id: str
@@ -937,7 +950,7 @@ class NeutralManufacturingPackage(SemanticIrModel):
     schema_id: Literal["pcbsmith-neutral-manufacturing-package"] = (
         "pcbsmith-neutral-manufacturing-package"
     )
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     project_id: str
     board_sha256: str
     fabrication_profile_fingerprint: str
@@ -968,7 +981,9 @@ class NeutralManufacturingPackage(SemanticIrModel):
             raise ValueError("manufacturing artifact paths must be unique")
         if any(item.source_board_sha256 != self.board_sha256 for item in artifacts):
             raise ValueError("manufacturing package mixes board revisions")
-        missing = MANDATORY_NEUTRAL_ROLES - {item.role for item in artifacts}
+        missing = (MANDATORY_NEUTRAL_ROLES | MANDATORY_NEUTRAL_EVIDENCE_ROLES) - {
+            item.role for item in artifacts
+        }
         if missing:
             raise ValueError(
                 "neutral manufacturing package is missing roles: "
@@ -1037,6 +1052,12 @@ def assemble_neutral_manufacturing_package(
             + ", ".join(sorted(unavailable_tools))
         )
     supplied_roles = set(source_artifacts)
+    reserved = supplied_roles & MANDATORY_NEUTRAL_EVIDENCE_ROLES
+    if reserved:
+        raise ValueError(
+            "generated manufacturing evidence roles cannot be supplied by callers: "
+            + ", ".join(sorted(item.value for item in reserved))
+        )
     missing = MANDATORY_NEUTRAL_ROLES - supplied_roles
     if missing:
         raise ValueError(
@@ -1051,29 +1072,78 @@ def assemble_neutral_manufacturing_package(
         staging.mkdir()
         artifacts: list[ManufacturingArtifact] = []
         artifact_index = 0
-        for role in sorted(source_artifacts, key=lambda item: item.value):
-            paths = source_artifacts[role]
+        generated_evidence: dict[
+            ManufacturingArtifactRole,
+            tuple[tuple[str, bytes], ...],
+        ] = {
+            ManufacturingArtifactRole.FABRICATION_PROFILE: (
+                (
+                    "fabrication-profile.json",
+                    _json_artifact_payload(profile.model_dump(mode="json")),
+                ),
+            ),
+            ManufacturingArtifactRole.MANUFACTURING_IDENTITIES: (
+                (
+                    "manufacturing-identities.json",
+                    _json_artifact_payload(identities.model_dump(mode="json")),
+                ),
+            ),
+            ManufacturingArtifactRole.CURRENT_PATH_EVIDENCE: (
+                (
+                    "current-paths.json",
+                    _json_artifact_payload(
+                        {
+                            "schema_id": "pcbsmith-current-path-evidence-set",
+                            "schema_version": 1,
+                            "board_sha256": board_sha256,
+                            "records": [
+                                item.model_dump(mode="json")
+                                for item in sorted(
+                                    current_paths,
+                                    key=lambda item: item.path_id,
+                                )
+                            ],
+                        }
+                    ),
+                ),
+            ),
+            ManufacturingArtifactRole.DFM_DFT_EVIDENCE: (
+                (
+                    "dfm-dft.json",
+                    _json_artifact_payload(dfm_dft.model_dump(mode="json")),
+                ),
+            ),
+        }
+        artifact_payloads: list[tuple[ManufacturingArtifactRole, str, bytes, Path]] = []
+        for role, paths in source_artifacts.items():
             if not paths:
                 raise ValueError(f"artifact role {role.value} has no files")
-            for source in sorted(paths, key=lambda item: item.name):
+            for source in paths:
                 if not source.is_file():
                     raise ValueError(f"manufacturing source artifact is missing: {source}")
-                payload = source.read_bytes()
-                _validate_manufacturing_artifact(role, source, payload)
-                artifact_index += 1
-                relative = PurePosixPath("files") / role.value / source.name
-                destination = staging / relative
-                destination.parent.mkdir(parents=True, exist_ok=True)
-                destination.write_bytes(payload)
-                artifacts.append(
-                    ManufacturingArtifact(
-                        artifact_id=f"mfg-{artifact_index:04d}",
-                        role=role,
-                        relative_path=relative.as_posix(),
-                        content_sha256=_bytes_sha256(destination.read_bytes()),
-                        source_board_sha256=board_sha256,
-                    )
+                artifact_payloads.append((role, source.name, source.read_bytes(), source))
+        for role, entries in generated_evidence.items():
+            for name, payload in entries:
+                artifact_payloads.append((role, name, payload, Path(name)))
+        for role, name, payload, source in sorted(
+            artifact_payloads,
+            key=lambda item: (item[0].value, item[1]),
+        ):
+            _validate_manufacturing_artifact(role, source, payload)
+            artifact_index += 1
+            relative = PurePosixPath("files") / role.value / name
+            destination = staging / relative
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            destination.write_bytes(payload)
+            artifacts.append(
+                ManufacturingArtifact(
+                    artifact_id=f"mfg-{artifact_index:04d}",
+                    role=role,
+                    relative_path=relative.as_posix(),
+                    content_sha256=_bytes_sha256(destination.read_bytes()),
+                    source_board_sha256=board_sha256,
                 )
+            )
         current_fingerprints = tuple(sorted(item.record_fingerprint for item in current_paths))
         fields: dict[str, Any] = {
             "project_id": project_id,
@@ -1184,7 +1254,10 @@ def export_kicad_neutral_sources(
             "excellon",
             "--generate-map",
             "--map-format",
-            "gerberx2",
+            "pdf",
+            "--generate-report",
+            "--report-path",
+            str(output_directory / "drill-report.txt"),
             "--output",
             str(drill_dir) + os.sep,
             str(board_file),
@@ -1217,13 +1290,6 @@ def export_kicad_neutral_sources(
         _pdf_export_command(
             kicad_cli=kicad_cli,
             board_file=board_file,
-            output=drawing_dir / "fabrication.pdf",
-            layers="F.Fab,B.Fab,Edge.Cuts",
-            mirror=False,
-        ),
-        _pdf_export_command(
-            kicad_cli=kicad_cli,
-            board_file=board_file,
             output=drawing_dir / "assembly-front.pdf",
             layers="F.Silkscreen,F.Fab,Edge.Cuts",
             mirror=False,
@@ -1248,6 +1314,10 @@ def export_kicad_neutral_sources(
                 "KiCad neutral export failed: "
                 + (completed.stderr.strip() or completed.stdout.strip())
             )
+    drill_map_pdfs = tuple(sorted(drill_dir.glob("*.pdf")))
+    if len(drill_map_pdfs) != 1:
+        raise RuntimeError("KiCad neutral export requires exactly one PDF drill/fabrication map")
+    shutil.copy2(drill_map_pdfs[0], drawing_dir / "fabrication.pdf")
     bom_file = output_directory / "bom.csv"
     _write_identity_bom(bom_file, identities)
     stackup_file = output_directory / "stackup-notes.md"
@@ -1256,23 +1326,39 @@ def export_kicad_neutral_sources(
     readme_file.write_text(
         "# Manufacturer-neutral outputs\n\n"
         "These files are generated evidence, not fabrication or assembly "
-        "approval. Read the package manifest, DFM/DFT report, current-path "
-        "records, limitations, and approval records before release.\n",
+        "approval. Read the package manifest, included DFM/DFT report, current-path "
+        "records, fabrication profile, identity registry, limitations, and approval "
+        "records before release.\n\n"
+        "The current `fabrication_drawing` PDF is a KiCad drill map with the board "
+        "outline and drill legend. It is useful inspection evidence, but it is not "
+        "a complete dimensioned fabrication drawing. The package must remain blocked "
+        "until the selected fabricator's required dimensions, tolerances, notes, and "
+        "process evidence are supplied and approved.\n",
         encoding="utf-8",
     )
     retained_ibom = output_directory / "interactive-bom.html"
     shutil.copy2(interactive_bom_file, retained_ibom)
-    gerbers = tuple(sorted(gerber_dir.glob("*")))
+    gerbers = tuple(sorted(path for path in gerber_dir.glob("*") if path.is_file()))
+    gerber_jobs = tuple(path for path in gerbers if path.suffix.casefold() == ".gbrjob")
     paste = tuple(
         path
         for path in gerbers
         if "paste" in path.name.casefold() or path.suffix.casefold() in {".gtp", ".gbp"}
     )
-    ordinary_gerbers = tuple(path for path in gerbers if path not in paste)
+    ordinary_gerbers = tuple(
+        path for path in gerbers if path not in paste and path not in gerber_jobs
+    )
     drill_files = tuple(
         path for path in drill_dir.glob("*") if path.suffix.casefold() in {".drl", ".xln"}
     )
-    drill_maps = tuple(path for path in drill_dir.glob("*") if path not in drill_files)
+    drill_maps = tuple(
+        path
+        for path in drill_dir.glob("*")
+        if path.suffix.casefold() in {".pdf", ".gbr", ".svg", ".dxf", ".ps"}
+    )
+    drill_reports = tuple(
+        path for path in (output_directory / "drill-report.txt",) if path.is_file()
+    )
     sources = {
         ManufacturingArtifactRole.GERBER: ordinary_gerbers,
         ManufacturingArtifactRole.DRILL: drill_files,
@@ -1288,6 +1374,9 @@ def export_kicad_neutral_sources(
         ManufacturingArtifactRole.INTERACTIVE_BOM: (retained_ibom,),
         ManufacturingArtifactRole.README: (readme_file,),
     }
+    other = tuple((*gerber_jobs, *drill_reports))
+    if other:
+        sources[ManufacturingArtifactRole.OTHER] = other
     missing_files = tuple(
         role.value
         for role, paths in sources.items()
@@ -1461,6 +1550,9 @@ def _pdf_export_command(
         "--mode-single",
         "--black-and-white",
         "--sketch-pads-on-fab-layers",
+        "--exclude-value",
+        "--scale",
+        "0",
         "--layers",
         layers,
         "--output",
@@ -1539,10 +1631,15 @@ def _validate_manufacturing_artifact(
     text = payload[:8192].decode("utf-8", errors="replace")
     if role in {
         ManufacturingArtifactRole.GERBER,
-        ManufacturingArtifactRole.DRILL_MAP,
         ManufacturingArtifactRole.PASTE,
     } and not any(marker in text for marker in ("G04", "%FS", "%TF.")):
         raise ValueError(f"{role.value} artifact is not recognizable Gerber: {source}")
+    if (
+        role is ManufacturingArtifactRole.DRILL_MAP
+        and not payload.startswith(b"%PDF")
+        and not any(marker in text for marker in ("G04", "%FS", "%TF."))
+    ):
+        raise ValueError(f"drill-map artifact is not recognizable PDF/Gerber: {source}")
     if role is ManufacturingArtifactRole.DRILL and "M48" not in text:
         raise ValueError(f"drill artifact is not recognizable Excellon: {source}")
     if role is ManufacturingArtifactRole.NETLIST and not any(
@@ -1562,3 +1659,14 @@ def _validate_manufacturing_artifact(
         raise ValueError(f"{role.value} artifact is not recognizable CSV: {source}")
     if role is ManufacturingArtifactRole.INTERACTIVE_BOM and "<html" not in text.casefold():
         raise ValueError(f"interactive BOM artifact is not self-contained HTML: {source}")
+    if role in MANDATORY_NEUTRAL_EVIDENCE_ROLES:
+        try:
+            decoded = json.loads(payload)
+        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError(f"{role.value} artifact is not recognizable JSON: {source}") from exc
+        if not isinstance(decoded, dict):
+            raise ValueError(f"{role.value} artifact must contain a JSON object: {source}")
+
+
+def _json_artifact_payload(value: Any) -> bytes:
+    return (json.dumps(value, indent=2, sort_keys=True) + "\n").encode("utf-8")

@@ -223,9 +223,18 @@ Open acceptance work:
 
 - generate and validate actual impedance coupon geometry when applicable;
 - complete current-path and unsupported DFM/DFT evidence for both boards;
-- assemble and inspect the regular and irregular/cutout package manifests;
 - collect actual human, fabricator, and assembler approvals only when a package
   is genuinely released.
+
+The regular R001 and irregular R003 schema-v2 neutral packages are now
+structurally proven. Both ZIPs were independently extracted; their exact file
+sets, manifests, `SHA256SUMS`, per-artifact hashes, board bindings, and embedded
+typed profile/identity/current-path/DFM evidence were checked. Six final
+assembly/drill-map PDFs were rendered and visually inspected. The proof found
+and corrected a `.gbrjob` role error, unreadable PDF scaling, a misleading
+fabrication overlay, and omitted evidence records. The resulting packages
+remain honestly `blocked`; see
+`docs/phase18-neutral-package-proof-2026-07-25.md`.
 
 ## End-of-session closure classification
 
@@ -239,9 +248,8 @@ The remaining roadmap items have different owners:
 | 17 | Complete R6/default path on a post-freeze unseen board | new user project evidence |
 | 17 | Two complete package inspections | human visual acceptance |
 | 17 | Multi-Channel, Freerouting, automatic CAD responsibility regions | trigger-dependent, not universally required |
-| 18 | Regular and irregular panel DRC | failed proof requiring correction |
+| 18 | R003 source-board mouse-bite panel | board copper-clearance correction |
 | 18 | Complete current-path and unsupported DFM/DFT evidence | board-specific engineering evidence |
-| 18 | Neutral package reinspection on both proof boards | independent/human acceptance |
 | 18 | Manufacturer adapter | dormant until a manufacturer is selected |
 | 18 | Human/fabricator/assembler approval records | external release authority |
 
