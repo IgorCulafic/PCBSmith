@@ -15,6 +15,10 @@ from typing import Any, Literal, Self
 
 from pydantic import Field, model_validator
 
+from pcbsmith.applicability_execution import (
+    ProjectApplicabilityExecutionManifest,
+    ProjectExecutionAuthority,
+)
 from pcbsmith.execution import (
     ExecutionProfile,
     WorkBudgetLedger,
@@ -1439,6 +1443,7 @@ class RoutedBoardReleaseGateReport(SemanticIrModel):
     board_routing: SavedBoardRoutingEvidence
     kicad_drc: KiCadDrcEvidence
     verification_evidence: RoutedBoardVerificationEvidence
+    applicability_execution: ProjectApplicabilityExecutionManifest
     transaction_fingerprint: str
     final_review_sha256: str
     allowed: bool
@@ -1465,6 +1470,7 @@ def evaluate_routed_board_release_gate(
     final_review: VisualReviewManifest,
     committed_transaction: GenerationTransactionManifest,
     verification_evidence: RoutedBoardVerificationEvidence,
+    applicability_execution: ProjectApplicabilityExecutionManifest,
 ) -> RoutedBoardReleaseGateReport:
     """Require copper, connectivity, DRC, review, and transaction identity.
 
@@ -1485,6 +1491,13 @@ def evaluate_routed_board_release_gate(
         blockers.append("saved board lacks copper carriers for one or more routable nets")
     if verification_evidence.board_sha256 != board_routing.board_sha256:
         blockers.append("routed verification evidence targets a different saved board")
+    if applicability_execution.saved_design_sha256 != board_routing.board_sha256:
+        blockers.append("applicability/execution manifest targets a different saved board")
+    if applicability_execution.authority is not ProjectExecutionAuthority.READY:
+        blockers.append(
+            "project applicability/execution coverage is blocked: "
+            + "; ".join(applicability_execution.blockers)
+        )
     exact_route = verification_evidence.record(RoutedVerificationKind.EXACT_ROUTE)
     readback = verification_evidence.record(RoutedVerificationKind.KICAD_READBACK)
     netlist = verification_evidence.record(RoutedVerificationKind.NETLIST_EQUIVALENCE)
@@ -1554,6 +1567,7 @@ def evaluate_routed_board_release_gate(
         "board_routing": board_routing,
         "kicad_drc": kicad_drc,
         "verification_evidence": verification_evidence,
+        "applicability_execution": applicability_execution,
         "transaction_fingerprint": committed_transaction.transaction_fingerprint,
         "final_review_sha256": review_sha256,
         "allowed": not blockers,

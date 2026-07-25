@@ -6,6 +6,13 @@ from pathlib import Path
 
 import pytest
 
+from pcbsmith.applicability_execution import (
+    ApplicableCheckRequirement,
+    CheckExecutionRecord,
+    ProjectApplicabilityExecutionManifest,
+    ProjectCheckApplicability,
+    ProjectCheckDisposition,
+)
 from pcbsmith.kicad.routing_evidence import inspect_saved_board_routing
 from pcbsmith.production_workflow import (
     GenerationArtifact,
@@ -143,6 +150,35 @@ def _verification(
     )
 
 
+def _applicability_execution(board: Path) -> ProjectApplicabilityExecutionManifest:
+    board_sha256 = _sha256(board.read_bytes())
+    context_sha256 = _sha256(b"test-check-context")
+    requirement = ApplicableCheckRequirement.build(
+        check_id="test.saved-board",
+        rule_ids=("test.saved-board.rule",),
+        applicability=ProjectCheckApplicability.APPLICABLE,
+        applicability_authority_id="test.saved-board.applicability",
+        exact_input_sha256s=(board_sha256, context_sha256),
+        minimum_evaluated_objects=1,
+        rationale="The saved-board check is always applicable in this fixture.",
+    )
+    execution = CheckExecutionRecord.build(
+        check_id=requirement.check_id,
+        exact_input_sha256s=requirement.exact_input_sha256s,
+        producer_id="test.saved-board.checker",
+        tool_version="test-1",
+        evaluated_object_count=1,
+        disposition=ProjectCheckDisposition.PASS,
+        result_sha256=_sha256(b"test-check-result"),
+    )
+    return ProjectApplicabilityExecutionManifest.build(
+        project_id="test-project",
+        saved_design_sha256=board_sha256,
+        requirements=(requirement,),
+        executions=(execution,),
+    )
+
+
 def test_release_gate_accepts_only_the_exact_verified_routed_revision(
     tmp_path: Path,
 ) -> None:
@@ -156,6 +192,7 @@ def test_release_gate_accepts_only_the_exact_verified_routed_revision(
         final_review=review,
         committed_transaction=_transaction(board, review),
         verification_evidence=_verification(board),
+        applicability_execution=_applicability_execution(board),
     )
 
     assert report.allowed
@@ -175,6 +212,7 @@ def test_release_gate_cannot_promote_an_accepted_placement_manifest(
         final_review=review,
         committed_transaction=_transaction(board, review),
         verification_evidence=_verification(board),
+        applicability_execution=_applicability_execution(board),
     )
 
     assert not report.allowed
@@ -198,6 +236,7 @@ def test_release_gate_rejects_unretained_or_wrong_board_verification(
         final_review=review,
         committed_transaction=_transaction(board, review),
         verification_evidence=_verification(board, accepted=False),
+        applicability_execution=_applicability_execution(board),
     )
     wrong_board = evaluate_routed_board_release_gate(
         board_file=board,
@@ -205,6 +244,7 @@ def test_release_gate_rejects_unretained_or_wrong_board_verification(
         final_review=review,
         committed_transaction=_transaction(board, review),
         verification_evidence=_verification(other),
+        applicability_execution=_applicability_execution(other),
     )
 
     assert not rejected.allowed

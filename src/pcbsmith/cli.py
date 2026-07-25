@@ -2837,6 +2837,10 @@ def _copy_kicad_drc_context(board: Path, destination: Path) -> Path:
 
 
 def _cmd_routed_release_gate(args: argparse.Namespace) -> int:
+    from pcbsmith.applicability_execution import (
+        ProjectApplicabilityExecutionManifest,
+    )
+
     review = VisualReviewManifest.model_validate_json(Path(args.review_manifest).read_text("utf-8"))
     transaction = GenerationTransactionManifest.model_validate_json(
         Path(args.transaction_manifest).read_text("utf-8")
@@ -2846,17 +2850,49 @@ def _cmd_routed_release_gate(args: argparse.Namespace) -> int:
     verification = RoutedBoardVerificationEvidence.model_validate_json(
         Path(args.verification_evidence).read_text("utf-8")
     )
+    applicability_execution = ProjectApplicabilityExecutionManifest.model_validate_json(
+        Path(args.applicability_execution).read_text("utf-8")
+    )
     report = evaluate_routed_board_release_gate(
         board_file=Path(args.board),
         drc_report_file=Path(args.drc_report),
         final_review=review,
         committed_transaction=transaction,
         verification_evidence=verification,
+        applicability_execution=applicability_execution,
     )
     rendered = json.dumps(report.model_dump(mode="json"), indent=2) + "\n"
     Path(args.output).write_text(rendered, encoding="utf-8")
     print(rendered, end="")
     return 0 if report.allowed else 1
+
+
+def _cmd_applicability_execution_manifest(args: argparse.Namespace) -> int:
+    import hashlib
+
+    from pcbsmith.applicability_execution import (
+        ApplicableCheckRequirement,
+        CheckExecutionRecord,
+        ProjectApplicabilityExecutionManifest,
+    )
+
+    design = Path(args.saved_design)
+    requirement_payload = json.loads(Path(args.requirements).read_text("utf-8"))
+    execution_payload = json.loads(Path(args.executions).read_text("utf-8"))
+    requirements = tuple(
+        ApplicableCheckRequirement.model_validate(item) for item in requirement_payload
+    )
+    executions = tuple(CheckExecutionRecord.model_validate(item) for item in execution_payload)
+    manifest = ProjectApplicabilityExecutionManifest.build(
+        project_id=args.project_id,
+        saved_design_sha256=hashlib.sha256(design.read_bytes()).hexdigest(),
+        requirements=requirements,
+        executions=executions,
+    )
+    rendered = json.dumps(manifest.model_dump(mode="json"), indent=2) + "\n"
+    Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if manifest.authority.value == "ready" else 1
 
 
 def _cmd_production_visual_inspect(args: argparse.Namespace) -> int:
@@ -4007,8 +4043,24 @@ def build_parser() -> argparse.ArgumentParser:
             "evidence bundle; caller-supplied release booleans are forbidden"
         ),
     )
+    release_gate_parser.add_argument(
+        "--applicability-execution",
+        required=True,
+        help=("project-wide exact-input applicability and production check-execution manifest"),
+    )
     release_gate_parser.add_argument("--output", required=True)
     release_gate_parser.set_defaults(func=_cmd_routed_release_gate)
+
+    applicability_execution_parser = subparsers.add_parser(
+        "applicability-execution-manifest",
+        help=("bind applicable project checks to exact saved-input production executions"),
+    )
+    applicability_execution_parser.add_argument("--project-id", required=True)
+    applicability_execution_parser.add_argument("--saved-design", required=True)
+    applicability_execution_parser.add_argument("--requirements", required=True)
+    applicability_execution_parser.add_argument("--executions", required=True)
+    applicability_execution_parser.add_argument("--output", required=True)
+    applicability_execution_parser.set_defaults(func=_cmd_applicability_execution_manifest)
 
     verify_parser = subparsers.add_parser(
         "verify",

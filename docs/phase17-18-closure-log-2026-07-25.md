@@ -31,6 +31,27 @@ Verification:
 - strict mypy for the changed production modules: passed;
 - routed-board release-gate unit tests: 4 passed.
 
+### Project applicability-to-execution coverage
+
+`ProjectApplicabilityExecutionManifest` now distinguishes a repository check
+from a check actually executed on one exact saved design. It binds every
+declared check to rule IDs, applicability authority, exact input hashes,
+producer/tool version, evaluated-object count, result hash, disposition, and
+limitations.
+
+The manifest fails closed for unresolved applicability, missing applicable
+execution, unjustified zero-object execution, stale or conflicting inputs,
+failed/unverified/blocked results, execution of a not-applicable check, and an
+execution without a declaration. The routed-board release gate now requires a
+ready same-board manifest. A CLI builder derives the saved-design hash directly
+from the file and emits the replay-bound manifest.
+
+Verification:
+
+- focused Ruff format/check: passed;
+- strict mypy for the changed production modules: passed;
+- applicability/execution and routed-release tests: 11 passed.
+
 ## Phase 18
 
 Implementation has not yet been recorded in this session.

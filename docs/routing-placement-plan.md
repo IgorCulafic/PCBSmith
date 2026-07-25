@@ -1214,7 +1214,7 @@ verification.
 - [x] Make router ordering repository-deterministic and checkpoint only
   replay-equivalent completed route domains.
 - [x] Add compact pre-route failing-net and capacity diagnostics.
-- [ ] Add one project-wide applicability-to-execution manifest that binds
+- [x] Add one project-wide applicability-to-execution manifest that binds
   every applicable rule/check to the exact saved inputs, producer/tool
   version, evaluated-object count, result, limitations, and final authority.
   Missing, stale, conflicting, or unjustified zero-object executions must fail
