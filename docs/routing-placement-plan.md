@@ -1275,7 +1275,7 @@ verification.
   accepted conformant final review, and one committed board/review transaction.
 - [x] Audit all canonical retained output boards with isolated KiCad 10 DRC and
   publish `docs/project-routing-revalidation-2026-07-24.md`.
-- [ ] Replace caller-supplied release booleans with retained typed exact-route,
+- [x] Replace caller-supplied release booleans with retained typed exact-route,
   read-back, and netlist-equivalence evidence objects.
 - [x] Implement one operative routed-board persistence/final-review transaction
   that rejects placement-only boards, dirty DRC, stale hashes, and mixed

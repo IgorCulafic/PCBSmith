@@ -82,9 +82,7 @@ class NativeAlgorithm(StrEnum):
 
 
 class AlgorithmBudgetBinding(SemanticIrModel):
-    schema_id: Literal["pcbsmith-algorithm-budget-binding"] = (
-        "pcbsmith-algorithm-budget-binding"
-    )
+    schema_id: Literal["pcbsmith-algorithm-budget-binding"] = "pcbsmith-algorithm-budget-binding"
     schema_version: Literal[1] = 1
     profile_name: Literal["quick", "standard", "deep"]
     algorithm: NativeAlgorithm
@@ -125,9 +123,7 @@ def bind_execution_profile(
 
 
 class AlgorithmStageTelemetry(SemanticIrModel):
-    schema_id: Literal["pcbsmith-algorithm-stage-telemetry"] = (
-        "pcbsmith-algorithm-stage-telemetry"
-    )
+    schema_id: Literal["pcbsmith-algorithm-stage-telemetry"] = "pcbsmith-algorithm-stage-telemetry"
     schema_version: Literal[1] = 1
     generation_sha256: str
     algorithm: NativeAlgorithm
@@ -238,8 +234,7 @@ class NativeStageController:
         elapsed = self._clock() - self._started
         if elapsed > self.binding.timeout_seconds:
             raise NativeStageTimeout(
-                f"{self.binding.algorithm.value} exceeded "
-                f"{self.binding.timeout_seconds:g} seconds"
+                f"{self.binding.algorithm.value} exceeded {self.binding.timeout_seconds:g} seconds"
             )
 
     def _emit_heartbeat_if_due(self, boundary: str) -> None:
@@ -281,9 +276,7 @@ class GenerationArtifact(SemanticIrModel):
 
 
 class GenerationTransactionManifest(SemanticIrModel):
-    schema_id: Literal["pcbsmith-generation-transaction"] = (
-        "pcbsmith-generation-transaction"
-    )
+    schema_id: Literal["pcbsmith-generation-transaction"] = "pcbsmith-generation-transaction"
     schema_version: Literal[1] = 1
     project_id: str
     generation_id: str
@@ -343,15 +336,11 @@ class GenerationTransactionManifest(SemanticIrModel):
             "previous_current_sha256": previous_current_sha256,
             "reason": reason,
         }
-        provisional = cls.model_construct(
-            **fields, transaction_fingerprint="0" * 64
-        )
+        provisional = cls.model_construct(**fields, transaction_fingerprint="0" * 64)
         return cls(
             **fields,
             transaction_fingerprint=fingerprint(
-                provisional.model_dump(
-                    mode="json", exclude={"transaction_fingerprint"}
-                )
+                provisional.model_dump(mode="json", exclude={"transaction_fingerprint"})
             ),
         )
 
@@ -442,9 +431,7 @@ def persist_placement_and_generate_review(
     root = transaction_root.resolve()
     work_parent = root / ".review-work"
     work_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(
-        prefix=f"{generation_id}-", dir=work_parent
-    ) as temporary:
+    with tempfile.TemporaryDirectory(prefix=f"{generation_id}-", dir=work_parent) as temporary:
         work_root = Path(temporary)
         board_file = work_root / PurePosixPath(board_relative_path)
         _require_descendant(work_root, board_file)
@@ -458,12 +445,7 @@ def persist_placement_and_generate_review(
         if generated_manifest.board_sha256 != board_sha256:
             raise ValueError("review manifest does not bind the saved placement board")
 
-        final_board = (
-            root
-            / "generations"
-            / generation_id
-            / PurePosixPath(board_relative_path)
-        )
+        final_board = root / "generations" / generation_id / PurePosixPath(board_relative_path)
         retained_manifest = generated_manifest.model_copy(
             update={
                 "board_file": str(final_board),
@@ -481,9 +463,7 @@ def persist_placement_and_generate_review(
         roles: dict[str, ArtifactRole] = {board_relative_path: "board"}
         if review_output.exists():
             for path in sorted(item for item in review_output.rglob("*") if item.is_file()):
-                relative = PurePosixPath("review") / path.relative_to(
-                    review_output
-                ).as_posix()
+                relative = PurePosixPath("review") / path.relative_to(review_output).as_posix()
                 relative_text = relative.as_posix()
                 payloads[relative_text] = path.read_bytes()
                 roles[relative_text] = "review"
@@ -583,12 +563,9 @@ def persist_routed_board_and_generate_review(
         if (
             manifest_routing.board_sha256 != routing_evidence.board_sha256
             or manifest_routing.state is not RoutingArtifactState.ROUTED_CANDIDATE
-            or manifest_routing.evidence_fingerprint
-            != routing_evidence.evidence_fingerprint
+            or manifest_routing.evidence_fingerprint != routing_evidence.evidence_fingerprint
         ):
-            raise ValueError(
-                "final review routing evidence does not equal exact board inspection"
-            )
+            raise ValueError("final review routing evidence does not equal exact board inspection")
 
         final_root = root / "generations" / generation_id
         final_board = final_root / PurePosixPath(board_relative_path)
@@ -611,12 +588,8 @@ def persist_routed_board_and_generate_review(
         payloads: dict[str, bytes] = {board_relative_path: board_payload}
         roles: dict[str, ArtifactRole] = {board_relative_path: "board"}
         if review_output.exists():
-            for path in sorted(
-                item for item in review_output.rglob("*") if item.is_file()
-            ):
-                relative = PurePosixPath("review") / path.relative_to(
-                    review_output
-                ).as_posix()
+            for path in sorted(item for item in review_output.rglob("*") if item.is_file()):
+                relative = PurePosixPath("review") / path.relative_to(review_output).as_posix()
                 relative_text = relative.as_posix()
                 payloads[relative_text] = path.read_bytes()
                 roles[relative_text] = "review"
@@ -685,11 +658,7 @@ def inspect_current_placement_review(
     current = resolve_current_generation(root)
     current_dir = root / "generations" / current.generation_id
     review_artifact = next(
-        (
-            item
-            for item in current.artifacts
-            if item.relative_path == "review/manifest.json"
-        ),
+        (item for item in current.artifacts if item.relative_path == "review/manifest.json"),
         None,
     )
     if review_artifact is None:
@@ -714,40 +683,26 @@ def inspect_current_placement_review(
             mechanism=mechanism,
             decisions=decisions,
         )
-        board_artifacts = tuple(
-            item for item in current.artifacts if item.role == "board"
-        )
+        board_artifacts = tuple(item for item in current.artifacts if item.role == "board")
         if len(board_artifacts) != 1:
-            raise ValueError(
-                "placement inspection requires exactly one canonical board artifact"
-            )
+            raise ValueError("placement inspection requires exactly one canonical board artifact")
         board_relative_path = board_artifacts[0].relative_path
         updated_manifest = updated_manifest.model_copy(
             update={
                 "board_file": str(
-                    root
-                    / "generations"
-                    / generation_id
-                    / PurePosixPath(board_relative_path)
+                    root / "generations" / generation_id / PurePosixPath(board_relative_path)
                 ),
                 "routing_evidence": (
                     None
                     if updated_manifest.routing_evidence is None
                     else retarget_saved_board_routing_evidence(
                         updated_manifest.routing_evidence,
-                        (
-                            root
-                            / "generations"
-                            / generation_id
-                            / PurePosixPath(board_relative_path)
-                        ),
+                        (root / "generations" / generation_id / PurePosixPath(board_relative_path)),
                     )
                 ),
             }
         )
-        write_visual_review_manifest(
-            work_root / "review" / "manifest.json", updated_manifest
-        )
+        write_visual_review_manifest(work_root / "review" / "manifest.json", updated_manifest)
         payloads = {
             path.relative_to(work_root).as_posix(): path.read_bytes()
             for path in sorted(item for item in work_root.rglob("*") if item.is_file())
@@ -826,9 +781,7 @@ def commit_generation_transaction(
         for artifact in manifest.artifacts:
             retained = staging / PurePosixPath(artifact.relative_path)
             if _file_sha256(retained) != artifact.content_sha256:
-                raise RuntimeError(
-                    f"staged artifact verification failed: {artifact.relative_path}"
-                )
+                raise RuntimeError(f"staged artifact verification failed: {artifact.relative_path}")
         committed = GenerationTransactionManifest.build(
             project_id=manifest.project_id,
             generation_id=manifest.generation_id,
@@ -932,9 +885,7 @@ def _read_current_pointer(path: Path) -> tuple[str | None, str | None]:
 
 
 def _write_manifest(path: Path, manifest: GenerationTransactionManifest) -> None:
-    path.write_bytes(
-        _canonical_bytes(manifest.model_dump(mode="json"))
-    )
+    path.write_bytes(_canonical_bytes(manifest.model_dump(mode="json")))
 
 
 def _safe_relative_path(value: str) -> PurePosixPath:
@@ -976,9 +927,7 @@ def _file_sha256(path: Path) -> str:
 
 
 class RouteDomainRequest(SemanticIrModel):
-    schema_id: Literal["pcbsmith-route-domain-request"] = (
-        "pcbsmith-route-domain-request"
-    )
+    schema_id: Literal["pcbsmith-route-domain-request"] = "pcbsmith-route-domain-request"
     schema_version: Literal[1] = 1
     domain_id: str
     priority: int = Field(ge=0)
@@ -992,10 +941,7 @@ class RouteDomainRequest(SemanticIrModel):
         require_sha256(self.input_fingerprint, "input_fingerprint")
         dependencies = tuple(sorted(self.dependency_domain_ids))
         nets = tuple(sorted(self.net_names))
-        if (
-            len(dependencies) != len(set(dependencies))
-            or len(nets) != len(set(nets))
-        ):
+        if len(dependencies) != len(set(dependencies)) or len(nets) != len(set(nets)):
             raise ValueError("route dependencies and net names must be unique")
         if self.domain_id in dependencies:
             raise ValueError("route domain cannot depend on itself")
@@ -1005,9 +951,7 @@ class RouteDomainRequest(SemanticIrModel):
 
 
 class DeterministicRoutePlan(SemanticIrModel):
-    schema_id: Literal["pcbsmith-deterministic-route-plan"] = (
-        "pcbsmith-deterministic-route-plan"
-    )
+    schema_id: Literal["pcbsmith-deterministic-route-plan"] = "pcbsmith-deterministic-route-plan"
     schema_version: Literal[1] = 1
     generation_sha256: str
     start_board_sha256: str
@@ -1022,11 +966,7 @@ class DeterministicRoutePlan(SemanticIrModel):
         ids = tuple(item.domain_id for item in self.ordered_domains)
         if len(ids) != len(set(ids)):
             raise ValueError("route plan domain identities must be unique")
-        expected_nets = tuple(
-            net
-            for domain in self.ordered_domains
-            for net in domain.net_names
-        )
+        expected_nets = tuple(net for domain in self.ordered_domains for net in domain.net_names)
         if expected_nets != self.ordered_net_names:
             raise ValueError("ordered net names are stale")
         if len(expected_nets) != len(set(expected_nets)):
@@ -1088,13 +1028,9 @@ def build_deterministic_route_plan(
         "generation_sha256": generation_sha256,
         "start_board_sha256": start_board_sha256,
         "ordered_domains": tuple(ordered),
-        "ordered_net_names": tuple(
-            net for domain in ordered for net in domain.net_names
-        ),
+        "ordered_net_names": tuple(net for domain in ordered for net in domain.net_names),
     }
-    provisional = DeterministicRoutePlan.model_construct(
-        **fields, plan_fingerprint="0" * 64
-    )
+    provisional = DeterministicRoutePlan.model_construct(**fields, plan_fingerprint="0" * 64)
     return DeterministicRoutePlan(
         **fields,
         plan_fingerprint=fingerprint(
@@ -1104,9 +1040,7 @@ def build_deterministic_route_plan(
 
 
 class CompletedRouteDomain(SemanticIrModel):
-    schema_id: Literal["pcbsmith-completed-route-domain"] = (
-        "pcbsmith-completed-route-domain"
-    )
+    schema_id: Literal["pcbsmith-completed-route-domain"] = "pcbsmith-completed-route-domain"
     schema_version: Literal[1] = 1
     domain_id: str
     domain_input_fingerprint: str
@@ -1129,9 +1063,7 @@ class CompletedRouteDomain(SemanticIrModel):
 
 
 class RouteDomainCheckpoint(SemanticIrModel):
-    schema_id: Literal["pcbsmith-route-domain-checkpoint"] = (
-        "pcbsmith-route-domain-checkpoint"
-    )
+    schema_id: Literal["pcbsmith-route-domain-checkpoint"] = "pcbsmith-route-domain-checkpoint"
     schema_version: Literal[1] = 1
     generation_sha256: str
     plan_fingerprint: str
@@ -1161,9 +1093,7 @@ def build_route_domain_checkpoint(
     if len(completed_domains) > len(plan.ordered_domains):
         raise ValueError("checkpoint completes more domains than its route plan")
     current_board = plan.start_board_sha256
-    for expected, completed in zip(
-        plan.ordered_domains, completed_domains, strict=False
-    ):
+    for expected, completed in zip(plan.ordered_domains, completed_domains, strict=False):
         if (
             completed.domain_id != expected.domain_id
             or completed.domain_input_fingerprint != expected.input_fingerprint
@@ -1178,9 +1108,7 @@ def build_route_domain_checkpoint(
         "completed_domains": completed_domains,
         "current_board_sha256": current_board,
     }
-    provisional = RouteDomainCheckpoint.model_construct(
-        **fields, checkpoint_fingerprint="0" * 64
-    )
+    provisional = RouteDomainCheckpoint.model_construct(**fields, checkpoint_fingerprint="0" * 64)
     return RouteDomainCheckpoint(
         **fields,
         checkpoint_fingerprint=fingerprint(
@@ -1200,16 +1128,12 @@ def remaining_route_domains(
     ):
         raise ValueError("checkpoint belongs to another generation or route plan")
     # Rebuild to revalidate the retained prefix and board chain.
-    build_route_domain_checkpoint(
-        plan=plan, completed_domains=checkpoint.completed_domains
-    )
+    build_route_domain_checkpoint(plan=plan, completed_domains=checkpoint.completed_domains)
     return plan.ordered_domains[len(checkpoint.completed_domains) :]
 
 
 class RoutingEntryGateReport(SemanticIrModel):
-    schema_id: Literal["pcbsmith-routing-entry-gate"] = (
-        "pcbsmith-routing-entry-gate"
-    )
+    schema_id: Literal["pcbsmith-routing-entry-gate"] = "pcbsmith-routing-entry-gate"
     schema_version: Literal[1] = 1
     generation_sha256: str
     saved_board_sha256: str
@@ -1280,9 +1204,7 @@ def evaluate_routing_entry_gate(
         if item.status is ProjectContextStatus.UNRESOLVED
     )
     if unresolved_context:
-        blockers.append(
-            "project context is unresolved: " + ", ".join(unresolved_context)
-        )
+        blockers.append("project context is unresolved: " + ", ".join(unresolved_context))
     if feasibility.outcome not in {
         FeasibilityOutcome.READY,
         FeasibilityOutcome.ATTENTION_REQUIRED,
@@ -1299,16 +1221,12 @@ def evaluate_routing_entry_gate(
     if placement_review.board_sha256 != saved_board_sha256:
         blockers.append("placement review targets a different saved board")
     if placement_review.package_status != "accepted":
-        blockers.append(
-            f"placement review package is {placement_review.package_status}"
-        )
+        blockers.append(f"placement review package is {placement_review.package_status}")
     if placement_review.workflow_conformance_status not in {
         "conformant",
         "conformant_with_waivers",
     }:
-        blockers.append(
-            "placement review workflow profile is not conformant"
-        )
+        blockers.append("placement review workflow profile is not conformant")
     if committed_review_transaction.status != "committed":
         blockers.append("placement/review generation transaction is not committed")
     if committed_review_transaction.generation_sha256 != generation_sha256:
@@ -1317,22 +1235,12 @@ def evaluate_routing_entry_gate(
         blockers.append("placement/review transaction belongs to another project")
     if engineering_gate.context.project_id != context.project_id:
         blockers.append("engineering applicability gate belongs to another project")
-    if (
-        engineering_gate.context.board_layout_snapshot_fingerprint
-        != saved_layout_fingerprint
-    ):
-        blockers.append(
-            "engineering applicability gate targets another saved layout snapshot"
-        )
-    if (
-        engineering_gate.context.inventory_status
-        is not InventoryStatus.COMPLETE_REVIEWED
-    ):
+    if engineering_gate.context.board_layout_snapshot_fingerprint != saved_layout_fingerprint:
+        blockers.append("engineering applicability gate targets another saved layout snapshot")
+    if engineering_gate.context.inventory_status is not InventoryStatus.COMPLETE_REVIEWED:
         blockers.append("engineering component/feature inventory is not complete and reviewed")
     if engineering_gate.outcome is not ProjectGateOutcome.READY:
-        blockers.append(
-            f"engineering applicability gate is {engineering_gate.outcome.value}"
-        )
+        blockers.append(f"engineering applicability gate is {engineering_gate.outcome.value}")
     retained_board = tuple(
         item
         for item in committed_review_transaction.artifacts
@@ -1361,10 +1269,7 @@ def evaluate_routing_entry_gate(
     if not retained_review:
         blockers.append("committed transaction lacks the exact canonical review manifest")
     algorithms = tuple(item.algorithm for item in budget_bindings)
-    if (
-        len(algorithms) != len(set(algorithms))
-        or set(algorithms) != set(NativeAlgorithm)
-    ):
+    if len(algorithms) != len(set(algorithms)) or set(algorithms) != set(NativeAlgorithm):
         blockers.append("execution profile is not bound to every native algorithm")
     profile_names = {item.profile_name for item in budget_bindings}
     if len(profile_names) != 1:
@@ -1382,15 +1287,11 @@ def evaluate_routing_entry_gate(
         "context_fingerprint": context.context_fingerprint,
         "feasibility_fingerprint": feasibility.report_fingerprint,
         "concept_drift_fingerprint": concept_drift.report_fingerprint,
-        "review_transaction_fingerprint": (
-            committed_review_transaction.transaction_fingerprint
-        ),
+        "review_transaction_fingerprint": (committed_review_transaction.transaction_fingerprint),
         "engineering_gate_fingerprint": engineering_gate.result_fingerprint,
         "budget_profile_name": profile_name,
     }
-    provisional = RoutingEntryGateReport.model_construct(
-        **fields, report_fingerprint="0" * 64
-    )
+    provisional = RoutingEntryGateReport.model_construct(**fields, report_fingerprint="0" * 64)
     return RoutingEntryGateReport(
         **fields,
         report_fingerprint=fingerprint(
@@ -1399,18 +1300,145 @@ def evaluate_routing_entry_gate(
     )
 
 
+class RoutedVerificationKind(StrEnum):
+    EXACT_ROUTE = "exact_route"
+    KICAD_READBACK = "kicad_readback"
+    NETLIST_EQUIVALENCE = "netlist_equivalence"
+
+
+class RoutedVerificationRecord(SemanticIrModel):
+    """Retained producer evidence for one routed-board release assertion."""
+
+    schema_id: Literal["pcbsmith-routed-verification-record"] = (
+        "pcbsmith-routed-verification-record"
+    )
+    schema_version: Literal[1] = 1
+    kind: RoutedVerificationKind
+    board_sha256: str
+    producer_id: str
+    tool_version: str
+    input_sha256s: tuple[str, ...]
+    accepted: bool
+    result_code: str
+    limitations: tuple[str, ...] = ()
+    record_fingerprint: str
+
+    @model_validator(mode="after")
+    def record_is_replay_bound(self) -> Self:
+        require_sha256(self.board_sha256, "board_sha256")
+        require_identity(self.producer_id, "producer_id")
+        require_identity(self.tool_version, "tool_version")
+        require_identity(self.result_code, "result_code")
+        if not self.input_sha256s:
+            raise ValueError("routed verification requires retained input identities")
+        for digest in self.input_sha256s:
+            require_sha256(digest, "input_sha256")
+        if len(self.input_sha256s) != len(set(self.input_sha256s)):
+            raise ValueError("routed verification input identities must be unique")
+        if self.accepted and self.result_code != "accepted":
+            raise ValueError("accepted routed verification requires accepted result code")
+        if not self.accepted and self.result_code == "accepted":
+            raise ValueError("rejected routed verification cannot use accepted result code")
+        require_sha256(self.record_fingerprint, "record_fingerprint")
+        payload = self.model_dump(mode="json", exclude={"record_fingerprint"})
+        if self.record_fingerprint != fingerprint(payload):
+            raise ValueError("routed verification record fingerprint is stale")
+        return self
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        kind: RoutedVerificationKind,
+        board_sha256: str,
+        producer_id: str,
+        tool_version: str,
+        input_sha256s: tuple[str, ...],
+        accepted: bool,
+        result_code: str,
+        limitations: tuple[str, ...] = (),
+    ) -> RoutedVerificationRecord:
+        fields: dict[str, Any] = {
+            "kind": kind,
+            "board_sha256": board_sha256,
+            "producer_id": producer_id,
+            "tool_version": tool_version,
+            "input_sha256s": tuple(sorted(input_sha256s)),
+            "accepted": accepted,
+            "result_code": result_code,
+            "limitations": tuple(sorted(limitations)),
+        }
+        provisional = cls.model_construct(**fields, record_fingerprint="0" * 64)
+        return cls(
+            **fields,
+            record_fingerprint=fingerprint(
+                provisional.model_dump(mode="json", exclude={"record_fingerprint"})
+            ),
+        )
+
+
+class RoutedBoardVerificationEvidence(SemanticIrModel):
+    """Exact three-authority bundle replacing release-time caller booleans."""
+
+    schema_id: Literal["pcbsmith-routed-board-verification-evidence"] = (
+        "pcbsmith-routed-board-verification-evidence"
+    )
+    schema_version: Literal[1] = 1
+    board_sha256: str
+    records: tuple[RoutedVerificationRecord, ...]
+    bundle_fingerprint: str
+
+    @model_validator(mode="after")
+    def bundle_is_complete_and_replay_bound(self) -> Self:
+        require_sha256(self.board_sha256, "board_sha256")
+        records = tuple(sorted(self.records, key=lambda item: item.kind.value))
+        expected = set(RoutedVerificationKind)
+        supplied = {item.kind for item in records}
+        if supplied != expected or len(records) != len(expected):
+            raise ValueError(
+                "routed verification bundle requires exactly one exact-route, "
+                "KiCad read-back, and netlist-equivalence record"
+            )
+        if any(item.board_sha256 != self.board_sha256 for item in records):
+            raise ValueError("routed verification records target different boards")
+        object.__setattr__(self, "records", records)
+        require_sha256(self.bundle_fingerprint, "bundle_fingerprint")
+        payload = self.model_dump(mode="json", exclude={"bundle_fingerprint"})
+        if self.bundle_fingerprint != fingerprint(payload):
+            raise ValueError("routed verification bundle fingerprint is stale")
+        return self
+
+    @classmethod
+    def build(
+        cls,
+        *,
+        board_sha256: str,
+        records: tuple[RoutedVerificationRecord, ...],
+    ) -> RoutedBoardVerificationEvidence:
+        fields: dict[str, Any] = {
+            "board_sha256": board_sha256,
+            "records": tuple(sorted(records, key=lambda item: item.kind.value)),
+        }
+        provisional = cls.model_construct(**fields, bundle_fingerprint="0" * 64)
+        return cls(
+            **fields,
+            bundle_fingerprint=fingerprint(
+                provisional.model_dump(mode="json", exclude={"bundle_fingerprint"})
+            ),
+        )
+
+    def record(self, kind: RoutedVerificationKind) -> RoutedVerificationRecord:
+        return next(item for item in self.records if item.kind is kind)
+
+
 class RoutedBoardReleaseGateReport(SemanticIrModel):
     """Final fail-closed verdict for one exact saved routed-board revision."""
 
-    schema_id: Literal["pcbsmith-routed-board-release-gate"] = (
-        "pcbsmith-routed-board-release-gate"
-    )
+    schema_id: Literal["pcbsmith-routed-board-release-gate"] = "pcbsmith-routed-board-release-gate"
     schema_version: Literal[1] = 1
     board_routing: SavedBoardRoutingEvidence
     kicad_drc: KiCadDrcEvidence
-    exact_route_accepted: bool
-    readback_verified: bool
-    netlist_equivalent: bool
+    verification_evidence: RoutedBoardVerificationEvidence
     transaction_fingerprint: str
     final_review_sha256: str
     allowed: bool
@@ -1436,9 +1464,7 @@ def evaluate_routed_board_release_gate(
     drc_report_file: Path,
     final_review: VisualReviewManifest,
     committed_transaction: GenerationTransactionManifest,
-    exact_route_accepted: bool,
-    readback_verified: bool,
-    netlist_equivalent: bool,
+    verification_evidence: RoutedBoardVerificationEvidence,
 ) -> RoutedBoardReleaseGateReport:
     """Require copper, connectivity, DRC, review, and transaction identity.
 
@@ -1452,20 +1478,21 @@ def evaluate_routed_board_release_gate(
     if "placement" in board_file.name.casefold():
         blockers.append("canonical handoff board is still named as a placement artifact")
     if board_routing.state is not RoutingArtifactState.ROUTED_CANDIDATE:
-        blockers.append(
-            f"saved board routing state is {board_routing.state.value}"
-        )
+        blockers.append(f"saved board routing state is {board_routing.state.value}")
     if board_routing.segment_count == 0:
         blockers.append("saved board contains no track segments")
     if board_routing.copper_carrier_net_coverage < 1.0:
-        blockers.append(
-            "saved board lacks copper carriers for one or more routable nets"
-        )
-    if not exact_route_accepted:
+        blockers.append("saved board lacks copper carriers for one or more routable nets")
+    if verification_evidence.board_sha256 != board_routing.board_sha256:
+        blockers.append("routed verification evidence targets a different saved board")
+    exact_route = verification_evidence.record(RoutedVerificationKind.EXACT_ROUTE)
+    readback = verification_evidence.record(RoutedVerificationKind.KICAD_READBACK)
+    netlist = verification_evidence.record(RoutedVerificationKind.NETLIST_EQUIVALENCE)
+    if not exact_route.accepted:
         blockers.append("mandatory exact route checker did not accept the board")
-    if not readback_verified:
+    if not readback.accepted:
         blockers.append("saved KiCad board read-back is not verified")
-    if not netlist_equivalent:
+    if not netlist.accepted:
         blockers.append("saved board and intended netlist are not proven equivalent")
     if not kicad_drc.clean:
         blockers.append(
@@ -1500,9 +1527,7 @@ def evaluate_routed_board_release_gate(
         WorkflowStage.REVIEW,
         WorkflowStage.VERIFICATION,
     }:
-        blockers.append(
-            "final generation transaction has not reached review or verification"
-        )
+        blockers.append("final generation transaction has not reached review or verification")
     retained_board = tuple(
         item
         for item in committed_transaction.artifacts
@@ -1511,8 +1536,7 @@ def evaluate_routed_board_release_gate(
     if not retained_board:
         blockers.append("committed transaction lacks the exact routed board")
     review_payload = (
-        json.dumps(final_review.model_dump(mode="json", by_alias=True), indent=2)
-        + "\n"
+        json.dumps(final_review.model_dump(mode="json", by_alias=True), indent=2) + "\n"
     ).encode("utf-8")
     review_sha256 = _bytes_sha256(review_payload)
     retained_review = tuple(
@@ -1529,9 +1553,7 @@ def evaluate_routed_board_release_gate(
     fields: dict[str, Any] = {
         "board_routing": board_routing,
         "kicad_drc": kicad_drc,
-        "exact_route_accepted": exact_route_accepted,
-        "readback_verified": readback_verified,
-        "netlist_equivalent": netlist_equivalent,
+        "verification_evidence": verification_evidence,
         "transaction_fingerprint": committed_transaction.transaction_fingerprint,
         "final_review_sha256": review_sha256,
         "allowed": not blockers,
@@ -1610,19 +1632,12 @@ def route_native_board(
         max_expansions_per_net=per_net,
         pass_observer=observe_pass,
     )
-    exact_check = (
-        exact_checker(result.layout, netlist)
-        if result.run_result.success
-        else None
-    )
-    if exact_check is not None and not isinstance(
-        exact_check, ExactRouteCheckResult
-    ):
+    exact_check = exact_checker(result.layout, netlist) if result.run_result.success else None
+    if exact_check is not None and not isinstance(exact_check, ExactRouteCheckResult):
         raise TypeError("native production exact checker returned an invalid result")
     budget_failure = (
         result.run_result.failure_reason is not None
-        and result.run_result.failure_reason.value
-        in {"expansion_budget", "pass_budget"}
+        and result.run_result.failure_reason.value in {"expansion_budget", "pass_budget"}
     )
     termination: Literal[
         "completed",
@@ -1632,9 +1647,7 @@ def route_native_board(
         "incomplete",
     ] = (
         "completed"
-        if result.run_result.success
-        and exact_check is not None
-        and exact_check.accepted
+        if result.run_result.success and exact_check is not None and exact_check.accepted
         else ("budget_exhausted" if budget_failure else "failed")
     )
     findings = tuple(
@@ -1645,11 +1658,7 @@ def route_native_board(
                     if result.run_result.failure_reason is None
                     else (result.run_result.failure_reason.value,)
                 ),
-                *(
-                    ()
-                    if exact_check is None
-                    else exact_check.finding_fingerprints
-                ),
+                *(() if exact_check is None else exact_check.finding_fingerprints),
             }
         )
     )

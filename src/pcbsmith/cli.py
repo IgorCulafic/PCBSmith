@@ -2841,14 +2841,17 @@ def _cmd_routed_release_gate(args: argparse.Namespace) -> int:
     transaction = GenerationTransactionManifest.model_validate_json(
         Path(args.transaction_manifest).read_text("utf-8")
     )
+    from pcbsmith.production_workflow import RoutedBoardVerificationEvidence
+
+    verification = RoutedBoardVerificationEvidence.model_validate_json(
+        Path(args.verification_evidence).read_text("utf-8")
+    )
     report = evaluate_routed_board_release_gate(
         board_file=Path(args.board),
         drc_report_file=Path(args.drc_report),
         final_review=review,
         committed_transaction=transaction,
-        exact_route_accepted=bool(args.exact_route_accepted),
-        readback_verified=bool(args.readback_verified),
-        netlist_equivalent=bool(args.netlist_equivalent),
+        verification_evidence=verification,
     )
     rendered = json.dumps(report.model_dump(mode="json"), indent=2) + "\n"
     Path(args.output).write_text(rendered, encoding="utf-8")
@@ -3996,9 +3999,14 @@ def build_parser() -> argparse.ArgumentParser:
     release_gate_parser.add_argument("--drc-report", required=True)
     release_gate_parser.add_argument("--review-manifest", required=True)
     release_gate_parser.add_argument("--transaction-manifest", required=True)
-    release_gate_parser.add_argument("--exact-route-accepted", action="store_true")
-    release_gate_parser.add_argument("--readback-verified", action="store_true")
-    release_gate_parser.add_argument("--netlist-equivalent", action="store_true")
+    release_gate_parser.add_argument(
+        "--verification-evidence",
+        required=True,
+        help=(
+            "retained exact-route, KiCad read-back, and netlist-equivalence "
+            "evidence bundle; caller-supplied release booleans are forbidden"
+        ),
+    )
     release_gate_parser.add_argument("--output", required=True)
     release_gate_parser.set_defaults(func=_cmd_routed_release_gate)
 

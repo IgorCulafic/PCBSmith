@@ -4,10 +4,15 @@ import hashlib
 import json
 from pathlib import Path
 
+import pytest
+
 from pcbsmith.kicad.routing_evidence import inspect_saved_board_routing
 from pcbsmith.production_workflow import (
     GenerationArtifact,
     GenerationTransactionManifest,
+    RoutedBoardVerificationEvidence,
+    RoutedVerificationKind,
+    RoutedVerificationRecord,
     evaluate_routed_board_release_gate,
 )
 from pcbsmith.review.visual_package import RenderProfile, VisualReviewManifest
@@ -114,6 +119,30 @@ def _clean_drc(path: Path) -> Path:
     return path
 
 
+def _verification(
+    board: Path,
+    *,
+    accepted: bool = True,
+) -> RoutedBoardVerificationEvidence:
+    board_sha256 = _sha256(board.read_bytes())
+    records = tuple(
+        RoutedVerificationRecord.build(
+            kind=kind,
+            board_sha256=board_sha256,
+            producer_id=f"test.{kind.value}",
+            tool_version="test-1",
+            input_sha256s=(board_sha256, _sha256(kind.value.encode("utf-8"))),
+            accepted=accepted,
+            result_code="accepted" if accepted else "rejected",
+        )
+        for kind in RoutedVerificationKind
+    )
+    return RoutedBoardVerificationEvidence.build(
+        board_sha256=board_sha256,
+        records=records,
+    )
+
+
 def test_release_gate_accepts_only_the_exact_verified_routed_revision(
     tmp_path: Path,
 ) -> None:
@@ -126,9 +155,7 @@ def test_release_gate_accepts_only_the_exact_verified_routed_revision(
         drc_report_file=_clean_drc(tmp_path / "drc.json"),
         final_review=review,
         committed_transaction=_transaction(board, review),
-        exact_route_accepted=True,
-        readback_verified=True,
-        netlist_equivalent=True,
+        verification_evidence=_verification(board),
     )
 
     assert report.allowed
@@ -147,12 +174,55 @@ def test_release_gate_cannot_promote_an_accepted_placement_manifest(
         drc_report_file=_clean_drc(tmp_path / "drc.json"),
         final_review=review,
         committed_transaction=_transaction(board, review),
-        exact_route_accepted=True,
-        readback_verified=True,
-        netlist_equivalent=True,
+        verification_evidence=_verification(board),
     )
 
     assert not report.allowed
     assert "canonical handoff board is still named as a placement artifact" in report.blockers
     assert "saved board routing state is placement_only" in report.blockers
     assert "saved board contains no track segments" in report.blockers
+
+
+def test_release_gate_rejects_unretained_or_wrong_board_verification(
+    tmp_path: Path,
+) -> None:
+    board = tmp_path / "release-candidate.kicad_pcb"
+    board.write_text(_board_text(routed=True), encoding="utf-8")
+    other = tmp_path / "other.kicad_pcb"
+    other.write_text(_board_text(routed=True) + "\n", encoding="utf-8")
+    review = _review(board)
+
+    rejected = evaluate_routed_board_release_gate(
+        board_file=board,
+        drc_report_file=_clean_drc(tmp_path / "drc.json"),
+        final_review=review,
+        committed_transaction=_transaction(board, review),
+        verification_evidence=_verification(board, accepted=False),
+    )
+    wrong_board = evaluate_routed_board_release_gate(
+        board_file=board,
+        drc_report_file=tmp_path / "drc.json",
+        final_review=review,
+        committed_transaction=_transaction(board, review),
+        verification_evidence=_verification(other),
+    )
+
+    assert not rejected.allowed
+    assert "mandatory exact route checker did not accept the board" in rejected.blockers
+    assert "saved KiCad board read-back is not verified" in rejected.blockers
+    assert not wrong_board.allowed
+    assert "routed verification evidence targets a different saved board" in wrong_board.blockers
+
+
+def test_routed_verification_bundle_rejects_missing_authority(
+    tmp_path: Path,
+) -> None:
+    board = tmp_path / "release-candidate.kicad_pcb"
+    board.write_text(_board_text(routed=True), encoding="utf-8")
+    bundle = _verification(board)
+
+    with pytest.raises(ValueError, match="requires exactly one"):
+        RoutedBoardVerificationEvidence.build(
+            board_sha256=bundle.board_sha256,
+            records=bundle.records[:-1],
+        )
