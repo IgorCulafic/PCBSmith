@@ -6,6 +6,29 @@ the roadmap acceptance gates or for human, fabricator, and assembler approval.
 
 ## Phase 17
 
+### Connected canonical schematic review
+
+`generate_connected_schematic_review` now exports a complete-project PDF plus
+an explicit SVG and PDF for every root/hierarchical schematic page. It retains
+the raw whole-project ERC and KiCad XML netlist, their exact hashes, and
+canonical hashes with wall-clock/host-path instability removed. Every page and
+electrical artifact is bound to the exact root schematic, KiCad version, and
+one replay-checked manifest published atomically.
+
+The exporter discovers page count from KiCad but re-exports every retained page
+with an explicit page selector. Missing, duplicate, or non-contiguous pages,
+missing outputs, unsafe paths, absent KiCad, and stale identities fail closed.
+ERC findings remain visible and make the package not ready for review without
+discarding the visual evidence.
+
+Verification:
+
+- three-page root/hierarchical unit fixture: passed;
+- deliberate missing-page and ERC-failure fixtures: passed;
+- CLI registration: passed;
+- live KiCad 10.0.3 Retro-Pad 3x3 root-page SVG/PDF, whole-project PDF, ERC,
+  and netlist export: passed with clean ERC.
+
 ### Retained routed-board release evidence
 
 The routed-board release gate no longer accepts caller-supplied booleans for
@@ -163,7 +186,6 @@ The remaining roadmap items have different owners:
 
 | Phase | Remaining scope | Classification |
 | --- | --- | --- |
-| 17 | Connected canonical schematic SVG/PDF views | production implementation |
 | 17 | Automatic component-review invocation/recovery | production integration |
 | 17 | Every legacy board generator behind shared transactions | migration |
 | 17 | Protocol Analyzer R002 correction/routing | known failed-board repair |

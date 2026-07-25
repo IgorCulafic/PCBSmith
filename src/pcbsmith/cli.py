@@ -194,6 +194,7 @@ from pcbsmith.revision import (
     collect_failure_codes,
     revision_for_authority_failure,
 )
+from pcbsmith.schematic_review_package import generate_connected_schematic_review
 from pcbsmith.services.builtin_library import SYMBOLS
 from pcbsmith.services.erc import run_erc
 from pcbsmith.services.project_io import (
@@ -2594,6 +2595,16 @@ def _cmd_visual_review(args: argparse.Namespace) -> int:
     return 0 if manifest.package_status != "generation_failed" else 1
 
 
+def _cmd_schematic_review_package(args: argparse.Namespace) -> int:
+    manifest = generate_connected_schematic_review(
+        project_id=args.project_id,
+        schematic_file=Path(args.schematic),
+        output_dir=Path(args.output),
+    )
+    print(json.dumps(manifest.model_dump(mode="json"), indent=2))
+    return 0 if manifest.ready_for_review else 1
+
+
 def _cmd_visual_inspect(args: argparse.Namespace) -> int:
     payload = json.loads(Path(args.decisions).read_text("utf-8"))
     decisions = {
@@ -3931,6 +3942,18 @@ def build_parser() -> argparse.ArgumentParser:
     visual_review_parser.add_argument("--model-preflight", required=True)
     visual_review_parser.add_argument("--source-revision")
     visual_review_parser.set_defaults(func=_cmd_visual_review)
+
+    schematic_review_parser = subparsers.add_parser(
+        "schematic-review-package",
+        help=(
+            "export root/per-sheet SVG and PDF views bound to whole-project "
+            "ERC and netlist identities"
+        ),
+    )
+    schematic_review_parser.add_argument("schematic")
+    schematic_review_parser.add_argument("output")
+    schematic_review_parser.add_argument("--project-id", required=True)
+    schematic_review_parser.set_defaults(func=_cmd_schematic_review_package)
 
     visual_inspect_parser = subparsers.add_parser(
         "visual-inspect",

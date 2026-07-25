@@ -1219,10 +1219,13 @@ verification.
   version, evaluated-object count, result, limitations, and final authority.
   Missing, stale, conflicting, or unjustified zero-object executions must fail
   closed; a green repository test suite is not project execution evidence.
-- [ ] Generate connected functional-sheet schematic review views from the same
+- [x] Generate connected functional-sheet schematic review views from the same
   canonical semantic/netlist authority. Bind root and per-sheet SVG/PDF
   exports to the whole-project ERC/netlist hashes so a presentation-only copy
-  cannot drift from the electrical design.
+  cannot drift from the electrical design. The 2026-07-25 implementation
+  exports every retained page explicitly, retains the complete-project PDF,
+  and binds exact plus canonical ERC/netlist identities in one atomic manifest.
+  A three-page fixture and live KiCad 10.0.3 Retro-Pad export pass.
 - [x] Add exact-package pin evidence, deterministic per-IC neighborhoods,
   applicability-aware review obligations, bounded evidence-query accounting,
   and an exact-coverage manifest that cannot silently omit a review area.
