@@ -79,4 +79,43 @@ Verification:
 
 ## Phase 18
 
-Implementation has not yet been recorded in this session.
+### Manufacturing authority and neutral package
+
+The first production slice is implemented:
+
+- complete typed fabrication/electrical process profiles, including stack-up,
+  impedance declarations, finish, insulation basis, and condition-specific
+  IPC-2152 context;
+- complete current-path coverage declarations for tracks, planes/zones, vias,
+  pads, neck-downs, parallel sharing, and connectors, with voltage-drop,
+  loss, waveform, duty, and thermal context;
+- saved-board-derived stable identities for footprints, components, pads,
+  holes, mask/paste apertures, BOM rows, and placement rows;
+- complete ten-category DFM/DFT evidence/report contracts;
+- an atomic manufacturer-neutral package with exact board/profile/identity/
+  current-path/DFM/tool binding, content-recognition checks, artifact hashes,
+  `SHA256SUMS`, manifest, and ZIP;
+- version-pinned KiKit 1.8.0 and InteractiveHtmlBom 2.11.2 adapters that fail
+  closed while the tools are unavailable; and
+- guarded release language: package generation is not fabrication approval,
+  fabrication readiness requires exact human-engineering and fabricator
+  approvals, and assembly readiness additionally requires assembler approval.
+
+Unknown conductor geometry remains unverified. A role label cannot disguise
+arbitrary bytes as Gerber, Excellon, IPC-D-356, PDF, CSV, or HTML.
+
+Verification:
+
+- focused Ruff format/check: passed;
+- strict mypy for both manufacturing modules: passed;
+- manufacturing release tests: 7 passed, including deliberate invalid
+  V-cut, version-mismatch, unknown-current-path, fake-Gerber, and approval
+  failure cases.
+
+Open acceptance work:
+
+- install and execute the exact pinned KiKit and InteractiveHtmlBom versions;
+- add live KiCad exporter orchestration and automatic DFM/DFT evaluators;
+- generate, reimport/inspect, and retain regular and irregular/cutout packages;
+- collect actual human, fabricator, and assembler approvals only when a package
+  is genuinely released.

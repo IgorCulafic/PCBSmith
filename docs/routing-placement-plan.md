@@ -1333,24 +1333,25 @@ Recovery evidence:
 
 ## Phase 18 - manufacturing and assembly outputs
 
-**Status (2026-07-23): PLANNED; START AFTER PHASE 17 DEFAULT-PATH PROOF.**
+**Status (2026-07-25): ACTIVE; NEUTRAL PACKAGE AND RELEASE AUTHORITY
+IMPLEMENTED, LIVE TOOL/PACKAGE PROOFS REMAIN.**
 
 Phase 18 turns an authoritative single-board design into reproducible,
 manufacturer-neutral fabrication and assembly deliverables. It does not claim
 that generated files are production-ready without selected fabricator,
 assembler, stack-up, process, and human release review.
 
-- [ ] Complete typed fabrication/electrical profiles for trace/space, drill,
+- [x] Complete typed fabrication/electrical profiles for trace/space, drill,
   annular ring, mask, paste, milling, copper weight, stack-up, impedance,
   material, finish, insulation, and applicable IPC-2152 current/thermal context.
-- [ ] Replace trace-only current estimates with complete current-path records
+- [x] Replace trace-only current estimates with complete current-path records
   covering tracks, zones/planes, vias, pads, neck-downs, parallel sharing,
   connectors, voltage drop, current waveform/duty, and declared thermal
   context. Unknown conductor geometry must remain unverified.
-- [ ] Complete stable manufacturing identities for footprints, pads, holes,
+- [x] Complete stable manufacturing identities for footprints, pads, holes,
   apertures, components, BOM rows, and placement rows across saved/read-back
   KiCad artifacts.
-- [ ] Generate one canonical manufacturer-neutral package: Gerber, drill/map,
+- [x] Generate one canonical manufacturer-neutral package: Gerber, drill/map,
   netlist, stack-up notes, fabrication drawing, assembly drawings, BOM, pick-
   and-place, paste, readme, hashes, tool versions, and release status.
 - [ ] Evaluate and version-pin KiKit for panelization and manufacturing-package
@@ -1368,7 +1369,7 @@ assembler, stack-up, process, and human release review.
 - [ ] Prove packages on at least one regular and one irregular/cutout board,
   reimport or independently inspect the outputs, and retain intentional failure
   fixtures.
-- [ ] Require explicit human/fabricator/assembler approval before using
+- [x] Require explicit human/fabricator/assembler approval before using
   `fabrication_ready`, `assembly_ready`, or equivalent release language.
 
 ## Phase 19 - MCAD, enclosure, and mechanical authority
