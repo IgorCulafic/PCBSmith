@@ -1207,7 +1207,7 @@ verification.
 - [x] Bind execution profiles to the native A* router and verification runner;
   retain actual pass/expansion telemetry, checkpoints, heartbeats, and a
   separate mandatory exact-check verdict before completion.
-- [ ] Complete the same operative budget binding for production placement and
+- [x] Complete the same operative budget binding for production placement and
   per-artifact rendering callers; contract-only bindings do not close this item.
 - [x] Make generation transactional with one generation identity, explicit
   incomplete states, rollback, and no mixed artifact revisions.

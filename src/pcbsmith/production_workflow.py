@@ -21,6 +21,7 @@ from pcbsmith.applicability_execution import (
 )
 from pcbsmith.execution import (
     ExecutionProfile,
+    WorkBudgetExhausted,
     WorkBudgetLedger,
 )
 from pcbsmith.kicad.astar_router import BoardRouteResult, route_board
@@ -369,6 +370,45 @@ class PlacementReviewTransactionResult(SemanticIrModel):
     review_manifest: VisualReviewManifest
 
 
+class BudgetedPlacementReviewResult(SemanticIrModel):
+    """Placement/review outcome governed by operative native stage budgets."""
+
+    schema_id: Literal["pcbsmith-budgeted-placement-review-result"] = (
+        "pcbsmith-budgeted-placement-review-result"
+    )
+    schema_version: Literal[1] = 1
+    placement_telemetry: AlgorithmStageTelemetry
+    rendering_telemetry: AlgorithmStageTelemetry
+    transaction: PlacementReviewTransactionResult | None
+    allowed: bool
+    blockers: tuple[str, ...]
+    result_fingerprint: str
+
+    @model_validator(mode="after")
+    def result_is_replay_bound(self) -> Self:
+        if self.placement_telemetry.algorithm is not NativeAlgorithm.PLACEMENT:
+            raise ValueError("placement telemetry uses the wrong native algorithm")
+        if self.rendering_telemetry.algorithm is not NativeAlgorithm.RENDERING:
+            raise ValueError("rendering telemetry uses the wrong native algorithm")
+        if self.allowed != (not self.blockers):
+            raise ValueError("budgeted placement/review disposition is stale")
+        if self.allowed:
+            if self.transaction is None:
+                raise ValueError("allowed placement/review requires a transaction")
+            if (
+                self.placement_telemetry.termination != "completed"
+                or self.rendering_telemetry.termination != "completed"
+            ):
+                raise ValueError("allowed placement/review requires completed stages")
+        elif self.transaction is not None:
+            raise ValueError("blocked placement/review cannot publish a transaction")
+        require_sha256(self.result_fingerprint, "result_fingerprint")
+        payload = self.model_dump(mode="json", exclude={"result_fingerprint"})
+        if self.result_fingerprint != fingerprint(payload):
+            raise ValueError("budgeted placement/review fingerprint is stale")
+        return self
+
+
 class RoutedReviewTransactionResult(SemanticIrModel):
     schema_id: Literal["pcbsmith-routed-review-transaction-result"] = (
         "pcbsmith-routed-review-transaction-result"
@@ -378,6 +418,138 @@ class RoutedReviewTransactionResult(SemanticIrModel):
     review_manifest: VisualReviewManifest
     routing_evidence: SavedBoardRoutingEvidence
     drc_evidence: KiCadDrcEvidence
+
+
+def produce_budgeted_placement_review(
+    *,
+    transaction_root: Path,
+    project_id: str,
+    generation_id: str,
+    generation_sha256: str,
+    board_relative_path: str,
+    placement_binding: AlgorithmBudgetBinding,
+    rendering_binding: AlgorithmBudgetBinding,
+    placement_generator: Callable[[NativeStageController], bytes],
+    review_generator: Callable[[NativeStageController, Path, Path], VisualReviewManifest],
+    clock: Callable[[], float] = time.monotonic,
+    heartbeat_sink: Callable[[str, Mapping[str, object]], None] | None = None,
+) -> BudgetedPlacementReviewResult:
+    """Run placement and every review render under the selected native budget.
+
+    The placement callback must account for at least one pass and one expansion.
+    The rendering callback must account for at least one pass per emitted
+    review artifact. Nothing is committed unless both stages complete.
+    """
+
+    if placement_binding.algorithm is not NativeAlgorithm.PLACEMENT:
+        raise ValueError("placement binding must target the placement algorithm")
+    if rendering_binding.algorithm is not NativeAlgorithm.RENDERING:
+        raise ValueError("rendering binding must target the rendering algorithm")
+    if placement_binding.profile_name != rendering_binding.profile_name:
+        raise ValueError("placement and rendering must share one execution profile")
+
+    placement = NativeStageController(
+        binding=placement_binding,
+        clock=clock,
+        heartbeat_sink=heartbeat_sink,
+    )
+    rendering = NativeStageController(
+        binding=rendering_binding,
+        clock=clock,
+        heartbeat_sink=heartbeat_sink,
+    )
+    blockers: list[str] = []
+    board_payload: bytes | None = None
+    placement_termination: Literal["completed", "budget_exhausted", "timeout", "failed"] = (
+        "completed"
+    )
+    try:
+        board_payload = placement_generator(placement)
+        if placement.ledger.passes < 1 or placement.ledger.expansions < 1:
+            raise ValueError("placement generator did not account for a pass and expansion")
+        placement.heartbeat("placement-complete")
+    except WorkBudgetExhausted as exc:
+        placement_termination = "budget_exhausted"
+        blockers.append(f"placement budget exhausted: {exc}")
+    except NativeStageTimeout as exc:
+        placement_termination = "timeout"
+        blockers.append(f"placement timeout: {exc}")
+    except Exception as exc:
+        placement_termination = "failed"
+        blockers.append(f"placement failed: {type(exc).__name__}: {exc}")
+    placement_telemetry = placement.telemetry(
+        generation_sha256=generation_sha256,
+        termination=placement_termination,
+        findings=tuple(blockers),
+    )
+
+    transaction: PlacementReviewTransactionResult | None = None
+    rendering_termination: Literal["completed", "budget_exhausted", "timeout", "failed"] = "failed"
+    if board_payload is None or blockers:
+        rendering_blockers = ("rendering was not invoked because placement failed",)
+        blockers.extend(rendering_blockers)
+    else:
+        try:
+
+            def bounded_review_generator(
+                board_file: Path, output_dir: Path
+            ) -> VisualReviewManifest:
+                manifest = review_generator(
+                    rendering,
+                    board_file,
+                    output_dir,
+                )
+                if rendering.ledger.passes < len(manifest.artifacts):
+                    raise ValueError(
+                        "rendering generator did not account for every review artifact"
+                    )
+                rendering.heartbeat("rendering-complete")
+                return manifest
+
+            transaction = persist_placement_and_generate_review(
+                transaction_root=transaction_root,
+                project_id=project_id,
+                generation_id=generation_id,
+                generation_sha256=generation_sha256,
+                board_relative_path=board_relative_path,
+                board_payload=board_payload,
+                review_generator=bounded_review_generator,
+            )
+            if transaction.transaction.manifest.status != "committed":
+                raise ValueError("placement/review transaction did not commit")
+            rendering_termination = "completed"
+        except WorkBudgetExhausted as exc:
+            rendering_termination = "budget_exhausted"
+            blockers.append(f"rendering budget exhausted: {exc}")
+        except NativeStageTimeout as exc:
+            rendering_termination = "timeout"
+            blockers.append(f"rendering timeout: {exc}")
+        except Exception as exc:
+            rendering_termination = "failed"
+            blockers.append(f"rendering failed: {type(exc).__name__}: {exc}")
+    rendering_telemetry = rendering.telemetry(
+        generation_sha256=generation_sha256,
+        termination=rendering_termination,
+        findings=tuple(blockers),
+    )
+    if blockers:
+        transaction = None
+    fields: dict[str, Any] = {
+        "placement_telemetry": placement_telemetry,
+        "rendering_telemetry": rendering_telemetry,
+        "transaction": transaction,
+        "allowed": not blockers,
+        "blockers": tuple(blockers),
+    }
+    provisional = BudgetedPlacementReviewResult.model_construct(
+        **fields, result_fingerprint="0" * 64
+    )
+    return BudgetedPlacementReviewResult(
+        **fields,
+        result_fingerprint=fingerprint(
+            provisional.model_dump(mode="json", exclude={"result_fingerprint"})
+        ),
+    )
 
 
 def prepare_generation_transaction(

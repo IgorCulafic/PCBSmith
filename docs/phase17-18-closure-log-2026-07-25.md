@@ -52,6 +52,31 @@ Verification:
 - strict mypy for the changed production modules: passed;
 - applicability/execution and routed-release tests: 11 passed.
 
+### Operative placement and per-artifact rendering budgets
+
+The shared production placement/review entry point now accepts only placement
+and rendering bindings from one selected execution profile. The placement
+producer receives a live `NativeStageController` and must account for at least
+one pass and expansion. The review producer receives a separate rendering
+controller and must account for at least one pass per emitted artifact.
+
+Timeout, deterministic-work-budget exhaustion, missing accounting, callback
+failure, and transaction failure all block publication. Placement and rendering
+telemetry retain actual passes, expansions, heartbeats, termination, and
+findings. The exact placement board and review package are committed only after
+both stages complete.
+
+This closes the shared production caller. The separate roadmap migration item
+for legacy one-off board generators remains open until each generator is moved
+behind the shared transaction.
+
+Verification:
+
+- focused Ruff format/check: passed;
+- strict mypy for the production workflow: passed;
+- production-workflow tests: 15 passed, including success and omitted
+  per-artifact accounting.
+
 ## Phase 18
 
 Implementation has not yet been recorded in this session.

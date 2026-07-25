@@ -31,6 +31,7 @@ from pcbsmith.production_workflow import (
     persist_placement_and_generate_review,
     persist_routed_board_and_generate_review,
     prepare_generation_transaction,
+    produce_budgeted_placement_review,
     remaining_route_domains,
     resolve_current_generation,
     route_native_board,
@@ -189,16 +190,10 @@ def test_placement_persistence_automatically_invokes_review_and_commits_it(
 
     assert len(calls) == 1
     assert result.transaction.manifest.status == "committed"
-    assert {
-        item.role for item in result.transaction.manifest.artifacts
-    } == {"board", "review"}
+    assert {item.role for item in result.transaction.manifest.artifacts} == {"board", "review"}
     assert Path(result.review_manifest.board_file).read_bytes() == board_payload
     assert (
-        tmp_path
-        / "generations"
-        / "placement-1"
-        / "review"
-        / "front.png"
+        tmp_path / "generations" / "placement-1" / "review" / "front.png"
     ).read_bytes() == b"review-image"
 
     inspected = inspect_current_placement_review(
@@ -213,6 +208,148 @@ def test_placement_persistence_automatically_invokes_review_and_commits_it(
     assert inspected.review_manifest.package_status == "accepted"
     assert resolve_current_generation(tmp_path).generation_id == "placement-2"
     assert Path(inspected.review_manifest.board_file).read_bytes() == board_payload
+
+
+def test_budgeted_placement_and_per_artifact_rendering_are_operative(
+    tmp_path: Path,
+) -> None:
+    bindings = {
+        item.algorithm: item for item in bind_execution_profile(EXECUTION_PROFILES["quick"])
+    }
+    board_payload = b"budgeted-placement-board"
+    board_sha = hashlib.sha256(board_payload).hexdigest()
+
+    def placement(controller: NativeStageController) -> bytes:
+        controller.consume_pass()
+        controller.consume_expansions(4)
+        return board_payload
+
+    def render(
+        controller: NativeStageController,
+        board_file: Path,
+        output_dir: Path,
+    ) -> VisualReviewManifest:
+        output_dir.mkdir(parents=True)
+        artifacts = []
+        for artifact_id in ("front", "back"):
+            controller.consume_pass()
+            controller.consume_expansions(2)
+            payload = artifact_id.encode()
+            relative = f"{artifact_id}.png"
+            (output_dir / relative).write_bytes(payload)
+            artifacts.append(
+                ReviewArtifact(
+                    artifact_id=f"2d:{artifact_id}:png",
+                    category=f"overview/{artifact_id}",
+                    relative_path=relative,
+                    media_type="image/png",
+                    required=True,
+                    state="generated",
+                    side=artifact_id,
+                    sha256=hashlib.sha256(payload).hexdigest(),
+                )
+            )
+        return VisualReviewManifest(
+            schema_id="pcbsmith-visual-review-manifest-v1",
+            render_profile=RenderProfile(),
+            stage="placement",
+            board_file=str(board_file),
+            board_sha256=board_sha,
+            copper_sha256=SHA_C,
+            kicad_version="10.0",
+            renderer_version="test",
+            model_preflight_status="passed",
+            workflow_conformance_status="conformant",
+            package_status="generated_pending_inspection",
+            artifacts=tuple(artifacts),
+        )
+
+    result = produce_budgeted_placement_review(
+        transaction_root=tmp_path,
+        project_id="project",
+        generation_id="budgeted-1",
+        generation_sha256=SHA_A,
+        board_relative_path="design/board.kicad_pcb",
+        placement_binding=bindings[NativeAlgorithm.PLACEMENT],
+        rendering_binding=bindings[NativeAlgorithm.RENDERING],
+        placement_generator=placement,
+        review_generator=render,
+    )
+
+    assert result.allowed
+    assert result.transaction is not None
+    assert result.placement_telemetry.passes == 1
+    assert result.placement_telemetry.expansions == 4
+    assert result.rendering_telemetry.passes == 2
+    assert result.rendering_telemetry.expansions == 4
+    assert resolve_current_generation(tmp_path).generation_id == "budgeted-1"
+
+
+def test_budgeted_rendering_cannot_omit_per_artifact_accounting(
+    tmp_path: Path,
+) -> None:
+    bindings = {
+        item.algorithm: item for item in bind_execution_profile(EXECUTION_PROFILES["quick"])
+    }
+    board_payload = b"budgeted-placement-board"
+    board_sha = hashlib.sha256(board_payload).hexdigest()
+
+    def placement(controller: NativeStageController) -> bytes:
+        controller.consume_pass()
+        controller.consume_expansions()
+        return board_payload
+
+    def unaccounted_render(
+        _controller: NativeStageController,
+        board_file: Path,
+        output_dir: Path,
+    ) -> VisualReviewManifest:
+        output_dir.mkdir(parents=True)
+        payload = b"front"
+        (output_dir / "front.png").write_bytes(payload)
+        return VisualReviewManifest(
+            schema_id="pcbsmith-visual-review-manifest-v1",
+            render_profile=RenderProfile(),
+            stage="placement",
+            board_file=str(board_file),
+            board_sha256=board_sha,
+            copper_sha256=SHA_C,
+            kicad_version="10.0",
+            renderer_version="test",
+            model_preflight_status="passed",
+            workflow_conformance_status="conformant",
+            package_status="generated_pending_inspection",
+            artifacts=(
+                ReviewArtifact(
+                    artifact_id="2d:front:png",
+                    category="overview/front",
+                    relative_path="front.png",
+                    media_type="image/png",
+                    required=True,
+                    state="generated",
+                    side="front",
+                    sha256=hashlib.sha256(payload).hexdigest(),
+                ),
+            ),
+        )
+
+    result = produce_budgeted_placement_review(
+        transaction_root=tmp_path,
+        project_id="project",
+        generation_id="budgeted-failed",
+        generation_sha256=SHA_A,
+        board_relative_path="design/board.kicad_pcb",
+        placement_binding=bindings[NativeAlgorithm.PLACEMENT],
+        rendering_binding=bindings[NativeAlgorithm.RENDERING],
+        placement_generator=placement,
+        review_generator=unaccounted_render,
+    )
+
+    assert not result.allowed
+    assert result.transaction is None
+    assert result.rendering_telemetry.termination == "failed"
+    assert any("did not account for every review artifact" in item for item in result.blockers)
+    assert not (tmp_path / "CURRENT.json").exists()
 
 
 def _routed_board_payload(*, include_segment: bool = True) -> bytes:
@@ -322,9 +459,7 @@ def test_routed_persistence_rejects_placement_only_board_before_callbacks(
             generation_sha256=SHA_A,
             board_relative_path="design/board.kicad_pcb",
             board_payload=_routed_board_payload(include_segment=False),
-            review_generator=lambda _board, _output: pytest.fail(
-                "review must not run"
-            ),
+            review_generator=lambda _board, _output: pytest.fail("review must not run"),
             drc_generator=drc_generator,
         )
 
@@ -355,9 +490,7 @@ def test_routed_persistence_rejects_unclean_drc_before_review(
             generation_sha256=SHA_A,
             board_relative_path="design/board.kicad_pcb",
             board_payload=_routed_board_payload(),
-            review_generator=lambda _board, _output: pytest.fail(
-                "review must not run"
-            ),
+            review_generator=lambda _board, _output: pytest.fail("review must not run"),
             drc_generator=drc_generator,
         )
 
@@ -438,14 +571,12 @@ def test_route_checkpoint_requires_exact_accepted_prefix_and_board_chain() -> No
         output_board_sha256=SHA_C,
         exact_acceptance_sha256=SHA_D,
     )
-    checkpoint = build_route_domain_checkpoint(
-        plan=plan, completed_domains=(completed,)
-    )
+    checkpoint = build_route_domain_checkpoint(plan=plan, completed_domains=(completed,))
 
     assert checkpoint.current_board_sha256 == SHA_C
-    assert tuple(item.domain_id for item in remaining_route_domains(
-        plan=plan, checkpoint=checkpoint
-    )) == ("signals",)
+    assert tuple(
+        item.domain_id for item in remaining_route_domains(plan=plan, checkpoint=checkpoint)
+    ) == ("signals",)
 
     foreign = completed.model_copy(update={"domain_id": "signals"})
     with pytest.raises(ValueError, match="replay-equivalent"):
@@ -456,9 +587,7 @@ def test_profile_binds_every_native_algorithm_and_native_ledger() -> None:
     bindings = bind_execution_profile(EXECUTION_PROFILES["quick"])
 
     assert {item.algorithm for item in bindings} == set(NativeAlgorithm)
-    routing = next(
-        item for item in bindings if item.algorithm is NativeAlgorithm.ROUTING
-    )
+    routing = next(item for item in bindings if item.algorithm is NativeAlgorithm.ROUTING)
     ledger = routing.new_ledger()
     ledger.consume_expansions(routing.maximum_expansions)
     with pytest.raises(WorkBudgetExhausted):
@@ -738,18 +867,12 @@ def test_native_router_consumes_gate_profile_budget_and_emits_pass_telemetry() -
         layout=layout,
         netlist=netlist,
         routing_gate=gate,
-        binding=next(
-            item
-            for item in bindings
-            if item.algorithm is NativeAlgorithm.ROUTING
-        ),
+        binding=next(item for item in bindings if item.algorithm is NativeAlgorithm.ROUTING),
         exact_checker=lambda _layout, _netlist: ExactRouteCheckResult(
             accepted=True,
             checker_id="fixture.native-production-exact-check",
         ),
-        heartbeat_sink=lambda event, fields: events.append(
-            (event, dict(fields))
-        ),
+        heartbeat_sink=lambda event, fields: events.append((event, dict(fields))),
     )
 
     assert result.result.run_result.success
@@ -766,11 +889,7 @@ def test_native_router_consumes_gate_profile_budget_and_emits_pass_telemetry() -
         layout=layout,
         netlist=netlist,
         routing_gate=gate,
-        binding=next(
-            item
-            for item in bindings
-            if item.algorithm is NativeAlgorithm.ROUTING
-        ),
+        binding=next(item for item in bindings if item.algorithm is NativeAlgorithm.ROUTING),
         exact_checker=lambda _layout, _netlist: ExactRouteCheckResult(
             accepted=False,
             checker_id="fixture.native-production-exact-check",
