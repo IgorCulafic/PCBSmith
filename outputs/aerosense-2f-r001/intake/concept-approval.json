@@ -1,0 +1,17 @@
+{
+  "schema": "pcbsmith-concept-approval-v1",
+  "project_id": "aerosense-2f-r001",
+  "decision": "approved",
+  "approved_at": "2026-07-26",
+  "approved_by": "user",
+  "approved_artifact": "concept/concept-review.json",
+  "scope": [
+    "70 x 50 mm outline and four-hole pattern",
+    "OLED-dominant front layout and lower-right button row",
+    "left-edge USB-C and bottom-edge microSD access",
+    "lower-left SHT45 isolation zone",
+    "bottom-side SWD probe location"
+  ],
+  "authorized_next_stage": "schematic_and_routed_pcb",
+  "note": "The later exact-part completion adds only the prompt-required status LEDs, interface protection and open-drain PWM sinks inside already approved functional zones."
+}

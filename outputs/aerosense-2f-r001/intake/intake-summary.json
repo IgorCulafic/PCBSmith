@@ -2,7 +2,7 @@
   "schema": "pcbsmith-aerosense-intake-summary-v1",
   "project_id": "aerosense-2f-r001",
   "prompt_examination": "ready_for_concept",
-  "exact_part_selection": "frozen_for_concept",
+  "exact_part_selection": "frozen_for_schematic",
   "concept_outcome": "needs_user_decision",
   "overlap_check_clean": true,
   "pre_route_feasibility": "ready",

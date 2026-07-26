@@ -10,7 +10,7 @@ it does not approve electrical correctness, routing or manufacturing release.
 - Exact-part selection: frozen for concept.
 - Component/courtyard overlap check: clean.
 - Pre-route feasibility: ready.
-- Estimated two-side envelope utilization: 51.6%.
+- Estimated two-side envelope utilization: 53.0%.
 - Routing-corridor capacity: all declared demands assigned; no failing nets.
 
 ## Proposed architecture

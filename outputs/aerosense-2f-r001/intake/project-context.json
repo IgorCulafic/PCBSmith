@@ -2,7 +2,7 @@
   "schema_id": "pcbsmith-project-context-bundle",
   "schema_version": 1,
   "project_id": "aerosense-2f-r001",
-  "generation_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+  "generation_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
   "records": [
     {
       "schema_id": "pcbsmith-project-context-record",
@@ -10,7 +10,7 @@
       "category": "assembly",
       "context_id": "aerosense-2f-r001.assembly",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -30,7 +30,7 @@
       "category": "environment",
       "context_id": "aerosense-2f-r001.environment",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -50,7 +50,7 @@
       "category": "exact_part_evidence",
       "context_id": "aerosense-2f-r001.exact_part_evidence",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -70,7 +70,7 @@
       "category": "fabricator",
       "context_id": "aerosense-2f-r001.fabricator",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -90,7 +90,7 @@
       "category": "firmware_limits",
       "context_id": "aerosense-2f-r001.firmware_limits",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -110,7 +110,7 @@
       "category": "interfaces",
       "context_id": "aerosense-2f-r001.interfaces",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -130,7 +130,7 @@
       "category": "power_sequencing",
       "context_id": "aerosense-2f-r001.power_sequencing",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -150,7 +150,7 @@
       "category": "safety_protection",
       "context_id": "aerosense-2f-r001.safety_protection",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -170,7 +170,7 @@
       "category": "timing_signals",
       "context_id": "aerosense-2f-r001.timing_signals",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -190,7 +190,7 @@
       "category": "validation",
       "context_id": "aerosense-2f-r001.validation",
       "status": "resolved",
-      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "payload_sha256": "6fb01e8f4b12d872f44ee070b96b1e1bb7cb3871cd2596e41b2c45afd36e59ed",
       "source_binding_ids": [
         "span.board-outline",
         "span.fan-edge",
@@ -205,5 +205,5 @@
       "unresolved_ids": []
     }
   ],
-  "context_fingerprint": "17ffcda63813c7d52cd1e05ebeaf78b75ef009c59a21eb9873a68edb672ea1ca"
+  "context_fingerprint": "92401a43fe9d61e83177dbb2a84d5072a204e70c90745fea5ed4d28f36a2dc00"
 }

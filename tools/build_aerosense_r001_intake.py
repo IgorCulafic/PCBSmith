@@ -220,7 +220,7 @@ def _part_selection() -> dict[str, Any]:
         "schema": "pcbsmith-aerosense-exact-part-selection-v1",
         "project_id": PROJECT_ID,
         "selection_date": "2026-07-26",
-        "selection_status": "frozen_for_concept",
+        "selection_status": "frozen_for_schematic",
         "parts": [
             {
                 "references": ["U1"],
@@ -294,6 +294,36 @@ def _part_selection() -> dict[str, Any]:
                 ),
             },
             {
+                "references": ["U9"],
+                "manufacturer": "Texas Instruments",
+                "mpn": "TPD1E10B06DPYR",
+                "function": "USB VBUS transient/ESD protection",
+                "footprint": "Package_SON:Texas_DPY0002A_0.6x1mm_P0.65mm",
+                "model_status": "installed_exact_package",
+                "lifecycle": "active",
+                "authority": "https://www.ti.com/product/TPD1E10B06",
+            },
+            {
+                "references": ["U10"],
+                "manufacturer": "Texas Instruments",
+                "mpn": "TPD2EUSB30DRTR",
+                "function": "USB Type-C CC1/CC2 ESD protection",
+                "footprint": "Package_TO_SOT_SMD:Texas_DRT-3",
+                "model_status": "installed_exact_package",
+                "lifecycle": "active",
+                "authority": "https://www.ti.com/product/TPD2EUSB30",
+            },
+            {
+                "references": ["U11"],
+                "manufacturer": "Texas Instruments",
+                "mpn": "TPD4E05U06DQAR",
+                "function": "four-channel microSD SPI ESD protection",
+                "footprint": "Package_SON:USON-10_2.5x1.0mm_P0.5mm",
+                "model_status": "installed_exact_package",
+                "lifecycle": "active",
+                "authority": "https://www.ti.com/product/TPD4E05U06",
+            },
+            {
                 "references": ["U8"],
                 "manufacturer": "Sensirion",
                 "mpn": "SHT45-AD1B-R3",
@@ -330,8 +360,9 @@ def _part_selection() -> dict[str, Any]:
                 "authority": "https://www.adafruit.com/product/4440",
                 "notes": (
                     "The 20x35x4-mm module is mounted upright on a six-pin "
-                    "2.54-mm socket; its onboard pull-ups must be measured or "
-                    "confirmed from the retained fabrication files."
+                    "2.54-mm socket. Retained Adafruit Eagle CAD confirms pin "
+                    "order VIN, 3V3-out, GND, RESET, SCL, SDA and onboard "
+                    "10-kohm I2C pull-ups/level shifting."
                 ),
             },
             {
@@ -386,6 +417,46 @@ def _part_selection() -> dict[str, Any]:
                 "authority": "https://components.omron.com/eu-en/products/switches/B3F",
             },
             {
+                "references": ["Q1", "Q2"],
+                "manufacturer": "Nexperia",
+                "mpn": "2N7002,215",
+                "function": "open-drain 25-kHz fan PWM sinks",
+                "footprint": "Package_TO_SOT_SMD:SOT-23",
+                "model_status": "installed_exact_package",
+                "lifecycle": "production",
+                "authority": "https://www.nexperia.com/product/2N7002",
+            },
+            {
+                "references": ["D1"],
+                "manufacturer": "Würth Elektronik",
+                "mpn": "150060GS75000",
+                "function": "green PWR/USB status LED",
+                "footprint": "LED_SMD:LED_0603_1608Metric",
+                "model_status": "installed_exact_package",
+                "lifecycle": "active",
+                "authority": "https://www.we-online.com/components/products/datasheet/150060GS75000.pdf",
+            },
+            {
+                "references": ["D2"],
+                "manufacturer": "Würth Elektronik",
+                "mpn": "150060YS75000",
+                "function": "yellow/amber FAN/FAULT status LED",
+                "footprint": "LED_SMD:LED_0603_1608Metric",
+                "model_status": "installed_exact_package",
+                "lifecycle": "active",
+                "authority": "https://www.we-online.com/components/products/datasheet/150060YS75000.pdf",
+            },
+            {
+                "references": ["D3"],
+                "manufacturer": "Würth Elektronik",
+                "mpn": "150060BS75000",
+                "function": "blue SD/LOG status LED",
+                "footprint": "LED_SMD:LED_0603_1608Metric",
+                "model_status": "installed_exact_package",
+                "lifecycle": "active",
+                "authority": "https://www.we-online.com/components/products/datasheet/150060BS75000.pdf",
+            },
+            {
                 "references": ["J6"],
                 "manufacturer": "Tag-Connect",
                 "mpn": "TC2030-IDC-NL",
@@ -408,9 +479,31 @@ def _part_selection() -> dict[str, Any]:
             "fan_rails_default": "hardware_disabled",
             "fan_enable_policy": "firmware only after Type-C medium/high detection",
         },
+        "electrical_refinements": [
+            {
+                "topic": "USB Type-C Rd termination",
+                "decision": (
+                    "Use the TUSB320LAI internal UFP Rd terminations. Do not add "
+                    "parallel discrete 5.1-kohm resistors, because doing so would "
+                    "distort the selected detector's CC thresholds."
+                ),
+                "authority": "https://www.ti.com/lit/ds/symlink/tusb320lai.pdf",
+            },
+            {
+                "topic": "OLED I2C pull-ups",
+                "decision": (
+                    "Do not populate additional host pull-ups by default. The "
+                    "Adafruit 4440 retained Eagle CAD contains 10-kohm pull-ups "
+                    "and bidirectional level shifting."
+                ),
+                "authority": (
+                    "https://github.com/adafruit/"
+                    "Adafruit-128x32-I2C-OLED-Breakout-PCB"
+                ),
+            },
+        ],
         "open_evidence_actions_before_schematic_release": [
             "Retain exact TPS2553 R_ILIM calculation and tolerance bounds.",
-            "Confirm Adafruit 4440 onboard I2C pull-up values from retained CAD.",
             "Create and preflight the dimensioned SHT45 package-envelope model.",
             "Create and preflight the dimensioned Adafruit 4440 module model.",
             "Retain USB4105 and DM3AT exact mating/access drawings with hashes.",
@@ -479,6 +572,18 @@ def _concept_items() -> tuple[ConceptItem, ...]:
             (10.2, 25.0),
         ),
         _footprint(
+            "U9",
+            "VBUS ESD",
+            "Package_SON:Texas_DPY0002A_0.6x1mm_P0.65mm",
+            (8.2, 20.5),
+        ),
+        _footprint(
+            "U10",
+            "CC ESD",
+            "Package_TO_SOT_SMD:Texas_DRT-3",
+            (8.5, 29.5),
+        ),
+        _footprint(
             "U3",
             "U3",
             "Package_TO_SOT_SMD:SOT-23-5",
@@ -525,6 +630,18 @@ def _concept_items() -> tuple[ConceptItem, ...]:
             (52.0, 26.0),
         ),
         _footprint(
+            "Q1",
+            "PWM1",
+            "Package_TO_SOT_SMD:SOT-23",
+            (47.0, 30.0),
+        ),
+        _footprint(
+            "Q2",
+            "PWM2",
+            "Package_TO_SOT_SMD:SOT-23",
+            (53.0, 30.0),
+        ),
+        _footprint(
             "U8",
             "",
             (
@@ -538,6 +655,13 @@ def _concept_items() -> tuple[ConceptItem, ...]:
             "microSD",
             "Connector_Card:microSD_HC_Hirose_DM3AT-SF-PEJM5",
             (28.0, 40.6),
+        ),
+        _footprint(
+            "U11",
+            "SD ESD",
+            "Package_SON:USON-10_2.5x1.0mm_P0.5mm",
+            (18.0, 32.5),
+            rotation=90.0,
         ),
         _footprint(
             "J4",
@@ -570,6 +694,24 @@ def _concept_items() -> tuple[ConceptItem, ...]:
             "LOG",
             "Button_Switch_THT:SW_PUSH_6mm_H4.3mm",
             (60.0, 35.0),
+        ),
+        _footprint(
+            "D1",
+            "PWR",
+            "LED_SMD:LED_0603_1608Metric",
+            (39.0, 43.0),
+        ),
+        _footprint(
+            "D2",
+            "FAULT",
+            "LED_SMD:LED_0603_1608Metric",
+            (49.0, 43.0),
+        ),
+        _footprint(
+            "D3",
+            "LOG",
+            "LED_SMD:LED_0603_1608Metric",
+            (59.0, 43.0),
         ),
         _footprint(
             "J6",
@@ -838,7 +980,10 @@ def _overlap_findings(review: ConceptReview) -> tuple[str, ...]:
         frozenset(("U1", "mcu.passives")),
         frozenset(("U5", "fan.passives")),
         frozenset(("U6", "fan.passives")),
+        frozenset(("Q1", "fan.passives")),
+        frozenset(("Q2", "fan.passives")),
         frozenset(("U3", "power.passives")),
+        frozenset(("U9", "power.passives")),
     }
     findings: list[str] = []
     names = tuple(sorted(shapes))

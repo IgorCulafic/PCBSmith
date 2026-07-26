@@ -314,6 +314,92 @@
     },
     {
       "item": {
+        "item_id": "U9",
+        "label": "VBUS ESD",
+        "side": "front",
+        "kind": "footprint",
+        "anchor_mm": [
+          8.2,
+          20.5
+        ],
+        "rotation_deg": 0.0,
+        "footprint_id": "Package_SON:Texas_DPY0002A_0.6x1mm_P0.65mm",
+        "size_mm": null,
+        "diameter_mm": null,
+        "containment": "courtyard",
+        "body_overhang_allowed": false,
+        "requirement_resolution": "engineering",
+        "note": ""
+      },
+      "status": "engineering_selection",
+      "contained": true,
+      "minimum_edge_clearance_mm": 7.55,
+      "envelope": [
+        [
+          7.55,
+          20.05
+        ],
+        [
+          7.55,
+          20.95
+        ],
+        [
+          8.85,
+          20.95
+        ],
+        [
+          8.85,
+          20.05
+        ]
+      ],
+      "footprint_source_file": "C:\\Program Files\\KiCad\\10.0\\share\\kicad\\footprints\\Package_SON.pretty\\Texas_DPY0002A_0.6x1mm_P0.65mm.kicad_mod",
+      "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
+    },
+    {
+      "item": {
+        "item_id": "U10",
+        "label": "CC ESD",
+        "side": "front",
+        "kind": "footprint",
+        "anchor_mm": [
+          8.5,
+          29.5
+        ],
+        "rotation_deg": 0.0,
+        "footprint_id": "Package_TO_SOT_SMD:Texas_DRT-3",
+        "size_mm": null,
+        "diameter_mm": null,
+        "containment": "courtyard",
+        "body_overhang_allowed": false,
+        "requirement_resolution": "engineering",
+        "note": ""
+      },
+      "status": "engineering_selection",
+      "contained": true,
+      "minimum_edge_clearance_mm": 7.7,
+      "envelope": [
+        [
+          7.7,
+          28.8
+        ],
+        [
+          7.7,
+          30.2
+        ],
+        [
+          9.3,
+          30.2
+        ],
+        [
+          9.3,
+          28.8
+        ]
+      ],
+      "footprint_source_file": "C:\\Program Files\\KiCad\\10.0\\share\\kicad\\footprints\\Package_TO_SOT_SMD.pretty\\Texas_DRT-3.kicad_mod",
+      "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
+    },
+    {
+      "item": {
         "item_id": "U3",
         "label": "U3",
         "side": "front",
@@ -727,6 +813,124 @@
     },
     {
       "item": {
+        "item_id": "Q1",
+        "label": "PWM1",
+        "side": "front",
+        "kind": "footprint",
+        "anchor_mm": [
+          47.0,
+          30.0
+        ],
+        "rotation_deg": 0.0,
+        "footprint_id": "Package_TO_SOT_SMD:SOT-23",
+        "size_mm": null,
+        "diameter_mm": null,
+        "containment": "courtyard",
+        "body_overhang_allowed": false,
+        "requirement_resolution": "engineering",
+        "note": ""
+      },
+      "status": "engineering_selection",
+      "contained": true,
+      "minimum_edge_clearance_mm": 18.3,
+      "envelope": [
+        [
+          46.1,
+          28.3
+        ],
+        [
+          45.07,
+          28.5
+        ],
+        [
+          45.07,
+          31.5
+        ],
+        [
+          46.1,
+          31.7
+        ],
+        [
+          47.9,
+          31.7
+        ],
+        [
+          48.93,
+          30.55
+        ],
+        [
+          48.93,
+          29.45
+        ],
+        [
+          47.9,
+          28.3
+        ]
+      ],
+      "footprint_source_file": "D:\\AI\\PCB designer\\ai_assets\\kicad_footprints\\Package_TO_SOT_SMD__SOT-23.kicad_mod",
+      "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
+    },
+    {
+      "item": {
+        "item_id": "Q2",
+        "label": "PWM2",
+        "side": "front",
+        "kind": "footprint",
+        "anchor_mm": [
+          53.0,
+          30.0
+        ],
+        "rotation_deg": 0.0,
+        "footprint_id": "Package_TO_SOT_SMD:SOT-23",
+        "size_mm": null,
+        "diameter_mm": null,
+        "containment": "courtyard",
+        "body_overhang_allowed": false,
+        "requirement_resolution": "engineering",
+        "note": ""
+      },
+      "status": "engineering_selection",
+      "contained": true,
+      "minimum_edge_clearance_mm": 15.07,
+      "envelope": [
+        [
+          52.1,
+          28.3
+        ],
+        [
+          51.07,
+          28.5
+        ],
+        [
+          51.07,
+          31.5
+        ],
+        [
+          52.1,
+          31.7
+        ],
+        [
+          53.9,
+          31.7
+        ],
+        [
+          54.93,
+          30.55
+        ],
+        [
+          54.93,
+          29.45
+        ],
+        [
+          53.9,
+          28.3
+        ]
+      ],
+      "footprint_source_file": "D:\\AI\\PCB designer\\ai_assets\\kicad_footprints\\Package_TO_SOT_SMD__SOT-23.kicad_mod",
+      "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
+    },
+    {
+      "item": {
         "item_id": "U8",
         "label": "",
         "side": "front",
@@ -809,6 +1013,49 @@
         ]
       ],
       "footprint_source_file": "C:\\Program Files\\KiCad\\10.0\\share\\kicad\\footprints\\Connector_Card.pretty\\microSD_HC_Hirose_DM3AT-SF-PEJM5.kicad_mod",
+      "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
+    },
+    {
+      "item": {
+        "item_id": "U11",
+        "label": "SD ESD",
+        "side": "front",
+        "kind": "footprint",
+        "anchor_mm": [
+          18.0,
+          32.5
+        ],
+        "rotation_deg": 90.0,
+        "footprint_id": "Package_SON:USON-10_2.5x1.0mm_P0.5mm",
+        "size_mm": null,
+        "diameter_mm": null,
+        "containment": "courtyard",
+        "body_overhang_allowed": false,
+        "requirement_resolution": "engineering",
+        "note": ""
+      },
+      "status": "engineering_selection",
+      "contained": true,
+      "minimum_edge_clearance_mm": 16.5,
+      "envelope": [
+        [
+          16.5,
+          31.59
+        ],
+        [
+          16.5,
+          33.41
+        ],
+        [
+          19.5,
+          33.41
+        ],
+        [
+          19.5,
+          31.59
+        ]
+      ],
+      "footprint_source_file": "C:\\Program Files\\KiCad\\10.0\\share\\kicad\\footprints\\Package_SON.pretty\\USON-10_2.5x1.0mm_P0.5mm.kicad_mod",
       "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
     },
     {
@@ -1024,6 +1271,135 @@
         ]
       ],
       "footprint_source_file": "C:\\Program Files\\KiCad\\10.0\\share\\kicad\\footprints\\Button_Switch_THT.pretty\\SW_PUSH_6mm_H4.3mm.kicad_mod",
+      "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
+    },
+    {
+      "item": {
+        "item_id": "D1",
+        "label": "PWR",
+        "side": "front",
+        "kind": "footprint",
+        "anchor_mm": [
+          39.0,
+          43.0
+        ],
+        "rotation_deg": 0.0,
+        "footprint_id": "LED_SMD:LED_0603_1608Metric",
+        "size_mm": null,
+        "diameter_mm": null,
+        "containment": "courtyard",
+        "body_overhang_allowed": false,
+        "requirement_resolution": "engineering",
+        "note": ""
+      },
+      "status": "engineering_selection",
+      "contained": true,
+      "minimum_edge_clearance_mm": 6.27,
+      "envelope": [
+        [
+          37.52,
+          42.27
+        ],
+        [
+          37.52,
+          43.73
+        ],
+        [
+          40.48,
+          43.73
+        ],
+        [
+          40.48,
+          42.27
+        ]
+      ],
+      "footprint_source_file": "D:\\AI\\PCB designer\\ai_assets\\kicad_footprints\\LED_SMD__LED_0603_1608Metric.kicad_mod",
+      "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
+    },
+    {
+      "item": {
+        "item_id": "D2",
+        "label": "FAULT",
+        "side": "front",
+        "kind": "footprint",
+        "anchor_mm": [
+          49.0,
+          43.0
+        ],
+        "rotation_deg": 0.0,
+        "footprint_id": "LED_SMD:LED_0603_1608Metric",
+        "size_mm": null,
+        "diameter_mm": null,
+        "containment": "courtyard",
+        "body_overhang_allowed": false,
+        "requirement_resolution": "engineering",
+        "note": ""
+      },
+      "status": "engineering_selection",
+      "contained": true,
+      "minimum_edge_clearance_mm": 6.27,
+      "envelope": [
+        [
+          47.52,
+          42.27
+        ],
+        [
+          47.52,
+          43.73
+        ],
+        [
+          50.48,
+          43.73
+        ],
+        [
+          50.48,
+          42.27
+        ]
+      ],
+      "footprint_source_file": "D:\\AI\\PCB designer\\ai_assets\\kicad_footprints\\LED_SMD__LED_0603_1608Metric.kicad_mod",
+      "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
+    },
+    {
+      "item": {
+        "item_id": "D3",
+        "label": "LOG",
+        "side": "front",
+        "kind": "footprint",
+        "anchor_mm": [
+          59.0,
+          43.0
+        ],
+        "rotation_deg": 0.0,
+        "footprint_id": "LED_SMD:LED_0603_1608Metric",
+        "size_mm": null,
+        "diameter_mm": null,
+        "containment": "courtyard",
+        "body_overhang_allowed": false,
+        "requirement_resolution": "engineering",
+        "note": ""
+      },
+      "status": "engineering_selection",
+      "contained": true,
+      "minimum_edge_clearance_mm": 6.27,
+      "envelope": [
+        [
+          57.52,
+          42.27
+        ],
+        [
+          57.52,
+          43.73
+        ],
+        [
+          60.48,
+          43.73
+        ],
+        [
+          60.48,
+          42.27
+        ]
+      ],
+      "footprint_source_file": "D:\\AI\\PCB designer\\ai_assets\\kicad_footprints\\LED_SMD__LED_0603_1608Metric.kicad_mod",
       "message": "Geometry is feasible; placement is an engineering proposal awaiting approval."
     },
     {
