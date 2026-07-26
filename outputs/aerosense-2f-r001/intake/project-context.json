@@ -1,0 +1,209 @@
+{
+  "schema_id": "pcbsmith-project-context-bundle",
+  "schema_version": 1,
+  "project_id": "aerosense-2f-r001",
+  "generation_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+  "records": [
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "assembly",
+      "context_id": "aerosense-2f-r001.assembly",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "environment",
+      "context_id": "aerosense-2f-r001.environment",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "exact_part_evidence",
+      "context_id": "aerosense-2f-r001.exact_part_evidence",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "fabricator",
+      "context_id": "aerosense-2f-r001.fabricator",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "firmware_limits",
+      "context_id": "aerosense-2f-r001.firmware_limits",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "interfaces",
+      "context_id": "aerosense-2f-r001.interfaces",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "power_sequencing",
+      "context_id": "aerosense-2f-r001.power_sequencing",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "safety_protection",
+      "context_id": "aerosense-2f-r001.safety_protection",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "timing_signals",
+      "context_id": "aerosense-2f-r001.timing_signals",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    },
+    {
+      "schema_id": "pcbsmith-project-context-record",
+      "schema_version": 1,
+      "category": "validation",
+      "context_id": "aerosense-2f-r001.validation",
+      "status": "resolved",
+      "payload_sha256": "04b0f09ec67005e6e9eae39c7e8a10a4f85b0d3754b5ad5a324319f159d25951",
+      "source_binding_ids": [
+        "span.board-outline",
+        "span.fan-edge",
+        "span.mounting-holes",
+        "span.oled-side",
+        "span.sd-edge",
+        "span.sensor-region",
+        "span.usb-edge"
+      ],
+      "reviewer_record_id": "engineering-review.2026-07-26",
+      "rationale": "Resolved by the engineering-reviewed prompt and the concept-stage exact-part selection.",
+      "unresolved_ids": []
+    }
+  ],
+  "context_fingerprint": "17ffcda63813c7d52cd1e05ebeaf78b75ef009c59a21eb9873a68edb672ea1ca"
+}

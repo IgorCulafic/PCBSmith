@@ -1,0 +1,37 @@
+{
+  "files": [
+    {
+      "bytes": 67256,
+      "path": "concept-review.json",
+      "sha256": "d0c31fba03ef4527e1626992769d452641320393ac518aac113f2c53c736d209"
+    },
+    {
+      "bytes": 18164,
+      "path": "engineering-overlay-front.svg",
+      "sha256": "0bb372d0f363d0e22e7fd774b25993e1a8e02ac81e9ecf1c0901f4df7bcd885f"
+    },
+    {
+      "bytes": 211180,
+      "path": "engineering-overlay-front.png",
+      "sha256": "1651d85362c35ae1cda3e159bedd7818c7e436d8bf028de40722311dc99a0799"
+    },
+    {
+      "bytes": 10199,
+      "path": "engineering-overlay-back.svg",
+      "sha256": "b96ef32496fd103284f595a9e5bace1881324ee079649cf4e7b79d7b131beb66"
+    },
+    {
+      "bytes": 111117,
+      "path": "engineering-overlay-back.png",
+      "sha256": "e038c531a29951a737deb9ab6109ac7b035462dceafb97499b4a9e8e79b1f5e5"
+    },
+    {
+      "bytes": 4414,
+      "path": "concept-review.md",
+      "sha256": "12b962ac91b2a7e46137e6c803b0b7a295a49bf47d9c2d7d3d6e93471667dc38"
+    }
+  ],
+  "outcome": "needs_user_decision",
+  "project_id": "aerosense-2f-r001",
+  "schema": "pcbsmith-concept-review-package-v1"
+}

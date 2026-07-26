@@ -30,14 +30,17 @@ docs/reference/PCB_Application_Specification.docx
 
 # Generated design revisions remain local by default. The accepted R005
 # thermometer proof and R006 3D pilot are deliberately retained as bounded
-# project-generated evidence; they contain no copyrighted source documents or
-# third-party model files.
+# project-generated evidence. AeroSense-2F is the first retained Phase 17/18
+# post-freeze production-board evaluation. These contain no copyrighted source
+# documents or third-party model files.
 outputs/*
 !outputs/thermometer-production-r005/
 !outputs/thermometer-production-r005/**
 !outputs/thermometer-3d-model-test-r006/
 !outputs/thermometer-3d-model-test-r006/**
 outputs/thermometer-3d-model-test-r006/.history/
+!outputs/aerosense-2f-r001/
+!outputs/aerosense-2f-r001/**
 
 # Vendored standalone ngspice (should eventually live outside the repo).
 Spice64/

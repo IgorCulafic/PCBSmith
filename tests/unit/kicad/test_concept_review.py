@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 from pathlib import Path
+from xml.etree import ElementTree as ET
 
 from pcbsmith.kicad.concept_review import (
     ConceptItem,
@@ -94,3 +95,36 @@ def test_concept_markdown_uses_item_id_when_overlay_label_is_hidden(tmp_path: Pa
     assert "| hidden-detail | front |" in (tmp_path / "concept-review.md").read_text(
         encoding="utf-8"
     )
+
+
+def test_concept_overlay_footer_clears_external_access_envelopes(
+    tmp_path: Path,
+) -> None:
+    review = examine_concept(
+        "fixture",
+        ((0.0, 0.0), (20.0, 0.0), (20.0, 10.0), (0.0, 10.0)),
+        (
+            ConceptItem(
+                item_id="card-access",
+                label="card access",
+                side="front",
+                kind="aperture",
+                anchor_mm=(10.0, 14.0),
+                size_mm=(6.0, 8.0),
+                containment="none",
+                requirement_resolution="explicit",
+            ),
+        ),
+    )
+
+    write_concept_review_package(review, tmp_path)
+
+    root = ET.fromstring(
+        (tmp_path / "engineering-overlay-front.svg").read_text(encoding="utf-8")
+    )
+    title = next(
+        element
+        for element in root
+        if element.tag.endswith("text") and element.text == "fixture | FRONT | needs_user_decision"
+    )
+    assert float(title.attrib["y"]) > 18.0

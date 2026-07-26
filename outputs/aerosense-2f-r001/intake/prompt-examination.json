@@ -1,0 +1,272 @@
+{
+  "schema_id": "pcbsmith-prompt-examination",
+  "schema_version": 1,
+  "project_id": "aerosense-2f-r001",
+  "original_text": "# PCBSmith test project — AeroSense-2F\n\n**Project:** USB-C environmental monitor and dual-fan controller\n**Prompt revision:** R001, engineering-reviewed 2026-07-26\n**Board class:** Medium-complexity, rectangular, two-layer\n**Test purpose:** First joint Phase 17 production-workflow and Phase 18\nmanufacturing-output exercise after generator migration\n\n## 0. Authority and workflow\n\nThis document is the revised project authority. Requirements containing\n**must**, **shall**, an exact value, or an exact part number are hard unless a\nlater recorded approval changes them. Wording such as **prefer**, **ideally**,\nor **if achievable** is a preference.\n\nDo not start schematic or PCB generation until:\n\n1. exact-part discovery has frozen the fan electrical envelope, USB-C\n   receptacle, Type-C current detector, fan power switches, OLED module,\n   microSD socket, fan headers, buttons and LEDs;\n2. footprints, mating access, height, lifecycle, purchasability and 3D-model\n   evidence are retained for those parts;\n3. the 70 mm × 50 mm feasibility and concept-placement review has passed; and\n4. the user has approved the concept package.\n\nIf a hard constraint is infeasible, stop and report the conflict with at least\ntwo spirit-preserving alternatives. Do not silently enlarge the board, move an\nedge interface, omit a connector or downgrade a requirement.\n\n## 1. Purpose and operating modes\n\nThe board shall:\n\n- measure ambient temperature and relative humidity with an SHT45;\n- display current readings, fan state and faults on a 128 × 32 I²C OLED;\n- control two independent 5 V four-wire PWM fans;\n- measure each fan's tachometer output;\n- optionally log periodic measurements to a mandatory microSD socket; and\n- enumerate over USB 2.0 full-speed as a CDC-ACM serial device for\n  configuration and live telemetry.\n\nThere is no battery or hold-up supply. Removing USB power immediately removes\nboard power.\n\nThe third button toggles logging. Functions for buttons one and two and the\nstatus LEDs shall be proposed during concept review and frozen before\nschematic approval.\n\nCSV logging and ten-second flushing are firmware requirements. They reduce\nrecent buffered-data loss but do not guarantee filesystem integrity if power\nis removed during a card write. Firmware and power-removal testing shall be\nreported separately from PCB electrical acceptance.\n\n## 2. USB-C power policy\n\n### 2.1 Sink attachment and available-current detection\n\n- The receptacle shall be a USB-C sink/UFP with one 5.1 kΩ Rd termination from\n  each CC pin to ground.\n- Rd establishes sink attachment; it does not guarantee 1.5 A.\n- The board shall include a sink-side Type-C CC/current-advertisement detector\n  capable of distinguishing Default USB current from 1.5 A and 3.0 A source\n  advertisements.\n- USB Power Delivery is not required because the board uses only 5 V.\n- The current detector's exact part shall be selected from current,\n  orderable, documented devices with a retained datasheet and CAD evidence.\n\n### 2.2 Power states\n\n- At Default USB current, the board may power the MCU, sensor, OLED and\n  microSD interface, but both fan rails shall remain disabled.\n- The fan rails may be enabled only after the board has detected a source\n  advertisement of at least 1.5 A.\n- Both fan power-switch enable inputs shall have hardware defaults that keep\n  them off during reset, boot, brownout, missing firmware or a floating MCU\n  pin.\n- USB suspend and resume current behavior is a firmware/system verification\n  obligation. The fans shall be off during suspend.\n- If available current is insufficient, firmware shall expose a visible fault\n  state and continue logic-only operation where USB rules permit.\n\n### 2.3 Current budget\n\nThe design envelope is:\n\n- 500 mA maximum design current per fan connector, including the accepted\n  startup/locked-rotor envelope;\n- 200 mA maximum reserved for MCU, flash, sensor, OLED, microSD, LEDs,\n  regulators and losses; and\n- 1.2 A total board design current when both fans are enabled.\n\nThe exact selected fans must operate from 5 V and provide evidence that their\nrunning, startup and locked-rotor behavior fits this envelope. A generic\n\"standard PC fan\" claim is insufficient because many four-wire PC fans require\n12 V.\n\n## 3. Electrical architecture\n\n### 3.1 Rails\n\n- Input: USB-C VBUS, nominal 5 V, allowed source range per applicable USB-C\n  authority.\n- Logic: one 3.3 V rail from an LDO rated for at least 600 mA.\n- Fans: two independently switched 5 V outputs, `5V_FAN1_SW` and\n  `5V_FAN2_SW`.\n- Fans shall never be powered from 3.3 V.\n- Fan switching or startup shall not cause MCU reset or loss of the 3.3 V\n  rail under the accepted current envelope.\n\n### 3.2 USB data and protection\n\n- USB 2.0 full-speed D+ and D− connect from receptacle to ESD array to 27 Ω\n  series resistors to RP2040.\n- The two 27 Ω resistors shall be placed close to RP2040 USB_DP and USB_DM.\n- The ESD array shall be topologically between the connector and MCU and\n  located as close as practical to the connector pins.\n- USBLC6-2SC6 may be used for D+/D− only if its exact package, pinout and\n  current lifecycle evidence pass.\n- VBUS shall have a separately selected transient/ESD device suitable for the\n  5 V bus. CC pins shall receive protection consistent with the selected\n  Type-C current detector's reference design.\n- Connector shield termination shall be explicitly designed and reviewed; it\n  shall not be left accidental or inferred from the footprint.\n\n### 3.3 RP2040 minimum system\n\n- MCU: Raspberry Pi RP2040, QFN-56, exact part.\n- Follow the current official Raspberry Pi minimal/reference design rather\n  than a manually shortened substitute.\n- Include the required VREG_IN, VREG_OUT, DVDD, IOVDD, USB_VDD and ADC_AVDD\n  supply connections, filtering and decoupling.\n- Use approximately one 100 nF local decoupling capacitor per applicable\n  supply pin except where the official two-layer reference design explicitly\n  documents a shared capacitor.\n- Decoupling acceptance is based on the complete supply-and-return loop, not\n  capacitor-center distance alone.\n- The QFN exposed ground pad shall use the official/reference land pattern,\n  ground connection, via strategy and paste treatment.\n- Provide edge-accessible SWD and deliberate BOOTSEL/reset access.\n\n### 3.4 Flash and crystal\n\n- QSPI flash: at least 2 MB, SOIC-8 permitted, exact orderable part selected\n  before schematic freeze.\n- The flash circuit, pull-up/DNP policy and routing shall follow the current\n  RP2040 reference guidance.\n- Prefer the officially recommended 12 MHz crystal circuit. If\n  ABM8-272-T3 is selected, retain its 1 kΩ series resistor and two 15 pF C0G/NP0\n  load capacitors as shown in the reference design.\n- Any substitute crystal requires recalculation of load capacitance using its\n  specified CL and retained PCB/parasitic assumptions. Do not carry 15 pF\n  capacitors to an unrelated crystal by default.\n\n### 3.5 Fan power and signals\n\n- Each fan connector shall support 5 V at 500 mA design current.\n- Prefer one independently current-limited, thermally protected high-side\n  switch per fan so one fault does not necessarily disable the other fan.\n- Each switch shall be rated above the accepted continuous/startup envelope\n  and shall expose an open-drain, active-low fault indication to the MCU.\n- TPS2051B and AP2151 are not approved defaults for this envelope because\n  their documented continuous output rating is 500 mA per device. They may\n  only be used one per fan if all continuous, startup, thermal and limit\n  conditions pass.\n- Each PWM output shall be an open-drain sink. Push-pull drive is forbidden.\n- Each tachometer input shall accept the selected fan's open-collector output,\n  use a documented pull-up to 3.3 V and include any required series\n  resistance/filtering/protection.\n- PWM, tachometer or fault paths shall not back-power an unpowered fan rail.\n- Do not add a generic flyback diode as though the electronically commutated\n  fan were a relay coil. Provide local ceramic and bulk bypassing at each\n  connector and add cable-transient/TVS protection only when justified by the\n  selected fan, switch and hot-plug evidence.\n- Nominal PWM frequency: 25 kHz.\n\n### 3.6 Sensor\n\n- Sensor: Sensirion SHT45-AD1B, exact part, four-pin 1.5 mm × 1.5 mm DFN.\n- Use the current Sensirion land pattern and paste guidance.\n- The optional central die pad shall not be soldered unless later exact\n  authority explicitly requires it.\n- Keep the sensing opening free of solder, flux, conformal coating, adhesive\n  and silkscreen.\n- The assembly package shall include humidity-sensor storage, contamination,\n  reflow and cleaning notes derived from Sensirion's current handling/design-in\n  guidance.\n- Use one authoritative 5 mm physical isolation region around the footprint:\n  no power switch, LDO, fan connector power pin, switching trace/pour, crystal,\n  OLED heat source or other component may enter it.\n- Place the sensor near a board edge exposed to ambient airflow and as far as\n  feasible from heat-generating circuitry. \"Thermally downstream\" shall only\n  be used if an airflow direction has been declared.\n\n### 3.7 OLED and microSD\n\n- OLED: exact currently purchasable 128 × 32, SSD1306-compatible, four-pin\n  I²C module selected before concept freeze.\n- The OLED must operate natively at 3.3 V. Record whether it includes I²C\n  pull-ups and avoid unintended duplicate pull-ups.\n- microSD shall use a bare push-push socket, not a breakout module.\n- Select the exact socket before concept freeze and retain its card insertion,\n  push-ejection, courtyard, height and 3D mating envelope.\n- Wire the card in SPI mode with CS, CLK, MOSI and MISO.\n- Include card-detect if the selected socket provides it.\n- Provide local bulk and high-frequency decoupling at the socket and reserve\n  source-series damping footprints where exact edge-rate analysis recommends\n  them.\n- The edge-accessible card opening shall receive ESD protection appropriate to\n  the selected socket and interface.\n\n## 4. Component-selection authority\n\n| Function | Authority |\n|---|---|\n| RP2040 | Exact part, no substitution |\n| SHT45-AD1B | Exact part, no substitution |\n| QSPI flash | PCBSmith selects exact compatible, orderable part |\n| Crystal | Prefer exact RP2040 reference part/circuit; substitution requires recalculation |\n| USB-C receptacle | Select one exact mid-mount USB 2.0 receptacle before concept freeze |\n| Type-C current detector | PCBSmith selects exact sink-capable detector |\n| USB data ESD | USBLC6-2SC6 preferred; equivalent allowed with evidence |\n| VBUS/CC protection | PCBSmith selects exact devices from interface authority |\n| OLED | PCBSmith selects exact 3.3 V-native module |\n| microSD | PCBSmith selects exact bare push-push socket |\n| 5 V fans | Exact fan or exact interface-envelope evidence required before schematic freeze |\n| Fan headers | PCBSmith selects exact shrouded connector and mating orientation |\n| Fan power switches | PCBSmith selects exact parts after fan/startup envelope is frozen |\n| PWM sinks | PCBSmith selects exact orderable dual or two single N-MOS devices |\n| LDO | AP2112K-3.3 preferred; equivalent ≥600 mA device allowed |\n| Buttons and LEDs | PCBSmith selects exact orderable parts after concept approval |\n\nAll BOM parts shall have retained manufacturer lifecycle and purchasability\nevidence dated to the generation. A temporarily unavailable supplier API is a\nblocked/unknown result, not permission to claim that a part is current.\n\nAllowed passive sizes are 0402 through 0805. Flag every 0402 line in the BOM.\nQFN-56 and SHT45 DFN assembly need not be hand-solderable. All other choices\nshould remain reasonably reworkable where the electrical and mechanical\nrequirements permit.\n\n## 5. Mechanical constraints\n\n- Rectangular outline: 70 mm × 50 mm hard maximum for the first feasibility\n  attempt.\n- Standard 1.6 mm FR4.\n- Four symmetric M3 NPTH mounting holes, 3.2 mm drill, hole centers 3 mm from\n  their corresponding X and Y edges.\n- No component body or courtyard within 4 mm of a mounting-hole center.\n- Retain at least 1.5 mm copper clearance from each finished hole edge unless\n  the fabrication authority requires more.\n- USB-C: left edge, mating face outward through X = 0. Shell overhang no more\n  than 1.0 mm; all electrical pads and mechanical support tabs remain on\n  supported PCB material.\n- OLED: top side, upright in the declared normal viewing orientation.\n- Three top-side buttons with at least 6 mm center-to-center spacing and clear\n  finger access.\n- Fan connectors: exact right-angle or vertical orientation shall be selected\n  before concept approval. Edge overhang up to 1.5 mm is allowed only for a\n  connector whose mating geometry requires it; pads and retained support\n  remain on PCB material.\n- microSD: edge-accessible, with the full card insertion/ejection swept volume\n  outside the component keepouts and not directed into the board interior.\n- SWD: accessible without removing the OLED or disconnecting fans.\n- Maximum assembled component height: 12 mm.\n\n### Feasibility fallback\n\nThe concept package shall first test 70 mm × 50 mm. If it cannot satisfy\ncourtyards, mating access, sensor isolation, USB routing, fan power corridors\nand ground continuity, stop before schematic/board generation and present:\n\n1. an 80 mm × 55 mm rectangular alternative; and\n2. a second alternative that preserves 70 mm × 50 mm by changing only\n   non-hard placement or module choices.\n\nThe user must approve an alternative before the hard outline changes.\n\n## 6. Placement intent\n\n- **Left edge:** USB-C, ESD, CC/current detector and VBUS protection.\n- **Center-left:** RP2040, QSPI flash, crystal, reference decoupling, BOOTSEL,\n  reset and SWD escape.\n- **Ambient edge/corner:** SHT45 isolation zone, away from OLED, LDO and fan\n  power.\n- **User-facing top region:** OLED, three buttons and two or three labeled\n  status LEDs.\n- **Right or upper-right edge:** two fan connectors with their independent\n  switches, local bypassing, PWM sinks and fault/tach conditioning.\n- **Remaining accessible edge near MCU SPI pins:** microSD socket.\n\nThese are functional zones, not fixed coordinates. The concept-placement\npackage shall show exact selected footprints, courtyards, board-edge mating\nenvelopes, mounting-hole keepouts and the 5 mm sensor isolation region.\n\n## 7. Routing and layout priorities\n\n### 7.1 USB\n\n- Route connector → ESD → 27 Ω resistors → RP2040 with no stubs.\n- Prefer no vias.\n- Keep D+ and D− short, adjacent and over a continuous reference.\n- Use nominal 90 Ω differential geometry calculated from the selected\n  two-layer stack-up, while acknowledging that no controlled-impedance\n  fabrication tier is requested.\n- Maximum D+/D− skew target: 0.5 mm. Do not add unnecessary serpentine\n  meanders merely to obtain a cosmetically smaller mismatch.\n- Retain a short ESD return path and inspect the USB return-current corridor.\n\n### 7.2 Ground and return paths\n\n- Maximize bottom-layer ground continuity.\n- Route signals primarily on top; bottom-layer signal segments shall be short,\n  reviewed crossings that do not divide the principal return plane.\n- No signal shall cross a real ground-pour split without an intentional\n  return-path solution.\n- Add stitching vias where they materially reconnect return regions, at layer\n  transitions, around edge discontinuities and near USB protection. A nominal\n  5 mm perimeter spacing is a guideline, not an unconditional quota.\n- Ground and exposed-pad via placement shall avoid paste wicking and assembly\n  defects.\n\n### 7.3 Power and buses\n\n- Size each fan path for the full accepted 500 mA envelope on 1 oz copper.\n- Retain complete VBUS-to-switch-to-connector and connector-return current-path\n  evidence, including neck-downs, pads, vias, pours and protection devices.\n- Predict fan-path temperature rise below 10 °C under the declared envelope,\n  retaining method and assumptions. IPC-2221 may be retained as a legacy\n  comparison, but the production result shall use the project's current-path\n  authority and shall not treat calculation alone as measured thermal proof.\n- Keep fan startup and switching return currents away from the SHT45, crystal,\n  USB pair and microSD bus.\n- Keep microSD SPI routes short and direct; 15 mm is a preferred target, not a\n  reason to violate mating access or sensor isolation.\n- Operate microSD at no more than 25 MHz for this prototype unless later signal\n  evidence authorizes more.\n- I²C pull-up values shall be calculated from the complete bus capacitance,\n  device limits and any pull-ups already present on the OLED module.\n\n### 7.4 Test points\n\nProvide labeled test points for:\n\n- VBUS;\n- 3V3;\n- `5V_FAN1_SW`;\n- `5V_FAN2_SW`;\n- GND;\n- PWM1 and PWM2;\n- TACH1 and TACH2;\n- both fan fault signals; and\n- USB-current-advertisement state signals if exposed by the selected detector.\n\n## 8. Fabrication and assembly\n\n- KiCad 10 project, validated with the repository-pinned KiCad 10 CLI.\n- Two copper layers, 1 oz copper each.\n- 1.6 mm FR4.\n- Minimum track width: 0.153 mm.\n- Minimum clearance: 0.153 mm.\n- Minimum via: 0.3 mm drill / 0.6 mm pad.\n- ENIG finish.\n- Green solder mask and white silkscreen on both sides.\n- Machine assembly for QFN, DFN, flash and small passives.\n- Through-hole connectors and buttons are preferred where compatible with the\n  selected exact parts.\n- Five prototypes.\n- No panelization requested.\n- No manufacturer-specific release is authorized initially. Generate the\n  manufacturer-neutral Phase 18 package and keep later fabrication/assembly\n  readiness dependent on the actual evidence and approvals.\n\n## 9. Required deliverables\n\n- Original prompt, examination, refined authority and feasibility report.\n- Approved front/back concept-placement images.\n- KiCad 10 schematic, project and routed PCB.\n- Retained custom symbols, footprints, local rules and 3D models.\n- Connected functional-sheet schematic review package.\n- ERC, schematic/PCB parity and DRC reports.\n- Applicability-to-execution and component-review evidence.\n- Exact route, KiCad read-back and netlist-equivalence evidence.\n- Full standardized placement and final-review images, including required\n  high-resolution/tiled, 2D layer-specific and populated/bare 3D views.\n- Human inspection record for the canonical review package.\n- Gerbers and Gerber job file.\n- Excellon drills, drill report and drill map.\n- IPC-D-356 netlist.\n- Manufacturer-part-number BOM.\n- Pick-and-place files.\n- Front and back assembly drawings.\n- Interactive HTML BOM.\n- Stack-up and fabrication notes.\n- DFM/DFT report.\n- VBUS and both fan-path current evidence.\n- Hash-verified manufacturer-neutral manufacturing ZIP.\n- Explicitly separate:\n  `package_generated`, `fabrication_ready`, and `assembly_ready`.\n\n## 10. Silkscreen and artwork\n\nNo custom artwork is supplied. The artwork stage shall produce an explicit\nnot-applicable/clean-skip result rather than waiting, failing or inventing art.\n\nSilkscreen is limited to:\n\n- reference designators;\n- pin-1 and polarity markers;\n- `USB`, `FAN1`, `FAN2`, `SD` and `SWD` interface labels;\n- button/LED function labels after those functions are frozen; and\n- `AeroSense-2F` with board revision.\n\nSilkscreen shall not cover pads, sensor opening, card/connector mating regions,\nmounting keepouts or required assembly markings.\n\n## 11. PCB acceptance criteria\n\n- The exact prompt and approved concept are traceable to the saved board.\n- The 70 mm × 50 mm outline passes feasibility or a user-approved alternative\n  is retained before generation.\n- Every edge interface is correctly oriented, accessible and within its\n  controlled overhang/support envelope.\n- No body, courtyard, mating envelope or mounting keepout overlaps.\n- RP2040 QFN-56 and SHT45 DFN-4 land, mask and paste geometry pass exact-part\n  verification.\n- The SHT45 central die-pad policy and 5 mm isolation region are satisfied.\n- The complete RP2040 reference power, clock, flash, BOOTSEL/reset and USB\n  circuits are present.\n- D+ and D− contain the required 27 Ω series resistors and route through ESD in\n  the correct topological order.\n- Both PWM outputs are proven open-drain and default off.\n- Both tachometer inputs and fan-fault inputs have defined, voltage-compatible\n  states.\n- Type-C source-current advertisement is detected, and hardware defaults keep\n  fans disabled without adequate current.\n- Fan startup/switching does not violate the accepted source and rail budgets.\n- Every routable net has real saved copper; carrier presence is followed by\n  exact-route, read-back and netlist-equivalence verification.\n- KiCad ERC, schematic parity and PCB DRC are clean.\n- Required 3D models resolve, align and remain below the 12 mm height limit.\n- The final standardized review package is conformant, complete and visually\n  inspected.\n- BOM lifecycle/purchasability evidence contains no known NRND/EOL selection;\n  unknown provider state remains explicitly blocked.\n- The manufacturing archive and every retained artifact pass revision and\n  hash-identity verification.\n\n## 12. Firmware/system acceptance kept separate from PCB acceptance\n\nThe PCB shall support these behaviors, but they require firmware and bench\ntesting and shall not be inferred from schematic or DRC:\n\n- CDC-ACM enumeration and serial telemetry;\n- Type-C current-state interpretation;\n- fans disabled at default current and during USB suspend;\n- 25 kHz PWM control and tachometer RPM calculation;\n- fan-fault display and reporting;\n- button behavior;\n- CSV logging, ten-second flush policy and card-removal handling;\n- brownout and abrupt-power-removal behavior; and\n- operation with one and two selected fans over startup, stall and normal-load\n  conditions.\n\n## 13. Primary design authorities\n\n- Raspberry Pi, *Hardware design with RP2040*:\n  https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf\n- Sensirion, *Datasheet SHT4x*:\n  https://sensirion.com/media/documents/33FD6951/6555C40E/Sensirion_Datasheet_SHT4x.pdf\n- USB-IF, *USB Type-C Cable and Connector Specification*:\n  https://www.usb.org/document-library/usb-type-cr-cable-and-connector-specification-release-24\n\nThe exact selected component datasheets, lifecycle records, footprints,\nmechanical drawings, 3D models and supplier evidence become additional\nproject-specific authorities during intake.\n",
+  "original_text_sha256": "743d4c75a138a2ae652741a4473a017af044f9942f179d1daea473abbad0101a",
+  "spans": [
+    {
+      "schema_id": "pcbsmith-prompt-source-span",
+      "schema_version": 1,
+      "span_id": "span.board-outline",
+      "start": 11787,
+      "end": 11860,
+      "exact_text": "Rectangular outline: 70 mm × 50 mm hard maximum for the first feasibility"
+    },
+    {
+      "schema_id": "pcbsmith-prompt-source-span",
+      "schema_version": 1,
+      "span_id": "span.fan-edge",
+      "start": 13928,
+      "end": 13954,
+      "exact_text": "Right or upper-right edge:"
+    },
+    {
+      "schema_id": "pcbsmith-prompt-source-span",
+      "schema_version": 1,
+      "span_id": "span.mounting-holes",
+      "start": 11897,
+      "end": 11972,
+      "exact_text": "Four symmetric M3 NPTH mounting holes, 3.2 mm drill, hole centers 3 mm from"
+    },
+    {
+      "schema_id": "pcbsmith-prompt-source-span",
+      "schema_version": 1,
+      "span_id": "span.oled-side",
+      "start": 12382,
+      "end": 12449,
+      "exact_text": "OLED: top side, upright in the declared normal viewing orientation."
+    },
+    {
+      "schema_id": "pcbsmith-prompt-source-span",
+      "schema_version": 1,
+      "span_id": "span.sd-edge",
+      "start": 12801,
+      "end": 12877,
+      "exact_text": "microSD: edge-accessible, with the full card insertion/ejection swept volume"
+    },
+    {
+      "schema_id": "pcbsmith-prompt-source-span",
+      "schema_version": 1,
+      "span_id": "span.sensor-region",
+      "start": 13752,
+      "end": 13772,
+      "exact_text": "Ambient edge/corner:"
+    },
+    {
+      "schema_id": "pcbsmith-prompt-source-span",
+      "schema_version": 1,
+      "span_id": "span.usb-edge",
+      "start": 12205,
+      "end": 12257,
+      "exact_text": "USB-C: left edge, mating face outward through X = 0."
+    }
+  ],
+  "claims": [
+    {
+      "schema_id": "pcbsmith-examined-prompt-claim",
+      "schema_version": 1,
+      "claim_id": "board.height",
+      "field_path": "mechanical.height_mm",
+      "value": 50.0,
+      "unit": "mm",
+      "resolution": "explicit",
+      "source_span_ids": [
+        "span.board-outline"
+      ],
+      "rationale": null
+    },
+    {
+      "schema_id": "pcbsmith-examined-prompt-claim",
+      "schema_version": 1,
+      "claim_id": "board.width",
+      "field_path": "mechanical.width_mm",
+      "value": 70.0,
+      "unit": "mm",
+      "resolution": "explicit",
+      "source_span_ids": [
+        "span.board-outline"
+      ],
+      "rationale": null
+    },
+    {
+      "schema_id": "pcbsmith-examined-prompt-claim",
+      "schema_version": 1,
+      "claim_id": "fan.region",
+      "field_path": "placements.fans",
+      "value": "upper_right",
+      "unit": null,
+      "resolution": "explicit",
+      "source_span_ids": [
+        "span.fan-edge"
+      ],
+      "rationale": null
+    },
+    {
+      "schema_id": "pcbsmith-examined-prompt-claim",
+      "schema_version": 1,
+      "claim_id": "microsd.access",
+      "field_path": "placements.microsd",
+      "value": "edge_accessible",
+      "unit": null,
+      "resolution": "explicit",
+      "source_span_ids": [
+        "span.sd-edge"
+      ],
+      "rationale": null
+    },
+    {
+      "schema_id": "pcbsmith-examined-prompt-claim",
+      "schema_version": 1,
+      "claim_id": "mounting.holes",
+      "field_path": "mechanical.mounting_holes",
+      "value": "4x M3 NPTH, 3.2 mm drill, 3 mm inset",
+      "unit": null,
+      "resolution": "explicit",
+      "source_span_ids": [
+        "span.mounting-holes"
+      ],
+      "rationale": null
+    },
+    {
+      "schema_id": "pcbsmith-examined-prompt-claim",
+      "schema_version": 1,
+      "claim_id": "oled.side",
+      "field_path": "placements.oled.side",
+      "value": "front",
+      "unit": null,
+      "resolution": "explicit",
+      "source_span_ids": [
+        "span.oled-side"
+      ],
+      "rationale": null
+    },
+    {
+      "schema_id": "pcbsmith-examined-prompt-claim",
+      "schema_version": 1,
+      "claim_id": "sensor.region",
+      "field_path": "placements.sensor",
+      "value": "ambient_edge",
+      "unit": null,
+      "resolution": "explicit",
+      "source_span_ids": [
+        "span.sensor-region"
+      ],
+      "rationale": null
+    },
+    {
+      "schema_id": "pcbsmith-examined-prompt-claim",
+      "schema_version": 1,
+      "claim_id": "usb.location",
+      "field_path": "placements.usb",
+      "value": "left_edge_outward",
+      "unit": null,
+      "resolution": "explicit",
+      "source_span_ids": [
+        "span.usb-edge"
+      ],
+      "rationale": null
+    }
+  ],
+  "anchors": [
+    {
+      "schema_id": "pcbsmith-typed-spatial-anchor",
+      "schema_version": 1,
+      "anchor_id": "fans.upper-right",
+      "kind": "access",
+      "subject_ids": [
+        "J4",
+        "J5"
+      ],
+      "reference_id": "board.upper_right",
+      "value_mm": null,
+      "tolerance_mm": null,
+      "edge": "right",
+      "axis": null,
+      "side": null,
+      "orientation_deg": null,
+      "source_span_ids": [
+        "span.fan-edge"
+      ]
+    },
+    {
+      "schema_id": "pcbsmith-typed-spatial-anchor",
+      "schema_version": 1,
+      "anchor_id": "microsd.access",
+      "kind": "access",
+      "subject_ids": [
+        "J3"
+      ],
+      "reference_id": "board.bottom_edge",
+      "value_mm": null,
+      "tolerance_mm": null,
+      "edge": "bottom",
+      "axis": null,
+      "side": null,
+      "orientation_deg": null,
+      "source_span_ids": [
+        "span.sd-edge"
+      ]
+    },
+    {
+      "schema_id": "pcbsmith-typed-spatial-anchor",
+      "schema_version": 1,
+      "anchor_id": "oled.front",
+      "kind": "side",
+      "subject_ids": [
+        "DS1"
+      ],
+      "reference_id": "board.outline",
+      "value_mm": null,
+      "tolerance_mm": null,
+      "edge": null,
+      "axis": null,
+      "side": "front",
+      "orientation_deg": null,
+      "source_span_ids": [
+        "span.oled-side"
+      ]
+    },
+    {
+      "schema_id": "pcbsmith-typed-spatial-anchor",
+      "schema_version": 1,
+      "anchor_id": "oled.upright",
+      "kind": "orientation",
+      "subject_ids": [
+        "DS1"
+      ],
+      "reference_id": "board.outline",
+      "value_mm": null,
+      "tolerance_mm": null,
+      "edge": null,
+      "axis": null,
+      "side": null,
+      "orientation_deg": 0.0,
+      "source_span_ids": [
+        "span.oled-side"
+      ]
+    },
+    {
+      "schema_id": "pcbsmith-typed-spatial-anchor",
+      "schema_version": 1,
+      "anchor_id": "usb.left-edge",
+      "kind": "edge_offset",
+      "subject_ids": [
+        "J1"
+      ],
+      "reference_id": "board.outline",
+      "value_mm": 0.0,
+      "tolerance_mm": null,
+      "edge": "left",
+      "axis": null,
+      "side": null,
+      "orientation_deg": null,
+      "source_span_ids": [
+        "span.usb-edge"
+      ]
+    }
+  ],
+  "issues": [],
+  "outcome": "ready_for_concept",
+  "examination_fingerprint": "7ae7c4ff4a49a8bd6a64ad2e94274db38c57b6d03e9df1c4c35b5b4f33fe573f"
+}

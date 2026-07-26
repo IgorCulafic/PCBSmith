@@ -1,0 +1,180 @@
+{
+  "schema_id": "pcbsmith-pre-route-feasibility-report",
+  "schema_version": 1,
+  "board_outline_sha256": "0093e267cdeb98d7c8714e0630b30d6c3fd62caac567086cd27f16c4ea5b2561",
+  "board_area_mm2": 3500.0,
+  "usable_area_mm2": 3327.99339413075,
+  "envelope_area_mm2": 1717.3958578,
+  "area_utilization": 0.5160454527430252,
+  "outcome": "ready",
+  "uncontained_envelope_ids": [],
+  "access_conflict_envelope_ids": [],
+  "assignments": [
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "CC1",
+      "neck_id": "neck.usb-entry",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "CC2",
+      "neck_id": "neck.usb-entry",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "FAN1_5V",
+      "neck_id": "neck.core-right",
+      "committed_units": 3
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "FAN1_PWM",
+      "neck_id": "neck.core-right",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "FAN1_TACH",
+      "neck_id": "neck.core-right",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "FAN2_5V",
+      "neck_id": "neck.core-right",
+      "committed_units": 3
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "FAN2_PWM",
+      "neck_id": "neck.core-right",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "FAN2_TACH",
+      "neck_id": "neck.core-right",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "I2C_SCL",
+      "neck_id": "neck.bottom-service",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "I2C_SDA",
+      "neck_id": "neck.bottom-service",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "SD_CLK",
+      "neck_id": "neck.bottom-service",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "SD_CMD",
+      "neck_id": "neck.bottom-service",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "SD_DAT0",
+      "neck_id": "neck.bottom-service",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "USB_DM",
+      "neck_id": "neck.usb-entry",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "USB_DP",
+      "neck_id": "neck.usb-entry",
+      "committed_units": 1
+    },
+    {
+      "schema_id": "pcbsmith-net-capacity-assignment",
+      "schema_version": 1,
+      "net_name": "VBUS",
+      "neck_id": "neck.core-right",
+      "committed_units": 3
+    }
+  ],
+  "neck_records": [
+    {
+      "schema_id": "pcbsmith-neck-capacity-record",
+      "schema_version": 1,
+      "neck_id": "neck.bottom-service",
+      "capacity_units": 32,
+      "committed_units": 5,
+      "demand_net_names": [
+        "I2C_SCL",
+        "I2C_SDA",
+        "SD_CLK",
+        "SD_CMD",
+        "SD_DAT0"
+      ],
+      "over_capacity_units": 0
+    },
+    {
+      "schema_id": "pcbsmith-neck-capacity-record",
+      "schema_version": 1,
+      "neck_id": "neck.core-right",
+      "capacity_units": 40,
+      "committed_units": 13,
+      "demand_net_names": [
+        "FAN1_5V",
+        "FAN1_PWM",
+        "FAN1_TACH",
+        "FAN2_5V",
+        "FAN2_PWM",
+        "FAN2_TACH",
+        "VBUS"
+      ],
+      "over_capacity_units": 0
+    },
+    {
+      "schema_id": "pcbsmith-neck-capacity-record",
+      "schema_version": 1,
+      "neck_id": "neck.usb-entry",
+      "capacity_units": 20,
+      "committed_units": 4,
+      "demand_net_names": [
+        "CC1",
+        "CC2",
+        "USB_DM",
+        "USB_DP"
+      ],
+      "over_capacity_units": 0
+    }
+  ],
+  "failing_nets": [],
+  "search_state_budget": 50000,
+  "search_states_explored": 17,
+  "search_complete": true,
+  "findings": [],
+  "report_fingerprint": "22217542f7048f8bba80d18862c0a648172b8cf10fe31946aa9119be3cbf353e"
+}

@@ -327,26 +327,44 @@ def _outside_excursion_mm(shape: Any, board: Any) -> float:
 
 
 def _render_svg(review: ConceptReview, side: Literal["front", "back"]) -> str:
-    _min_x, _min_y, max_x, max_y = review.board_bounds_mm
+    min_x, min_y, max_x, max_y = review.board_bounds_mm
+    visible_items = tuple(
+        result for result in review.items if result.item.side in {side, "both"}
+    )
+    rendered_x = tuple(
+        point[0] for result in visible_items for point in result.envelope
+    )
+    rendered_y = tuple(
+        point[1] for result in visible_items for point in result.envelope
+    )
+    content_min_x = min((min_x, *rendered_x))
+    content_min_y = min((min_y, *rendered_y))
+    content_max_x = max((max_x, *rendered_x))
+    content_max_y = max((max_y, *rendered_y))
     padding = 5.0
-    legend_height = 16.0
-    width = max_x + padding * 2
-    height = max_y + padding * 2 + legend_height
+    title_y = content_max_y + 5.5
+    legend_y = title_y + 4.5
+    view_min_x = content_min_x - padding
+    view_min_y = content_min_y - padding
+    view_max_x = max(content_max_x, content_min_x + 70.0) + padding
+    view_max_y = legend_y + 4.0
+    width = view_max_x - view_min_x
+    height = view_max_y - view_min_y
     svg = ET.Element(
         "svg",
         {
             "xmlns": "http://www.w3.org/2000/svg",
             "width": "3840",
             "height": str(round(3840 * height / width)),
-            "viewBox": f"{-padding} {-padding} {width} {height}",
+            "viewBox": f"{view_min_x} {view_min_y} {width} {height}",
         },
     )
     ET.SubElement(
         svg,
         "rect",
         {
-            "x": str(-padding),
-            "y": str(-padding),
+            "x": str(view_min_x),
+            "y": str(view_min_y),
             "width": str(width),
             "height": str(height),
             "fill": "#101418",
@@ -354,7 +372,7 @@ def _render_svg(review: ConceptReview, side: Literal["front", "back"]) -> str:
     )
 
     def view(point: Point) -> Point:
-        return (max_x - point[0], point[1]) if side == "back" else point
+        return (min_x + max_x - point[0], point[1]) if side == "back" else point
 
     outline = " ".join(f"{x:.4f},{y:.4f}" for x, y in map(view, review.outline))
     ET.SubElement(
@@ -362,9 +380,7 @@ def _render_svg(review: ConceptReview, side: Literal["front", "back"]) -> str:
         "polygon",
         {"points": outline, "fill": "#182b22", "stroke": "#d9e3e8", "stroke-width": "0.35"},
     )
-    for result in review.items:
-        if result.item.side not in {side, "both"}:
-            continue
+    for result in visible_items:
         points = " ".join(f"{x:.4f},{y:.4f}" for x, y in map(view, result.envelope))
         color = STATUS_COLORS[result.status]
         ET.SubElement(
@@ -399,21 +415,26 @@ def _render_svg(review: ConceptReview, side: Literal["front", "back"]) -> str:
         svg,
         "text",
         {
-            "x": "0",
-            "y": f"{max_y + 5.5:.3f}",
+            "x": str(content_min_x),
+            "y": f"{title_y:.3f}",
             "fill": "#f4f7f8",
-            "font-size": "2.4",
+            "font-size": "1.6",
             "font-family": "Arial, sans-serif",
         },
     )
-    title.text = f"{review.project_id} — {side.upper()} engineering overlay — {review.outcome}"
-    legend_y = max_y + 10.0
+    title.text = f"{review.project_id} | {side.upper()} | {review.outcome}"
     for index, (status, color) in enumerate(STATUS_COLORS.items()):
-        x = index * 25.0
+        x = content_min_x + index * 18.0
         ET.SubElement(
             svg,
             "rect",
-            {"x": str(x), "y": str(legend_y - 2.2), "width": "2.5", "height": "2.5", "fill": color},
+            {
+                "x": str(x),
+                "y": str(legend_y - 1.8),
+                "width": "2.0",
+                "height": "2.0",
+                "fill": color,
+            },
         )
         label = ET.SubElement(
             svg,
@@ -422,7 +443,7 @@ def _render_svg(review: ConceptReview, side: Literal["front", "back"]) -> str:
                 "x": str(x + 3.4),
                 "y": str(legend_y),
                 "fill": "#d9e3e8",
-                "font-size": "1.55",
+                "font-size": "1.1",
                 "font-family": "Arial, sans-serif",
             },
         )
