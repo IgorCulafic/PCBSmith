@@ -535,6 +535,100 @@ def test_routed_persistence_rejects_unclean_drc_before_review(
     assert not (tmp_path / "CURRENT.json").exists()
 
 
+def test_routed_persistence_rejects_drc_board_mutation(
+    tmp_path: Path,
+) -> None:
+    def drc_generator(board: Path, report: Path) -> None:
+        board.write_bytes(board.read_bytes() + b"\n")
+        report.write_text(
+            json.dumps(
+                {
+                    "violations": [],
+                    "unconnected_items": [],
+                    "schematic_parity": [],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+    with pytest.raises(ValueError, match="DRC generator mutated"):
+        persist_routed_board_and_generate_review(
+            transaction_root=tmp_path,
+            project_id="project",
+            generation_id="route-1",
+            generation_sha256=SHA_A,
+            board_relative_path="design/board.kicad_pcb",
+            board_payload=_routed_board_payload(),
+            review_generator=lambda _board, _output: pytest.fail("review must not run"),
+            drc_generator=drc_generator,
+        )
+
+    assert not (tmp_path / "CURRENT.json").exists()
+
+
+def test_routed_persistence_rejects_support_payload_in_owned_directory(
+    tmp_path: Path,
+) -> None:
+    with pytest.raises(ValueError, match="transaction-owned artifact directory"):
+        persist_routed_board_and_generate_review(
+            transaction_root=tmp_path,
+            project_id="project",
+            generation_id="route-1",
+            generation_sha256=SHA_A,
+            board_relative_path="design/board.kicad_pcb",
+            board_payload=_routed_board_payload(),
+            review_generator=lambda _board, _output: pytest.fail("review must not run"),
+            drc_generator=lambda _board, _report: pytest.fail("DRC must not run"),
+            support_payloads={"verification/forged.json": b"{}"},
+        )
+
+    assert not (tmp_path / "CURRENT.json").exists()
+
+
+def test_routed_persistence_rejects_failed_review_package(
+    tmp_path: Path,
+) -> None:
+    def drc_generator(_board: Path, report: Path) -> None:
+        report.write_text(
+            '{"violations":[],"unconnected_items":[],"schematic_parity":[]}',
+            encoding="utf-8",
+        )
+
+    def failed_review(board: Path, _output: Path) -> VisualReviewManifest:
+        from pcbsmith.kicad.routing_evidence import inspect_saved_board_routing
+
+        routing = inspect_saved_board_routing(board)
+        return VisualReviewManifest(
+            schema_id="pcbsmith-visual-review-manifest-v1",
+            render_profile=RenderProfile(),
+            stage="final",
+            board_file=str(board),
+            board_sha256=routing.board_sha256,
+            copper_sha256=SHA_C,
+            routing_evidence=routing,
+            kicad_version="10.0",
+            renderer_version="test",
+            model_preflight_status="passed",
+            workflow_conformance_status="nonconformant",
+            package_status="generation_failed",
+            artifacts=(),
+        )
+
+    with pytest.raises(ValueError, match="review package generation failed"):
+        persist_routed_board_and_generate_review(
+            transaction_root=tmp_path,
+            project_id="project",
+            generation_id="route-1",
+            generation_sha256=SHA_A,
+            board_relative_path="design/board.kicad_pcb",
+            board_payload=_routed_board_payload(),
+            review_generator=failed_review,
+            drc_generator=drc_generator,
+        )
+
+    assert not (tmp_path / "CURRENT.json").exists()
+
+
 def test_transaction_rejects_payload_revision_mixing_before_writes(
     tmp_path: Path,
 ) -> None:

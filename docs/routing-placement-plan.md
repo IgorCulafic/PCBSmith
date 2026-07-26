@@ -1173,8 +1173,8 @@ contracts exist. The detailed migration authority is
 
 ## Phase 17 - production workflow closure and default-path proof
 
-**Status (2026-07-25): ACTIVE; SHARED PRODUCTION GATES ARE IMPLEMENTED,
-LEGACY-GENERATOR MIGRATION AND POST-FREEZE CROSS-BOARD PROOF REMAIN.**
+**Status (2026-07-26): ACTIVE; SHARED PRODUCTION GATES AND GENERATOR
+PUBLICATION MIGRATION ARE IMPLEMENTED; POST-FREEZE CROSS-BOARD PROOF REMAINS.**
 
 Phase 17 finishes the Phase 11-13 integration gaps and consumes the consolidated
 Phase 16 contracts. It is complete only when a materially different board
@@ -1312,9 +1312,13 @@ nightly build must not become the production file authority.
 - [x] Implement one operative routed-board persistence/final-review transaction
   that rejects placement-only boards, dirty DRC, stale hashes, and mixed
   board/review generations before atomic persistence.
-- [ ] Migrate every board generator to the routed-board transaction; the shared
-  implementation does not by itself stop a legacy one-off script from
-  bypassing it.
+- [x] Register every board generator behind the fail-closed production
+  publication boundary. The 2026-07-26 AST audit covers all 19 entry points;
+  fifteen are placement-only and four may attempt routed publication. Unknown
+  generators, placement-only routed attempts, context-free project replay,
+  DRC board mutation, and failed/nonconformant reviews are blocked. Legacy
+  builder commands are explicitly compatibility-only rather than silently
+  promoted. See `docs/phase17-generator-migration-2026-07-26.md`.
 - [x] Repair routability-informed placement/escape generation for Retro-Pad
   R003 and 3x3. Both exact saved candidates now have full carrier coverage and
   clean KiCad DRC. R003 required deterministic Type-C and ISP local fanout,

@@ -53,6 +53,21 @@ def _run_cli(
     )
 
 
+def test_production_generator_audit_is_clean_and_reports_capabilities() -> None:
+    result = _run_cli("production-generator-audit")
+
+    assert result.returncode == 0
+    assert result.stderr == ""
+    payload = json.loads(result.stdout)
+    assert payload["clean"] is True
+    assert len(payload["registered_generators"]) == 19
+    assert {
+        item["capability"] for item in payload["registered_generators"]
+    } == {"placement", "routed"}
+    assert payload["unregistered_ids"] == []
+    assert payload["stale_registration_ids"] == []
+
+
 def test_info_prints_project_summary(tmp_path: Path) -> None:
     project_dir = tmp_path / "voltage_divider"
     shutil.copytree(FIXTURE, project_dir)

@@ -600,6 +600,7 @@ def persist_placement_and_generate_review(
     board_payload: bytes,
     review_generator: Callable[[Path, Path], VisualReviewManifest],
     component_review_generator: Callable[[Path], ProjectComponentReviewExecution],
+    support_payloads: Mapping[str, bytes] | None = None,
 ) -> PlacementReviewTransactionResult:
     """Persist a placement board and invoke its canonical review in one revision.
 
@@ -618,6 +619,11 @@ def persist_placement_and_generate_review(
         _require_descendant(work_root, board_file)
         board_file.parent.mkdir(parents=True, exist_ok=True)
         board_file.write_bytes(board_payload)
+        retained_support = _write_generation_support_payloads(
+            work_root=work_root,
+            board_relative_path=board_relative_path,
+            support_payloads=support_payloads,
+        )
         component_review = component_review_generator(board_file)
         if component_review.project_id != project_id:
             raise ValueError("component review execution belongs to another project")
@@ -628,6 +634,10 @@ def persist_placement_and_generate_review(
             raise ValueError("automatic pre-route review must use placement stage")
         if generated_manifest.board_sha256 != board_sha256:
             raise ValueError("review manifest does not bind the saved placement board")
+        if generated_manifest.package_status == "generation_failed":
+            raise ValueError("placement review package generation failed")
+        if generated_manifest.workflow_conformance_status == "nonconformant":
+            raise ValueError("placement review workflow is nonconformant")
 
         final_board = root / "generations" / generation_id / PurePosixPath(board_relative_path)
         retained_manifest = generated_manifest.model_copy(
@@ -645,6 +655,9 @@ def persist_placement_and_generate_review(
         )
         payloads: dict[str, bytes] = {board_relative_path: board_payload}
         roles: dict[str, ArtifactRole] = {board_relative_path: "board"}
+        for relative_path, payload in retained_support.items():
+            payloads[relative_path] = payload
+            roles[relative_path] = _support_artifact_role(relative_path)
         component_review_path = "evidence/component-review/execution.json"
         payloads[component_review_path] = (
             json.dumps(
@@ -721,6 +734,7 @@ def persist_routed_board_and_generate_review(
     board_payload: bytes,
     review_generator: Callable[[Path, Path], VisualReviewManifest],
     drc_generator: Callable[[Path, Path], None],
+    support_payloads: Mapping[str, bytes] | None = None,
 ) -> RoutedReviewTransactionResult:
     """Persist one routed board, exact DRC, and final review atomically.
 
@@ -742,6 +756,11 @@ def persist_routed_board_and_generate_review(
         _require_descendant(work_root, board_file)
         board_file.parent.mkdir(parents=True, exist_ok=True)
         board_file.write_bytes(board_payload)
+        retained_support = _write_generation_support_payloads(
+            work_root=work_root,
+            board_relative_path=board_relative_path,
+            support_payloads=support_payloads,
+        )
 
         routing_evidence = inspect_saved_board_routing(board_file)
         if routing_evidence.state is not RoutingArtifactState.ROUTED_CANDIDATE:
@@ -754,6 +773,11 @@ def persist_routed_board_and_generate_review(
         verification_output.mkdir(parents=True)
         drc_report = verification_output / "drc.json"
         drc_generator(board_file, drc_report)
+        if board_file.read_bytes() != board_payload:
+            raise ValueError(
+                "DRC generator mutated the routed board after routing evidence "
+                "was captured; regenerate and preflight the resulting revision"
+            )
         if not drc_report.is_file():
             raise ValueError("DRC generator did not retain its JSON report")
         drc_evidence = inspect_kicad_drc_report(drc_report)
@@ -771,6 +795,10 @@ def persist_routed_board_and_generate_review(
             raise ValueError("routed review must use final stage")
         if generated_manifest.board_sha256 != routing_evidence.board_sha256:
             raise ValueError("review manifest does not bind the saved routed board")
+        if generated_manifest.package_status == "generation_failed":
+            raise ValueError("routed review package generation failed")
+        if generated_manifest.workflow_conformance_status == "nonconformant":
+            raise ValueError("routed review workflow is nonconformant")
         manifest_routing = generated_manifest.routing_evidence
         if manifest_routing is None:
             raise ValueError("final review omitted saved-board routing evidence")
@@ -801,6 +829,9 @@ def persist_routed_board_and_generate_review(
 
         payloads: dict[str, bytes] = {board_relative_path: board_payload}
         roles: dict[str, ArtifactRole] = {board_relative_path: "board"}
+        for relative_path, payload in retained_support.items():
+            payloads[relative_path] = payload
+            roles[relative_path] = _support_artifact_role(relative_path)
         if review_output.exists():
             for path in sorted(item for item in review_output.rglob("*") if item.is_file()):
                 relative = PurePosixPath("review") / path.relative_to(review_output).as_posix()
@@ -1274,6 +1305,34 @@ def _safe_relative_path(value: str) -> PurePosixPath:
     if path.is_absolute() or ".." in path.parts or path.as_posix() in {"", "."}:
         raise ValueError("artifact relative_path must remain inside its generation")
     return path
+
+
+def _write_generation_support_payloads(
+    *,
+    work_root: Path,
+    board_relative_path: str,
+    support_payloads: Mapping[str, bytes] | None,
+) -> dict[str, bytes]:
+    retained: dict[str, bytes] = {}
+    board_path = _safe_relative_path(board_relative_path)
+    for relative_text, payload in sorted((support_payloads or {}).items()):
+        relative = _safe_relative_path(relative_text)
+        if relative == board_path:
+            raise ValueError("support payload cannot overwrite the canonical board")
+        if relative.parts[0] in {"review", "verification", "evidence"}:
+            raise ValueError(
+                "support payload cannot occupy a transaction-owned artifact directory"
+            )
+        destination = work_root / relative
+        _require_descendant(work_root, destination)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_bytes(payload)
+        retained[relative.as_posix()] = payload
+    return retained
+
+
+def _support_artifact_role(relative_path: str) -> ArtifactRole:
+    return "schematic" if PurePosixPath(relative_path).suffix == ".kicad_sch" else "other"
 
 
 def _require_descendant(parent: Path, child: Path) -> None:

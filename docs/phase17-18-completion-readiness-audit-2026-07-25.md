@@ -10,12 +10,11 @@ fabrication-ready; their manifests correctly remain blocked by missing
 board-specific current-path and DFM/DFT evidence.
 
 Phase 17 is not complete. Most shared contracts and production gates are
-implemented, but two acceptance obligations cannot be replaced by more unit
-tests:
+implemented. The 2026-07-26 migration closes the generator-inventory and
+publication-boundary code blocker, leaving the cross-board acceptance
+obligation that cannot be replaced by more unit tests:
 
-1. retained legacy board generators still bypass the shared production
-   transaction; and
-2. the complete default path has not been proven on two materially different
+1. the complete default path has not been proven on two materially different
    boards, including one whose prompt arrived after the implementation freeze.
 
 Calling Phase 17 complete before both conditions are satisfied would repeat the
@@ -44,34 +43,28 @@ tests:
 These are real reusable mechanisms. They are not yet proof that every
 historical generator enters through them.
 
-## Generator migration audit
+## Generator migration audit — closed 2026-07-26
 
-The source inventory contains 18 board-generation entry points across 15
-`src/pcbsmith/kicad/*board.py` modules. None of those modules directly invokes
-`persist_routed_board_and_generate_review`,
-`persist_placement_and_generate_review`, or
-`run_production_placement_review`.
+The corrected source inventory contains 19 board-generation entry points
+across 15 `src/pcbsmith/kicad/*board.py` modules. All are now covered by an
+explicit registry and AST audit. Fifteen are placement-only; four may attempt
+routed publication. Unknown generators and placement-only routed attempts fail
+before DRC or review.
 
 Eight normal CLI paths converge on the legacy `_finish_board_authority`
 function. That function runs virtual DRC, KiCad DRC, previews, a review image,
-and returns `needs_human_review`, but it does not create the Phase 17
-transaction, applicability manifest, component-review execution, exact route
-evidence, or one-generation artifact identity. The standalone scripts for the
-Retro-Pad and BLDC ESC families also call board builders directly.
+and returns `needs_human_review`. It is now explicitly labeled compatibility
+only and cannot claim production publication. Canonical production placement
+and routed CLI commands require the registered generator ID and call the
+shared transaction adapters. The routed command also retains exact project
+support, uses non-mutating KiCad DRC, and rejects failed/nonconformant reviews.
 
-This is the principal code-migration blocker. The correct next implementation
-slice is:
-
-1. add one inventory/registration rule so a new board generator cannot appear
-   without an explicit production-transaction or deliberately blocked
-   placement-only classification;
-2. replace `_finish_board_authority` with a production adapter that gathers the
-   exact required evidence and calls the shared transaction;
-3. move the standalone Retro-Pad routed candidates through that adapter;
-4. keep BLDC ESC placement-only until its electrical, power, thermal, and
-   mechanical inputs are selected; and
-5. retain fail-closed compatibility adapters for historical outputs rather
-   than silently promoting them.
+A live Retro-Pad R003 replay committed a conformant, clean-DRC,
+`generated_pending_inspection` 52-artifact transaction with 496 segments and
+93 vias. This proves the migration mechanics only; it is not one of the two
+complete cross-board release proofs. Details and two defects discovered during
+the replay are retained in
+`docs/phase17-generator-migration-2026-07-26.md`.
 
 ## Cross-board proof blocker
 

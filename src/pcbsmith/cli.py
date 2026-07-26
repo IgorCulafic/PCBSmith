@@ -164,13 +164,19 @@ from pcbsmith.kicad.thermometer_board import (
 )
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
+from pcbsmith.production_generators import (
+    GENERATOR_REGISTRY,
+    audit_generator_registry,
+    generate_nonmutating_kicad_drc,
+    persist_registered_placement_candidate,
+    persist_registered_routed_candidate,
+)
 from pcbsmith.production_workflow import (
     GenerationTransactionManifest,
     bind_execution_profile,
     evaluate_routed_board_release_gate,
     evaluate_routing_entry_gate,
     inspect_current_placement_review,
-    persist_placement_and_generate_review,
     repair_current_component_review,
 )
 from pcbsmith.project_engineering_gate import evaluate_project_engineering_gate
@@ -2679,6 +2685,43 @@ def _cmd_workflow_examine(args: argparse.Namespace) -> int:
     return 0 if examination.outcome == "ready_for_concept" else 1
 
 
+def _cmd_production_generator_audit(_args: argparse.Namespace) -> int:
+    audit = audit_generator_registry(Path(__file__).parent / "kicad")
+    payload = {
+        "clean": audit.clean,
+        "discovered_ids": audit.discovered_ids,
+        "registered_generators": [
+            {
+                "generator_id": item.generator_id,
+                "capability": item.capability.value,
+                "notes": item.notes,
+            }
+            for item in GENERATOR_REGISTRY
+        ],
+        "unregistered_ids": audit.unregistered_ids,
+        "stale_registration_ids": audit.stale_registration_ids,
+    }
+    print(json.dumps(payload, indent=2))
+    return 0 if audit.clean else 1
+
+
+def _load_production_support_payloads(entries: list[str]) -> dict[str, bytes]:
+    payloads: dict[str, bytes] = {}
+    for entry in entries:
+        source_text, separator, relative_path = entry.partition("=")
+        if not separator or not source_text or not relative_path:
+            raise ValueError(
+                "production support files require SOURCE=GENERATION_RELATIVE_PATH"
+            )
+        if relative_path in payloads:
+            raise ValueError(f"duplicate production support destination: {relative_path}")
+        source = Path(source_text)
+        if not source.is_file():
+            raise ValueError(f"production support file is missing: {source}")
+        payloads[relative_path] = source.read_bytes()
+    return payloads
+
+
 def _cmd_production_placement_review(args: argparse.Namespace) -> int:
     board = Path(args.board)
     features = ReviewFeatures.model_validate_json(Path(args.features).read_text("utf-8"))
@@ -2697,7 +2740,8 @@ def _cmd_production_placement_review(args: argparse.Namespace) -> int:
             progress=lambda message: print(message, file=sys.stderr, flush=True),
         )
 
-    result = persist_placement_and_generate_review(
+    result = persist_registered_placement_candidate(
+        generator_id=args.generator_id,
         transaction_root=Path(args.transaction_root),
         project_id=args.project_id,
         generation_id=args.generation_id,
@@ -2708,6 +2752,48 @@ def _cmd_production_placement_review(args: argparse.Namespace) -> int:
         component_review_generator=lambda _board: _execute_component_review_request(
             Path(args.component_review_request)
         ),
+        support_payloads=_load_production_support_payloads(args.support_file),
+    )
+    rendered = json.dumps(result.model_dump(mode="json"), indent=2) + "\n"
+    if args.output:
+        Path(args.output).write_text(rendered, encoding="utf-8")
+    print(rendered, end="")
+    return 0 if result.transaction.manifest.status == "committed" else 1
+
+
+def _cmd_production_routed_review(args: argparse.Namespace) -> int:
+    board = Path(args.board)
+    features = ReviewFeatures.model_validate_json(Path(args.features).read_text("utf-8"))
+    preflight = ModelPreflightReport.model_validate_json(
+        Path(args.model_preflight).read_text("utf-8")
+    )
+
+    def generate(board_file: Path, output_dir: Path) -> VisualReviewManifest:
+        return generate_visual_review_package(
+            board_file=board_file,
+            output_dir=output_dir,
+            stage="final",
+            features=features,
+            model_preflight=preflight,
+            source_revision=args.source_revision,
+            progress=lambda message: print(message, file=sys.stderr, flush=True),
+        )
+
+    result = persist_registered_routed_candidate(
+        generator_id=args.generator_id,
+        transaction_root=Path(args.transaction_root),
+        project_id=args.project_id,
+        generation_id=args.generation_id,
+        generation_sha256=args.generation_sha256,
+        board_relative_path=args.board_relative_path,
+        board_payload=board.read_bytes(),
+        review_generator=generate,
+        drc_generator=lambda board_file, report_file: generate_nonmutating_kicad_drc(
+            board_file,
+            report_file,
+            schematic_parity=not args.no_schematic_parity,
+        ),
+        support_payloads=_load_production_support_payloads(args.support_file),
     )
     rendered = json.dumps(result.model_dump(mode="json"), indent=2) + "\n"
     if args.output:
@@ -3273,6 +3359,10 @@ def _finish_board_authority(
                         *extra_findings,
                         "KiCad DRC passed. The generated board layout still requires "
                         "human visual review before fabrication.",
+                        "Legacy compatibility review only: this command does not "
+                        "publish a Phase 17 production transaction. Use "
+                        "production-placement-review or production-routed-review "
+                        "with the exact registered generator ID.",
                     ),
                 }
             ),
@@ -4047,6 +4137,12 @@ def build_parser() -> argparse.ArgumentParser:
     workflow_examine_parser.add_argument("--output", required=True)
     workflow_examine_parser.set_defaults(func=_cmd_workflow_examine)
 
+    generator_audit_parser = subparsers.add_parser(
+        "production-generator-audit",
+        help="fail when any KiCad board builder lacks an explicit publication policy",
+    )
+    generator_audit_parser.set_defaults(func=_cmd_production_generator_audit)
+
     placement_review_parser = subparsers.add_parser(
         "production-placement-review",
         help=(
@@ -4056,6 +4152,11 @@ def build_parser() -> argparse.ArgumentParser:
     )
     placement_review_parser.add_argument("board")
     placement_review_parser.add_argument("transaction_root")
+    placement_review_parser.add_argument(
+        "--generator-id",
+        required=True,
+        help="exact registered module:entrypoint that produced the board",
+    )
     placement_review_parser.add_argument("--project-id", required=True)
     placement_review_parser.add_argument("--generation-id", required=True)
     placement_review_parser.add_argument("--generation-sha256", required=True)
@@ -4074,8 +4175,57 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     placement_review_parser.add_argument("--source-revision")
+    placement_review_parser.add_argument(
+        "--support-file",
+        action="append",
+        default=[],
+        metavar="SOURCE=GENERATION_RELATIVE_PATH",
+        help="retain a KiCad project, schematic, rules, library, or local asset",
+    )
     placement_review_parser.add_argument("--output")
     placement_review_parser.set_defaults(func=_cmd_production_placement_review)
+
+    routed_review_parser = subparsers.add_parser(
+        "production-routed-review",
+        help=(
+            "persist a registered routed board, non-mutating KiCad DRC, and "
+            "canonical final review as one generation"
+        ),
+    )
+    routed_review_parser.add_argument("board")
+    routed_review_parser.add_argument("transaction_root")
+    routed_review_parser.add_argument(
+        "--generator-id",
+        required=True,
+        help="exact registered routed-capable module:entrypoint",
+    )
+    routed_review_parser.add_argument("--project-id", required=True)
+    routed_review_parser.add_argument("--generation-id", required=True)
+    routed_review_parser.add_argument("--generation-sha256", required=True)
+    routed_review_parser.add_argument(
+        "--board-relative-path",
+        default="design/board.kicad_pcb",
+    )
+    routed_review_parser.add_argument("--features", required=True)
+    routed_review_parser.add_argument("--model-preflight", required=True)
+    routed_review_parser.add_argument("--source-revision")
+    routed_review_parser.add_argument(
+        "--support-file",
+        action="append",
+        default=[],
+        metavar="SOURCE=GENERATION_RELATIVE_PATH",
+        help=(
+            "retain exact project support beside the isolated board; repeat for "
+            ".kicad_pro, .kicad_sch, rule, library, and local asset files"
+        ),
+    )
+    routed_review_parser.add_argument(
+        "--no-schematic-parity",
+        action="store_true",
+        help="disable KiCad schematic-parity DRC only when no schematic authority exists",
+    )
+    routed_review_parser.add_argument("--output")
+    routed_review_parser.set_defaults(func=_cmd_production_routed_review)
 
     production_inspect_parser = subparsers.add_parser(
         "production-visual-inspect",

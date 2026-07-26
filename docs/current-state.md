@@ -370,16 +370,25 @@ order belongs in `docs/routing-placement-plan.md`.
    native budgets. Typed user review conventions now distinguish release,
    conditional electrical/layout, and presentation obligations; dormant or
    presentation advice cannot become a universal blocker. Remaining Phase 17
-   work is legacy generator migration, board-triggered R6/default-caller
-   execution, and two materially different prompt-to-final boards including
-   one unseen after implementation freezes and human review of both packages.
-   The exact migration inventory currently finds 18 board-generation entry
-   points across 15 `kicad/*board.py` modules and no direct shared production-
-   transaction call in those modules. Eight normal CLI paths still converge on
-   `_finish_board_authority`, which performs legacy checks/reviews but not the
-   Phase 17 transaction. Protocol Analyzer correction remains a useful
-   candidate and failure-corpus obligation, not a substitute for the
-   post-freeze proof.
+   work is board-triggered R6/default-caller execution and two materially
+   different prompt-to-final boards including one unseen after implementation
+   freezes and human review of both packages. The 2026-07-26 migration
+   registers all 19 board-generation entry points across 15
+   `kicad/*board.py` modules. Fifteen are placement-only and four are
+   routed-capable; unknown or incorrectly promoted generators fail closed.
+   Production placement/routed commands now require the exact generator ID,
+   retain project support files, use non-mutating DRC, and reject
+   failed/nonconformant reviews. Legacy `_finish_board_authority` callers are
+   explicitly compatibility-only. A live R003 migration smoke transaction
+   retained 52 artifacts with clean DRC, 496 segments, 93 vias, conformant
+   review, and zero missing required artifacts; it remains pending inspection
+   and is not a cross-board release proof. Protocol Analyzer correction
+   remains a useful candidate and failure-corpus obligation, not a substitute
+   for the post-freeze proof.
+   The migration verification checkpoint passes repository Ruff, strict mypy
+   across 382 production source files, 86 focused Phase 17/18 tests, and the
+   full warnings-as-errors suite: 3,340 collected cases, zero failures/errors,
+   exit 0 in 516.532 seconds.
    The current completion-readiness checkpoint passes repository Ruff, strict
    mypy across 381 source files, and the full warnings-as-errors suite: 3,312
    passed, 18 intentional skips, zero failures/errors, 3,330 total in 620.251

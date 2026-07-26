@@ -915,10 +915,12 @@ Retro-Pad 3x3 R001 and R003. Both exact saved candidates have complete
 copper-carrier coverage and clean KiCad DRC. The work added fail-closed routing
 state, a routed persistence/review transaction, cutout-aware obstacles,
 completed-net checkpoints, selective rip-up, deterministic Type-C/ISP fanout,
-and stable domain ordering. Phase 17 remains active because all generators have
-not migrated to the transaction, typed read-back/netlist evidence has not
-replaced every release boolean, and the complete visual packages are not yet
-accepted.
+and stable domain ordering. The 2026-07-26 migration now registers all 19
+board-builder entry points, blocks placement-only routed publication, retains
+exact KiCad project support inside transactions, uses non-mutating DRC, and
+rejects failed/nonconformant review packages. Phase 17 remains active because
+the two complete cross-board/default-path proofs and their human inspections
+are not yet complete.
 
 These May reset actions are complete or superseded. The bounded thermometer
 pilot and its review work are complete, and Retro-Pad R002 has completed the
