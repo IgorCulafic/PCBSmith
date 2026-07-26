@@ -25,8 +25,8 @@ def test_registry_covers_every_public_board_generator() -> None:
     audit = audit_generator_registry(source)
 
     assert audit.clean, audit
-    assert len(audit.discovered_ids) == 19
-    assert len(GENERATOR_REGISTRY) == 19
+    assert len(audit.discovered_ids) == 21
+    assert len(GENERATOR_REGISTRY) == 21
 
 
 def test_unknown_generator_is_fail_closed() -> None:
@@ -42,6 +42,8 @@ def test_explicit_routed_builders_are_registered_for_routed_publication() -> Non
     }
 
     assert routed_ids == {
+        "pcbsmith.kicad.aerosense_2f_board:"
+        "generate_aerosense_routed_board",
         "pcbsmith.kicad.protocol_analyzer_8ch_board:"
         "generate_protocol_analyzer_routed_board",
         "pcbsmith.kicad.retro_pad_3x3_board:generate_retro_pad_3x3_routed_board",

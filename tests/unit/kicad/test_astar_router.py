@@ -75,6 +75,27 @@ def test_routes_straight_when_clear() -> None:
     assert run_virtual_drc(routed, netlist) == ()
 
 
+def test_retained_fanout_becomes_the_route_seed_tree() -> None:
+    layout, netlist = _fixture()
+    retained = TrackSegment(
+        x1=5.825,
+        y1=6.0,
+        x2=15.0,
+        y2=6.0,
+        layer="F.Cu",
+        net_name="/SIG",
+        width_mm=0.4,
+    )
+    seeded = replace(layout, segments=(retained,))
+
+    result = route_net(seeded, netlist, "/SIG")
+
+    # Only the unseeded half is emitted; the retained fanout is not ignored
+    # and redundantly routed again from the first pad.
+    assert result.length_mm < 12.0
+    assert run_virtual_drc(with_route(seeded, result), netlist) == ()
+
+
 def test_detours_around_a_partial_wall() -> None:
     # A foreign trace blocks the direct corridor's lower half.
     wall = TrackSegment(x1=15.0, y1=1.0, x2=15.0, y2=8.0,

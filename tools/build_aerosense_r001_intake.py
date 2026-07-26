@@ -266,8 +266,8 @@ def _part_selection() -> dict[str, Any]:
                 "manufacturer": "Texas Instruments",
                 "mpn": "TUSB320LAIRWBR",
                 "function": "Type-C UFP current-advertisement detector",
-                "footprint": "Package_DFN_QFN:Texas_X2QFN-12_1.6x1.6mm_P0.4mm",
-                "model_status": "installed_exact_package",
+                "footprint": "PCBSmith_AeroSense:TUSB320_X2QFN12",
+                "model_status": "dimensioned_project_local_package_model",
                 "lifecycle": "active",
                 "authority": "https://www.ti.com/lit/ds/symlink/tusb320lai.pdf",
             },
@@ -298,8 +298,8 @@ def _part_selection() -> dict[str, Any]:
                 "manufacturer": "Texas Instruments",
                 "mpn": "TPD1E10B06DPYR",
                 "function": "USB VBUS transient/ESD protection",
-                "footprint": "Package_SON:Texas_DPY0002A_0.6x1mm_P0.65mm",
-                "model_status": "installed_exact_package",
+                "footprint": "PCBSmith_AeroSense:TPD1E10B06_DPY2",
+                "model_status": "dimensioned_project_local_package_model",
                 "lifecycle": "active",
                 "authority": "https://www.ti.com/product/TPD1E10B06",
             },
@@ -329,10 +329,9 @@ def _part_selection() -> dict[str, Any]:
                 "mpn": "SHT45-AD1B-R3",
                 "function": "ambient temperature and humidity sensor",
                 "footprint": (
-                    "Sensor_Humidity:"
-                    "Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad"
+                    "PCBSmith_AeroSense:Sensirion_SHT45_NoCentralPad"
                 ),
-                "model_status": "dimensioned_exact_package_envelope_required",
+                "model_status": "dimensioned_project_local_package_model",
                 "lifecycle": "active",
                 "authority": "https://sensirion.com/resource/datasheet/sht4x",
             },
@@ -415,6 +414,16 @@ def _part_selection() -> dict[str, Any]:
                 "model_status": "installed_exact_family",
                 "lifecycle": "in_production",
                 "authority": "https://components.omron.com/eu-en/products/switches/B3F",
+            },
+            {
+                "references": ["SW4", "SW5"],
+                "manufacturer": "Omron",
+                "mpn": "B3U-1000P",
+                "function": "low-profile SMD BOOTSEL and RESET buttons",
+                "footprint": "Button_Switch_SMD:SW_SPST_B3U-1000P",
+                "model_status": "installed_exact_package",
+                "lifecycle": "in_production",
+                "authority": "https://components.omron.com/eu-en/products/switches/B3U",
             },
             {
                 "references": ["Q1", "Q2"],
@@ -504,8 +513,8 @@ def _part_selection() -> dict[str, Any]:
         ],
         "open_evidence_actions_before_schematic_release": [
             "Retain exact TPS2553 R_ILIM calculation and tolerance bounds.",
-            "Create and preflight the dimensioned SHT45 package-envelope model.",
-            "Create and preflight the dimensioned Adafruit 4440 module model.",
+            "Preflight the generated dimensioned SHT45 package-envelope model.",
+            "Preflight the generated dimensioned Adafruit 4440 module model.",
             "Retain USB4105 and DM3AT exact mating/access drawings with hashes.",
         ],
     }

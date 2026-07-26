@@ -1,0 +1,1247 @@
+{
+  "deviations": [
+    {
+      "approval": null,
+      "artifact_id": "2d:courtyards-keepouts:png",
+      "compensating_artifact_ids": [],
+      "consequence": "Baseline coverage is unchanged.",
+      "deviation_id": "auto:d0:2d:courtyards-keepouts:png",
+      "level": "D0",
+      "reason": "Standard generator emitted non-applicable or supplemental evidence.",
+      "requirement_id": null,
+      "residual_risk": "Supplemental evidence does not satisfy another requirement.",
+      "schema_id": "pcbsmith-workflow-deviation",
+      "schema_version": 1
+    },
+    {
+      "approval": null,
+      "artifact_id": "2d:courtyards-keepouts:svg",
+      "compensating_artifact_ids": [],
+      "consequence": "Baseline coverage is unchanged.",
+      "deviation_id": "auto:d0:2d:courtyards-keepouts:svg",
+      "level": "D0",
+      "reason": "Standard generator emitted non-applicable or supplemental evidence.",
+      "requirement_id": null,
+      "residual_risk": "Supplemental evidence does not satisfy another requirement.",
+      "schema_id": "pcbsmith-workflow-deviation",
+      "schema_version": 1
+    }
+  ],
+  "disposition": "conformant",
+  "evaluated_on": "2026-07-26",
+  "evaluations": [
+    {
+      "artifact_id": "2d:back-assembly:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.back-assembly.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:back-assembly:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.back-assembly.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:back-copper:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.back-copper.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:back-copper:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.back-copper.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:back-design:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.back-design.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:back-design:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.back-design.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:back-fabrication:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.back-fabrication.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:back-fabrication:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.back-fabrication.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:combined-copper:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.combined-copper.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:combined-copper:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.combined-copper.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:front-assembly:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.front-assembly.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:front-assembly:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.front-assembly.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:front-copper:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.front-copper.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:front-copper:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.front-copper.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:front-design:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.front-design.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:front-design:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.front-design.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:front-fabrication:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.front-fabrication.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:front-fabrication:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.front-fabrication.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:holes-vias:png",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.holes-vias.png",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "2d:holes-vias:svg",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.2d.holes-vias.svg",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:bare:bottom",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.bare.bottom",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:bare:front-low",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.bare.front-low",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:bare:perspective",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.bare.perspective",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:bare:rear-low",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.bare.rear-low",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:bare:top",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.bare.top",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:populated:bottom",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.populated.bottom",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:populated:front-low",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.populated.front-low",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:populated:perspective",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.populated.perspective",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:populated:rear-low",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.populated.rear-low",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "3d:populated:top",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.3d.populated.top",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "detail:back:back-support",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.detail.back.back-support",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "detail:front:fan-ui",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.detail.front.fan-ui",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "detail:front:sensor-sd",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.detail.front.sensor-sd",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "detail:front:usb-core",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.detail.front.usb-core",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "package:manifest",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.review.manifest",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    },
+    {
+      "artifact_id": "package:report",
+      "deviation_id": null,
+      "findings": [],
+      "requirement_id": "visual.review.report",
+      "schema_id": "pcbsmith-workflow-requirement-evaluation",
+      "schema_version": 1,
+      "state": "satisfied"
+    }
+  ],
+  "findings": [],
+  "profile": {
+    "profile_id": "pcbsmith.visual-review.standard",
+    "profile_version": 1,
+    "requirements": [
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Courtyard",
+            "B.Fab",
+            "Edge.Cuts"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": true,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:back-assembly:png",
+        "rationale": "Canonical back-assembly PNG review view.",
+        "requirement_id": "visual.2d.back-assembly.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Courtyard",
+            "B.Fab",
+            "Edge.Cuts"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": true,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:back-assembly:svg",
+        "rationale": "Canonical back-assembly SVG review view.",
+        "requirement_id": "visual.2d.back-assembly.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "Edge.Cuts"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": true,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:back-copper:png",
+        "rationale": "Canonical back-copper PNG review view.",
+        "requirement_id": "visual.2d.back-copper.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "Edge.Cuts"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": true,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:back-copper:svg",
+        "rationale": "Canonical back-copper SVG review view.",
+        "requirement_id": "visual.2d.back-copper.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "B.Mask",
+            "B.Silkscreen",
+            "Edge.Cuts"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": true,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:back-design:png",
+        "rationale": "Canonical back-design PNG review view.",
+        "requirement_id": "visual.2d.back-design.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "B.Mask",
+            "B.Silkscreen",
+            "Edge.Cuts"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": true,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:back-design:svg",
+        "rationale": "Canonical back-design SVG review view.",
+        "requirement_id": "visual.2d.back-design.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "B.Mask",
+            "Edge.Cuts"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": true,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:back-fabrication:png",
+        "rationale": "Canonical back-fabrication PNG review view.",
+        "requirement_id": "visual.2d.back-fabrication.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "B.Mask",
+            "Edge.Cuts"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": true,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:back-fabrication:svg",
+        "rationale": "Canonical back-fabrication SVG review view.",
+        "requirement_id": "visual.2d.back-fabrication.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "Edge.Cuts",
+            "F.Cu"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "both",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:combined-copper:png",
+        "rationale": "Canonical combined-copper PNG review view.",
+        "requirement_id": "visual.2d.combined-copper.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "Edge.Cuts",
+            "F.Cu"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "both",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:combined-copper:svg",
+        "rationale": "Canonical combined-copper SVG review view.",
+        "requirement_id": "visual.2d.combined-copper.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "Edge.Cuts",
+            "F.Courtyard",
+            "F.Fab"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:front-assembly:png",
+        "rationale": "Canonical front-assembly PNG review view.",
+        "requirement_id": "visual.2d.front-assembly.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "Edge.Cuts",
+            "F.Courtyard",
+            "F.Fab"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:front-assembly:svg",
+        "rationale": "Canonical front-assembly SVG review view.",
+        "requirement_id": "visual.2d.front-assembly.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "Edge.Cuts",
+            "F.Cu"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:front-copper:png",
+        "rationale": "Canonical front-copper PNG review view.",
+        "requirement_id": "visual.2d.front-copper.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "Edge.Cuts",
+            "F.Cu"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:front-copper:svg",
+        "rationale": "Canonical front-copper SVG review view.",
+        "requirement_id": "visual.2d.front-copper.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "Edge.Cuts",
+            "F.Cu",
+            "F.Mask",
+            "F.Silkscreen"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:front-design:png",
+        "rationale": "Canonical front-design PNG review view.",
+        "requirement_id": "visual.2d.front-design.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "Edge.Cuts",
+            "F.Cu",
+            "F.Mask",
+            "F.Silkscreen"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:front-design:svg",
+        "rationale": "Canonical front-design SVG review view.",
+        "requirement_id": "visual.2d.front-design.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "Edge.Cuts",
+            "F.Cu",
+            "F.Mask"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:front-fabrication:png",
+        "rationale": "Canonical front-fabrication PNG review view.",
+        "requirement_id": "visual.2d.front-fabrication.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "Edge.Cuts",
+            "F.Cu",
+            "F.Mask"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:front-fabrication:svg",
+        "rationale": "Canonical front-fabrication SVG review view.",
+        "requirement_id": "visual.2d.front-fabrication.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "Edge.Cuts",
+            "F.Cu"
+          ],
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": 30.0,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "both",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:holes-vias:png",
+        "rationale": "Canonical holes-vias PNG review view.",
+        "requirement_id": "visual.2d.holes-vias.png",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": [
+            "B.Cu",
+            "Edge.Cuts",
+            "F.Cu"
+          ],
+          "media_type": "image/svg+xml",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": false,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "both",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "2d:holes-vias:svg",
+        "rationale": "Canonical holes-vias SVG review view.",
+        "requirement_id": "visual.2d.holes-vias.svg",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "bottom",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "bare",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:bare:bottom",
+        "rationale": "Canonical bare bottom 3D inspection camera.",
+        "requirement_id": "visual.3d.bare.bottom",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "front-low",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "bare",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:bare:front-low",
+        "rationale": "Canonical bare front-low 3D inspection camera.",
+        "requirement_id": "visual.3d.bare.front-low",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "perspective",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "bare",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:bare:perspective",
+        "rationale": "Canonical bare perspective 3D inspection camera.",
+        "requirement_id": "visual.3d.bare.perspective",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "rear-low",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "bare",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:bare:rear-low",
+        "rationale": "Canonical bare rear-low 3D inspection camera.",
+        "requirement_id": "visual.3d.bare.rear-low",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "top",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "bare",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:bare:top",
+        "rationale": "Canonical bare top 3D inspection camera.",
+        "requirement_id": "visual.3d.bare.top",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "bottom",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "populated",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:populated:bottom",
+        "rationale": "Canonical populated bottom 3D inspection camera.",
+        "requirement_id": "visual.3d.populated.bottom",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "front-low",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "populated",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:populated:front-low",
+        "rationale": "Canonical populated front-low 3D inspection camera.",
+        "requirement_id": "visual.3d.populated.front-low",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "perspective",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "populated",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:populated:perspective",
+        "rationale": "Canonical populated perspective 3D inspection camera.",
+        "requirement_id": "visual.3d.populated.perspective",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "rear-low",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "populated",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:populated:rear-low",
+        "rationale": "Canonical populated rear-low 3D inspection camera.",
+        "requirement_id": "visual.3d.populated.rear-low",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": "top",
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": 3840,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": "populated",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "3d:populated:top",
+        "rationale": "Canonical populated top 3D inspection camera.",
+        "requirement_id": "visual.3d.populated.top",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": 100.0,
+          "mirrored": null,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "back",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "detail:back:back-support",
+        "rationale": "back-side passives and SWD",
+        "requirement_id": "visual.detail.back.back-support",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": 100.0,
+          "mirrored": null,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "detail:front:fan-ui",
+        "rationale": "fan and user interface placement",
+        "requirement_id": "visual.detail.front.fan-ui",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": 100.0,
+          "mirrored": null,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "detail:front:sensor-sd",
+        "rationale": "sensor isolation and microSD access",
+        "requirement_id": "visual.detail.front.sensor-sd",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": null,
+          "media_type": "image/png",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": 100.0,
+          "mirrored": null,
+          "population": "not_applicable",
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": "front",
+          "stage": "placement"
+        },
+        "expected_artifact_id": "detail:front:usb-core",
+        "rationale": "USB and RP2040 placement",
+        "requirement_id": "visual.detail.front.usb-core",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": null,
+          "media_type": "application/json",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": null,
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": null,
+          "stage": "placement"
+        },
+        "expected_artifact_id": "package:manifest",
+        "rationale": "Machine-readable package identity and artifact state authority.",
+        "requirement_id": "visual.review.manifest",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      },
+      {
+        "constraint": {
+          "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+          "camera": null,
+          "layers_exact": null,
+          "media_type": "text/markdown",
+          "minimum_long_edge_px": null,
+          "minimum_pixels_per_mm": null,
+          "mirrored": null,
+          "population": null,
+          "schema_id": "pcbsmith-workflow-artifact-constraint",
+          "schema_version": 1,
+          "side": null,
+          "stage": "placement"
+        },
+        "expected_artifact_id": "package:report",
+        "rationale": "Human-readable review inventory and retained findings.",
+        "requirement_id": "visual.review.report",
+        "risk": "ordinary",
+        "schema_id": "pcbsmith-workflow-requirement",
+        "schema_version": 1
+      }
+    ],
+    "schema_id": "pcbsmith-workflow-profile",
+    "schema_version": 1
+  },
+  "prohibited_deviation_ids": [],
+  "schema_id": "pcbsmith-workflow-conformance-report",
+  "schema_version": 1,
+  "supplemental_artifact_ids": [
+    "2d:courtyards-keepouts:png",
+    "2d:courtyards-keepouts:svg"
+  ],
+  "undeclared_artifact_ids": []
+}

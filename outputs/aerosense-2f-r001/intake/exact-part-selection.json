@@ -120,8 +120,8 @@
       "manufacturer": "Sensirion",
       "mpn": "SHT45-AD1B-R3",
       "function": "ambient temperature and humidity sensor",
-      "footprint": "Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad",
-      "model_status": "dimensioned_exact_package_envelope_required",
+      "footprint": "PCBSmith_AeroSense:Sensirion_SHT45_NoCentralPad",
+      "model_status": "dimensioned_project_local_package_model",
       "lifecycle": "active",
       "authority": "https://sensirion.com/resource/datasheet/sht4x"
     },
@@ -202,6 +202,19 @@
       "model_status": "installed_exact_family",
       "lifecycle": "in_production",
       "authority": "https://components.omron.com/eu-en/products/switches/B3F"
+    },
+    {
+      "references": [
+        "SW4",
+        "SW5"
+      ],
+      "manufacturer": "Omron",
+      "mpn": "B3U-1000P",
+      "function": "low-profile SMD BOOTSEL and RESET buttons",
+      "footprint": "Button_Switch_SMD:SW_SPST_B3U-1000P",
+      "model_status": "installed_exact_package",
+      "lifecycle": "in_production",
+      "authority": "https://components.omron.com/eu-en/products/switches/B3U"
     },
     {
       "references": [
@@ -289,8 +302,8 @@
   ],
   "open_evidence_actions_before_schematic_release": [
     "Retain exact TPS2553 R_ILIM calculation and tolerance bounds.",
-    "Create and preflight the dimensioned SHT45 package-envelope model.",
-    "Create and preflight the dimensioned Adafruit 4440 module model.",
+    "Preflight the generated dimensioned SHT45 package-envelope model.",
+    "Preflight the generated dimensioned Adafruit 4440 module model.",
     "Retain USB4105 and DM3AT exact mating/access drawings with hashes."
   ]
 }

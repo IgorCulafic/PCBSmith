@@ -1,0 +1,1103 @@
+{
+  "schema": "pcbsmith-visual-review-manifest-v1",
+  "render_profile": {
+    "schema_id": "pcbsmith-render-profile-v1",
+    "minimum_full_board_long_edge_px": 3840,
+    "overview_pixels_per_mm": 30.0,
+    "detail_pixels_per_mm": 100.0,
+    "tile_max_edge_px": 4096,
+    "tile_overlap_mm": 5.0,
+    "three_d_long_edge_px": 3840
+  },
+  "stage": "placement",
+  "board_file": "D:\\AI\\PCB designer\\outputs\\aerosense-2f-r001\\design\\aerosense-2f-r001-placement.kicad_pcb",
+  "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+  "copper_sha256": "27ddb0c9b197c8b18c0ba886329610abd9899c86a8a544a42b89722fc6a22676",
+  "routing_evidence": {
+    "schema_id": "pcbsmith-saved-board-routing-evidence",
+    "schema_version": 1,
+    "board_file": "D:\\AI\\PCB designer\\outputs\\aerosense-2f-r001\\design\\aerosense-2f-r001-placement.kicad_pcb",
+    "board_sha256": "70db9f3fe6c75233a64405c84977bca050bc52fa86c768870bdd60a23d06f4c7",
+    "segment_count": 0,
+    "via_count": 0,
+    "zone_count": 1,
+    "declared_net_count": 68,
+    "routable_net_count": 67,
+    "segment_net_count": 0,
+    "via_net_count": 0,
+    "zone_net_count": 1,
+    "copper_carrier_net_count": 0,
+    "track_net_coverage": 0.0,
+    "copper_carrier_net_coverage": 0.0,
+    "uncovered_net_names": [
+      "/1V1",
+      "/3V3",
+      "/ADC_3V3",
+      "/BOOT_BTN",
+      "/CC1",
+      "/CC2",
+      "/FAN1_5V",
+      "/FAN1_EN",
+      "/FAN1_FAULT_N",
+      "/FAN1_ILIM",
+      "/FAN1_PWM",
+      "/FAN1_PWM_GATE",
+      "/FAN1_PWM_GPIO",
+      "/FAN1_TACH",
+      "/FAN1_TACH_RAW",
+      "/FAN2_5V",
+      "/FAN2_EN",
+      "/FAN2_FAULT_N",
+      "/FAN2_ILIM",
+      "/FAN2_PWM",
+      "/FAN2_PWM_GATE",
+      "/FAN2_PWM_GPIO",
+      "/FAN2_TACH",
+      "/FAN2_TACH_RAW",
+      "/GND",
+      "/I2C_SCL",
+      "/I2C_SDA",
+      "/LED1_ANODE",
+      "/LED2_ANODE",
+      "/LED3_ANODE",
+      "/LED_FAULT_A",
+      "/LED_LOG_A",
+      "/LED_PWR_A",
+      "/OLED_RESET",
+      "/QSPI_SCLK",
+      "/QSPI_SD0",
+      "/QSPI_SD1",
+      "/QSPI_SD2",
+      "/QSPI_SD3",
+      "/QSPI_SS",
+      "/RUN",
+      "/SD_CS_CARD",
+      "/SD_CS_MCU",
+      "/SD_DETECT",
+      "/SD_MISO",
+      "/SD_MOSI_CARD",
+      "/SD_MOSI_MCU",
+      "/SD_SCLK_CARD",
+      "/SD_SCLK_MCU",
+      "/SW_LOG",
+      "/SW_MODE",
+      "/SW_SELECT",
+      "/SWCLK",
+      "/SWDIO",
+      "/TYPEC_OUT1",
+      "/TYPEC_OUT2",
+      "/USB_DM_CONN",
+      "/USB_DM_ESD",
+      "/USB_DM_MCU",
+      "/USB_DP_CONN",
+      "/USB_DP_ESD",
+      "/USB_DP_MCU",
+      "/VBUS",
+      "/VBUS_DET",
+      "/XIN",
+      "/XOUT",
+      "/XOUT_RAW"
+    ],
+    "state": "placement_only",
+    "evidence_fingerprint": "cdce2d172174c214e0071f042515295e5904d4860021050b37054cee501ed82e"
+  },
+  "source_revision": null,
+  "kicad_version": "10.0.3",
+  "renderer_version": "kicad-cli-svg+render/resvg_py-v1",
+  "model_preflight_status": "attention_required",
+  "workflow_profile_id": "pcbsmith.visual-review.standard",
+  "workflow_profile_version": 1,
+  "workflow_conformance_status": "conformant",
+  "package_status": "generated_pending_inspection",
+  "artifacts": [
+    {
+      "artifact_id": "2d:back-assembly:png",
+      "category": "assembly/back",
+      "relative_path": "assembly/back/back-assembly.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "B.Fab",
+        "B.Courtyard",
+        "Edge.Cuts"
+      ],
+      "side": "back",
+      "mirrored": true,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "67d98b51c2a4a07c4b73aaaa0b267c046c57ea7f8522e1eabec091505e52a9ff",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:back-assembly:svg",
+      "category": "assembly/back",
+      "relative_path": "assembly/back/back-assembly.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "B.Fab",
+        "B.Courtyard",
+        "Edge.Cuts"
+      ],
+      "side": "back",
+      "mirrored": true,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "93b0500234d1e3c1e93f963ec7643824f64afa8704735cd3d1cc2774260bb96c",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:back-copper:png",
+      "category": "routing",
+      "relative_path": "routing/back-copper.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "B.Cu",
+        "Edge.Cuts"
+      ],
+      "side": "back",
+      "mirrored": true,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "32f930f56ddabd91383304974215e87e203c58b425203aaf331b99613841d046",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "This is placement-stage copper context, not routing-completion evidence.",
+        "Saved board: 0 segments, 0 vias, state=placement_only."
+      ]
+    },
+    {
+      "artifact_id": "2d:back-copper:svg",
+      "category": "routing",
+      "relative_path": "routing/back-copper.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "B.Cu",
+        "Edge.Cuts"
+      ],
+      "side": "back",
+      "mirrored": true,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "9b3ac20c315281026ee43a0dfcf5850d8619b7747cdbe7907bf4550bd4778d70",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "This is placement-stage copper context, not routing-completion evidence.",
+        "Saved board: 0 segments, 0 vias, state=placement_only."
+      ]
+    },
+    {
+      "artifact_id": "2d:back-design:png",
+      "category": "overview/back",
+      "relative_path": "overview/back/back-design.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "B.Cu",
+        "B.Mask",
+        "B.Silkscreen",
+        "Edge.Cuts"
+      ],
+      "side": "back",
+      "mirrored": true,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "37145a5f7e7c7fdd20244fa45421554f3752c9aa4de0477352638eff9a71e9e1",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:back-design:svg",
+      "category": "overview/back",
+      "relative_path": "overview/back/back-design.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "B.Cu",
+        "B.Mask",
+        "B.Silkscreen",
+        "Edge.Cuts"
+      ],
+      "side": "back",
+      "mirrored": true,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "1bdf7bbc52dd402ab50edf97e0d463b52231792ae36c195c2884fbaf0ff8bf59",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:back-fabrication:png",
+      "category": "fabrication/back",
+      "relative_path": "fabrication/back/back-fabrication.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "B.Cu",
+        "B.Mask",
+        "Edge.Cuts"
+      ],
+      "side": "back",
+      "mirrored": true,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "6ad82a614b7c56314aed54fd1b6621ab63052df392f177cf599188c272e11558",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:back-fabrication:svg",
+      "category": "fabrication/back",
+      "relative_path": "fabrication/back/back-fabrication.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "B.Cu",
+        "B.Mask",
+        "Edge.Cuts"
+      ],
+      "side": "back",
+      "mirrored": true,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "eff4d6a412ac040626750d9cd6c187613c518fe0d3cd275e18cdc05451f3bb9e",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:combined-copper:png",
+      "category": "routing",
+      "relative_path": "routing/combined-copper.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "B.Cu",
+        "Edge.Cuts"
+      ],
+      "side": "both",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "d961623e8bf4a80fc6a71f1c9cd456ef561dc47ccf5cbea2e9440c5273707e7b",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "This is placement-stage copper context, not routing-completion evidence.",
+        "Saved board: 0 segments, 0 vias, state=placement_only."
+      ]
+    },
+    {
+      "artifact_id": "2d:combined-copper:svg",
+      "category": "routing",
+      "relative_path": "routing/combined-copper.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "B.Cu",
+        "Edge.Cuts"
+      ],
+      "side": "both",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "ef16c6586382d96183928b0aca01b6ec621d7912850f6e7d08e837237b275b7a",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "This is placement-stage copper context, not routing-completion evidence.",
+        "Saved board: 0 segments, 0 vias, state=placement_only."
+      ]
+    },
+    {
+      "artifact_id": "2d:courtyards-keepouts:png",
+      "category": "electrical",
+      "relative_path": "electrical/courtyards-keepouts.png",
+      "media_type": "image/png",
+      "required": false,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Courtyard",
+        "B.Courtyard",
+        "Margin",
+        "Edge.Cuts"
+      ],
+      "side": "both",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "497191a271d51388ccb209e95b7bac13de77de0fc4ff4dbada0a1c491db78474",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:courtyards-keepouts:svg",
+      "category": "electrical",
+      "relative_path": "electrical/courtyards-keepouts.svg",
+      "media_type": "image/svg+xml",
+      "required": false,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Courtyard",
+        "B.Courtyard",
+        "Margin",
+        "Edge.Cuts"
+      ],
+      "side": "both",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "60906a50a6304267319b7b7a0884c1dd1910fae166028feaed552227ed14d648",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:front-assembly:png",
+      "category": "assembly/front",
+      "relative_path": "assembly/front/front-assembly.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Fab",
+        "F.Courtyard",
+        "Edge.Cuts"
+      ],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "3784a375504460e24dd93e5b9b205a53e2edf56ad406ea1ad4cd404b1715c1a6",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:front-assembly:svg",
+      "category": "assembly/front",
+      "relative_path": "assembly/front/front-assembly.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Fab",
+        "F.Courtyard",
+        "Edge.Cuts"
+      ],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "7698d4f48690a7d2348ba7bda9e553e1cb4a91e874ead0123535bfa51dcd635b",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:front-copper:png",
+      "category": "routing",
+      "relative_path": "routing/front-copper.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "Edge.Cuts"
+      ],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "82782935cc0160c5c16c1af10627820c5823aea2eea5892b29791fd791804e7a",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "This is placement-stage copper context, not routing-completion evidence.",
+        "Saved board: 0 segments, 0 vias, state=placement_only."
+      ]
+    },
+    {
+      "artifact_id": "2d:front-copper:svg",
+      "category": "routing",
+      "relative_path": "routing/front-copper.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "Edge.Cuts"
+      ],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "416fb44bfc298b33a211ee1cdda88cf08d1aa1040e5f49e38a7f8f23335c582c",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "This is placement-stage copper context, not routing-completion evidence.",
+        "Saved board: 0 segments, 0 vias, state=placement_only."
+      ]
+    },
+    {
+      "artifact_id": "2d:front-design:png",
+      "category": "overview/front",
+      "relative_path": "overview/front/front-design.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "F.Mask",
+        "F.Silkscreen",
+        "Edge.Cuts"
+      ],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "546436e3cb2639ac24f962d06e7fb9bbc5a202ca4ad76135e22bdd5c13459758",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:front-design:svg",
+      "category": "overview/front",
+      "relative_path": "overview/front/front-design.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "F.Mask",
+        "F.Silkscreen",
+        "Edge.Cuts"
+      ],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "24534cc9621c70047d45e82761eebaddc3feb2cbcdd3a11b57275b40cd4f97f8",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:front-fabrication:png",
+      "category": "fabrication/front",
+      "relative_path": "fabrication/front/front-fabrication.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "F.Mask",
+        "Edge.Cuts"
+      ],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "6647a50aaed6315831a5f04fac877ddfc15f7ed6b53650ce66d6c5e3b8517870",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:front-fabrication:svg",
+      "category": "fabrication/front",
+      "relative_path": "fabrication/front/front-fabrication.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "F.Mask",
+        "Edge.Cuts"
+      ],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "520bde66d6957e62412b64c06c70077b114f00e903933b31793837f977947767",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:holes-vias:png",
+      "category": "electrical",
+      "relative_path": "electrical/holes-vias.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "B.Cu",
+        "Edge.Cuts"
+      ],
+      "side": "both",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 54.87517327121768,
+      "pixel_size": [
+        3840,
+        2743
+      ],
+      "bounds_mm": [
+        0.0,
+        0.0,
+        69.977,
+        49.9872
+      ],
+      "sha256": "cdcc170a47fe7e0ea9aca93f0255381b9e3670c4b2e306faa14ef3c536e60cfb",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "2d:holes-vias:svg",
+      "category": "electrical",
+      "relative_path": "electrical/holes-vias.svg",
+      "media_type": "image/svg+xml",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [
+        "F.Cu",
+        "B.Cu",
+        "Edge.Cuts"
+      ],
+      "side": "both",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": null,
+      "pixel_size": null,
+      "bounds_mm": null,
+      "sha256": "966c38bc3f82471ec5da4cb2094354387aba3448922e0a1cfd4558c2bfc4e922",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:bare:bottom",
+      "category": "3d/bare",
+      "relative_path": "3d/bare/bottom.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "back",
+      "mirrored": false,
+      "camera": "bottom",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        3840
+      ],
+      "bounds_mm": null,
+      "sha256": "b729deb142833cf924b307bd11b0ed3b8219233bc7dc63c476072cc60311f84e",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:bare:front-low",
+      "category": "3d/bare",
+      "relative_path": "3d/bare/front-low.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": "front-low",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        2160
+      ],
+      "bounds_mm": null,
+      "sha256": "e86726cd24dd482dfec836c783ab4d3f2ae440c83e9b7e14538720410ec4eed1",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:bare:perspective",
+      "category": "3d/bare",
+      "relative_path": "3d/bare/perspective.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": "perspective",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        2160
+      ],
+      "bounds_mm": null,
+      "sha256": "f6bef955c7bc35194d772aa4d35efe1e3bac4089fad056f7ae96e84c191f3546",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:bare:rear-low",
+      "category": "3d/bare",
+      "relative_path": "3d/bare/rear-low.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "back",
+      "mirrored": false,
+      "camera": "rear-low",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        2160
+      ],
+      "bounds_mm": null,
+      "sha256": "18d32e698402dfa76bfe32de0a87d7c678e294718abfc542d99c3839b85f1275",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:bare:top",
+      "category": "3d/bare",
+      "relative_path": "3d/bare/top.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": "top",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        3840
+      ],
+      "bounds_mm": null,
+      "sha256": "c96eb6d28975c893b35ac82536d59f932639c2cda1d3af54d9db74a27f56848a",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:populated:bottom",
+      "category": "3d/populated",
+      "relative_path": "3d/populated/bottom.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "back",
+      "mirrored": false,
+      "camera": "bottom",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        3840
+      ],
+      "bounds_mm": null,
+      "sha256": "4e1d8b11c808b39e388fae3af070df9347bcd2af66f0586e3cc94ea1d8d5163f",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:populated:front-low",
+      "category": "3d/populated",
+      "relative_path": "3d/populated/front-low.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": "front-low",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        2160
+      ],
+      "bounds_mm": null,
+      "sha256": "4482c1f73065d9d248294099139eb4695fec4eb9331dc9ec9745cfb920c76d8b",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:populated:perspective",
+      "category": "3d/populated",
+      "relative_path": "3d/populated/perspective.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": "perspective",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        2160
+      ],
+      "bounds_mm": null,
+      "sha256": "b071b0ba564d23b8e78d6b4bc1d92202fe43baf75ba348e9bddf42a58fe72b3e",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:populated:rear-low",
+      "category": "3d/populated",
+      "relative_path": "3d/populated/rear-low.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "back",
+      "mirrored": false,
+      "camera": "rear-low",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        2160
+      ],
+      "bounds_mm": null,
+      "sha256": "4f610e1619368082b88ddd89b958f888af9dac060b03201c6a95fefc3d066009",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "3d:populated:top",
+      "category": "3d/populated",
+      "relative_path": "3d/populated/top.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": "top",
+      "pixels_per_mm": null,
+      "pixel_size": [
+        3840,
+        3840
+      ],
+      "bounds_mm": null,
+      "sha256": "1eecf2b6139f617feefe2d51cc3672a2306f787e2cf3d2d28b3b9d14820bace6",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": []
+    },
+    {
+      "artifact_id": "detail:back:back-support",
+      "category": "details/back",
+      "relative_path": "details/back/back-support.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "back",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 100.0,
+      "pixel_size": [
+        6000,
+        4500
+      ],
+      "bounds_mm": [
+        15.0,
+        5.0,
+        60.0,
+        45.0
+      ],
+      "sha256": "c859e3457712c33e415d1e1484b30c90aca2af01e7f765290524dbed133e28a5",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "back-side passives and SWD"
+      ]
+    },
+    {
+      "artifact_id": "detail:front:fan-ui",
+      "category": "details/front",
+      "relative_path": "details/front/fan-ui.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 100.0,
+      "pixel_size": [
+        7000,
+        4600
+      ],
+      "bounds_mm": [
+        38.0,
+        0.0,
+        70.0,
+        46.0
+      ],
+      "sha256": "b8451fb47ca5d6ffb9105e4aaa1da33a86f5052aee8e261a15f50a8b38df630f",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "fan and user interface placement"
+      ]
+    },
+    {
+      "artifact_id": "detail:front:sensor-sd",
+      "category": "details/front",
+      "relative_path": "details/front/sensor-sd.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 100.0,
+      "pixel_size": [
+        3800,
+        5000
+      ],
+      "bounds_mm": [
+        7.0,
+        30.0,
+        38.0,
+        50.0
+      ],
+      "sha256": "66d9fcb67264ffd499c10de3294a2fbdb9c8f008791d51e247a79ba7ffad4b04",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "sensor isolation and microSD access"
+      ]
+    },
+    {
+      "artifact_id": "detail:front:usb-core",
+      "category": "details/front",
+      "relative_path": "details/front/usb-core.png",
+      "media_type": "image/png",
+      "required": true,
+      "state": "generated",
+      "inspection": "uninspected",
+      "layers": [],
+      "side": "front",
+      "mirrored": false,
+      "camera": null,
+      "pixels_per_mm": 100.0,
+      "pixel_size": [
+        4300,
+        3600
+      ],
+      "bounds_mm": [
+        0.0,
+        12.0,
+        43.0,
+        36.0
+      ],
+      "sha256": "827a634ef01807abb20ceaddd03f639c499c08d3edd6d788c40fa2bcc7a2efb6",
+      "reviewer": null,
+      "inspection_mechanism": null,
+      "findings": [
+        "USB and RP2040 placement"
+      ]
+    }
+  ],
+  "findings": [
+    "Saved-board routing state placement_only: 0 segments, 0 vias, 0/67 routable nets with a copper carrier. Carrier presence is not connectivity proof."
+  ]
+}

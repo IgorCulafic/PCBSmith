@@ -1,0 +1,708 @@
+{
+  "component_count": 100,
+  "components": [
+    {
+      "missing_population": [],
+      "reference": "J1",
+      "status": "complete",
+      "symbol": "Connector:USB_C_Receptacle_USB2.0_16P",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U7",
+      "status": "complete",
+      "symbol": "Power_Protection:USBLC6-2SC6",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R1",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R2",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U9",
+      "status": "complete",
+      "symbol": "Device:D_TVS",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U10",
+      "status": "complete",
+      "symbol": "Power_Protection:TPD2EUSB30",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U4",
+      "status": "complete",
+      "symbol": "Interface_USB:TUSB320",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R6",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R7",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R8",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C17",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U3",
+      "status": "complete",
+      "symbol": "Regulator_Linear:AP2112K-3.3",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C1",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C2",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C3",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C28",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U1",
+      "status": "complete",
+      "symbol": "MCU_RaspberryPi:RP2040",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U2",
+      "status": "complete",
+      "symbol": "Memory_Flash:W25Q16JVSS",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R4",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C14",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "Y1",
+      "status": "complete",
+      "symbol": "Device:Crystal_GND24",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R3",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C15",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C16",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "FB1",
+      "status": "complete",
+      "symbol": "Device:FerriteBead",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C13",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R5",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "SW4",
+      "status": "complete",
+      "symbol": "Switch:SW_Push",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R34",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "SW5",
+      "status": "complete",
+      "symbol": "Switch:SW_Push",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "J6",
+      "status": "complete",
+      "symbol": "Connector_Generic:Conn_02x03_Odd_Even",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "DS1",
+      "status": "complete",
+      "symbol": "Connector_Generic:Conn_01x06",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C27",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U8",
+      "status": "complete",
+      "symbol": "Sensor_Humidity:SHT4x",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C24",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "J3",
+      "status": "complete",
+      "symbol": "Connector:Micro_SD_Card_Det_Hirose_DM3AT",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U11",
+      "status": "complete",
+      "symbol": "Power_Protection:TPD4E05U06DQA",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R29",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R30",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R31",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R32",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R33",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C25",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C26",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U5",
+      "status": "complete",
+      "symbol": "Connector_Generic:Conn_01x06",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R9",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R11",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R13",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "J4",
+      "status": "complete",
+      "symbol": "Connector_Generic:Conn_01x04",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C18",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C20",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C22",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R15",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R17",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C29",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R19",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R21",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "Q1",
+      "status": "complete",
+      "symbol": "Transistor_FET:2N7002",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "U6",
+      "status": "complete",
+      "symbol": "Connector_Generic:Conn_01x06",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R10",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R12",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R14",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "J5",
+      "status": "complete",
+      "symbol": "Connector_Generic:Conn_01x04",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C19",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C21",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C23",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R16",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R18",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C30",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R20",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R22",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "Q2",
+      "status": "complete",
+      "symbol": "Transistor_FET:2N7002",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "SW1",
+      "status": "complete",
+      "symbol": "Switch:SW_Push",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R23",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "SW2",
+      "status": "complete",
+      "symbol": "Switch:SW_Push",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R24",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "SW3",
+      "status": "complete",
+      "symbol": "Switch:SW_Push",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R25",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R26",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "D1",
+      "status": "complete",
+      "symbol": "Device:LED",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R27",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "D2",
+      "status": "complete",
+      "symbol": "Device:LED",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "R28",
+      "status": "complete",
+      "symbol": "Device:R",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "D3",
+      "status": "complete",
+      "symbol": "Device:LED",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "TP1",
+      "status": "complete",
+      "symbol": "Connector:TestPoint",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "TP2",
+      "status": "complete",
+      "symbol": "Connector:TestPoint",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "TP3",
+      "status": "complete",
+      "symbol": "Connector:TestPoint",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "TP4",
+      "status": "complete",
+      "symbol": "Connector:TestPoint",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "TP5",
+      "status": "complete",
+      "symbol": "Connector:TestPoint",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "TP6",
+      "status": "complete",
+      "symbol": "Connector:TestPoint",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "TP7",
+      "status": "complete",
+      "symbol": "Connector:TestPoint",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C4",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C5",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C6",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C7",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C8",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C9",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C10",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C11",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    },
+    {
+      "missing_population": [],
+      "reference": "C12",
+      "status": "complete",
+      "symbol": "Device:C",
+      "unknown_declared_pins": []
+    }
+  ],
+  "incomplete_references": [],
+  "schema": "pcbsmith-pin-population-audit-v1",
+  "status": "passed"
+}

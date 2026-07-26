@@ -1,0 +1,5 @@
+(fp_lib_table
+  (version 7)
+  (lib (name "PCBSmith_AeroSense")(type "KiCad")
+    (uri "${KIPRJMOD}/PCBSmith_AeroSense.pretty")(options "")(descr ""))
+)

@@ -1,0 +1,2758 @@
+{
+  "intent": {
+    "raw_request": "USB-C dual-fan temperature/humidity monitor with OLED and microSD",
+    "intent_id": "aerosense_2f_r001",
+    "status": "supported",
+    "assumptions": {
+      "pcb_layers": 2.0,
+      "board_width_mm": 70.0,
+      "board_height_mm": 50.0,
+      "fan_channel_design_current_a": 0.5,
+      "selected_fan_max_current_a": 0.1,
+      "usb_vbus_v": 5.0,
+      "logic_supply_v": 3.3
+    },
+    "unsupported_reasons": []
+  },
+  "topology": {
+    "topology_id": "aerosense_2f_r001",
+    "title": "RP2040 USB-C environment monitor with two protected PWM fan channels",
+    "status": "selected",
+    "evidence": [
+      {
+        "kind": "manufacturer_document",
+        "title": "Hardware design with RP2040",
+        "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+        "source_id": null,
+        "organization_or_author": null,
+        "revision": null,
+        "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+        "local_sha256": null,
+        "source_status": "unpinned",
+        "locator_status": "figure_verified",
+        "applicability_status": "confirmed",
+        "required_conditions": [],
+        "exclusions": [],
+        "origin_id": null
+      },
+      {
+        "kind": "manufacturer_document",
+        "title": "TUSB320LAI datasheet",
+        "locator": "UFP GPIO mode, internal Rd terminations and source-current advertisement decoding.",
+        "source_id": null,
+        "organization_or_author": null,
+        "revision": null,
+        "official_url": "https://www.ti.com/lit/ds/symlink/tusb320lai.pdf",
+        "local_sha256": null,
+        "source_status": "unpinned",
+        "locator_status": "figure_verified",
+        "applicability_status": "confirmed",
+        "required_conditions": [],
+        "exclusions": [],
+        "origin_id": null
+      },
+      {
+        "kind": "manufacturer_document",
+        "title": "TPS2553 datasheet",
+        "locator": "Adjustable current limit, active-high enable and active-low open-drain fault.",
+        "source_id": null,
+        "organization_or_author": null,
+        "revision": null,
+        "official_url": "https://www.ti.com/lit/ds/symlink/tps2553.pdf",
+        "local_sha256": null,
+        "source_status": "unpinned",
+        "locator_status": "figure_verified",
+        "applicability_status": "confirmed",
+        "required_conditions": [],
+        "exclusions": [],
+        "origin_id": null
+      }
+    ],
+    "warnings": [
+      "Fan rails default off through 100-kohm enable pulldowns and require firmware qualification of Type-C current state.",
+      "The selected fans draw 0.10 A maximum each; each connector path is nevertheless laid out for the 0.50 A interface envelope.",
+      "The Adafruit 4440 onboard 10-kohm I2C pull-ups are the only default host-bus pull-ups."
+    ]
+  },
+  "components": [
+    {
+      "reference": "U1",
+      "role": "environment_monitor_mcu",
+      "symbol_id": "stdlib:RP2040",
+      "value": "RP2040",
+      "support_status": "supported",
+      "footprint": "Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm_ThermalVias",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U2",
+      "role": "qspi_boot_flash",
+      "symbol_id": "stdlib:W25Q16JVSS",
+      "value": "W25Q16JVSSIQ",
+      "support_status": "supported",
+      "footprint": "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U3",
+      "role": "3v3_ldo",
+      "symbol_id": "stdlib:AP2112K-3.3",
+      "value": "AP2112K-3.3TRG1",
+      "support_status": "supported",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-5",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U4",
+      "role": "type_c_current_detector",
+      "symbol_id": "stdlib:TUSB320",
+      "value": "TUSB320LAIRWBR",
+      "support_status": "supported",
+      "footprint": "PCBSmith_AeroSense:TUSB320_X2QFN12",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "TUSB320LAI datasheet",
+          "locator": "UFP GPIO mode, internal Rd terminations and source-current advertisement decoding.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://www.ti.com/lit/ds/symlink/tusb320lai.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U5",
+      "role": "fan_1_current_limited_switch",
+      "symbol_id": "stdlib:Conn_01x06",
+      "value": "TPS2553DBVR",
+      "support_status": "supported",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-6",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "TPS2553 datasheet",
+          "locator": "Adjustable current limit, active-high enable and active-low open-drain fault.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://www.ti.com/lit/ds/symlink/tps2553.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U6",
+      "role": "fan_2_current_limited_switch",
+      "symbol_id": "stdlib:Conn_01x06",
+      "value": "TPS2553DBVR",
+      "support_status": "supported",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-6",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "TPS2553 datasheet",
+          "locator": "Adjustable current limit, active-high enable and active-low open-drain fault.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://www.ti.com/lit/ds/symlink/tps2553.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U7",
+      "role": "usb_data_esd",
+      "symbol_id": "stdlib:USBLC6-2SC6",
+      "value": "USBLC6-2SC6",
+      "support_status": "supported",
+      "footprint": "Package_TO_SOT_SMD:SOT-23-6",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U8",
+      "role": "temperature_humidity_sensor",
+      "symbol_id": "stdlib:SHT4x",
+      "value": "SHT45-AD1B-R3",
+      "support_status": "supported",
+      "footprint": "PCBSmith_AeroSense:Sensirion_SHT45_NoCentralPad",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U9",
+      "role": "vbus_esd",
+      "symbol_id": "stdlib:D_TVS",
+      "value": "TPD1E10B06DPYR",
+      "support_status": "supported",
+      "footprint": "PCBSmith_AeroSense:TPD1E10B06_DPY2",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U10",
+      "role": "cc_esd",
+      "symbol_id": "stdlib:TPD2EUSB30",
+      "value": "TPD2EUSB30DRTR",
+      "support_status": "supported",
+      "footprint": "Package_TO_SOT_SMD:Texas_DRT-3",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "U11",
+      "role": "microsd_esd",
+      "symbol_id": "stdlib:TPD4E05U06DQA",
+      "value": "TPD4E05U06DQAR",
+      "support_status": "supported",
+      "footprint": "Package_SON:USON-10_2.5x1.0mm_P0.5mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "J1",
+      "role": "usb_c_receptacle",
+      "symbol_id": "stdlib:USB_C",
+      "value": "USB4105-GF-A",
+      "support_status": "supported",
+      "footprint": "Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "DS1",
+      "role": "oled_module",
+      "symbol_id": "stdlib:Conn_01x06",
+      "value": "Adafruit 4440 OLED",
+      "support_status": "supported",
+      "footprint": "PCBSmith_AeroSense:Adafruit_4440_OLED_Module",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "J3",
+      "role": "microsd_socket",
+      "symbol_id": "stdlib:Micro_SD_Card_Det_Hirose_DM3AT",
+      "value": "DM3AT-SF-PEJM5",
+      "support_status": "supported",
+      "footprint": "Connector_Card:microSD_HC_Hirose_DM3AT-SF-PEJM5",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "J4",
+      "role": "fan_1_connector",
+      "symbol_id": "stdlib:Conn_01x04",
+      "value": "Molex 47053-1000",
+      "support_status": "supported",
+      "footprint": "Connector:FanPinHeader_1x04_P2.54mm_Vertical",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "J5",
+      "role": "fan_2_connector",
+      "symbol_id": "stdlib:Conn_01x04",
+      "value": "Molex 47053-1000",
+      "support_status": "supported",
+      "footprint": "Connector:FanPinHeader_1x04_P2.54mm_Vertical",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "J6",
+      "role": "swd_probe",
+      "symbol_id": "stdlib:Conn_02x03",
+      "value": "TC2030-IDC-NL",
+      "support_status": "supported",
+      "footprint": "Connector:Tag-Connect_TC2030-IDC-NL_2x03_P1.27mm_Vertical",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "Y1",
+      "role": "mcu_crystal",
+      "symbol_id": "stdlib:Crystal_GND24",
+      "value": "ABM8-272-T3 12MHz",
+      "support_status": "supported",
+      "footprint": "Crystal:Crystal_SMD_Abracon_ABM8G-4Pin_3.2x2.5mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "FB1",
+      "role": "adc_supply_filter",
+      "symbol_id": "stdlib:FerriteBead",
+      "value": "600R@100MHz",
+      "support_status": "supported",
+      "footprint": "Inductor_SMD:L_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "Q1",
+      "role": "fan_1_open_drain_pwm",
+      "symbol_id": "stdlib:2N7002",
+      "value": "2N7002,215",
+      "support_status": "supported",
+      "footprint": "Package_TO_SOT_SMD:SOT-23",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "Q2",
+      "role": "fan_2_open_drain_pwm",
+      "symbol_id": "stdlib:2N7002",
+      "value": "2N7002,215",
+      "support_status": "supported",
+      "footprint": "Package_TO_SOT_SMD:SOT-23",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "D1",
+      "role": "pwr_usb_green",
+      "symbol_id": "stdlib:LED",
+      "value": "150060GS75000",
+      "support_status": "supported",
+      "footprint": "LED_SMD:LED_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "D2",
+      "role": "fan_fault_amber",
+      "symbol_id": "stdlib:LED",
+      "value": "150060YS75000",
+      "support_status": "supported",
+      "footprint": "LED_SMD:LED_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "D3",
+      "role": "sd_log_blue",
+      "symbol_id": "stdlib:LED",
+      "value": "150060BS75000",
+      "support_status": "supported",
+      "footprint": "LED_SMD:LED_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "SW1",
+      "role": "mode_button",
+      "symbol_id": "stdlib:SW_Push",
+      "value": "B3F-1000 MODE",
+      "support_status": "supported",
+      "footprint": "Button_Switch_THT:SW_PUSH_6mm_H4.3mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "SW2",
+      "role": "select_ack_button",
+      "symbol_id": "stdlib:SW_Push",
+      "value": "B3F-1000 SELECT_ACK",
+      "support_status": "supported",
+      "footprint": "Button_Switch_THT:SW_PUSH_6mm_H4.3mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "SW3",
+      "role": "log_button",
+      "symbol_id": "stdlib:SW_Push",
+      "value": "B3F-1000 LOG",
+      "support_status": "supported",
+      "footprint": "Button_Switch_THT:SW_PUSH_6mm_H4.3mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "SW4",
+      "role": "bootsel_button",
+      "symbol_id": "stdlib:SW_Push",
+      "value": "B3U-1000P BOOTSEL",
+      "support_status": "supported",
+      "footprint": "Button_Switch_SMD:SW_SPST_B3U-1000P",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "SW5",
+      "role": "reset_button",
+      "symbol_id": "stdlib:SW_Push",
+      "value": "B3U-1000P RESET",
+      "support_status": "supported",
+      "footprint": "Button_Switch_SMD:SW_SPST_B3U-1000P",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "TP1",
+      "role": "vbus_test_point",
+      "symbol_id": "stdlib:TestPoint",
+      "value": "VBUS probe pad",
+      "support_status": "supported",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "TP2",
+      "role": "3v3_test_point",
+      "symbol_id": "stdlib:TestPoint",
+      "value": "3V3 probe pad",
+      "support_status": "supported",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "TP3",
+      "role": "fan1_rail_test_point",
+      "symbol_id": "stdlib:TestPoint",
+      "value": "FAN1_5V probe pad",
+      "support_status": "supported",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "TP4",
+      "role": "fan2_rail_test_point",
+      "symbol_id": "stdlib:TestPoint",
+      "value": "FAN2_5V probe pad",
+      "support_status": "supported",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "TP5",
+      "role": "ground_test_point",
+      "symbol_id": "stdlib:TestPoint",
+      "value": "GND probe pad",
+      "support_status": "supported",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "TP6",
+      "role": "fan1_tach_test_point",
+      "symbol_id": "stdlib:TestPoint",
+      "value": "FAN1_TACH probe pad",
+      "support_status": "supported",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "TP7",
+      "role": "fan2_tach_test_point",
+      "symbol_id": "stdlib:TestPoint",
+      "value": "FAN2_TACH probe pad",
+      "support_status": "supported",
+      "footprint": "TestPoint:TestPoint_Pad_D1.0mm",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R1",
+      "role": "usb_dm_series",
+      "symbol_id": "stdlib:R",
+      "value": "27R",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R2",
+      "role": "usb_dp_series",
+      "symbol_id": "stdlib:R",
+      "value": "27R",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R3",
+      "role": "crystal_series",
+      "symbol_id": "stdlib:R",
+      "value": "1k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R4",
+      "role": "qspi_ss_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R5",
+      "role": "run_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R6",
+      "role": "typec_out1_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R7",
+      "role": "typec_out2_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R8",
+      "role": "typec_vbus_detect",
+      "symbol_id": "stdlib:R",
+      "value": "900k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R9",
+      "role": "fan1_ilim",
+      "symbol_id": "stdlib:R",
+      "value": "59k 1%",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R10",
+      "role": "fan2_ilim",
+      "symbol_id": "stdlib:R",
+      "value": "59k 1%",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R11",
+      "role": "fan1_enable_pulldown",
+      "symbol_id": "stdlib:R",
+      "value": "100k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R12",
+      "role": "fan2_enable_pulldown",
+      "symbol_id": "stdlib:R",
+      "value": "100k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R13",
+      "role": "fan1_fault_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R14",
+      "role": "fan2_fault_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R15",
+      "role": "fan1_tach_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R16",
+      "role": "fan2_tach_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R17",
+      "role": "fan1_tach_series",
+      "symbol_id": "stdlib:R",
+      "value": "1k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R18",
+      "role": "fan2_tach_series",
+      "symbol_id": "stdlib:R",
+      "value": "1k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R19",
+      "role": "fan1_pwm_gate_series",
+      "symbol_id": "stdlib:R",
+      "value": "100R",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R20",
+      "role": "fan2_pwm_gate_series",
+      "symbol_id": "stdlib:R",
+      "value": "100R",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R21",
+      "role": "fan1_pwm_gate_pulldown",
+      "symbol_id": "stdlib:R",
+      "value": "100k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R22",
+      "role": "fan2_pwm_gate_pulldown",
+      "symbol_id": "stdlib:R",
+      "value": "100k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R23",
+      "role": "mode_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R24",
+      "role": "select_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R25",
+      "role": "log_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R26",
+      "role": "pwr_led_series",
+      "symbol_id": "stdlib:R",
+      "value": "1k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R27",
+      "role": "fault_led_series",
+      "symbol_id": "stdlib:R",
+      "value": "1k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R28",
+      "role": "log_led_series",
+      "symbol_id": "stdlib:R",
+      "value": "1k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R29",
+      "role": "sd_cs_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R30",
+      "role": "sd_cs_series",
+      "symbol_id": "stdlib:R",
+      "value": "22R",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R31",
+      "role": "sd_mosi_series",
+      "symbol_id": "stdlib:R",
+      "value": "22R",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R32",
+      "role": "sd_clk_series",
+      "symbol_id": "stdlib:R",
+      "value": "22R",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R33",
+      "role": "sd_detect_pullup",
+      "symbol_id": "stdlib:R",
+      "value": "10k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "R34",
+      "role": "bootsel_series",
+      "symbol_id": "stdlib:R",
+      "value": "1k",
+      "support_status": "supported",
+      "footprint": "Resistor_SMD:R_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C1",
+      "role": "vbus_bulk",
+      "symbol_id": "stdlib:C",
+      "value": "10uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C2",
+      "role": "ldo_input",
+      "symbol_id": "stdlib:C",
+      "value": "1uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C3",
+      "role": "ldo_output",
+      "symbol_id": "stdlib:C",
+      "value": "1uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C4",
+      "role": "rp2040_3v3_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C5",
+      "role": "rp2040_3v3_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C6",
+      "role": "rp2040_3v3_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C7",
+      "role": "rp2040_3v3_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C8",
+      "role": "rp2040_3v3_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C9",
+      "role": "rp2040_3v3_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C10",
+      "role": "rp2040_3v3_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C11",
+      "role": "rp2040_3v3_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C12",
+      "role": "rp2040_1v1_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "1uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C13",
+      "role": "rp2040_adc_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C14",
+      "role": "flash_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C15",
+      "role": "crystal_load",
+      "symbol_id": "stdlib:C",
+      "value": "15pF C0G",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C16",
+      "role": "crystal_load",
+      "symbol_id": "stdlib:C",
+      "value": "15pF C0G",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C17",
+      "role": "typec_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C18",
+      "role": "fan1_input_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C19",
+      "role": "fan2_input_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C20",
+      "role": "fan1_output_bulk",
+      "symbol_id": "stdlib:C",
+      "value": "47uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C21",
+      "role": "fan2_output_bulk",
+      "symbol_id": "stdlib:C",
+      "value": "47uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C22",
+      "role": "fan1_output_hf",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C23",
+      "role": "fan2_output_hf",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C24",
+      "role": "sht45_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C25",
+      "role": "microsd_bypass",
+      "symbol_id": "stdlib:C",
+      "value": "100nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C26",
+      "role": "microsd_bulk",
+      "symbol_id": "stdlib:C",
+      "value": "10uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C27",
+      "role": "oled_local",
+      "symbol_id": "stdlib:C",
+      "value": "1uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C28",
+      "role": "3v3_bulk",
+      "symbol_id": "stdlib:C",
+      "value": "10uF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0805_2012Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C29",
+      "role": "fan1_tach_filter",
+      "symbol_id": "stdlib:C",
+      "value": "1nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    },
+    {
+      "reference": "C30",
+      "role": "fan2_tach_filter",
+      "symbol_id": "stdlib:C",
+      "value": "1nF",
+      "support_status": "supported",
+      "footprint": "Capacitor_SMD:C_0603_1608Metric",
+      "evidence": [
+        {
+          "kind": "manufacturer_document",
+          "title": "Hardware design with RP2040",
+          "locator": "Minimal design, USB, QSPI, crystal, supply decoupling and exposed-pad guidance.",
+          "source_id": null,
+          "organization_or_author": null,
+          "revision": null,
+          "official_url": "https://datasheets.raspberrypi.com/rp2040/hardware-design-with-rp2040.pdf",
+          "local_sha256": null,
+          "source_status": "unpinned",
+          "locator_status": "figure_verified",
+          "applicability_status": "confirmed",
+          "required_conditions": [],
+          "exclusions": [],
+          "origin_id": null
+        }
+      ]
+    }
+  ],
+  "nets": [
+    "VBUS",
+    "3V3",
+    "1V1",
+    "ADC_3V3",
+    "GND",
+    "CC1",
+    "CC2",
+    "TYPEC_OUT1",
+    "TYPEC_OUT2",
+    "USB_DP_CONN",
+    "USB_DM_CONN",
+    "USB_DP_ESD",
+    "USB_DM_ESD",
+    "USB_DP_MCU",
+    "USB_DM_MCU",
+    "XIN",
+    "XOUT_RAW",
+    "XOUT",
+    "RUN",
+    "SWCLK",
+    "SWDIO",
+    "QSPI_SCLK",
+    "QSPI_SD0",
+    "QSPI_SD1",
+    "QSPI_SD2",
+    "QSPI_SD3",
+    "QSPI_SS",
+    "BOOT_BTN",
+    "I2C_SDA",
+    "I2C_SCL",
+    "OLED_RESET",
+    "FAN1_EN",
+    "FAN2_EN",
+    "FAN1_FAULT_N",
+    "FAN2_FAULT_N",
+    "FAN1_5V",
+    "FAN2_5V",
+    "FAN1_PWM_GPIO",
+    "FAN2_PWM_GPIO",
+    "FAN1_PWM_GATE",
+    "FAN2_PWM_GATE",
+    "FAN1_PWM",
+    "FAN2_PWM",
+    "FAN1_TACH_RAW",
+    "FAN2_TACH_RAW",
+    "FAN1_TACH",
+    "FAN2_TACH",
+    "SW_MODE",
+    "SW_SELECT",
+    "SW_LOG",
+    "LED_PWR_A",
+    "LED_FAULT_A",
+    "LED_LOG_A",
+    "SD_CS_MCU",
+    "SD_MOSI_MCU",
+    "SD_SCLK_MCU",
+    "SD_CS_CARD",
+    "SD_MOSI_CARD",
+    "SD_SCLK_CARD",
+    "SD_MISO",
+    "SD_DETECT"
+  ],
+  "math": {
+    "status": "warning",
+    "calculations": {
+      "selected_fans_total_max_a": 0.2,
+      "fan_connector_envelope_total_a": 1.0,
+      "logic_reserve_a": 0.2,
+      "tps2553_rilim_nominal_kohm": 59.0,
+      "fan_pwm_frequency_hz": 25000.0,
+      "microsd_max_spi_hz": 25000000.0
+    },
+    "findings": [
+      "A 59-kohm 1% ILIM resistor retains the TPS2553 upper-limit target at approximately 0.5 A; production limits remain subject to the datasheet tolerance equation and bench trip-current measurement.",
+      "The two selected 0.10 A fans fit the advertised 1.5 A Type-C state with the stated logic reserve; default-current firmware must keep both fan rails disabled.",
+      "PCB acceptance does not imply firmware enumeration, logging integrity, fan stall behavior or thermal correlation."
+    ]
+  }
+}

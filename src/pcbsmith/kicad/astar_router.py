@@ -312,6 +312,99 @@ class GridRouter:
     def route(self) -> RouteResult:
         """Connect all of the net's pads into one tree."""
         ordered = self._ordered_physical_pads()
+        seed_tree = self._existing_seed_tree(ordered)
+        if seed_tree:
+            return self._route_from_seed(
+                remaining_pads=ordered,
+                tree=seed_tree,
+                segments=[],
+                vias=[],
+                first_stub_pad=None,
+            )
+        return self._route_physical_pads(ordered)
+
+    def _existing_seed_tree(
+        self,
+        ordered_pads: Sequence[_Stadium],
+    ) -> set[tuple[str, int, int]]:
+        """Return the connected retained-copper component touching a pad.
+
+        Candidate generators commonly retain a short fanout before invoking
+        A*.  Previously that copper was merely made non-blocking; it was not
+        part of the search tree, so a legal QFN escape did not help routing.
+        Only the connected seed component touching the first eligible pad is
+        admitted here—disconnected same-net islands are never treated as
+        electrically joined.
+        """
+
+        seed_cells: set[tuple[str, int, int]] = set()
+        for item in self.own_items:
+            if item.source_role is _PhysicalSourceRole.PAD:
+                continue
+            seed_cells.update(
+                (item.layer, ix, iy) for ix, iy in self._cells_inside(item)
+            )
+        if not seed_cells:
+            return set()
+
+        starts: set[tuple[str, int, int]] = set()
+        for pad in ordered_pads:
+            pad_nodes = set(self._pad_nodes(pad))
+            starts = pad_nodes & seed_cells
+            if starts:
+                break
+        if not starts:
+            return set()
+
+        component = set(starts)
+        frontier = list(starts)
+        while frontier:
+            layer, ix, iy = frontier.pop()
+            neighbours = (
+                (layer, ix - 1, iy - 1),
+                (layer, ix, iy - 1),
+                (layer, ix + 1, iy - 1),
+                (layer, ix - 1, iy),
+                (layer, ix + 1, iy),
+                (layer, ix - 1, iy + 1),
+                (layer, ix, iy + 1),
+                (layer, ix + 1, iy + 1),
+                (
+                    LAYERS[1] if layer == LAYERS[0] else LAYERS[0],
+                    ix,
+                    iy,
+                ),
+            )
+            for neighbour in neighbours:
+                if neighbour in seed_cells and neighbour not in component:
+                    component.add(neighbour)
+                    frontier.append(neighbour)
+        return component
+
+    def route_pad_subset(self, references: Collection[str]) -> RouteResult:
+        """Connect only physical pads owned by ``references``.
+
+        This supports a routed same-net backbone on one board side while a
+        copper zone connects the remaining pads on the opposite side.  The
+        caller must still prove whole-net connectivity after zone fill; this
+        method does not treat the omitted pads as connected.
+        """
+        selected = tuple(
+            pad
+            for pad in self._ordered_physical_pads()
+            if pad.owner in references
+        )
+        if len(selected) < 2:
+            raise RoutingError(
+                f"Net {self.net_name} pad subset has fewer than 2 pads.",
+                expansion_count=self.expansion_count,
+            )
+        return self._route_physical_pads(selected)
+
+    def _route_physical_pads(
+        self, ordered: Sequence[_Stadium]
+    ) -> RouteResult:
+        """Connect an already ordered physical-pad sequence."""
         first = ordered[0]
         return self._route_from_seed(
             remaining_pads=ordered[1:],
@@ -936,6 +1029,33 @@ def route_net(
         clearance_groups=clearance_groups,
         max_expansions=max_expansions,
     ).route()
+
+
+def route_net_pad_subset(
+    layout: BoardLayout,
+    netlist: BoardNetlist,
+    net_name: str,
+    references: Collection[str],
+    *,
+    track_width_mm: float = 0.4,
+    grid_mm: float = GRID_MM,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
+    clearance_groups: Sequence[
+        tuple[Collection[str], Collection[str], float, Collection[str]]
+    ] = (),
+    max_expansions: int | None = None,
+) -> RouteResult:
+    """Route a reference-selected pad subset of one electrical net."""
+    return GridRouter(
+        layout,
+        netlist,
+        net_name=net_name,
+        track_width_mm=track_width_mm,
+        grid_mm=grid_mm,
+        profile=profile,
+        clearance_groups=clearance_groups,
+        max_expansions=max_expansions,
+    ).route_pad_subset(references)
 
 
 def clearance_groups_from_spec(

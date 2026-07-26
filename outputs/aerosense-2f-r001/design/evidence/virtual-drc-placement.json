@@ -1,0 +1,1277 @@
+{
+  "finding_counts": {
+    "pad_connectivity": 317
+  },
+  "findings": [
+    {
+      "check": "pad_connectivity",
+      "message": "pad C10.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C10.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C11.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C11.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C12.1 [/1V1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C12.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C13.1 [/ADC_3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C13.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C14.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C14.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C15.1 [/XIN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C15.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C16.1 [/XOUT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C16.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C17.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C17.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C18.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C18.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C19.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C19.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C1.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C1.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C20.1 [/FAN1_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C20.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C21.1 [/FAN2_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C21.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C22.1 [/FAN1_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C22.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C23.1 [/FAN2_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C23.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C24.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C24.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C25.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C25.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C26.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C26.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C27.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C27.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C28.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C28.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C29.1 [/FAN1_TACH] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C29.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C2.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C2.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C30.1 [/FAN2_TACH] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C30.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C3.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C3.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C4.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C4.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C5.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C5.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C6.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C6.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C7.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C7.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C8.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C8.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C9.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad C9.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad D1.1 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad D1.2 [/LED1_ANODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad D2.1 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad D2.2 [/LED2_ANODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad D3.1 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad D3.2 [/LED3_ANODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad DS1.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad DS1.3 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad DS1.4 [/OLED_RESET] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad DS1.5 [/I2C_SCL] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad DS1.6 [/I2C_SDA] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad FB1.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad FB1.2 [/ADC_3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.B5 [/CC2] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.B6 [/USB_DP_CONN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.B7 [/USB_DM_CONN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.SH [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.SH [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.SH [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.SH [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.A5 [/CC1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.A6 [/USB_DP_CONN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J1.A7 [/USB_DM_CONN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.2 [/SD_CS_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.SH [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.SH [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.SH [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.SH [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.3 [/SD_MOSI_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.4 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.5 [/SD_SCLK_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.6 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.7 [/SD_MISO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.9 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J3.10 [/SD_DETECT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J4.1 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J4.2 [/FAN1_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J4.3 [/FAN1_TACH_RAW] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J4.4 [/FAN1_PWM] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J5.1 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J5.2 [/FAN2_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J5.3 [/FAN2_TACH_RAW] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J5.4 [/FAN2_PWM] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J6.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J6.2 [/SWDIO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J6.3 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J6.4 [/SWCLK] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad J6.5 [/RUN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Q1.1 [/FAN1_PWM_GATE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Q1.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Q1.3 [/FAN1_PWM] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Q2.1 [/FAN2_PWM_GATE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Q2.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Q2.3 [/FAN2_PWM] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R10.1 [/FAN2_ILIM] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R10.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R11.1 [/FAN1_EN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R11.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R12.1 [/FAN2_EN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R12.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R13.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R13.2 [/FAN1_FAULT_N] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R14.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R14.2 [/FAN2_FAULT_N] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R15.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R15.2 [/FAN1_TACH_RAW] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R16.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R16.2 [/FAN2_TACH_RAW] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R17.1 [/FAN1_TACH_RAW] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R17.2 [/FAN1_TACH] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R18.1 [/FAN2_TACH_RAW] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R18.2 [/FAN2_TACH] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R19.1 [/FAN1_PWM_GPIO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R19.2 [/FAN1_PWM_GATE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R1.1 [/USB_DM_ESD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R1.2 [/USB_DM_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R20.1 [/FAN2_PWM_GPIO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R20.2 [/FAN2_PWM_GATE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R21.1 [/FAN1_PWM_GATE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R21.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R22.1 [/FAN2_PWM_GATE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R22.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R23.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R23.2 [/SW_MODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R24.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R24.2 [/SW_SELECT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R25.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R25.2 [/SW_LOG] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R26.1 [/LED_PWR_A] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R26.2 [/LED1_ANODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R27.1 [/LED_FAULT_A] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R27.2 [/LED2_ANODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R28.1 [/LED_LOG_A] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R28.2 [/LED3_ANODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R29.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R29.2 [/SD_CS_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R2.1 [/USB_DP_ESD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R2.2 [/USB_DP_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R30.1 [/SD_CS_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R30.2 [/SD_CS_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R31.1 [/SD_MOSI_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R31.2 [/SD_MOSI_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R32.1 [/SD_SCLK_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R32.2 [/SD_SCLK_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R33.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R33.2 [/SD_DETECT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R34.1 [/QSPI_SS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R34.2 [/BOOT_BTN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R3.1 [/XOUT_RAW] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R3.2 [/XOUT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R4.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R4.2 [/QSPI_SS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R5.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R5.2 [/RUN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R6.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R6.2 [/TYPEC_OUT1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R7.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R7.2 [/TYPEC_OUT2] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R8.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R8.2 [/VBUS_DET] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R9.1 [/FAN1_ILIM] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad R9.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW1.1 [/SW_MODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW1.1 [/SW_MODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW1.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW1.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW2.1 [/SW_SELECT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW2.1 [/SW_SELECT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW2.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW2.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW3.1 [/SW_LOG] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW3.1 [/SW_LOG] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW3.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW3.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW4.1 [/BOOT_BTN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW4.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW5.1 [/RUN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad SW5.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad TP1.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad TP2.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad TP3.1 [/FAN1_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad TP4.1 [/FAN2_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad TP5.1 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad TP6.1 [/FAN1_TACH] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad TP7.1 [/FAN2_TACH] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U10.1 [/CC1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U10.2 [/CC2] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U10.3 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U11.1 [/SD_CS_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U11.2 [/SD_MOSI_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U11.3 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U11.4 [/SD_SCLK_CARD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U11.5 [/SD_MISO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U11.8 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.7 [/SD_MOSI_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.8 [/FAN1_EN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.9 [/FAN2_EN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.10 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.11 [/FAN1_PWM_GPIO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.12 [/FAN2_PWM_GPIO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.13 [/FAN1_TACH] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.14 [/FAN2_TACH] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.15 [/FAN1_FAULT_N] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.16 [/FAN2_FAULT_N] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.17 [/TYPEC_OUT1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.18 [/TYPEC_OUT2] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.19 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.20 [/XIN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.21 [/XOUT_RAW] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.22 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.23 [/1V1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.24 [/SWCLK] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.25 [/SWDIO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.26 [/RUN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.27 [/SW_MODE] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.28 [/SW_SELECT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.29 [/SW_LOG] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.30 [/LED_PWR_A] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.31 [/LED_FAULT_A] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.32 [/LED_LOG_A] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.33 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.34 [/SD_DETECT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.35 [/OLED_RESET] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.1 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.42 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.43 [/ADC_3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.44 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.45 [/1V1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.46 [/USB_DM_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.2 [/I2C_SDA] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.47 [/USB_DP_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.48 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.49 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.50 [/1V1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.51 [/QSPI_SD3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.52 [/QSPI_SCLK] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.53 [/QSPI_SD0] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.54 [/QSPI_SD2] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.55 [/QSPI_SD1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.56 [/QSPI_SS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.3 [/I2C_SCL] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.57 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.57 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.57 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.57 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.4 [/SD_MISO] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.5 [/SD_CS_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U1.6 [/SD_SCLK_MCU] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U2.1 [/QSPI_SS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U2.2 [/QSPI_SD1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U2.3 [/QSPI_SD2] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U2.4 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U2.5 [/QSPI_SD0] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U2.6 [/QSPI_SCLK] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U2.7 [/QSPI_SD3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U2.8 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U3.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U3.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U3.3 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U3.5 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.1 [/CC1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.2 [/CC2] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.11 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.12 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.3 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.4 [/VBUS_DET] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.7 [/TYPEC_OUT1] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.8 [/TYPEC_OUT2] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U4.10 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U5.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U5.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U5.3 [/FAN1_EN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U5.4 [/FAN1_FAULT_N] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U5.5 [/FAN1_ILIM] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U5.6 [/FAN1_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U6.1 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U6.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U6.3 [/FAN2_EN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U6.4 [/FAN2_FAULT_N] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U6.5 [/FAN2_ILIM] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U6.6 [/FAN2_5V] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U7.1 [/USB_DP_CONN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U7.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U7.3 [/USB_DM_CONN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U7.4 [/USB_DM_ESD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U7.5 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U7.6 [/USB_DP_ESD] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U8.1 [/I2C_SDA] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U8.2 [/I2C_SCL] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U8.3 [/3V3] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U8.4 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U9.1 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad U9.2 [/VBUS] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Y1.1 [/XIN] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Y1.2 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Y1.3 [/XOUT] has no same-net copper touching it; KiCad will report a missing connection."
+    },
+    {
+      "check": "pad_connectivity",
+      "message": "pad Y1.4 [/GND] has no same-net copper touching it; KiCad will report a missing connection."
+    }
+  ],
+  "schema": "pcbsmith-aerosense-virtual-drc-v1",
+  "stage": "placement"
+}

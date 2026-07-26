@@ -1,0 +1,3556 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<export version="E">
+  <design>
+    <source>D:\AI\PCB designer\outputs\aerosense-2f-r001\design\aerosense-2f-r001.kicad_sch</source>
+    <date>2026-07-26T20:04:16</date>
+    <tool>Eeschema 10.0.3</tool>
+    <sheet number="1" name="/" tstamps="/">
+      <title_block>
+        <title/>
+        <company/>
+        <rev/>
+        <date/>
+        <source>aerosense-2f-r001.kicad_sch</source>
+        <comment number="1" value=""/>
+        <comment number="2" value=""/>
+        <comment number="3" value=""/>
+        <comment number="4" value=""/>
+        <comment number="5" value=""/>
+        <comment number="6" value=""/>
+        <comment number="7" value=""/>
+        <comment number="8" value=""/>
+        <comment number="9" value=""/>
+      </title_block>
+    </sheet>
+  </design>
+  <components>
+    <comp ref="C1">
+      <value>10uF</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>afcd48c2-05dc-5d02-9663-45d67bc7a452</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C2">
+      <value>1uF</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>290932ad-2f5c-5084-b828-49bbcac94c8f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C3">
+      <value>1uF</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>96e87f2c-5fba-5fcf-816e-dd4c8e80abb2</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C4">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>42c706fc-7445-56dd-99e2-5eb9d6739474</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C5">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>48a56ff1-6455-5082-b059-d9b610bd4e38</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C6">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>7a538fe6-f34a-5506-b1f3-c476710d53ed</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C7">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>bfb9d21d-4bd1-51ca-a954-9454357a4883</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C8">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>5595e84f-bd2a-578f-b1a7-029bda4ea43b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C9">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>85f6b42c-bb44-5d1e-8af0-c9b19d045bea</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C10">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>da5bba1d-214f-57df-917a-a4dbb2145a5d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C11">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>80b45db1-23c8-5eec-b918-e09c3ac81e30</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C12">
+      <value>1uF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>5af63c73-d79a-5da2-b3c3-82835a0cc6ef</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C13">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>53968a5e-053e-5b80-8b62-1ba576a14150</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C14">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>46537e64-6c54-564a-a98b-00bd3e5dc560</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C15">
+      <value>15pF C0G</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>f0cbb9b2-b4f7-5956-ba8f-ef03f717ff18</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C16">
+      <value>15pF C0G</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e5358022-83eb-5613-b2e8-5292bc12c8af</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C17">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>662ef15e-2791-5141-a399-1235527ef495</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C18">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>afbd824d-6b80-53ad-946a-0650c9cad302</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C19">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>78bdb180-0769-5a6c-b386-8e8c2c2a52aa</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C20">
+      <value>47uF</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>4b5e54c1-f76c-56a8-8eab-905750bf91bb</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C21">
+      <value>47uF</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>349bc7a9-b9a4-55ec-bb4c-8ac84a632158</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C22">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>292c6a9f-03d4-5611-ac54-b7ad05c9e026</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C23">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>f3d8c48a-15ee-52bf-a92b-07bbfc753494</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C24">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>bb320c7c-7ef0-551c-be03-f63cd8780641</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C25">
+      <value>100nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>a92c06ed-81e1-5ddb-a1eb-17b5024f9a8d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C26">
+      <value>10uF</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>ae985c1f-3c9f-532e-a657-69013ce92eb2</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C27">
+      <value>1uF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>0e95872a-99ac-5d5f-bdd0-1f533b0ca576</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C28">
+      <value>10uF</value>
+      <footprint>Capacitor_SMD:C_0805_2012Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0805_2012Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>222a6d34-4b47-5d15-bbfd-48c65c30ac77</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C29">
+      <value>1nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>febf8667-02a7-57d6-8208-a1d00329fe2e</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="C30">
+      <value>1nF</value>
+      <footprint>Capacitor_SMD:C_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Capacitor_SMD:C_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="C" description="Unpolarized capacitor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="cap capacitor"/>
+      <property name="ki_fp_filters" value="C_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>dcd61ff5-ba1f-5c9e-a424-b7e8eaff7d82</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="D1">
+      <value>150060GS75000</value>
+      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">LED_SMD:LED_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="LED" description="Light emitting diode"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="LED diode"/>
+      <property name="ki_fp_filters" value="LED* LED_SMD:* LED_THT:*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>a581fcc8-5db3-5774-b139-b6d6a5f55214</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="D2">
+      <value>150060YS75000</value>
+      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">LED_SMD:LED_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="LED" description="Light emitting diode"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="LED diode"/>
+      <property name="ki_fp_filters" value="LED* LED_SMD:* LED_THT:*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>9dcab4ba-1a70-5711-b123-c1f1fbb67c1c</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="D3">
+      <value>150060BS75000</value>
+      <footprint>LED_SMD:LED_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">LED_SMD:LED_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="LED" description="Light emitting diode"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="LED diode"/>
+      <property name="ki_fp_filters" value="LED* LED_SMD:* LED_THT:*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>4d57df50-6769-5177-94b1-3d4d5879233d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="DS1">
+      <value>Adafruit 4440 OLED</value>
+      <footprint>PCBSmith_AeroSense:Adafruit_4440_OLED_Module</footprint>
+      <fields>
+        <field name="Footprint">PCBSmith_AeroSense:Adafruit_4440_OLED_Module</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_01x06" description="Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>13080b36-e157-527a-a9e8-15f0c87ed24b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="FB1">
+      <value>600R@100MHz</value>
+      <footprint>Inductor_SMD:L_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Inductor_SMD:L_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="FerriteBead" description="Ferrite bead"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="L ferrite bead inductor filter"/>
+      <property name="ki_fp_filters" value="Inductor_* L_* *Ferrite*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>8ef709ca-c6eb-57dd-ba85-3b60f9e40d9b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J1">
+      <value>USB4105-GF-A</value>
+      <footprint>Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal</footprint>
+      <fields>
+        <field name="Footprint">Connector_USB:USB_C_Receptacle_GCT_USB4105-xx-A_16P_TopMnt_Horizontal</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="USB_C_Receptacle_USB2.0_16P" description="USB 2.0-only 16P Type-C Receptacle connector"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="usb universal serial bus type-C USB2.0"/>
+      <property name="ki_fp_filters" value="USB*C*Receptacle*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>03591c87-9bd9-5812-b710-64437608e8cc</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="SH"/>
+            <pin num="A1"/>
+            <pin num="A12"/>
+            <pin num="B1"/>
+            <pin num="B12"/>
+            <pin num="A4"/>
+            <pin num="A9"/>
+            <pin num="B4"/>
+            <pin num="B9"/>
+            <pin num="A5"/>
+            <pin num="B5"/>
+            <pin num="A7"/>
+            <pin num="B7"/>
+            <pin num="A6"/>
+            <pin num="B6"/>
+            <pin num="A8"/>
+            <pin num="B8"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J3">
+      <value>DM3AT-SF-PEJM5</value>
+      <footprint>Connector_Card:microSD_HC_Hirose_DM3AT-SF-PEJM5</footprint>
+      <fields>
+        <field name="Footprint">Connector_Card:microSD_HC_Hirose_DM3AT-SF-PEJM5</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="Micro_SD_Card_Det_Hirose_DM3AT" description="Micro SD Card Socket with card detection pins"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="connector SD microsd"/>
+      <property name="ki_fp_filters" value="microSD*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>a9f6342e-35e1-5117-aa28-f56b8d9e9c75</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+            <pin num="7"/>
+            <pin num="8"/>
+            <pin num="10"/>
+            <pin num="9"/>
+            <pin num="SH"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J4">
+      <value>Molex 47053-1000</value>
+      <footprint>Connector:FanPinHeader_1x04_P2.54mm_Vertical</footprint>
+      <fields>
+        <field name="Footprint">Connector:FanPinHeader_1x04_P2.54mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_01x04" description="Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>7ef2ea20-4938-527b-a2b9-2abac3247d57</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J5">
+      <value>Molex 47053-1000</value>
+      <footprint>Connector:FanPinHeader_1x04_P2.54mm_Vertical</footprint>
+      <fields>
+        <field name="Footprint">Connector:FanPinHeader_1x04_P2.54mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_01x04" description="Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>aa5ccce9-3d78-5f3f-91f7-6ba5f513e1fe</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="J6">
+      <value>TC2030-IDC-NL</value>
+      <footprint>Connector:Tag-Connect_TC2030-IDC-NL_2x03_P1.27mm_Vertical</footprint>
+      <fields>
+        <field name="Footprint">Connector:Tag-Connect_TC2030-IDC-NL_2x03_P1.27mm_Vertical</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_02x03_Odd_Even" description="Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_2x??_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e93a0f97-0692-5c29-9d6f-96069a143574</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="5"/>
+            <pin num="2"/>
+            <pin num="4"/>
+            <pin num="6"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="Q1">
+      <value>2N7002,215</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <fields>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Transistor_FET" part="2N7002" description="0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="N-Channel Switching MOSFET"/>
+      <property name="ki_fp_filters" value="SOT?23*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>9b9f092b-168f-5338-b110-1add63c1b973</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="Q2">
+      <value>2N7002,215</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23</footprint>
+      <fields>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Transistor_FET" part="2N7002" description="0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="N-Channel Switching MOSFET"/>
+      <property name="ki_fp_filters" value="SOT?23*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>575bc266-184c-54d0-a982-fe441c0ff317</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R1">
+      <value>27R</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>2521840e-e42c-54f8-a6be-f792b4bb8fc8</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R2">
+      <value>27R</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>ba7d68f8-d111-5f20-8513-788b7a8e3715</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R3">
+      <value>1k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b9db28fa-3d97-502f-baf6-37ab013159b8</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R4">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>89354f05-53b4-5306-936b-6de9e230e409</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R5">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>75b145a5-47d6-5b94-a038-dbcecc8f232e</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R6">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>1759f482-c8f2-573a-b172-20d58709efde</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R7">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b16f54b8-8dfb-5bc8-a8c2-10cbd3359f5a</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R8">
+      <value>900k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>201c981e-a382-59aa-acfb-aa813fc68c8b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R9">
+      <value>59k 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e205a172-4aaf-5ce9-9879-52d97a01a3fc</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R10">
+      <value>59k 1%</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b2937318-706d-5290-a2fa-1ae180ed4890</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R11">
+      <value>100k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e7ee89b6-02bc-544d-8ac1-68ee16c76299</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R12">
+      <value>100k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>be9995c7-ef46-5aae-8957-94cd74c32e4f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R13">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>8a6388fe-9b3b-544a-aff0-c1dd550a650e</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R14">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>693a92b8-1660-55af-9a5f-dfa609fbed84</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R15">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>fafad5e5-c57d-5932-84ef-60da19d7b36e</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R16">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>8711bedc-17f7-5864-a037-b5332b18e5df</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R17">
+      <value>1k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e94fce19-5cc7-595c-8deb-bc0f47219ce2</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R18">
+      <value>1k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>535cc6e8-4040-5879-9756-5da1e5412109</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R19">
+      <value>100R</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>6ef7ea43-95d1-52e7-bfe7-3bb740a76ff4</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R20">
+      <value>100R</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>64f02f34-ace3-59b6-8f6a-ccc47bd14422</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R21">
+      <value>100k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>9992d808-067f-5b61-8670-7f7877a05436</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R22">
+      <value>100k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>b08fafd6-b35a-54a8-a678-ad5ea1daecdb</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R23">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>fba8847f-1b1f-5c26-b84e-e06b69f3cb1d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R24">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>6994ff12-8f48-5174-add3-2fff6e0f8c66</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R25">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e864cf94-ab13-5605-a3fb-c563302a053b</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R26">
+      <value>1k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>d9044f4f-38a6-5c75-9aad-d98473c1d95e</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R27">
+      <value>1k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>96cbf11e-13b6-587c-8472-ba701899e8d1</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R28">
+      <value>1k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>d083e0ee-dc3b-5b8c-aec2-6a19880e4283</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R29">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>fa17ba9b-cd71-525b-b413-f7539e262d55</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R30">
+      <value>22R</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>f6faf599-ec7e-589a-baf7-ddc430066c9d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R31">
+      <value>22R</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>6d3e04aa-a0d5-5213-855d-d85cacda37be</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R32">
+      <value>22R</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e51e3741-29d9-5066-bc4f-7f71f4cd89ac</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R33">
+      <value>10k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>3ec12718-8f66-50e4-a944-3a682923d4e9</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="R34">
+      <value>1k</value>
+      <footprint>Resistor_SMD:R_0603_1608Metric</footprint>
+      <fields>
+        <field name="Footprint">Resistor_SMD:R_0603_1608Metric</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="R" description="Resistor"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="R res resistor"/>
+      <property name="ki_fp_filters" value="R_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>6642e427-0ae5-5bd9-99b2-34c894f6af51</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="SW1">
+      <value>B3F-1000 MODE</value>
+      <footprint>Button_Switch_THT:SW_PUSH_6mm_H4.3mm</footprint>
+      <fields>
+        <field name="Footprint">Button_Switch_THT:SW_PUSH_6mm_H4.3mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Switch" part="SW_Push" description="Push button switch, generic, two pins"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="switch normally-open pushbutton push-button"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>56ffe9a0-3f45-5c20-9f46-ef21743f6218</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="SW2">
+      <value>B3F-1000 SELECT_ACK</value>
+      <footprint>Button_Switch_THT:SW_PUSH_6mm_H4.3mm</footprint>
+      <fields>
+        <field name="Footprint">Button_Switch_THT:SW_PUSH_6mm_H4.3mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Switch" part="SW_Push" description="Push button switch, generic, two pins"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="switch normally-open pushbutton push-button"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>32281a51-2670-517b-956a-ead78f9d2db5</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="SW3">
+      <value>B3F-1000 LOG</value>
+      <footprint>Button_Switch_THT:SW_PUSH_6mm_H4.3mm</footprint>
+      <fields>
+        <field name="Footprint">Button_Switch_THT:SW_PUSH_6mm_H4.3mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Switch" part="SW_Push" description="Push button switch, generic, two pins"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="switch normally-open pushbutton push-button"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>71fddafe-8977-5ddd-af58-42ad009e872f</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="SW4">
+      <value>B3U-1000P BOOTSEL</value>
+      <footprint>Button_Switch_SMD:SW_SPST_B3U-1000P</footprint>
+      <fields>
+        <field name="Footprint">Button_Switch_SMD:SW_SPST_B3U-1000P</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Switch" part="SW_Push" description="Push button switch, generic, two pins"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="switch normally-open pushbutton push-button"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>a1ebaaf9-b0d9-534a-bb79-6919255d65bc</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="SW5">
+      <value>B3U-1000P RESET</value>
+      <footprint>Button_Switch_SMD:SW_SPST_B3U-1000P</footprint>
+      <fields>
+        <field name="Footprint">Button_Switch_SMD:SW_SPST_B3U-1000P</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Switch" part="SW_Push" description="Push button switch, generic, two pins"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="switch normally-open pushbutton push-button"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>1b785aeb-83b9-517b-bc4e-58f3b64674d7</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP1">
+      <value>VBUS probe pad</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="TestPoint" description="test point"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="test point tp"/>
+      <property name="ki_fp_filters" value="Pin* Test*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>fcb8c8ef-41f0-5a39-bb97-2a83624ccbba</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP2">
+      <value>3V3 probe pad</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="TestPoint" description="test point"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="test point tp"/>
+      <property name="ki_fp_filters" value="Pin* Test*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>9bb9a027-74ea-5818-b364-784956309979</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP3">
+      <value>FAN1_5V probe pad</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="TestPoint" description="test point"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="test point tp"/>
+      <property name="ki_fp_filters" value="Pin* Test*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>6fedb778-73c9-5920-ad44-029cb20d04e4</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP4">
+      <value>FAN2_5V probe pad</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="TestPoint" description="test point"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="test point tp"/>
+      <property name="ki_fp_filters" value="Pin* Test*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>62353643-bc93-590d-84ca-b5b928afbf3c</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP5">
+      <value>GND probe pad</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="TestPoint" description="test point"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="test point tp"/>
+      <property name="ki_fp_filters" value="Pin* Test*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>73da0afb-d1df-5542-8ce8-07dcaf6c2796</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP6">
+      <value>FAN1_TACH probe pad</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="TestPoint" description="test point"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="test point tp"/>
+      <property name="ki_fp_filters" value="Pin* Test*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>fa6e15b6-f592-5f50-bb5a-51574bac6805</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="TP7">
+      <value>FAN2_TACH probe pad</value>
+      <footprint>TestPoint:TestPoint_Pad_D1.0mm</footprint>
+      <fields>
+        <field name="Footprint">TestPoint:TestPoint_Pad_D1.0mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector" part="TestPoint" description="test point"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="test point tp"/>
+      <property name="ki_fp_filters" value="Pin* Test*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>6344ea70-c54a-5e42-833c-79ef57dbb010</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U1">
+      <value>RP2040</value>
+      <footprint>Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm_ThermalVias</footprint>
+      <fields>
+        <field name="Footprint">Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm_ThermalVias</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="MCU_RaspberryPi" part="RP2040" description="A microcontroller by Raspberry Pi, Dual ARM Cortex-M0+, 133MHz, no flash, 264KB SRAM, 8 PIO state machines, VQFN-56"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="RPi Pico USB QSPI I2C UART SC0914"/>
+      <property name="ki_fp_filters" value="*QFN*7x7mm?P0.4mm?EP3.2x3.2mm*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>292b11e6-d073-5873-82cc-ad02c593b90d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="19"/>
+            <pin num="26"/>
+            <pin num="46"/>
+            <pin num="47"/>
+            <pin num="56"/>
+            <pin num="52"/>
+            <pin num="53"/>
+            <pin num="55"/>
+            <pin num="54"/>
+            <pin num="51"/>
+            <pin num="20"/>
+            <pin num="21"/>
+            <pin num="24"/>
+            <pin num="25"/>
+            <pin num="48"/>
+            <pin num="43"/>
+            <pin num="1"/>
+            <pin num="22"/>
+            <pin num="10"/>
+            <pin num="49"/>
+            <pin num="42"/>
+            <pin num="33"/>
+            <pin num="57"/>
+            <pin num="44"/>
+            <pin num="45"/>
+            <pin num="23"/>
+            <pin num="50"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+            <pin num="7"/>
+            <pin num="8"/>
+            <pin num="9"/>
+            <pin num="11"/>
+            <pin num="12"/>
+            <pin num="13"/>
+            <pin num="14"/>
+            <pin num="15"/>
+            <pin num="16"/>
+            <pin num="17"/>
+            <pin num="18"/>
+            <pin num="27"/>
+            <pin num="28"/>
+            <pin num="29"/>
+            <pin num="30"/>
+            <pin num="31"/>
+            <pin num="32"/>
+            <pin num="34"/>
+            <pin num="35"/>
+            <pin num="36"/>
+            <pin num="37"/>
+            <pin num="38"/>
+            <pin num="39"/>
+            <pin num="40"/>
+            <pin num="41"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U2">
+      <value>W25Q16JVSSIQ</value>
+      <footprint>Package_SO:SOIC-8_3.9x4.9mm_P1.27mm</footprint>
+      <fields>
+        <field name="Footprint">Package_SO:SOIC-8_3.9x4.9mm_P1.27mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Memory_Flash" part="W25Q16JVSS" description="16Mbit / 2MiB Serial Flash Memory, Standard/Dual/Quad SPI, 2.7-3.6V, SOIC-8 (208 mil)"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="flash memory SPI"/>
+      <property name="ki_fp_filters" value="*SOIC*5.3x5.3mm*P1.27mm*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>4334267c-18d6-5ab0-9dae-89de0bfadd07</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="6"/>
+            <pin num="5"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="7"/>
+            <pin num="8"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U3">
+      <value>AP2112K-3.3TRG1</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23-5</footprint>
+      <fields>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23-5</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Regulator_Linear" part="AP2112K-3.3" description="600mA low dropout linear regulator, with enable pin, 3.8V-6V input voltage range, 3.3V fixed positive output, SOT-23-5"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="linear regulator ldo fixed positive"/>
+      <property name="ki_fp_filters" value="SOT?23?5*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>c2b94dab-f69f-5b13-8406-3a4ec9b66c3d</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="2"/>
+            <pin num="4"/>
+            <pin num="5"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U4">
+      <value>TUSB320LAIRWBR</value>
+      <footprint>PCBSmith_AeroSense:TUSB320_X2QFN12</footprint>
+      <fields>
+        <field name="Footprint">PCBSmith_AeroSense:TUSB320_X2QFN12</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Interface_USB" part="TUSB320" description="USB Type-C Configuration Channel Logic and Port Control, X2QFN-12"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="USB PD CC"/>
+      <property name="ki_fp_filters" value="Texas?X2QFN*1.6x1.6mm*P0.4mm*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e80907bc-a8d4-557c-8653-1774fbf6d551</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="7"/>
+            <pin num="8"/>
+            <pin num="6"/>
+            <pin num="9"/>
+            <pin num="11"/>
+            <pin num="12"/>
+            <pin num="10"/>
+            <pin num="4"/>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="5"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U5">
+      <value>TPS2553DBVR</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23-6</footprint>
+      <fields>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23-6</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_01x06" description="Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>a54f7e57-72eb-5675-8104-bd2f37cef5d4</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U6">
+      <value>TPS2553DBVR</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23-6</footprint>
+      <fields>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23-6</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Connector_Generic" part="Conn_01x06" description="Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="connector"/>
+      <property name="ki_fp_filters" value="Connector*:*_1x??_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>915ea296-a81a-51d4-93f4-bf93f8e12335</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="3"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U7">
+      <value>USBLC6-2SC6</value>
+      <footprint>Package_TO_SOT_SMD:SOT-23-6</footprint>
+      <fields>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23-6</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Power_Protection" part="USBLC6-2SC6" description="Very low capacitance ESD protection diode, 2 data-line, SOT-23-6"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="usb ethernet video"/>
+      <property name="ki_fp_filters" value="SOT?23*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>e4b40a66-127b-54f5-a939-6d6609a9fcb9</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="5"/>
+            <pin num="2"/>
+            <pin num="6"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U8">
+      <value>SHT45-AD1B-R3</value>
+      <footprint>PCBSmith_AeroSense:Sensirion_SHT45_NoCentralPad</footprint>
+      <fields>
+        <field name="Footprint">PCBSmith_AeroSense:Sensirion_SHT45_NoCentralPad</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Sensor_Humidity" part="SHT4x" description="Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="Sensirion environment environmental measurement digital SHT40 SHT41 SHT45"/>
+      <property name="ki_fp_filters" value="Sensirion?DFN*1.5x1.5mm*P0.8mm*SHT4x*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>8f89141c-db26-5ba2-9b58-cf8faf9999fe</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="2"/>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="4"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U9">
+      <value>TPD1E10B06DPYR</value>
+      <footprint>PCBSmith_AeroSense:TPD1E10B06_DPY2</footprint>
+      <fields>
+        <field name="Footprint">PCBSmith_AeroSense:TPD1E10B06_DPY2</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="D_TVS" description="Bidirectional transient-voltage-suppression diode"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="diode TVS thyrector"/>
+      <property name="ki_fp_filters" value="TO-???* *_Diode_* *SingleDiode* D_*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>0975696a-6b86-527c-a42d-b10ea9acf084</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U10">
+      <value>TPD2EUSB30DRTR</value>
+      <footprint>Package_TO_SOT_SMD:Texas_DRT-3</footprint>
+      <fields>
+        <field name="Footprint">Package_TO_SOT_SMD:Texas_DRT-3</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Power_Protection" part="TPD2EUSB30" description="2-Channel ESD Protection for Super-Speed USB 3.0 Interface, DRT-3"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="ESD protection USB 3.0"/>
+      <property name="ki_fp_filters" value="Texas*DRT*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>fc674a84-ee2b-5a61-9514-d71de65e2a3c</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="3"/>
+            <pin num="2"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="U11">
+      <value>TPD4E05U06DQAR</value>
+      <footprint>Package_SON:USON-10_2.5x1.0mm_P0.5mm</footprint>
+      <fields>
+        <field name="Footprint">Package_SON:USON-10_2.5x1.0mm_P0.5mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Power_Protection" part="TPD4E05U06DQA" description="4-Channel ESD Protection for Super-Speed USB 3.0 Interface, USON-10"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="ESD protection USB 3.0"/>
+      <property name="ki_fp_filters" value="USON*2.5x1.0mm*P0.5mm*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>3672fdcb-088a-54bf-9410-7b54d6cff9b5</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="10"/>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="9"/>
+            <pin num="3"/>
+            <pin num="8"/>
+            <pin num="7"/>
+            <pin num="4"/>
+            <pin num="5"/>
+            <pin num="6"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+    <comp ref="Y1">
+      <value>ABM8-272-T3 12MHz</value>
+      <footprint>Crystal:Crystal_SMD_Abracon_ABM8G-4Pin_3.2x2.5mm</footprint>
+      <fields>
+        <field name="Footprint">Crystal:Crystal_SMD_Abracon_ABM8G-4Pin_3.2x2.5mm</field>
+        <field name="Datasheet"/>
+        <field name="Description"/>
+      </fields>
+      <libsource lib="Device" part="Crystal_GND24" description="Four pin crystal, GND on pins 2 and 4"/>
+      <property name="Sheetname" value=""/>
+      <property name="Sheetfile" value="aerosense-2f-r001.kicad_sch"/>
+      <property name="ki_keywords" value="quartz ceramic resonator oscillator"/>
+      <property name="ki_fp_filters" value="Crystal*"/>
+      <sheetpath names="/" tstamps="/"/>
+      <tstamps>8cbd8458-1032-5e24-a285-c7f017211d68</tstamps>
+      <units>
+        <unit name="A">
+          <pins>
+            <pin num="1"/>
+            <pin num="2"/>
+            <pin num="4"/>
+            <pin num="3"/>
+          </pins>
+        </unit>
+      </units>
+    </comp>
+  </components>
+  <libparts>
+    <libpart lib="Connector" part="Micro_SD_Card_Det_Hirose_DM3AT">
+      <description>Micro SD Card Socket with card detection pins</description>
+      <docs>https://www.hirose.com/product/en/download_file/key_name/DM3/category/Catalog/doc_file_id/49662/?file_category_id=4&amp;item_id=195&amp;is_series=1</docs>
+      <footprints>
+        <fp>microSD*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Micro_SD_Card_Det_Hirose_DM3AT</field>
+        <field name="Footprint"/>
+        <field name="Datasheet">https://www.hirose.com/product/en/download_file/key_name/DM3/category/Catalog/doc_file_id/49662/?file_category_id=4&amp;item_id=195&amp;is_series=1</field>
+        <field name="Description">Micro SD Card Socket with card detection pins</field>
+      </fields>
+      <pins>
+        <pin num="1" name="DAT2" type="bidirectional"/>
+        <pin num="2" name="DAT3/CD" type="bidirectional"/>
+        <pin num="3" name="CMD" type="input"/>
+        <pin num="4" name="VDD" type="power_in"/>
+        <pin num="5" name="CLK" type="input"/>
+        <pin num="6" name="VSS" type="power_in"/>
+        <pin num="7" name="DAT0" type="bidirectional"/>
+        <pin num="8" name="DAT1" type="bidirectional"/>
+        <pin num="9" name="DET_B" type="passive"/>
+        <pin num="10" name="DET_A" type="passive"/>
+        <pin num="SH" name="SHIELD" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Connector" part="TestPoint">
+      <description>test point</description>
+      <footprints>
+        <fp>Pin*</fp>
+        <fp>Test*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">TP</field>
+        <field name="Value">TestPoint</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">test point</field>
+      </fields>
+      <pins>
+        <pin num="1" name="1" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Connector" part="USB_C_Receptacle_USB2.0_16P">
+      <description>USB 2.0-only 16P Type-C Receptacle connector</description>
+      <docs>https://www.usb.org/sites/default/files/documents/usb_type-c.zip</docs>
+      <footprints>
+        <fp>USB*C*Receptacle*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">USB_C_Receptacle_USB2.0_16P</field>
+        <field name="Footprint"/>
+        <field name="Datasheet">https://www.usb.org/sites/default/files/documents/usb_type-c.zip</field>
+        <field name="Description">USB 2.0-only 16P Type-C Receptacle connector</field>
+      </fields>
+      <pins>
+        <pin num="A1" name="GND" type="passive"/>
+        <pin num="A4" name="VBUS" type="passive"/>
+        <pin num="A5" name="CC1" type="bidirectional"/>
+        <pin num="A6" name="D+" type="bidirectional"/>
+        <pin num="A7" name="D-" type="bidirectional"/>
+        <pin num="A8" name="SBU1" type="bidirectional"/>
+        <pin num="A9" name="VBUS" type="passive"/>
+        <pin num="A12" name="GND" type="passive"/>
+        <pin num="B1" name="GND" type="passive"/>
+        <pin num="B4" name="VBUS" type="passive"/>
+        <pin num="B5" name="CC2" type="bidirectional"/>
+        <pin num="B6" name="D+" type="bidirectional"/>
+        <pin num="B7" name="D-" type="bidirectional"/>
+        <pin num="B8" name="SBU2" type="bidirectional"/>
+        <pin num="B9" name="VBUS" type="passive"/>
+        <pin num="B12" name="GND" type="passive"/>
+        <pin num="SH" name="SHIELD" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Connector_Generic" part="Conn_01x04">
+      <description>Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
+      <footprints>
+        <fp>Connector*:*_1x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x04</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Generic connector, single row, 01x04, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Connector_Generic" part="Conn_01x06">
+      <description>Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)</description>
+      <footprints>
+        <fp>Connector*:*_1x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_01x06</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Generic connector, single row, 01x06, script generated (kicad-library-utils/schlib/autogen/connector/)</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+        <pin num="6" name="Pin_6" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Connector_Generic" part="Conn_02x03_Odd_Even">
+      <description>Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)</description>
+      <footprints>
+        <fp>Connector*:*_2x??_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">J</field>
+        <field name="Value">Conn_02x03_Odd_Even</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Generic connector, double row, 02x03, odd/even pin numbering scheme (row 1 odd numbers, row 2 even numbers), script generated (kicad-library-utils/schlib/autogen/connector/)</field>
+      </fields>
+      <pins>
+        <pin num="1" name="Pin_1" type="passive"/>
+        <pin num="2" name="Pin_2" type="passive"/>
+        <pin num="3" name="Pin_3" type="passive"/>
+        <pin num="4" name="Pin_4" type="passive"/>
+        <pin num="5" name="Pin_5" type="passive"/>
+        <pin num="6" name="Pin_6" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Device" part="C">
+      <description>Unpolarized capacitor</description>
+      <footprints>
+        <fp>C_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">C</field>
+        <field name="Value">C</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Unpolarized capacitor</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Device" part="Crystal_GND24">
+      <description>Four pin crystal, GND on pins 2 and 4</description>
+      <footprints>
+        <fp>Crystal*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">Y</field>
+        <field name="Value">Crystal_GND24</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Four pin crystal, GND on pins 2 and 4</field>
+        <field name="KLC_S3.3">The rectangle is not a symbol body but a graphical element</field>
+        <field name="KLC_S4.1">Some pins are on 50mil grid to make the symbol small</field>
+      </fields>
+      <pins>
+        <pin num="1" name="1" type="passive"/>
+        <pin num="2" name="G" type="passive"/>
+        <pin num="3" name="3" type="passive"/>
+        <pin num="4" name="G" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Device" part="D_TVS">
+      <description>Bidirectional transient-voltage-suppression diode</description>
+      <footprints>
+        <fp>TO-???*</fp>
+        <fp>*_Diode_*</fp>
+        <fp>*SingleDiode*</fp>
+        <fp>D_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">D</field>
+        <field name="Value">D_TVS</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Bidirectional transient-voltage-suppression diode</field>
+      </fields>
+      <pins>
+        <pin num="1" name="A1" type="passive"/>
+        <pin num="2" name="A2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Device" part="FerriteBead">
+      <description>Ferrite bead</description>
+      <footprints>
+        <fp>Inductor_*</fp>
+        <fp>L_*</fp>
+        <fp>*Ferrite*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">FB</field>
+        <field name="Value">FerriteBead</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Ferrite bead</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Device" part="LED">
+      <description>Light emitting diode</description>
+      <footprints>
+        <fp>LED*</fp>
+        <fp>LED_SMD:*</fp>
+        <fp>LED_THT:*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">D</field>
+        <field name="Value">LED</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Light emitting diode</field>
+        <field name="Sim.Pins">1=K 2=A</field>
+      </fields>
+      <pins>
+        <pin num="1" name="K" type="passive"/>
+        <pin num="2" name="A" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Device" part="R">
+      <description>Resistor</description>
+      <footprints>
+        <fp>R_*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">R</field>
+        <field name="Value">R</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Resistor</field>
+      </fields>
+      <pins>
+        <pin num="1" name="" type="passive"/>
+        <pin num="2" name="" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Interface_USB" part="TUSB320">
+      <description>USB Type-C Configuration Channel Logic and Port Control, X2QFN-12</description>
+      <docs>http://www.ti.com/lit/ds/symlink/tusb320.pdf</docs>
+      <footprints>
+        <fp>Texas?X2QFN*1.6x1.6mm*P0.4mm*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">TUSB320</field>
+        <field name="Footprint">Package_DFN_QFN:Texas_X2QFN-12_1.6x1.6mm_P0.4mm</field>
+        <field name="Datasheet">http://www.ti.com/lit/ds/symlink/tusb320.pdf</field>
+        <field name="Description">USB Type-C Configuration Channel Logic and Port Control, X2QFN-12</field>
+      </fields>
+      <pins>
+        <pin num="1" name="CC1" type="bidirectional"/>
+        <pin num="2" name="CC2" type="bidirectional"/>
+        <pin num="3" name="PORT" type="input"/>
+        <pin num="4" name="VBUS_DET" type="input"/>
+        <pin num="5" name="ADDR" type="input"/>
+        <pin num="6" name="~{INT}/OUT3" type="open_collector"/>
+        <pin num="7" name="SDA/OUT1" type="bidirectional"/>
+        <pin num="8" name="SCL/OUT2" type="bidirectional"/>
+        <pin num="9" name="ID" type="open_collector"/>
+        <pin num="10" name="GND" type="power_in"/>
+        <pin num="11" name="~{EN}" type="input"/>
+        <pin num="12" name="VDD" type="power_in"/>
+      </pins>
+    </libpart>
+    <libpart lib="MCU_RaspberryPi" part="RP2040">
+      <description>A microcontroller by Raspberry Pi, Dual ARM Cortex-M0+, 133MHz, no flash, 264KB SRAM, 8 PIO state machines, VQFN-56</description>
+      <docs>https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf</docs>
+      <footprints>
+        <fp>*QFN*7x7mm?P0.4mm?EP3.2x3.2mm*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">RP2040</field>
+        <field name="Footprint">Package_DFN_QFN:QFN-56-1EP_7x7mm_P0.4mm_EP3.2x3.2mm</field>
+        <field name="Datasheet">https://datasheets.raspberrypi.com/rp2040/rp2040-datasheet.pdf</field>
+        <field name="Description">A microcontroller by Raspberry Pi, Dual ARM Cortex-M0+, 133MHz, no flash, 264KB SRAM, 8 PIO state machines, VQFN-56</field>
+        <field name="KLC_S4.2_DVDD">Not a standalone power converter; internal on-chip voltage regulator for digital core supply; DVDD is the digital core power supply, should be placed next to voltage regulator output.</field>
+        <field name="KLC_S4.2_VREG_VOUT">Should be placed next to DVDD.</field>
+      </fields>
+      <pins>
+        <pin num="1" name="IOVDD" type="power_in"/>
+        <pin num="2" name="GPIO0" type="bidirectional"/>
+        <pin num="3" name="GPIO1" type="bidirectional"/>
+        <pin num="4" name="GPIO2" type="bidirectional"/>
+        <pin num="5" name="GPIO3" type="bidirectional"/>
+        <pin num="6" name="GPIO4" type="bidirectional"/>
+        <pin num="7" name="GPIO5" type="bidirectional"/>
+        <pin num="8" name="GPIO6" type="bidirectional"/>
+        <pin num="9" name="GPIO7" type="bidirectional"/>
+        <pin num="10" name="IOVDD" type="passive"/>
+        <pin num="11" name="GPIO8" type="bidirectional"/>
+        <pin num="12" name="GPIO9" type="bidirectional"/>
+        <pin num="13" name="GPIO10" type="bidirectional"/>
+        <pin num="14" name="GPIO11" type="bidirectional"/>
+        <pin num="15" name="GPIO12" type="bidirectional"/>
+        <pin num="16" name="GPIO13" type="bidirectional"/>
+        <pin num="17" name="GPIO14" type="bidirectional"/>
+        <pin num="18" name="GPIO15" type="bidirectional"/>
+        <pin num="19" name="TESTEN" type="input"/>
+        <pin num="20" name="XIN" type="input"/>
+        <pin num="21" name="XOUT" type="output"/>
+        <pin num="22" name="IOVDD" type="passive"/>
+        <pin num="23" name="DVDD" type="power_in"/>
+        <pin num="24" name="SWCLK" type="input"/>
+        <pin num="25" name="SWDIO" type="bidirectional"/>
+        <pin num="26" name="RUN" type="input"/>
+        <pin num="27" name="GPIO16" type="bidirectional"/>
+        <pin num="28" name="GPIO17" type="bidirectional"/>
+        <pin num="29" name="GPIO18" type="bidirectional"/>
+        <pin num="30" name="GPIO19" type="bidirectional"/>
+        <pin num="31" name="GPIO20" type="bidirectional"/>
+        <pin num="32" name="GPIO21" type="bidirectional"/>
+        <pin num="33" name="IOVDD" type="passive"/>
+        <pin num="34" name="GPIO22" type="bidirectional"/>
+        <pin num="35" name="GPIO23" type="bidirectional"/>
+        <pin num="36" name="GPIO24" type="bidirectional"/>
+        <pin num="37" name="GPIO25" type="bidirectional"/>
+        <pin num="38" name="GPIO26/ADC0" type="bidirectional"/>
+        <pin num="39" name="GPIO27/ADC1" type="bidirectional"/>
+        <pin num="40" name="GPIO28/ADC2" type="bidirectional"/>
+        <pin num="41" name="GPIO29/ADC3" type="bidirectional"/>
+        <pin num="42" name="IOVDD" type="passive"/>
+        <pin num="43" name="ADC_AVDD" type="power_in"/>
+        <pin num="44" name="VREG_VIN" type="power_in"/>
+        <pin num="45" name="VREG_VOUT" type="power_out"/>
+        <pin num="46" name="USB_DM" type="bidirectional"/>
+        <pin num="47" name="USB_DP" type="bidirectional"/>
+        <pin num="48" name="USB_VDD" type="power_in"/>
+        <pin num="49" name="IOVDD" type="passive"/>
+        <pin num="50" name="DVDD" type="passive"/>
+        <pin num="51" name="QSPI_SD3" type="bidirectional"/>
+        <pin num="52" name="QSPI_SCLK" type="output"/>
+        <pin num="53" name="QSPI_SD0" type="bidirectional"/>
+        <pin num="54" name="QSPI_SD2" type="bidirectional"/>
+        <pin num="55" name="QSPI_SD1" type="bidirectional"/>
+        <pin num="56" name="~{QSPI_SS}" type="output"/>
+        <pin num="57" name="GND" type="power_in"/>
+      </pins>
+    </libpart>
+    <libpart lib="Memory_Flash" part="W25Q16JVSS">
+      <description>16Mbit / 2MiB Serial Flash Memory, Standard/Dual/Quad SPI, 2.7-3.6V, SOIC-8 (208 mil)</description>
+      <docs>https://www.winbond.com/hq/support/documentation/levelOne.jsp?__locale=en&amp;DocNo=DA00-W25Q16JV.1</docs>
+      <footprints>
+        <fp>*SOIC*5.3x5.3mm*P1.27mm*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">W25Q16JVSS</field>
+        <field name="Footprint">Package_SO:SOIC-8_5.3x5.3mm_P1.27mm</field>
+        <field name="Datasheet">https://www.winbond.com/hq/support/documentation/levelOne.jsp?__locale=en&amp;DocNo=DA00-W25Q16JV.1</field>
+        <field name="Description">16Mbit / 2MiB Serial Flash Memory, Standard/Dual/Quad SPI, 2.7-3.6V, SOIC-8 (208 mil)</field>
+      </fields>
+      <pins>
+        <pin num="1" name="~{CS}" type="input"/>
+        <pin num="2" name="DO/IO_{1}" type="bidirectional"/>
+        <pin num="3" name="~{WP}/IO_{2}" type="bidirectional"/>
+        <pin num="4" name="GND" type="power_in"/>
+        <pin num="5" name="DI/IO_{0}" type="bidirectional"/>
+        <pin num="6" name="CLK" type="input"/>
+        <pin num="7" name="~{HOLD}/~{RESET}/IO_{3}" type="bidirectional"/>
+        <pin num="8" name="VCC" type="power_in"/>
+      </pins>
+    </libpart>
+    <libpart lib="Power_Protection" part="TPD2EUSB30">
+      <description>2-Channel ESD Protection for Super-Speed USB 3.0 Interface, DRT-3</description>
+      <docs>http://www.ti.com/lit/ds/symlink/tpd2eusb30a.pdf</docs>
+      <footprints>
+        <fp>Texas*DRT*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">TPD2EUSB30</field>
+        <field name="Footprint">Package_TO_SOT_SMD:Texas_DRT-3</field>
+        <field name="Datasheet">http://www.ti.com/lit/ds/symlink/tpd2eusb30a.pdf</field>
+        <field name="Description">2-Channel ESD Protection for Super-Speed USB 3.0 Interface, DRT-3</field>
+      </fields>
+      <pins>
+        <pin num="1" name="D+" type="passive"/>
+        <pin num="2" name="D-" type="passive"/>
+        <pin num="3" name="GND" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Power_Protection" part="TPD4E05U06DQA">
+      <description>4-Channel ESD Protection for Super-Speed USB 3.0 Interface, USON-10</description>
+      <docs>https://www.ti.com/lit/ds/symlink/tpd4e05u06.pdf</docs>
+      <footprints>
+        <fp>USON*2.5x1.0mm*P0.5mm*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">TPD4E05U06DQA</field>
+        <field name="Footprint">Package_SON:USON-10_2.5x1.0mm_P0.5mm</field>
+        <field name="Datasheet">https://www.ti.com/lit/ds/symlink/tpd4e05u06.pdf</field>
+        <field name="Description">4-Channel ESD Protection for Super-Speed USB 3.0 Interface, USON-10</field>
+      </fields>
+      <pins>
+        <pin num="1" name="D1+" type="passive"/>
+        <pin num="2" name="D1-" type="passive"/>
+        <pin num="3" name="GND" type="power_in"/>
+        <pin num="4" name="D2+" type="passive"/>
+        <pin num="5" name="D2-" type="passive"/>
+        <pin num="6" name="NC" type="free"/>
+        <pin num="7" name="NC" type="free"/>
+        <pin num="8" name="GND" type="passive"/>
+        <pin num="9" name="NC" type="free"/>
+        <pin num="10" name="NC" type="free"/>
+      </pins>
+    </libpart>
+    <libpart lib="Power_Protection" part="USBLC6-2SC6">
+      <description>Very low capacitance ESD protection diode, 2 data-line, SOT-23-6</description>
+      <docs>https://www.st.com/resource/en/datasheet/usblc6-2.pdf</docs>
+      <footprints>
+        <fp>SOT?23*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">USBLC6-2SC6</field>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23-6</field>
+        <field name="Datasheet">https://www.st.com/resource/en/datasheet/usblc6-2.pdf</field>
+        <field name="Description">Very low capacitance ESD protection diode, 2 data-line, SOT-23-6</field>
+      </fields>
+      <pins>
+        <pin num="1" name="I/O1" type="passive"/>
+        <pin num="2" name="GND" type="passive"/>
+        <pin num="3" name="I/O2" type="passive"/>
+        <pin num="4" name="I/O2" type="passive"/>
+        <pin num="5" name="VBUS" type="passive"/>
+        <pin num="6" name="I/O1" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Regulator_Linear" part="AP2112K-3.3">
+      <description>600mA low dropout linear regulator, with enable pin, 3.8V-6V input voltage range, 3.3V fixed positive output, SOT-23-5</description>
+      <docs>https://www.diodes.com/assets/Datasheets/AP2112.pdf</docs>
+      <footprints>
+        <fp>SOT?23?5*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">AP2112K-3.3</field>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23-5</field>
+        <field name="Datasheet">https://www.diodes.com/assets/Datasheets/AP2112.pdf</field>
+        <field name="Description">600mA low dropout linear regulator, with enable pin, 3.8V-6V input voltage range, 3.3V fixed positive output, SOT-23-5</field>
+      </fields>
+      <pins>
+        <pin num="1" name="VIN" type="power_in"/>
+        <pin num="2" name="GND" type="power_in"/>
+        <pin num="3" name="EN" type="input"/>
+        <pin num="4" name="NC" type="no_connect"/>
+        <pin num="5" name="VOUT" type="power_out"/>
+      </pins>
+    </libpart>
+    <libpart lib="Sensor_Humidity" part="SHT4x">
+      <description>Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4</description>
+      <docs>https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf</docs>
+      <footprints>
+        <fp>Sensirion?DFN*1.5x1.5mm*P0.8mm*SHT4x*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">U</field>
+        <field name="Value">SHT4x</field>
+        <field name="Footprint">Sensor_Humidity:Sensirion_DFN-4_1.5x1.5mm_P0.8mm_SHT4x_NoCentralPad</field>
+        <field name="Datasheet">https://sensirion.com/media/documents/33FD6951/624C4357/Datasheet_SHT4x.pdf</field>
+        <field name="Description">Digital Humidity and Temperature Sensor, ±1%RH, ±0.1°C, I2C, 1.08-3.6V, 16bit, DFN-4</field>
+      </fields>
+      <pins>
+        <pin num="1" name="SDA" type="bidirectional"/>
+        <pin num="2" name="SCL" type="input"/>
+        <pin num="3" name="VDD" type="power_in"/>
+        <pin num="4" name="VSS" type="power_in"/>
+      </pins>
+    </libpart>
+    <libpart lib="Switch" part="SW_Push">
+      <description>Push button switch, generic, two pins</description>
+      <fields>
+        <field name="Reference">SW</field>
+        <field name="Value">SW_Push</field>
+        <field name="Footprint"/>
+        <field name="Datasheet"/>
+        <field name="Description">Push button switch, generic, two pins</field>
+      </fields>
+      <pins>
+        <pin num="1" name="1" type="passive"/>
+        <pin num="2" name="2" type="passive"/>
+      </pins>
+    </libpart>
+    <libpart lib="Transistor_FET" part="2N7002">
+      <description>0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23</description>
+      <docs>https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF</docs>
+      <footprints>
+        <fp>SOT?23*</fp>
+      </footprints>
+      <fields>
+        <field name="Reference">Q</field>
+        <field name="Value">2N7002</field>
+        <field name="Footprint">Package_TO_SOT_SMD:SOT-23</field>
+        <field name="Datasheet">https://www.onsemi.com/pub/Collateral/NDS7002A-D.PDF</field>
+        <field name="Description">0.115A Id, 60V Vds, N-Channel MOSFET, SOT-23</field>
+      </fields>
+      <pins>
+        <pin num="1" name="G" type="input"/>
+        <pin num="2" name="S" type="passive"/>
+        <pin num="3" name="D" type="passive"/>
+      </pins>
+    </libpart>
+  </libparts>
+  <libraries>
+    <library logical="Connector">
+      <uri>${KICAD10_SYMBOL_DIR}/Connector.kicad_sym</uri>
+    </library>
+    <library logical="Connector_Generic">
+      <uri>${KICAD10_SYMBOL_DIR}/Connector_Generic.kicad_sym</uri>
+    </library>
+    <library logical="Device">
+      <uri>${KICAD10_SYMBOL_DIR}/Device.kicad_sym</uri>
+    </library>
+    <library logical="Interface_USB">
+      <uri>${KICAD10_SYMBOL_DIR}/Interface_USB.kicad_sym</uri>
+    </library>
+    <library logical="MCU_RaspberryPi">
+      <uri>${KICAD10_SYMBOL_DIR}/MCU_RaspberryPi.kicad_sym</uri>
+    </library>
+    <library logical="Memory_Flash">
+      <uri>${KICAD10_SYMBOL_DIR}/Memory_Flash.kicad_sym</uri>
+    </library>
+    <library logical="Power_Protection">
+      <uri>${KICAD10_SYMBOL_DIR}/Power_Protection.kicad_sym</uri>
+    </library>
+    <library logical="Regulator_Linear">
+      <uri>${KICAD10_SYMBOL_DIR}/Regulator_Linear.kicad_sym</uri>
+    </library>
+    <library logical="Sensor_Humidity">
+      <uri>${KICAD10_SYMBOL_DIR}/Sensor_Humidity.kicad_sym</uri>
+    </library>
+    <library logical="Switch">
+      <uri>${KICAD10_SYMBOL_DIR}/Switch.kicad_sym</uri>
+    </library>
+    <library logical="Transistor_FET">
+      <uri>${KICAD10_SYMBOL_DIR}/Transistor_FET.kicad_sym</uri>
+    </library>
+  </libraries>
+  <nets>
+    <net code="1" name="/1V1" class="Default">
+      <node ref="C12" pin="1" pintype="passive"/>
+      <node ref="U1" pin="23" pinfunction="DVDD_23" pintype="power_in"/>
+      <node ref="U1" pin="45" pinfunction="VREG_VOUT_45" pintype="power_out"/>
+      <node ref="U1" pin="50" pinfunction="DVDD_50" pintype="passive"/>
+    </net>
+    <net code="2" name="/3V3" class="Default">
+      <node ref="C10" pin="1" pintype="passive"/>
+      <node ref="C11" pin="1" pintype="passive"/>
+      <node ref="C14" pin="1" pintype="passive"/>
+      <node ref="C17" pin="1" pintype="passive"/>
+      <node ref="C24" pin="1" pintype="passive"/>
+      <node ref="C25" pin="1" pintype="passive"/>
+      <node ref="C26" pin="1" pintype="passive"/>
+      <node ref="C27" pin="1" pintype="passive"/>
+      <node ref="C28" pin="1" pintype="passive"/>
+      <node ref="C3" pin="1" pintype="passive"/>
+      <node ref="C4" pin="1" pintype="passive"/>
+      <node ref="C5" pin="1" pintype="passive"/>
+      <node ref="C6" pin="1" pintype="passive"/>
+      <node ref="C7" pin="1" pintype="passive"/>
+      <node ref="C8" pin="1" pintype="passive"/>
+      <node ref="C9" pin="1" pintype="passive"/>
+      <node ref="DS1" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
+      <node ref="FB1" pin="1" pintype="passive"/>
+      <node ref="J3" pin="4" pinfunction="VDD_4" pintype="power_in"/>
+      <node ref="J6" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
+      <node ref="R13" pin="1" pintype="passive"/>
+      <node ref="R14" pin="1" pintype="passive"/>
+      <node ref="R15" pin="1" pintype="passive"/>
+      <node ref="R16" pin="1" pintype="passive"/>
+      <node ref="R23" pin="1" pintype="passive"/>
+      <node ref="R24" pin="1" pintype="passive"/>
+      <node ref="R25" pin="1" pintype="passive"/>
+      <node ref="R29" pin="1" pintype="passive"/>
+      <node ref="R33" pin="1" pintype="passive"/>
+      <node ref="R4" pin="1" pintype="passive"/>
+      <node ref="R5" pin="1" pintype="passive"/>
+      <node ref="R6" pin="1" pintype="passive"/>
+      <node ref="R7" pin="1" pintype="passive"/>
+      <node ref="TP2" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="1" pinfunction="IOVDD_1" pintype="power_in"/>
+      <node ref="U1" pin="10" pinfunction="IOVDD_10" pintype="passive"/>
+      <node ref="U1" pin="22" pinfunction="IOVDD_22" pintype="passive"/>
+      <node ref="U1" pin="33" pinfunction="IOVDD_33" pintype="passive"/>
+      <node ref="U1" pin="42" pinfunction="IOVDD_42" pintype="passive"/>
+      <node ref="U1" pin="44" pinfunction="VREG_VIN_44" pintype="power_in"/>
+      <node ref="U1" pin="48" pinfunction="USB_VDD_48" pintype="power_in"/>
+      <node ref="U1" pin="49" pinfunction="IOVDD_49" pintype="passive"/>
+      <node ref="U2" pin="8" pinfunction="VCC_8" pintype="power_in"/>
+      <node ref="U3" pin="5" pinfunction="VOUT_5" pintype="power_out"/>
+      <node ref="U4" pin="12" pinfunction="VDD_12" pintype="power_in"/>
+      <node ref="U8" pin="3" pinfunction="VDD_3" pintype="power_in"/>
+    </net>
+    <net code="3" name="/ADC_3V3" class="Default">
+      <node ref="C13" pin="1" pintype="passive"/>
+      <node ref="FB1" pin="2" pintype="passive"/>
+      <node ref="U1" pin="43" pinfunction="ADC_AVDD_43" pintype="power_in"/>
+    </net>
+    <net code="4" name="/BOOT_BTN" class="Default">
+      <node ref="R34" pin="2" pintype="passive"/>
+      <node ref="SW4" pin="1" pinfunction="1_1" pintype="passive"/>
+    </net>
+    <net code="5" name="/CC1" class="Default">
+      <node ref="J1" pin="A5" pinfunction="CC1_A5" pintype="bidirectional"/>
+      <node ref="U10" pin="1" pinfunction="D+_1" pintype="passive"/>
+      <node ref="U4" pin="1" pinfunction="CC1_1" pintype="bidirectional"/>
+    </net>
+    <net code="6" name="/CC2" class="Default">
+      <node ref="J1" pin="B5" pinfunction="CC2_B5" pintype="bidirectional"/>
+      <node ref="U10" pin="2" pinfunction="D-_2" pintype="passive"/>
+      <node ref="U4" pin="2" pinfunction="CC2_2" pintype="bidirectional"/>
+    </net>
+    <net code="7" name="/FAN1_5V" class="Default">
+      <node ref="C20" pin="1" pintype="passive"/>
+      <node ref="C22" pin="1" pintype="passive"/>
+      <node ref="J4" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="TP3" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U5" pin="6" pinfunction="Pin_6_6" pintype="passive"/>
+    </net>
+    <net code="8" name="/FAN1_EN" class="Default">
+      <node ref="R11" pin="1" pintype="passive"/>
+      <node ref="U1" pin="8" pinfunction="GPIO6_8" pintype="bidirectional"/>
+      <node ref="U5" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
+    </net>
+    <net code="9" name="/FAN1_FAULT_N" class="Default">
+      <node ref="R13" pin="2" pintype="passive"/>
+      <node ref="U1" pin="15" pinfunction="GPIO12_15" pintype="bidirectional"/>
+      <node ref="U5" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
+    </net>
+    <net code="10" name="/FAN1_ILIM" class="Default">
+      <node ref="R9" pin="1" pintype="passive"/>
+      <node ref="U5" pin="5" pinfunction="Pin_5_5" pintype="passive"/>
+    </net>
+    <net code="11" name="/FAN1_PWM" class="Default">
+      <node ref="J4" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
+      <node ref="Q1" pin="3" pinfunction="D_3" pintype="passive"/>
+    </net>
+    <net code="12" name="/FAN1_PWM_GATE" class="Default">
+      <node ref="Q1" pin="1" pinfunction="G_1" pintype="input"/>
+      <node ref="R19" pin="2" pintype="passive"/>
+      <node ref="R21" pin="1" pintype="passive"/>
+    </net>
+    <net code="13" name="/FAN1_PWM_GPIO" class="Default">
+      <node ref="R19" pin="1" pintype="passive"/>
+      <node ref="U1" pin="11" pinfunction="GPIO8_11" pintype="bidirectional"/>
+    </net>
+    <net code="14" name="/FAN1_TACH" class="Default">
+      <node ref="C29" pin="1" pintype="passive"/>
+      <node ref="R17" pin="2" pintype="passive"/>
+      <node ref="TP6" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="13" pinfunction="GPIO10_13" pintype="bidirectional"/>
+    </net>
+    <net code="15" name="/FAN1_TACH_RAW" class="Default">
+      <node ref="J4" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
+      <node ref="R15" pin="2" pintype="passive"/>
+      <node ref="R17" pin="1" pintype="passive"/>
+    </net>
+    <net code="16" name="/FAN2_5V" class="Default">
+      <node ref="C21" pin="1" pintype="passive"/>
+      <node ref="C23" pin="1" pintype="passive"/>
+      <node ref="J5" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="TP4" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U6" pin="6" pinfunction="Pin_6_6" pintype="passive"/>
+    </net>
+    <net code="17" name="/FAN2_EN" class="Default">
+      <node ref="R12" pin="1" pintype="passive"/>
+      <node ref="U1" pin="9" pinfunction="GPIO7_9" pintype="bidirectional"/>
+      <node ref="U6" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
+    </net>
+    <net code="18" name="/FAN2_FAULT_N" class="Default">
+      <node ref="R14" pin="2" pintype="passive"/>
+      <node ref="U1" pin="16" pinfunction="GPIO13_16" pintype="bidirectional"/>
+      <node ref="U6" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
+    </net>
+    <net code="19" name="/FAN2_ILIM" class="Default">
+      <node ref="R10" pin="1" pintype="passive"/>
+      <node ref="U6" pin="5" pinfunction="Pin_5_5" pintype="passive"/>
+    </net>
+    <net code="20" name="/FAN2_PWM" class="Default">
+      <node ref="J5" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
+      <node ref="Q2" pin="3" pinfunction="D_3" pintype="passive"/>
+    </net>
+    <net code="21" name="/FAN2_PWM_GATE" class="Default">
+      <node ref="Q2" pin="1" pinfunction="G_1" pintype="input"/>
+      <node ref="R20" pin="2" pintype="passive"/>
+      <node ref="R22" pin="1" pintype="passive"/>
+    </net>
+    <net code="22" name="/FAN2_PWM_GPIO" class="Default">
+      <node ref="R20" pin="1" pintype="passive"/>
+      <node ref="U1" pin="12" pinfunction="GPIO9_12" pintype="bidirectional"/>
+    </net>
+    <net code="23" name="/FAN2_TACH" class="Default">
+      <node ref="C30" pin="1" pintype="passive"/>
+      <node ref="R18" pin="2" pintype="passive"/>
+      <node ref="TP7" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="14" pinfunction="GPIO11_14" pintype="bidirectional"/>
+    </net>
+    <net code="24" name="/FAN2_TACH_RAW" class="Default">
+      <node ref="J5" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
+      <node ref="R16" pin="2" pintype="passive"/>
+      <node ref="R18" pin="1" pintype="passive"/>
+    </net>
+    <net code="25" name="/GND" class="Default">
+      <node ref="C1" pin="2" pintype="passive"/>
+      <node ref="C10" pin="2" pintype="passive"/>
+      <node ref="C11" pin="2" pintype="passive"/>
+      <node ref="C12" pin="2" pintype="passive"/>
+      <node ref="C13" pin="2" pintype="passive"/>
+      <node ref="C14" pin="2" pintype="passive"/>
+      <node ref="C15" pin="2" pintype="passive"/>
+      <node ref="C16" pin="2" pintype="passive"/>
+      <node ref="C17" pin="2" pintype="passive"/>
+      <node ref="C18" pin="2" pintype="passive"/>
+      <node ref="C19" pin="2" pintype="passive"/>
+      <node ref="C2" pin="2" pintype="passive"/>
+      <node ref="C20" pin="2" pintype="passive"/>
+      <node ref="C21" pin="2" pintype="passive"/>
+      <node ref="C22" pin="2" pintype="passive"/>
+      <node ref="C23" pin="2" pintype="passive"/>
+      <node ref="C24" pin="2" pintype="passive"/>
+      <node ref="C25" pin="2" pintype="passive"/>
+      <node ref="C26" pin="2" pintype="passive"/>
+      <node ref="C27" pin="2" pintype="passive"/>
+      <node ref="C28" pin="2" pintype="passive"/>
+      <node ref="C29" pin="2" pintype="passive"/>
+      <node ref="C3" pin="2" pintype="passive"/>
+      <node ref="C30" pin="2" pintype="passive"/>
+      <node ref="C4" pin="2" pintype="passive"/>
+      <node ref="C5" pin="2" pintype="passive"/>
+      <node ref="C6" pin="2" pintype="passive"/>
+      <node ref="C7" pin="2" pintype="passive"/>
+      <node ref="C8" pin="2" pintype="passive"/>
+      <node ref="C9" pin="2" pintype="passive"/>
+      <node ref="D1" pin="1" pinfunction="K_1" pintype="passive"/>
+      <node ref="D2" pin="1" pinfunction="K_1" pintype="passive"/>
+      <node ref="D3" pin="1" pinfunction="K_1" pintype="passive"/>
+      <node ref="DS1" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
+      <node ref="J1" pin="A1" pinfunction="GND_A1" pintype="passive"/>
+      <node ref="J1" pin="A12" pinfunction="GND_A12" pintype="passive"/>
+      <node ref="J1" pin="B1" pinfunction="GND_B1" pintype="passive"/>
+      <node ref="J1" pin="B12" pinfunction="GND_B12" pintype="passive"/>
+      <node ref="J1" pin="SH" pinfunction="SHIELD_SH" pintype="passive"/>
+      <node ref="J3" pin="6" pinfunction="VSS_6" pintype="power_in"/>
+      <node ref="J3" pin="9" pinfunction="DET_B_9" pintype="passive"/>
+      <node ref="J3" pin="SH" pinfunction="SHIELD_SH" pintype="passive"/>
+      <node ref="J4" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
+      <node ref="J5" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
+      <node ref="J6" pin="3" pinfunction="Pin_3_3" pintype="passive"/>
+      <node ref="Q1" pin="2" pinfunction="S_2" pintype="passive"/>
+      <node ref="Q2" pin="2" pinfunction="S_2" pintype="passive"/>
+      <node ref="R10" pin="2" pintype="passive"/>
+      <node ref="R11" pin="2" pintype="passive"/>
+      <node ref="R12" pin="2" pintype="passive"/>
+      <node ref="R21" pin="2" pintype="passive"/>
+      <node ref="R22" pin="2" pintype="passive"/>
+      <node ref="R9" pin="2" pintype="passive"/>
+      <node ref="SW1" pin="2" pinfunction="2_2" pintype="passive"/>
+      <node ref="SW2" pin="2" pinfunction="2_2" pintype="passive"/>
+      <node ref="SW3" pin="2" pinfunction="2_2" pintype="passive"/>
+      <node ref="SW4" pin="2" pinfunction="2_2" pintype="passive"/>
+      <node ref="SW5" pin="2" pinfunction="2_2" pintype="passive"/>
+      <node ref="TP5" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="19" pinfunction="TESTEN_19" pintype="input"/>
+      <node ref="U1" pin="57" pinfunction="GND_57" pintype="power_in"/>
+      <node ref="U10" pin="3" pinfunction="GND_3" pintype="passive"/>
+      <node ref="U11" pin="3" pinfunction="GND_3" pintype="power_in"/>
+      <node ref="U11" pin="8" pinfunction="GND_8" pintype="passive"/>
+      <node ref="U2" pin="4" pinfunction="GND_4" pintype="power_in"/>
+      <node ref="U3" pin="2" pinfunction="GND_2" pintype="power_in"/>
+      <node ref="U4" pin="10" pinfunction="GND_10" pintype="power_in"/>
+      <node ref="U4" pin="11" pinfunction="~{EN}_11" pintype="input"/>
+      <node ref="U4" pin="3" pinfunction="PORT_3" pintype="input"/>
+      <node ref="U5" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="U6" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="U7" pin="2" pinfunction="GND_2" pintype="passive"/>
+      <node ref="U8" pin="4" pinfunction="VSS_4" pintype="power_in"/>
+      <node ref="U9" pin="1" pinfunction="A1_1" pintype="passive"/>
+      <node ref="Y1" pin="2" pinfunction="G_2" pintype="passive"/>
+      <node ref="Y1" pin="4" pinfunction="G_4" pintype="passive"/>
+    </net>
+    <net code="26" name="/I2C_SCL" class="Default">
+      <node ref="DS1" pin="5" pinfunction="Pin_5_5" pintype="passive"/>
+      <node ref="U1" pin="3" pinfunction="GPIO1_3" pintype="bidirectional"/>
+      <node ref="U8" pin="2" pinfunction="SCL_2" pintype="input"/>
+    </net>
+    <net code="27" name="/I2C_SDA" class="Default">
+      <node ref="DS1" pin="6" pinfunction="Pin_6_6" pintype="passive"/>
+      <node ref="U1" pin="2" pinfunction="GPIO0_2" pintype="bidirectional"/>
+      <node ref="U8" pin="1" pinfunction="SDA_1" pintype="bidirectional"/>
+    </net>
+    <net code="28" name="/LED1_ANODE" class="Default">
+      <node ref="D1" pin="2" pinfunction="A_2" pintype="passive"/>
+      <node ref="R26" pin="2" pintype="passive"/>
+    </net>
+    <net code="29" name="/LED2_ANODE" class="Default">
+      <node ref="D2" pin="2" pinfunction="A_2" pintype="passive"/>
+      <node ref="R27" pin="2" pintype="passive"/>
+    </net>
+    <net code="30" name="/LED3_ANODE" class="Default">
+      <node ref="D3" pin="2" pinfunction="A_2" pintype="passive"/>
+      <node ref="R28" pin="2" pintype="passive"/>
+    </net>
+    <net code="31" name="/LED_FAULT_A" class="Default">
+      <node ref="R27" pin="1" pintype="passive"/>
+      <node ref="U1" pin="31" pinfunction="GPIO20_31" pintype="bidirectional"/>
+    </net>
+    <net code="32" name="/LED_LOG_A" class="Default">
+      <node ref="R28" pin="1" pintype="passive"/>
+      <node ref="U1" pin="32" pinfunction="GPIO21_32" pintype="bidirectional"/>
+    </net>
+    <net code="33" name="/LED_PWR_A" class="Default">
+      <node ref="R26" pin="1" pintype="passive"/>
+      <node ref="U1" pin="30" pinfunction="GPIO19_30" pintype="bidirectional"/>
+    </net>
+    <net code="34" name="/OLED_RESET" class="Default">
+      <node ref="DS1" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
+      <node ref="U1" pin="35" pinfunction="GPIO23_35" pintype="bidirectional"/>
+    </net>
+    <net code="35" name="/QSPI_SCLK" class="Default">
+      <node ref="U1" pin="52" pinfunction="QSPI_SCLK_52" pintype="output"/>
+      <node ref="U2" pin="6" pinfunction="CLK_6" pintype="input"/>
+    </net>
+    <net code="36" name="/QSPI_SD0" class="Default">
+      <node ref="U1" pin="53" pinfunction="QSPI_SD0_53" pintype="bidirectional"/>
+      <node ref="U2" pin="5" pinfunction="DI/IO_{0}_5" pintype="bidirectional"/>
+    </net>
+    <net code="37" name="/QSPI_SD1" class="Default">
+      <node ref="U1" pin="55" pinfunction="QSPI_SD1_55" pintype="bidirectional"/>
+      <node ref="U2" pin="2" pinfunction="DO/IO_{1}_2" pintype="bidirectional"/>
+    </net>
+    <net code="38" name="/QSPI_SD2" class="Default">
+      <node ref="U1" pin="54" pinfunction="QSPI_SD2_54" pintype="bidirectional"/>
+      <node ref="U2" pin="3" pinfunction="~{WP}/IO_{2}_3" pintype="bidirectional"/>
+    </net>
+    <net code="39" name="/QSPI_SD3" class="Default">
+      <node ref="U1" pin="51" pinfunction="QSPI_SD3_51" pintype="bidirectional"/>
+      <node ref="U2" pin="7" pinfunction="~{HOLD}/~{RESET}/IO_{3}_7" pintype="bidirectional"/>
+    </net>
+    <net code="40" name="/QSPI_SS" class="Default">
+      <node ref="R34" pin="1" pintype="passive"/>
+      <node ref="R4" pin="2" pintype="passive"/>
+      <node ref="U1" pin="56" pinfunction="~{QSPI_SS}_56" pintype="output"/>
+      <node ref="U2" pin="1" pinfunction="~{CS}_1" pintype="input"/>
+    </net>
+    <net code="41" name="/RUN" class="Default">
+      <node ref="J6" pin="5" pinfunction="Pin_5_5" pintype="passive"/>
+      <node ref="R5" pin="2" pintype="passive"/>
+      <node ref="SW5" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="26" pinfunction="RUN_26" pintype="input"/>
+    </net>
+    <net code="42" name="/SD_CS_CARD" class="Default">
+      <node ref="J3" pin="2" pinfunction="DAT3/CD_2" pintype="bidirectional"/>
+      <node ref="R29" pin="2" pintype="passive"/>
+      <node ref="R30" pin="2" pintype="passive"/>
+      <node ref="U11" pin="1" pinfunction="D1+_1" pintype="passive"/>
+    </net>
+    <net code="43" name="/SD_CS_MCU" class="Default">
+      <node ref="R30" pin="1" pintype="passive"/>
+      <node ref="U1" pin="5" pinfunction="GPIO3_5" pintype="bidirectional"/>
+    </net>
+    <net code="44" name="/SD_DETECT" class="Default">
+      <node ref="J3" pin="10" pinfunction="DET_A_10" pintype="passive"/>
+      <node ref="R33" pin="2" pintype="passive"/>
+      <node ref="U1" pin="34" pinfunction="GPIO22_34" pintype="bidirectional"/>
+    </net>
+    <net code="45" name="/SD_MISO" class="Default">
+      <node ref="J3" pin="7" pinfunction="DAT0_7" pintype="bidirectional"/>
+      <node ref="U1" pin="4" pinfunction="GPIO2_4" pintype="bidirectional"/>
+      <node ref="U11" pin="5" pinfunction="D2-_5" pintype="passive"/>
+    </net>
+    <net code="46" name="/SD_MOSI_CARD" class="Default">
+      <node ref="J3" pin="3" pinfunction="CMD_3" pintype="input"/>
+      <node ref="R31" pin="2" pintype="passive"/>
+      <node ref="U11" pin="2" pinfunction="D1-_2" pintype="passive"/>
+    </net>
+    <net code="47" name="/SD_MOSI_MCU" class="Default">
+      <node ref="R31" pin="1" pintype="passive"/>
+      <node ref="U1" pin="7" pinfunction="GPIO5_7" pintype="bidirectional"/>
+    </net>
+    <net code="48" name="/SD_SCLK_CARD" class="Default">
+      <node ref="J3" pin="5" pinfunction="CLK_5" pintype="input"/>
+      <node ref="R32" pin="2" pintype="passive"/>
+      <node ref="U11" pin="4" pinfunction="D2+_4" pintype="passive"/>
+    </net>
+    <net code="49" name="/SD_SCLK_MCU" class="Default">
+      <node ref="R32" pin="1" pintype="passive"/>
+      <node ref="U1" pin="6" pinfunction="GPIO4_6" pintype="bidirectional"/>
+    </net>
+    <net code="50" name="/SWCLK" class="Default">
+      <node ref="J6" pin="4" pinfunction="Pin_4_4" pintype="passive"/>
+      <node ref="U1" pin="24" pinfunction="SWCLK_24" pintype="input"/>
+    </net>
+    <net code="51" name="/SWDIO" class="Default">
+      <node ref="J6" pin="2" pinfunction="Pin_2_2" pintype="passive"/>
+      <node ref="U1" pin="25" pinfunction="SWDIO_25" pintype="bidirectional"/>
+    </net>
+    <net code="52" name="/SW_LOG" class="Default">
+      <node ref="R25" pin="2" pintype="passive"/>
+      <node ref="SW3" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="29" pinfunction="GPIO18_29" pintype="bidirectional"/>
+    </net>
+    <net code="53" name="/SW_MODE" class="Default">
+      <node ref="R23" pin="2" pintype="passive"/>
+      <node ref="SW1" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="27" pinfunction="GPIO16_27" pintype="bidirectional"/>
+    </net>
+    <net code="54" name="/SW_SELECT" class="Default">
+      <node ref="R24" pin="2" pintype="passive"/>
+      <node ref="SW2" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U1" pin="28" pinfunction="GPIO17_28" pintype="bidirectional"/>
+    </net>
+    <net code="55" name="/TYPEC_OUT1" class="Default">
+      <node ref="R6" pin="2" pintype="passive"/>
+      <node ref="U1" pin="17" pinfunction="GPIO14_17" pintype="bidirectional"/>
+      <node ref="U4" pin="7" pinfunction="SDA/OUT1_7" pintype="bidirectional"/>
+    </net>
+    <net code="56" name="/TYPEC_OUT2" class="Default">
+      <node ref="R7" pin="2" pintype="passive"/>
+      <node ref="U1" pin="18" pinfunction="GPIO15_18" pintype="bidirectional"/>
+      <node ref="U4" pin="8" pinfunction="SCL/OUT2_8" pintype="bidirectional"/>
+    </net>
+    <net code="57" name="/USB_DM_CONN" class="Default">
+      <node ref="J1" pin="A7" pinfunction="D-_A7" pintype="bidirectional"/>
+      <node ref="J1" pin="B7" pinfunction="D-_B7" pintype="bidirectional"/>
+      <node ref="U7" pin="3" pinfunction="I/O2_3" pintype="passive"/>
+    </net>
+    <net code="58" name="/USB_DM_ESD" class="Default">
+      <node ref="R1" pin="1" pintype="passive"/>
+      <node ref="U7" pin="4" pinfunction="I/O2_4" pintype="passive"/>
+    </net>
+    <net code="59" name="/USB_DM_MCU" class="Default">
+      <node ref="R1" pin="2" pintype="passive"/>
+      <node ref="U1" pin="46" pinfunction="USB_DM_46" pintype="bidirectional"/>
+    </net>
+    <net code="60" name="/USB_DP_CONN" class="Default">
+      <node ref="J1" pin="A6" pinfunction="D+_A6" pintype="bidirectional"/>
+      <node ref="J1" pin="B6" pinfunction="D+_B6" pintype="bidirectional"/>
+      <node ref="U7" pin="1" pinfunction="I/O1_1" pintype="passive"/>
+    </net>
+    <net code="61" name="/USB_DP_ESD" class="Default">
+      <node ref="R2" pin="1" pintype="passive"/>
+      <node ref="U7" pin="6" pinfunction="I/O1_6" pintype="passive"/>
+    </net>
+    <net code="62" name="/USB_DP_MCU" class="Default">
+      <node ref="R2" pin="2" pintype="passive"/>
+      <node ref="U1" pin="47" pinfunction="USB_DP_47" pintype="bidirectional"/>
+    </net>
+    <net code="63" name="/VBUS" class="Default">
+      <node ref="C1" pin="1" pintype="passive"/>
+      <node ref="C18" pin="1" pintype="passive"/>
+      <node ref="C19" pin="1" pintype="passive"/>
+      <node ref="C2" pin="1" pintype="passive"/>
+      <node ref="J1" pin="A4" pinfunction="VBUS_A4" pintype="passive"/>
+      <node ref="J1" pin="A9" pinfunction="VBUS_A9" pintype="passive"/>
+      <node ref="J1" pin="B4" pinfunction="VBUS_B4" pintype="passive"/>
+      <node ref="J1" pin="B9" pinfunction="VBUS_B9" pintype="passive"/>
+      <node ref="R8" pin="1" pintype="passive"/>
+      <node ref="TP1" pin="1" pinfunction="1_1" pintype="passive"/>
+      <node ref="U3" pin="1" pinfunction="VIN_1" pintype="power_in"/>
+      <node ref="U3" pin="3" pinfunction="EN_3" pintype="input"/>
+      <node ref="U5" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
+      <node ref="U6" pin="1" pinfunction="Pin_1_1" pintype="passive"/>
+      <node ref="U7" pin="5" pinfunction="VBUS_5" pintype="passive"/>
+      <node ref="U9" pin="2" pinfunction="A2_2" pintype="passive"/>
+    </net>
+    <net code="64" name="/VBUS_DET" class="Default">
+      <node ref="R8" pin="2" pintype="passive"/>
+      <node ref="U4" pin="4" pinfunction="VBUS_DET_4" pintype="input"/>
+    </net>
+    <net code="65" name="/XIN" class="Default">
+      <node ref="C15" pin="1" pintype="passive"/>
+      <node ref="U1" pin="20" pinfunction="XIN_20" pintype="input"/>
+      <node ref="Y1" pin="1" pinfunction="1_1" pintype="passive"/>
+    </net>
+    <net code="66" name="/XOUT" class="Default">
+      <node ref="C16" pin="1" pintype="passive"/>
+      <node ref="R3" pin="2" pintype="passive"/>
+      <node ref="Y1" pin="3" pinfunction="3_3" pintype="passive"/>
+    </net>
+    <net code="67" name="/XOUT_RAW" class="Default">
+      <node ref="R3" pin="1" pintype="passive"/>
+      <node ref="U1" pin="21" pinfunction="XOUT_21" pintype="output"/>
+    </net>
+  </nets>
+</export>

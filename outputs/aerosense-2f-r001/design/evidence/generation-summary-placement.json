@@ -1,0 +1,39 @@
+{
+  "board_file": "D:\\AI\\PCB designer\\outputs\\aerosense-2f-r001\\design\\aerosense-2f-r001-placement.kicad_pcb",
+  "board_sha256": "1ea0f30722e336782893f13a87f8393489bc085689c244589abae6dccd6d8291",
+  "component_count": 100,
+  "drc": null,
+  "erc": {
+    "command": [
+      "C:\\Program Files\\KiCad\\10.0\\bin\\kicad-cli.exe",
+      "sch",
+      "erc",
+      "--format",
+      "json",
+      "--output",
+      "D:\\AI\\PCB designer\\outputs\\aerosense-2f-r001\\design\\.pcbsmith\\kicad\\erc.json",
+      "D:\\AI\\PCB designer\\outputs\\aerosense-2f-r001\\design\\aerosense-2f-r001.kicad_sch"
+    ],
+    "erc_report": "D:\\AI\\PCB designer\\outputs\\aerosense-2f-r001\\design\\.pcbsmith\\kicad\\erc.json",
+    "findings": [],
+    "schematic_file": "D:\\AI\\PCB designer\\outputs\\aerosense-2f-r001\\design\\aerosense-2f-r001.kicad_sch",
+    "spice_netlist": null,
+    "status": "passed"
+  },
+  "hard_gate": {
+    "failures": [],
+    "status": "passed"
+  },
+  "net_count": 67,
+  "routing": null,
+  "schema": "pcbsmith-aerosense-generation-summary-v1",
+  "schematic_export_findings": [],
+  "schematic_file": "D:\\AI\\PCB designer\\outputs\\aerosense-2f-r001\\design\\aerosense-2f-r001.kicad_sch",
+  "schematic_sha256": "071d6a4354df918849edbd8d0c6b744fbdda971b4053dc5361e14273205a376c",
+  "segment_count": 0,
+  "stage": "placement",
+  "via_count": 0,
+  "virtual_drc_counts": {
+    "pad_connectivity": 317
+  }
+}

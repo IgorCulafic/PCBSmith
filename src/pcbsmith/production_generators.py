@@ -81,6 +81,18 @@ _ROUTED = GeneratorPublicationCapability.ROUTED
 # or removed without an explicit migration decision.
 GENERATOR_REGISTRY: tuple[GeneratorRegistration, ...] = (
     _registration(
+        "aerosense_2f_board",
+        "generate_aerosense_placement_board",
+        _PLACEMENT,
+        "Approved AeroSense exact-footprint placement candidate.",
+    ),
+    _registration(
+        "aerosense_2f_board",
+        "generate_aerosense_routed_board",
+        _ROUTED,
+        "Explicit routed builder; saved-board inspection remains authoritative.",
+    ),
+    _registration(
         "bldc_esc_board",
         "generate_bldc_esc_placement_board",
         _PLACEMENT,
