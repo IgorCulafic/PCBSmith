@@ -4,7 +4,7 @@ PCBSmith is an open-source tool for designing printed circuit boards. The long-t
 
 It is under active development. The current tools support supervised engineering work: component choices, design decisions and physical testing still need a person.
 
-[Board gallery](docs/showcase/README.md) · [Get started](#get-started) · [Design workflow](docs/production-usage.md) · [Development](docs/development.md)
+[Board gallery](docs/showcase/README.md) · [Concept to board](docs/showcase/development-process.md) · [Get started](#get-started) · [Design workflow](docs/production-usage.md) · [Development](docs/development.md)
 
 ## Boards made with PCBSmith
 
@@ -70,6 +70,25 @@ An early single-sided laser test, photographed by the builder. The builder repor
 
 The main fabrication scope is single- and two-sided boards. Laser CAM currently supports documented straight-track/simple-pad geometry; unsupported cases are reported. See [current scope and limits](docs/current-state.md) for the details. A clean CAD check does not establish component fit, circuit operation or a qualified fabrication process.
 
+## From concept to board
+
+A finished render is one step in the process. Here is the same **TraceLimits**
+board moving from a dimensioned concept to real copper geometry and laser artwork:
+
+<table>
+<tr>
+<td width="33%" align="center"><a href="docs/showcase/development-process.md#2-review-the-vector-concept-before-pcb-placement"><img src="docs/showcase/images/trace-limits-concept.png" width="180" alt="TraceLimits vector concept before native PCB placement"></a><br><strong>1. Concept and placement intent</strong><br>Board dimensions, probe positions and routing corridors.</td>
+<td width="33%" align="center"><a href="docs/showcase/development-process.md#4-route-the-placed-board"><img src="docs/showcase/images/trace-limits-routed.png" width="180" alt="Automatically routed TraceLimits front copper"></a><br><strong>2. Routed and checked PCB</strong><br>16 nets, 46 segments, front copper only.</td>
+<td width="33%" align="center"><a href="docs/showcase/development-process.md#6-create-the-laser-artwork-and-coating-masks"><img src="docs/showcase/images/trace-limits-laser-comparison.png" width="180" alt="Four laser-isolation and local-clear variants for the same TraceLimits board"></a><br><strong>3. Fabrication artwork</strong><br>Compare channel widths and background-copper removal.</td>
+</tr>
+</table>
+
+The [illustrated development walkthrough](docs/showcase/development-process.md)
+also shows the **schematic, 3D inspection, pad-only coating mask and interactive
+BOM**, then explains the physical measurements still to come.
+[Download the working BOM example](docs/showcase/assets/tracelimits-ibom.html?raw=1)
+to open locally in a browser.
+
 ## Get started
 
 The maintained development setup is **Python 3.12.12**, **uv 0.11.23** and **KiCad 10** with its symbol and footprint libraries. See [development setup](docs/development.md) for native-tool paths, optional dependencies and verification.
@@ -91,16 +110,6 @@ uv run --frozen --all-extras python -B tools/verify.py --output .pcbsmith/verifi
 ```
 
 Choose a new verification output directory for each run. The standard checks cover the dependency lock, lint, types, architecture, workflow entry points and ordinary tests. The optional deep profile also requires live KiCad/ngspice tools.
-
-## How a board moves through the workflow
-
-1. Review the brief, parts, footprints and electrical requirements.
-2. Create and inspect an editable, dimensioned vector floorplan.
-3. Prepare the KiCad schematic and placement, then run the automatic router.
-4. Check electrical rules, board rules, connectivity and the visual result.
-5. Package the checked revision with its BOM, drawings and requested manufacturing files.
-
-The workflow records failures and preserves earlier revisions. Actual fabrication, assembly and bench measurements remain separate steps.
 
 ## Documentation and contributing
 

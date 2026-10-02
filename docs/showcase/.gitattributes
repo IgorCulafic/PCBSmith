@@ -1,0 +1,3 @@
+# Preserve retained export bytes and their recorded source hashes.
+images/*.svg -text
+assets/* -text

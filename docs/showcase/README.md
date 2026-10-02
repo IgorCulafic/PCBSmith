@@ -1,6 +1,6 @@
 # Board gallery
 
-[Back to PCBSmith](../../README.md)
+[Back to PCBSmith](../../README.md) · [Concept-to-board walkthrough](development-process.md)
 
 A selection of custom outlines, circuit designs and fabrication tests made during
 PCBSmith's development. All images are retained CAD/CAM outputs except the
@@ -148,6 +148,8 @@ DualLaser1 coupon.
 
 The images are copied unchanged from the retained revisions named above. The
 [image manifest](image-manifest.json) records filenames, dimensions and SHA-256
-hashes. No native PCB was changed or rerendered for this gallery. The gallery
+hashes. No native PCB was changed or rerendered for this gallery. The separate
+[development walkthrough](development-process.md) also includes a new read-only
+schematic illustration and a screenshot of the unchanged delivered BOM. The gallery
 contains visual examples and technical notes; it is not a replacement for the
 revision-specific manufacturing packages and their test instructions.

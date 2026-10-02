@@ -1,5 +1,5 @@
 {
-  "note": "Original retained images copied without image edits. Status and interpretation are in README.md. No third-party model binaries or private project evidence are included.",
+  "note": "Gallery renders are retained copies. Workflow media distinguishes retained views from a new documentation-only schematic export and BOM screenshot. Native PCB and schematic are unchanged.",
   "images": [
     {
       "file": "images/thermometer-r006.png",
@@ -120,6 +120,91 @@
         1600
       ],
       "kind": "user-supplied photograph"
+    },
+    {
+      "file": "images/trace-limits-concept.png",
+      "sha256": "3ad5ae7d9a55886e9e862025670b3d46d7c73fe4c5478cfc0efac3b2ea9dba4f",
+      "bytes": 274100,
+      "kind": "retained delivered vector preview",
+      "project": "TraceLimits",
+      "board_sha256": "effaf7f76cc40f310267b2dd8447720c1cc12c712776f76845aabae1184c0650",
+      "dimensions_px": [
+        1440,
+        2597
+      ]
+    },
+    {
+      "file": "images/trace-limits-routed.png",
+      "sha256": "91fd20f6612d757fe9b4c5f1ad48c34947cedfa9b7856f94fc8aa1d071df73ea",
+      "bytes": 79744,
+      "kind": "retained accepted front-copper review, bound to delivered PCB",
+      "project": "TraceLimits",
+      "board_sha256": "effaf7f76cc40f310267b2dd8447720c1cc12c712776f76845aabae1184c0650",
+      "dimensions_px": [
+        2687,
+        3840
+      ]
+    },
+    {
+      "file": "images/trace-limits-pads.png",
+      "sha256": "c666551b6ed57d35c539e99d086a4fbae566e03a1441bc5810328da31a2e25cf",
+      "bytes": 3691,
+      "kind": "retained delivered coating-mask preview",
+      "project": "TraceLimits",
+      "board_sha256": "effaf7f76cc40f310267b2dd8447720c1cc12c712776f76845aabae1184c0650",
+      "dimensions_px": [
+        700,
+        1000
+      ]
+    },
+    {
+      "file": "images/trace-limits-ibom.png",
+      "sha256": "924727fa96a262f07e52448e42cf92adfbdf9034ff4cd2bb1089d2dcd47de1ed",
+      "bytes": 67485,
+      "kind": "headless Edge screenshot of unchanged delivered InteractiveHtmlBom 2.11.2 HTML",
+      "project": "TraceLimits",
+      "board_sha256": "effaf7f76cc40f310267b2dd8447720c1cc12c712776f76845aabae1184c0650",
+      "dimensions_px": [
+        1400,
+        950
+      ],
+      "html_sha256": "3ade8b71d29cac563ff93982fcbf09267f309df63bd99c20d8d1d7cf7a717efd"
+    },
+    {
+      "file": "images/trace-limits-schematic.png",
+      "sha256": "addd78dac8998c02a2d246484291cdaadaba75639246a0616cf0e6ecf14ecfa7",
+      "bytes": 152884,
+      "kind": "shared SVG rasterizer applied to read-only KiCad 10.0.6 schematic export",
+      "project": "TraceLimits",
+      "board_sha256": "effaf7f76cc40f310267b2dd8447720c1cc12c712776f76845aabae1184c0650",
+      "dimensions_px": [
+        1680,
+        1188
+      ],
+      "schematic_sha256": "80500a3a5cc650fd6fdcebee66b855fa987628ec1408524354986f418182eb86"
+    },
+    {
+      "file": "images/trace-limits-schematic.svg",
+      "sha256": "4163d328364aa774d081d627f57126e7a9bf6a78ea06b77cb97c59a7f3d4be11",
+      "bytes": 835876,
+      "kind": "read-only KiCad 10.0.6 export of delivered schematic for documentation",
+      "project": "TraceLimits",
+      "board_sha256": "effaf7f76cc40f310267b2dd8447720c1cc12c712776f76845aabae1184c0650",
+      "schematic_sha256": "80500a3a5cc650fd6fdcebee66b855fa987628ec1408524354986f418182eb86"
+    }
+  ],
+  "downloadable_examples": [
+    {
+      "file": "assets/InteractiveHtmlBom-LICENSE.txt",
+      "sha256": "f63e983708e6fa0c51d6786860110e1d3999e793d38a662de57efe3bb89a6999"
+    },
+    {
+      "file": "assets/tracelimits-floorplan.svg",
+      "sha256": "41438bc20d0eade1f6ea93106116361cc17678c9e715bdc0fdc534e720017edb"
+    },
+    {
+      "file": "assets/tracelimits-ibom.html",
+      "sha256": "3ade8b71d29cac563ff93982fcbf09267f309df63bd99c20d8d1d7cf7a717efd"
     }
   ]
 }
