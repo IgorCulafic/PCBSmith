@@ -73,7 +73,7 @@ from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE
 MOVABLE = ("J1", "J2")
 REDUCED_STEM_AGGREGATE_CHECKER_ID = (
     "synthetic-routing-only-placement-checker@2:"
-    "a98e1dacdb1125a0dc2ee1f6dff414490bca78b7aae3a792dfe1c68d11ed60c7"
+    "08c06775acda959aac2cf16a4b84e7be446ff3c5b7e927637d7dc15912fc1636"
 )
 
 
@@ -311,7 +311,7 @@ def test_reduced_stem_authority_and_base_and_translated_candidate_replay_exactly
     assert retained.authority_scope == "input_only_no_algorithm_routing_acceptance_or_readiness"
     assert (
         retained.authority_fingerprint
-            == "a81f4479bc959156175b4a9e3947878ba1831f44935f3ca905924ccf683b13a9"
+            == "576beee0d3398682c5165481cfb2b22fe689c59b656b42f5bbe7d088f2017a9b"
     )
 
     base_poses = tuple(
@@ -364,11 +364,11 @@ def test_reduced_stem_authority_and_base_and_translated_candidate_replay_exactly
     assert translated.legalization_result.outcome is PlacementLegalizationOutcome.LEGAL_EXACT
     assert (
         base.candidate_fingerprint
-        == "f7ae17969195bccc5f2d64e1e54657f3341936b6d22af6647c64b75f9c7fff53"
+        == "329e0d4525a8d4e05ce812becf4c13eef75d273e998a15f6346abe80d6a27583"
     )
     assert (
         translated.candidate_fingerprint
-        == "f5550a624f6326463b8df0e9a6d041d1e2efe0c7b30ceb638ee1d41232ee4f0a"
+        == "becefc48c16e93aee6f1b473e3fed21b81b35a21598f51d2d84affec3f811d47"
     )
 
     for probe in search.probes:

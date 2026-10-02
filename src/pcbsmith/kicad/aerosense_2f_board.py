@@ -667,8 +667,6 @@ def compute_aerosense_routed_layout(
         (
             "fans",
             (
-                "/FAN1_5V",
-                "/FAN2_5V",
                 "/FAN1_EN",
                 "/FAN2_EN",
                 "/FAN1_FAULT_N",
@@ -685,6 +683,12 @@ def compute_aerosense_routed_layout(
                 "/FAN2_TACH_RAW",
                 "/FAN1_TACH",
                 "/FAN2_TACH",
+                # Route the wide, cross-board fan feeds after the paired
+                # control and tachometer nets.  Routing these first consumed
+                # the only useful east-west signal corridors on this compact
+                # two-layer candidate.
+                "/FAN1_5V",
+                "/FAN2_5V",
             ),
         ),
         (

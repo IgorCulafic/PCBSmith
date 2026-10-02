@@ -39,10 +39,8 @@ class KiCadAssetInstallRequest(BaseModel):
 class InstalledKiCadAsset(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", populate_by_name=True)
 
-    schema_id: Literal[
-        "pcbsmith-installed-kicad-asset-v1", "pcbsmith-installed-kicad-asset-v2"
-    ] = Field(
-        validation_alias="schema", serialization_alias="schema"
+    schema_id: Literal["pcbsmith-installed-kicad-asset-v1", "pcbsmith-installed-kicad-asset-v2"] = (
+        Field(validation_alias="schema", serialization_alias="schema")
     )
     asset_id: str
     kind: Literal["symbol", "footprint", "model"]
@@ -98,32 +96,17 @@ def install_kicad_asset(
 
     if request.kind == "footprint":
         library, name = _library_parts(library_id, "footprint")
-        tree = parse_sexpr(payload.decode("utf-8"))
-        if _head(tree) not in {"footprint", "module"}:
-            raise ValueError("Footprint asset is not a KiCad footprint s-expression.")
         relative = Path("kicad_footprints" if scope == "repository" else "footprints") / (
             f"{library}__{name}.kicad_mod"
         )
-        normalized_payload = (serialize_sexpr(tree) + "\n").encode("utf-8")
+        normalized_payload = normalized_library_payload("footprint", library_id, payload)
     elif request.kind == "symbol":
         library, name = _library_parts(library_id, "symbol")
-        tree = parse_sexpr(payload.decode("utf-8"))
-        symbol = _find_symbol(tree, name)
-        if symbol is None:
-            raise ValueError(f"Symbol asset does not contain the requested symbol {name}.")
-        if _direct_children(symbol, "extends"):
-            raise ValueError("Derived external symbols must be flattened before installation.")
-        wrapper: SList = [
-            "kicad_symbol_lib",
-            ["version", "20241209"],
-            ["generator", QuotedString("PCBSmith-asset-install")],
-            symbol,
-        ]
         safe_name = name.replace("/", "_")
         relative = Path("kicad_symbols" if scope == "repository" else "symbols") / (
             f"{library}__{safe_name}.kicad_sym"
         )
-        normalized_payload = (serialize_sexpr(wrapper) + "\n").encode("utf-8")
+        normalized_payload = normalized_library_payload("symbol", library_id, payload)
     else:
         if request.model_raw_path is None or request.model_classification is None:
             raise ValueError("Model installation requires raw path and classification.")
@@ -137,9 +120,14 @@ def install_kicad_asset(
 
     destination = base / relative
     destination.parent.mkdir(parents=True, exist_ok=True)
-    if destination.exists() and destination.read_bytes() != normalized_payload:
-        raise ValueError(f"Refusing to overwrite a different installed asset: {destination}")
-    destination.write_bytes(normalized_payload)
+    from pcbsmith.kicad.asset_resolution import asset_lock
+    from pcbsmith.operations.file_transaction import atomic_write
+
+    with asset_lock(base):
+        if destination.exists() and destination.read_bytes() != normalized_payload:
+            raise ValueError(f"Refusing to overwrite a different installed asset: {destination}")
+        if not destination.exists():
+            atomic_write(destination, normalized_payload)
     installed_digest = hashlib.sha256(normalized_payload).hexdigest()
     if request.kind == "model":
         assert request.model_raw_path is not None
@@ -185,7 +173,13 @@ def write_public_asset_record(path: Path, asset: InstalledKiCadAsset) -> None:
 def _library_parts(library_id: str | None, kind: str) -> tuple[str, str]:
     if library_id is None or ":" not in library_id:
         raise ValueError(f"{kind.capitalize()} installation requires Library:Name.")
-    return tuple(library_id.split(":", 1))  # type: ignore[return-value]
+    library, name = library_id.split(":", 1)
+    if any(
+        not part or part in {".", ".."} or any(c in part for c in "/\\:")
+        for part in (library, name)
+    ):
+        raise ValueError("Library identifier contains an unsafe path")
+    return library, name
 
 
 def _find_symbol(root: SList, name: str) -> SList | None:
@@ -217,3 +211,29 @@ def _atom(node: SExpr) -> str:
     if isinstance(node, str):
         return node
     raise ValueError("Expected a KiCad atom.")
+
+
+def normalized_library_payload(kind: str, library_id: str | None, payload: bytes) -> bytes:
+    """Single normalization owner for pre-publication pin validation and installation."""
+    _, name = _library_parts(library_id, kind)
+    tree = parse_sexpr(payload.decode("utf-8"))
+    if kind == "footprint":
+        if _head(tree) not in {"footprint", "module"}:
+            raise ValueError("Footprint asset is not a KiCad footprint s-expression.")
+        if _atom(tree[1]).split(":")[-1] != name:
+            raise ValueError("Footprint package/name mismatch.")
+        return (serialize_sexpr(tree) + "\n").encode("utf-8")
+    if kind != "symbol":
+        raise ValueError("Expected symbol or footprint")
+    symbol = _find_symbol(tree, name)
+    if symbol is None:
+        raise ValueError(f"Symbol asset does not contain the requested symbol {name}.")
+    if _direct_children(symbol, "extends"):
+        raise ValueError("Derived external symbols must be flattened before installation.")
+    wrapper: SList = [
+        "kicad_symbol_lib",
+        ["version", "20241209"],
+        ["generator", QuotedString("PCBSmith-asset-install")],
+        symbol,
+    ]
+    return (serialize_sexpr(wrapper) + "\n").encode("utf-8")

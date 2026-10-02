@@ -1,0 +1,27 @@
+# Single-layer routing integration repair — 2026-09-22
+
+The user authorized diagnosing/fixing the failed BeaconLeaf example. The separately scoped 1,800-second integration repair completed in 803.627 seconds before the original board was resumed.
+
+Freerouting 2.3.0 dereferences its default via rule even on a one-layer board. Removing every via definition produced a null-rule exception, exit code zero and an empty SES. The adapter now supplies a front-only compatibility padstack and explicitly disables autoroute vias. Native import independently rejects all vias, rear copper, undersized tracks, zones and changed placement. No manual copper, router replacement, budget enlargement or placement change was used.
+
+Real pinned-engine reproduction on the retained source completed in 3.938 seconds, with nine F.Cu tracks, zero vias and zero native DRC, unconnected or schematic-parity findings. This isolated reproduction is not production acceptance. Evidence is `outputs/single-layer-integration-repair-2026-09-22/real-engine-qualification.json` and its retained DSN/SES, logs and native reports.
+
+The ordinary same-placement retry guard also rejected an explicitly diagnosed integration recovery. The shared continuation owner now accepts a separately declared adapter hash only with the latest failed routing token, a completed platform-work diagnosis, exact retained resolution evidence and the current matching adapter bytes. It rechecks those bindings at claim time. Ordinary budget/order retries remain blocked; the two-invocation lifetime limit, existing clocks, correction counters and failed history remain intact. This is an explicit recovery path, not automatic fallback or renewal.
+
+Verification: 201 selected job/routing boundary tests pass, including 72 focused recovery/adapter tests; no skips or failures. Ruff and strict mypy pass for changed owners. Workflow audit passes with 212 classified sites and no changed/unclassified calls. No full-suite or physical qualification claim.
+
+BeaconLeaf uses the same stable job root and its approved placement. Recovery is separately recorded with 5,400 seconds evaluation, 1,800 seconds execution and a 360-second verification reserve. Only one automatic retry plus final checks and delivery is authorized in that scope. Original failed timing remains failed. The planned resistor substitution and interactive/physical qualification remain separate unfinished trial items.
+
+Interactive HTML BOM is now a persistent default handover requirement in AGENTS.md, together with the editable dimensioned floorplan and preview. Generation failure must be visible; browser interaction testing is not implied by generation.
+
+## Production recovery outcome
+
+The one authorized retry passed through `pcbsmith.production_routing` with unchanged reviewed placement and the original stable job ID/root. The pinned engine took 3.015 seconds; the complete routing worker took 11.359 seconds. Final PCB SHA-256: `aee345c3ee99c8ba022a4f10f8f6c8095d5e28d77ccc81fbd95438a998b2962c`. Nine F.Cu segments, ten SMD pads, four nets, no vias, no holes and no rear copper. Final native ERC, DRC, unconnected and schematic-parity checks pass. All 37 final visual artifacts were actually reviewed and accepted through the shared owner; final saved readiness, immutable publication and routed release pass.
+
+Isolation CAM preserves unused copper with checked 0.8mm isolation and 2mm edge clearance; 35.8578% of the board is removed. The exact SVG was displayed and inspected; component-side orientation is unmirrored and black means removal. Physical process qualification remains held. The pinned InteractiveHtmlBom 2.11.2 output binds the exact final board. Editable original approved floorplan SVG and PNG, native CAD/dependencies, exact model backups, BOM, four-row position export, front/outline Gerbers, native netlist and check reports are included. Direct export comparison matches all nine track endpoints/widths and ten pad centers, zero rear copper/drills and the four actual populated position rows. The optional Gerbonara import was unavailable in this Python environment; no full independent CAM proof is claimed.
+
+Mandatory `board-handover` reports `cad_handover_ready: true`, no blockers. The 52-file archive passes CRC and every member matches the checked delivery. `deliverables/BeaconLeaf-SingleSided-2026-09-22.zip`: 2,211,667 bytes; SHA-256 `0f9d9e7c75856139e29163cca62b43b9464420fad953980237899f845004feb0`.
+
+The same original job is finished only after handover and archive verification. Its recovery used 947.998 seconds wall (15m48s): 687.057 seconds evaluation (11m27s) and 260.941 seconds contained execution (4m21s), within its declared independent allowances. The one final render consumed 243.076 execution seconds. End-to-end elapsed from the original September 21 start is 38,688.536 seconds (10h44m49s), including the overnight hold; this is not active work or a pass of the original failed timing window. The separate platform repair took 803.627 seconds (13m24s). Exact clocks and all failed attempts remain in the ledger; no reset or counter edit.
+
+Still open: the planned BeaconLeaf 2.2k-to-3.3k substitution trial, native/browser interaction qualification, full formal DR7/neutral-manufacturing proof and physical fit, LED reflow wetting, copper-removal/process and powered measurements. None requires rerouting the accepted board merely to repeat checks. Physical owners, methods, criteria, inputs and exact revision are in the package. No commits or external publication performed.

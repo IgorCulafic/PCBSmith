@@ -428,8 +428,8 @@ def derive_component_review_obligations(
                 applicability=applicability,
                 rationale=rationale,
                 pin_numbers=pins,
-                net_names=nets,
-                neighbor_component_references=neighbors,
+                net_names=tuple(dict.fromkeys(nets)),
+                neighbor_component_references=tuple(dict.fromkeys(neighbors)),
                 required_evidence_topics=topics,
             )
         )

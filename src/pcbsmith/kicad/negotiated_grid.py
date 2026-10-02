@@ -11,7 +11,7 @@ import heapq
 import json
 import math
 from collections.abc import Collection, Iterable, Mapping, Sequence
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Any, TypeAlias, cast
 
 from pcbsmith.kicad.astar_router import (
@@ -38,7 +38,7 @@ from pcbsmith.kicad.negotiated_resources import (
     symmetric_halo_radius,
     via_claims,
 )
-from pcbsmith.kicad.placement_routability import board_layout_fingerprint
+from pcbsmith.kicad.placement_routability import canonical_routing_layout_fingerprint
 from pcbsmith.kicad.route_prefix import GridRoutePrefix
 from pcbsmith.routing_ir import RoutingFailureReason
 from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
@@ -1120,62 +1120,7 @@ class CertifiedEndpointTerminalSource:
 
 
 def _endpoint_static_layout_fingerprint(layout: BoardLayout) -> str:
-    canonical = replace(
-        layout,
-        placements=tuple(
-            sorted(
-                layout.placements,
-                key=lambda item: (
-                    item[0].reference,
-                    item[0].value,
-                    item[0].footprint,
-                    item[0].uuid_path,
-                    tuple(sorted(item[0].fields)),
-                    item[1],
-                ),
-            )
-        ),
-        segments=tuple(
-            sorted(
-                layout.segments,
-                key=lambda item: (
-                    item.net_name,
-                    item.layer,
-                    item.width_mm,
-                    item.x1,
-                    item.y1,
-                    item.x2,
-                    item.y2,
-                ),
-            )
-        ),
-        vias=tuple(
-            sorted(
-                layout.vias,
-                key=lambda item: (
-                    item.net_name,
-                    item.x,
-                    item.y,
-                    item.size_mm,
-                    item.drill_mm,
-                    item.front_mask.value,
-                    item.back_mask.value,
-                ),
-            )
-        ),
-        part_y_mm=tuple(sorted(layout.part_y_mm)),
-        part_rotation=tuple(sorted(layout.part_rotation)),
-        zones=tuple(sorted(layout.zones)),
-        graphics=tuple(sorted(layout.graphics)),
-        part_flip=tuple(sorted(layout.part_flip)),
-        hide_references=tuple(sorted(layout.hide_references)),
-        part_reference_at=tuple(sorted(layout.part_reference_at)),
-        mask_apertures=tuple(
-            sorted(layout.mask_apertures, key=lambda item: item.semantic_fingerprint())
-        ),
-        cutouts=tuple(sorted(layout.cutouts, key=lambda item: item.semantic_fingerprint())),
-    )
-    return board_layout_fingerprint(canonical)
+    return canonical_routing_layout_fingerprint(layout)
 
 
 def _endpoint_netlist_fingerprint(netlist: BoardNetlist) -> str:

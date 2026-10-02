@@ -5,7 +5,7 @@ from enum import StrEnum
 
 from pydantic import BaseModel, ConfigDict
 
-from pcbsmith.core.geom import Point
+from pcbsmith.core.geom import Point, transform_schematic_offset
 from pcbsmith.core.library import Symbol
 from pcbsmith.core.schematic import Schematic, SymbolInstance
 
@@ -87,27 +87,12 @@ def nearest_anchor(
 
 
 def symbol_pin_position(instance: SymbolInstance, pin_position: Point) -> Point:
-    x = -pin_position.x if instance.mirrored_x else pin_position.x
-    y = pin_position.y
-    x, y = rotate_offset(x, y, instance.rotation_deg)
-    return Point(x=instance.position.x + x, y=instance.position.y + y)
+    return instance.pin_position(pin_position)
 
 
 def rotate_offset(x: int, y: int, rotation_deg: int) -> tuple[int, int]:
-    rotation = rotation_deg % 360
-    if rotation == 0:
-        return (x, y)
-    if rotation == 90:
-        return (-y, x)
-    if rotation == 180:
-        return (-x, -y)
-    if rotation == 270:
-        return (y, -x)
-    msg = (
-        f"Unsupported symbol rotation {rotation_deg}; "
-        "expected one of 0, 90, 180, or 270 degrees"
-    )
-    raise ValueError(msg)
+    point = transform_schematic_offset(Point(x=x, y=y), rotation_deg)
+    return point.x, point.y
 
 
 def anchor_priority(anchor: SchematicAnchor) -> int:

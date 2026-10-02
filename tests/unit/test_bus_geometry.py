@@ -547,7 +547,7 @@ def test_straight_bundle_has_literal_geometry_claim_and_result_fingerprints() ->
     )
     assert (
         result.semantic_fingerprint()
-        == "7f50715d306290fc8906027bffc0cf5929d7f5e652491cd158c3b22f5a644bc1"
+        == "8142d7f754cfe5ba74f5844ab4befc16da3840a8bc3bd404615eec31dce9ea2e"
     )
 
 

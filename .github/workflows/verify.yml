@@ -1,0 +1,43 @@
+name: Verification
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      native:
+        description: Run complete checks on the prepared trusted native runner
+        type: boolean
+        default: false
+permissions:
+  contents: read
+jobs:
+  static:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.23"
+          python-version: "3.12.12"
+          enable-cache: false
+      - run: uv sync --frozen --all-extras
+      - run: uv run --frozen --all-extras python -B tools/verify.py --checks lock lint types imports --output .pcbsmith/verification/static-${{ github.run_id }}-${{ github.run_attempt }}
+  native:
+    if: github.event_name == 'workflow_dispatch' && inputs.native
+    runs-on: [self-hosted, Windows, pcbsmith-native]
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          clean: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: "0.11.23"
+          python-version: "3.12.12"
+          enable-cache: false
+      - run: uv sync --frozen --all-extras
+      - run: uv run --frozen --all-extras python -B tools/verify.py --profile deep --output .pcbsmith/verification/native-${{ github.run_id }}-${{ github.run_attempt }}

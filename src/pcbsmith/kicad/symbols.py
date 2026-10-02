@@ -33,6 +33,8 @@ from pcbsmith.kicad.library import (
 )
 
 VENDORED_DIR = Path(__file__).resolve().parents[3] / "ai_assets" / "kicad_symbols"
+if not VENDORED_DIR.is_dir():
+    VENDORED_DIR = Path(__file__).resolve().parents[1] / "assets" / "kicad_symbols"
 PRIVATE_ASSET_ROOT_ENV = "PCBSMITH_PRIVATE_ASSET_ROOT"
 INSTALLED_SHARE_DIRS = (
     Path(r"C:\Program Files\KiCad\10.0\share\kicad\symbols"),
@@ -129,17 +131,18 @@ def _symbol_tree(lib_id: str) -> SList:
     if private_root:
         library, name = lib_id.split(":", 1)
         safe = name.replace("/", "_")
-        candidates.insert(
-            0,
-            Path(private_root) / "symbols" / f"{library}__{safe}.kicad_sym",
-        )
+        candidates.append(Path(private_root) / "symbols" / f"{library}__{safe}.kicad_sym")
     cached = next((candidate for candidate in candidates if candidate.exists()), None)
     if cached is not None:
         wrapper = parse_sexpr(cached.read_text(encoding="utf-8"))
         symbols = _children(wrapper, "symbol")
         if not symbols:
             raise SymbolLibraryError(f"Vendored file for {lib_id} has no symbol.")
-        return symbols[0]
+        name = lib_id.split(":", 1)[1]
+        matches = [node for node in symbols if _atom(node[1]) == name]
+        if len(matches) != 1 or _children(matches[0], "extends"):
+            raise SymbolLibraryError(f"Shared symbol identity is not exact/flattened: {lib_id}")
+        return matches[0]
     library, name = lib_id.split(":", 1)
     text = _extract_symbol_text(_library_text(library), name)
     if text is None:
@@ -150,9 +153,7 @@ def _symbol_tree(lib_id: str) -> SList:
         parent_name = _atom(extends[0][1])
         parent_text = _extract_symbol_text(_library_text(library), parent_name)
         if parent_text is None:
-            raise SymbolLibraryError(
-                f"{lib_id} extends {parent_name}, which was not found."
-            )
+            raise SymbolLibraryError(f"{lib_id} extends {parent_name}, which was not found.")
         tree = _flatten(tree, parse_sexpr(parent_text), name, parent_name)
     return tree
 
@@ -161,9 +162,7 @@ def _flatten(child: SList, parent: SList, name: str, parent_name: str) -> SList:
     """Flatten a derived symbol the way KiCad embeds it: the parent's body
     under the child's name, with the child's properties overriding."""
     merged: SList = ["symbol", QuotedString(name)]
-    child_properties = {
-        _atom(node[1]): node for node in _children(child, "property")
-    }
+    child_properties = {_atom(node[1]): node for node in _children(child, "property")}
     used: set[str] = set()
     for node in parent[2:]:
         if not isinstance(node, list):
@@ -182,7 +181,7 @@ def _flatten(child: SList, parent: SList, name: str, parent_name: str) -> SList:
             sub = [element for element in node]
             sub_name = _atom(sub[1])
             if sub_name.startswith(parent_name):
-                sub[1] = QuotedString(name + sub_name[len(parent_name):])
+                sub[1] = QuotedString(name + sub_name[len(parent_name) :])
             merged.append(sub)
             continue
         merged.append(node)
@@ -208,9 +207,7 @@ def _measure_pins(tree: SList) -> tuple[SymbolPin, ...]:
                     x_mm=float(_atom(at[1])),
                     y_mm=float(_atom(at[2])),
                     angle_deg=float(_atom(at[3])) if len(at) > 3 else 0.0,
-                    length_mm=(
-                        float(_atom(length_nodes[0][1])) if length_nodes else 0.0
-                    ),
+                    length_mm=(float(_atom(length_nodes[0][1])) if length_nodes else 0.0),
                     electrical_type=electrical,
                 )
             )
@@ -287,8 +284,7 @@ def instance_pin_position_rotated(
     turn = rotation % 360
     if turn not in _QUARTER_TURNS:
         raise ValueError(
-            f"Symbol instance rotation must be a quarter turn "
-            f"(0/90/180/270), got {rotation}"
+            f"Symbol instance rotation must be a quarter turn (0/90/180/270), got {rotation}"
         )
     cos_r, sin_r = _QUARTER_TURNS[turn]
     rotated_x = pin.x_mm * cos_r - pin.y_mm * sin_r
@@ -308,9 +304,7 @@ def pin_stub(
     return (tip, (round(tip[0] + out_x * length, 4), round(tip[1] + out_y * length, 4)))
 
 
-def pin_stub_outward(
-    imported: ImportedSymbol, number: str
-) -> tuple[float, float]:
+def pin_stub_outward(imported: ImportedSymbol, number: str) -> tuple[float, float]:
     """Unit vector pointing AWAY from the body in sheet coords - the
     direction a label-net stub wire should leave the pin."""
     import math
@@ -319,3 +313,29 @@ def pin_stub_outward(
     radians = math.radians(pin.angle_deg)
     # Pin angle points INTO the body from the connection point (y up).
     return (round(-math.cos(radians), 6), round(math.sin(radians), 6))
+
+
+def symbol_source_file(
+    lib_id: str,
+    *,
+    installed_root: Path | None = None,
+    repository_root: Path | None = None,
+    private_asset_root: Path | None = None,
+) -> Path:
+    """Shared symbol lookup for exact native preparation, without parsing/cache fallback."""
+    import re
+
+    if not re.fullmatch(r"[A-Za-z0-9_+.-]+:[A-Za-z0-9_+.-]+", lib_id):
+        raise ValueError("Invalid symbol identifier")
+    library, name = lib_id.split(":")
+    vendored = repository_root / "ai_assets/kicad_symbols" if repository_root else VENDORED_DIR
+    candidates = [vendored / f"{library}__{name}.kicad_sym"]
+    private = private_asset_root or os.environ.get(PRIVATE_ASSET_ROOT_ENV)
+    if private:
+        candidates.append(Path(private) / "symbols" / f"{library}__{name}.kicad_sym")
+    roots = (installed_root,) if installed_root is not None else INSTALLED_SHARE_DIRS
+    candidates.extend(root / f"{library}.kicad_sym" for root in roots)
+    for path in candidates:
+        if path.exists():
+            return path
+    raise FileNotFoundError(f"Symbol {lib_id} was not found")

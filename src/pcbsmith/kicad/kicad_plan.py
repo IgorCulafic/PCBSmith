@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from datetime import UTC, datetime
 from pathlib import Path
@@ -9,11 +10,11 @@ from pydantic import BaseModel, ConfigDict, Field, TypeAdapter, ValidationError
 
 from pcbsmith.core.geom import Point
 from pcbsmith.operations.project_io import (
+    PROJECT_FILE,
     load_board,
     load_project,
     load_schematic,
-    save_board,
-    save_schematic,
+    save_project_files,
 )
 from pcbsmith.operations.schematic_commands import (
     AddLabelCommand,
@@ -68,8 +69,7 @@ def load_kicad_plan_package(path: Path) -> KiCadPlanPackage:
             (
                 message
                 for message in messages
-                if "routing is not enabled" in message
-                or "text is not enabled" in message
+                if "routing is not enabled" in message or "text is not enabled" in message
             ),
             messages[0],
         )
@@ -91,6 +91,10 @@ def run_kicad_plan(
     if board_path is None and any(_is_board_command(command) for command in package.commands):
         raise KiCadPlanError("Project has no board file for board commands")
 
+    watched = [PROJECT_FILE, package.schematic, *([board_path] if board_path else [])]
+    expected = {p: hashlib.sha256((project_dir / p).read_bytes()).hexdigest() for p in watched}
+    if project != load_project(project_dir):
+        raise KiCadPlanError("Project changed while loading plan inputs")
     schematic = load_schematic(project_dir, package.schematic)
     board = load_board(project_dir, board_path) if board_path is not None else None
     summaries = tuple(_summarize_command(command) for command in package.commands)
@@ -123,17 +127,22 @@ def run_kicad_plan(
             lines=tuple(lines),
         )
 
-    save_schematic(project_dir, package.schematic, updated)
+    payloads = {package.schematic: (updated.model_dump_json(indent=2) + "\n").encode()}
     if updated_board is not None:
         if board_path is None:
             raise KiCadPlanError("Project has no board file for board commands")
-        save_board(project_dir, board_path, updated_board)
-    _append_action_log(
-        project_dir,
+        payloads[board_path] = (updated_board.model_dump_json(indent=2) + "\n").encode()
+    log_entry = _action_log_entry(
         package_path=package_path,
         package=package,
         summaries=summaries,
         messages=tuple(messages),
+    )
+    save_project_files(
+        project_dir,
+        payloads,
+        append_payloads={".pcbsmith/action-log.jsonl": log_entry},
+        expected_sha256s=expected,
     )
     lines.append(f"Applied {len(package.commands)} commands and wrote .pcbsmith/action-log.jsonl")
     return KiCadPlanResult(
@@ -183,16 +192,13 @@ def _format_mm(nm: int) -> str:
     return f"{nm / 1_000_000:g}"
 
 
-def _append_action_log(
-    project_dir: Path,
+def _action_log_entry(
     *,
     package_path: Path,
     package: KiCadPlanPackage,
     summaries: tuple[str, ...],
     messages: tuple[str, ...],
-) -> None:
-    log_dir = project_dir / ".pcbsmith"
-    log_dir.mkdir(parents=True, exist_ok=True)
+) -> bytes:
     entry = {
         "timestamp": datetime.now(UTC).isoformat(),
         "package_path": str(package_path),
@@ -202,8 +208,7 @@ def _append_action_log(
         "summaries": list(summaries),
         "messages": list(messages),
     }
-    with (log_dir / "action-log.jsonl").open("a", encoding="utf-8") as handle:
-        handle.write(json.dumps(entry, sort_keys=True) + "\n")
+    return (json.dumps(entry, sort_keys=True) + "\n").encode("utf-8")
 
 
 __all__ = [

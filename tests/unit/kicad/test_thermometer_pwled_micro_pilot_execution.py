@@ -89,7 +89,7 @@ def test_r3_plan_is_successful_but_not_claimed_as_route_guidance(
     assert execution.demands[0].allowed_layers == ("F.Cu",)
     assert execution.demands[0].via_policy is CorridorViaPolicy.FORBIDDEN
     assert execution.corridor_plan.guidance_ready
-    assert execution.verified_summary.summary.expansion_count == 202
+    assert execution.verified_summary.summary.expansion_count == 223
     assert execution.verified_summary.summary.channel_total_overflow_units == 0
     assert execution.verified_summary.summary.via_total_overflow_units == 0
 
@@ -174,7 +174,7 @@ def test_graph_budget_exact_thresholds_and_one_less_fail_closed(
     )
 
 
-@pytest.mark.parametrize(("expansions", "ready"), ((49, True), (48, False)))
+@pytest.mark.parametrize(("expansions", "ready"), ((52, True), (51, False)))
 def test_corridor_plan_minimum_expansion_threshold_and_one_less(
     execution: ThermometerPwledMicroPilotExecution,
     expansions: int,

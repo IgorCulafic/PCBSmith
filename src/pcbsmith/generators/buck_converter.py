@@ -9,7 +9,9 @@ from pcbsmith.kicad.kicad_board_builder import (
     MultiPadSmdFootprintSpec,
     NetRef,
     TwoPadSmdFootprintSpec,
+    TwoPadThroughHoleFootprintSpec,
 )
+from pcbsmith.kicad.project_library import project_local_footprint_id
 
 BOARD_WIDTH_MM = 100.0
 BOARD_HEIGHT_MM = 55.0
@@ -61,13 +63,27 @@ def buck_converter_to_circuit_design(
         components=(
             CircuitComponent(
                 reference="J1",
-                symbol_id="stdlib:CONN_01X02",
+                symbol_id="canonical:CONN_01X02",
+                footprint_id=project_local_footprint_id("PCBSmith_POWER_CONNECTOR_2P_REAL"),
                 value=f"VIN {spec.input_voltage_min_v:g}-{spec.input_voltage_max_v:g}V",
                 pins=(CircuitPin(number="1", net="VIN"), CircuitPin(number="2", net="GND")),
             ),
             CircuitComponent(
+                reference="VIN_SRC",
+                symbol_id="stdlib:VCC",
+                value="VIN",
+                pins=(CircuitPin(number="1", net="VIN"),),
+            ),
+            CircuitComponent(
+                reference="GND_SRC",
+                symbol_id="stdlib:GND",
+                value="GND",
+                pins=(CircuitPin(number="1", net="GND"),),
+            ),
+            CircuitComponent(
                 reference="U1",
-                symbol_id="stdlib:LM2596_ADJ",
+                symbol_id="canonical:LM2596S_ADJ",
+                footprint_id=project_local_footprint_id("PCBSmith_LM2596_TO263_REAL"),
                 value="LM2596-ADJ",
                 pins=(
                     CircuitPin(number="1", net="VIN"),
@@ -79,43 +95,50 @@ def buck_converter_to_circuit_design(
             ),
             CircuitComponent(
                 reference="L1",
-                symbol_id="stdlib:L",
+                symbol_id="canonical:L",
+                footprint_id=project_local_footprint_id("PCBSmith_L_POWER_REAL"),
                 value=f"{inductor:g}uH",
                 pins=(CircuitPin(number="1", net="SW"), CircuitPin(number="2", net="VOUT")),
             ),
             CircuitComponent(
                 reference="D1",
-                symbol_id="stdlib:D",
+                symbol_id="canonical:D_SCHOTTKY",
+                footprint_id=project_local_footprint_id("PCBSmith_D_SCHOTTKY_REAL"),
                 value="1N5822",
                 pins=(CircuitPin(number="1", net="GND"), CircuitPin(number="2", net="SW")),
             ),
             CircuitComponent(
                 reference="CIN",
-                symbol_id="stdlib:C",
+                symbol_id="canonical:C_POLARIZED",
+                footprint_id=project_local_footprint_id("PCBSmith_C_ELEC_REAL"),
                 value=f"{input_cap:g}uF",
                 pins=(CircuitPin(number="1", net="VIN"), CircuitPin(number="2", net="GND")),
             ),
             CircuitComponent(
                 reference="COUT",
-                symbol_id="stdlib:C",
+                symbol_id="canonical:C_POLARIZED",
+                footprint_id=project_local_footprint_id("PCBSmith_C_ELEC_REAL"),
                 value=f"{output_cap:g}uF",
                 pins=(CircuitPin(number="1", net="VOUT"), CircuitPin(number="2", net="GND")),
             ),
             CircuitComponent(
                 reference="RFB1",
-                symbol_id="stdlib:R",
+                symbol_id="canonical:R",
+                footprint_id=project_local_footprint_id("PCBSmith_R_0603_REAL"),
                 value=f"{lower:g}R",
                 pins=(CircuitPin(number="1", net="FB"), CircuitPin(number="2", net="GND")),
             ),
             CircuitComponent(
                 reference="RFB2",
-                symbol_id="stdlib:R",
+                symbol_id="canonical:R",
+                footprint_id=project_local_footprint_id("PCBSmith_R_0603_REAL"),
                 value=f"{upper:g}R",
                 pins=(CircuitPin(number="1", net="VOUT"), CircuitPin(number="2", net="FB")),
             ),
             CircuitComponent(
                 reference="J2",
-                symbol_id="stdlib:CONN_01X02",
+                symbol_id="canonical:CONN_01X02",
+                footprint_id=project_local_footprint_id("PCBSmith_POWER_CONNECTOR_2P_REAL"),
                 value=f"VOUT {spec.output_voltage_v:g}V {spec.load_current_a:g}A",
                 pins=(CircuitPin(number="1", net="VOUT"), CircuitPin(number="2", net="GND")),
             ),
@@ -155,37 +178,33 @@ def _add_connectors(
     gnd: NetRef,
     vout: NetRef,
 ) -> None:
-    builder.add_power_pad(
-        "VIN",
-        8.0,
-        14.0,
-        net=vin,
-        value=f"VIN {spec.input_voltage_min_v:g}-{spec.input_voltage_max_v:g}V",
-        reference_offset_mm=(-5.0, 0.0),
+    builder.add_two_pad_through_hole_footprint(
+        TwoPadThroughHoleFootprintSpec(
+            footprint=project_local_footprint_id("PCBSmith_POWER_CONNECTOR_2P_REAL"),
+            reference="J1",
+            value=f"VIN {spec.input_voltage_min_v:g}-{spec.input_voltage_max_v:g}V",
+            x_mm=8.0,
+            y_mm=25.0,
+            first_net=vin,
+            second_net=gnd,
+            pad_offset_mm=11.0,
+            description="Generic 1x2 connector",
+            connector_mating_label="VIN",
+        )
     )
-    builder.add_power_pad(
-        "GND_IN",
-        8.0,
-        36.0,
-        net=gnd,
-        value="Input ground",
-        reference_offset_mm=(5.0, 0.0),
-    )
-    builder.add_power_pad(
-        "VOUT",
-        92.0,
-        14.0,
-        net=vout,
-        value=f"VOUT {spec.output_voltage_v:g}V",
-        reference_offset_mm=(5.0, 0.0),
-    )
-    builder.add_power_pad(
-        "GND_OUT",
-        92.0,
-        36.0,
-        net=gnd,
-        value="Output ground",
-        reference_offset_mm=(-5.0, 0.0),
+    builder.add_two_pad_through_hole_footprint(
+        TwoPadThroughHoleFootprintSpec(
+            footprint=project_local_footprint_id("PCBSmith_POWER_CONNECTOR_2P_REAL"),
+            reference="J2",
+            value=f"VOUT {spec.output_voltage_v:g}V {spec.load_current_a:g}A",
+            x_mm=92.0,
+            y_mm=25.0,
+            first_net=vout,
+            second_net=gnd,
+            pad_offset_mm=11.0,
+            description="Generic 1x2 connector",
+            connector_mating_label="VOUT",
+        )
     )
 
 
@@ -201,7 +220,7 @@ def _add_power_stage(
 ) -> None:
     builder.add_multi_pad_smd_footprint(
         MultiPadSmdFootprintSpec(
-            footprint="PCBSmith_LM2596_TO263_REAL",
+            footprint=project_local_footprint_id("PCBSmith_LM2596_TO263_REAL"),
             reference="U1",
             value="LM2596-ADJ",
             x_mm=36.0,
@@ -220,7 +239,7 @@ def _add_power_stage(
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_L_POWER_REAL",
+            footprint=project_local_footprint_id("PCBSmith_L_POWER_REAL"),
             reference="L1",
             value=f"{outputs['selected_inductance_uH']:g}uH",
             x_mm=57.0,
@@ -238,7 +257,7 @@ def _add_power_stage(
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_D_SCHOTTKY_REAL",
+            footprint=project_local_footprint_id("PCBSmith_D_SCHOTTKY_REAL"),
             reference="D1",
             value="1N5822",
             x_mm=49.0,
@@ -252,14 +271,14 @@ def _add_power_stage(
             pad_height_mm=1.8,
             reference_offset_mm=(0.0, 3.0),
             silk_marker="cathode",
-            show_anode_plus=True,
-            anode_pad="1",
+            cathode_pad="1",
+            polarity_semantics="1=K;2=A",
             show_silkscreen_outline=False,
         )
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_C_ELEC_REAL",
+            footprint=project_local_footprint_id("PCBSmith_C_ELEC_REAL"),
             reference="CIN",
             value=f"{outputs['selected_input_capacitance_uF']:g}uF",
             x_mm=17.0,
@@ -270,26 +289,32 @@ def _add_power_stage(
             body_height_mm=4.0,
             pad_offset_mm=2.8,
             reference_offset_mm=(0.0, -3.5),
+            show_anode_plus=True,
+            anode_pad="1",
+            polarity_semantics="1=+;2=-",
         )
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_C_ELEC_REAL",
+            footprint=project_local_footprint_id("PCBSmith_C_ELEC_REAL"),
             reference="COUT",
             value=f"{outputs['selected_output_capacitance_uF']:g}uF",
             x_mm=78.0,
             y_mm=24.0,
-            left_net=gnd,
-            right_net=vout,
+            left_net=vout,
+            right_net=gnd,
             body_width_mm=5.5,
             body_height_mm=4.0,
             pad_offset_mm=2.8,
             reference_offset_mm=(0.0, -3.5),
+            show_anode_plus=True,
+            anode_pad="1",
+            polarity_semantics="1=+;2=-",
         )
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_R_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_R_0603_REAL"),
             reference="RFB1",
             value=f"{outputs['feedback_lower_ohms']:g}R",
             x_mm=65.0,
@@ -301,13 +326,13 @@ def _add_power_stage(
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_R_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_R_0603_REAL"),
             reference="RFB2",
             value=f"{outputs['selected_feedback_upper_ohms']:g}R",
             x_mm=65.0,
             y_mm=25.0,
-            left_net=fb,
-            right_net=vout,
+            left_net=vout,
+            right_net=fb,
             reference_offset_mm=(0.0, 2.0),
         )
     )
@@ -329,13 +354,13 @@ def _add_routes(
     _route(builder, ((30.8, 24.0), (30.8, 36.0)), gnd)
     _route(builder, ((30.8, 28.0), (30.8, 36.0)), gnd)
     _route(builder, ((46.6, 30.0), (46.6, 36.0)), gnd)
-    _route(builder, ((75.2, 24.0), (75.2, 36.0)), gnd)
+    _route(builder, ((80.8, 24.0), (80.8, 36.0)), gnd)
     _route(builder, ((65.75, 30.0), (65.75, 36.0)), gnd)
     _route(builder, ((41.2, 20.0), (50.8, 20.0), (52.8, 18.0)), sw)
     _route(builder, ((41.2, 20.0), (43.0, 20.0), (51.4, 28.4), (51.4, 30.0)), sw)
-    _route(builder, ((61.2, 18.0), (74.8, 18.0), (80.8, 24.0)), vout)
-    _route(builder, ((80.8, 24.0), (86.0, 24.0), (92.0, 18.0), (92.0, 14.0)), vout)
-    _route(builder, ((65.75, 25.0), (65.75, 18.0)), vout)
+    _route(builder, ((61.2, 18.0), (69.2, 18.0), (75.2, 24.0)), vout)
+    _route(builder, ((69.2, 18.0), (92.0, 18.0), (92.0, 14.0)), vout)
+    _route(builder, ((64.25, 25.0), (64.25, 18.0)), vout)
     builder.add_via(43.0, 24.0, net=fb, size_mm=0.6, drill_mm=0.3)
     builder.add_via(62.0, 28.0, net=fb, size_mm=0.6, drill_mm=0.3)
     _route(builder, ((41.2, 24.0), (43.0, 24.0)), fb, width=SIGNAL_TRACE_WIDTH_MM)
@@ -348,7 +373,13 @@ def _add_routes(
     )
     _route(
         builder,
-        ((62.0, 28.0), (64.25, 28.0), (64.25, 25.0), (64.25, 30.0)),
+        ((62.0, 28.0), (64.25, 28.0), (64.25, 30.0)),
+        fb,
+        width=SIGNAL_TRACE_WIDTH_MM,
+    )
+    _route(
+        builder,
+        ((64.25, 28.0), (65.75, 28.0), (65.75, 25.0)),
         fb,
         width=SIGNAL_TRACE_WIDTH_MM,
     )

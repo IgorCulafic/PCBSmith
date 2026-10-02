@@ -59,6 +59,7 @@ class DecouplingTerminalInventory(SemanticIrModel):
     return_net_name: str
     completeness: Literal["complete", "incomplete"]
     entries: tuple[DecouplingTerminalInventoryEntry, ...]
+    distinct_physical_pad_instances: bool = Field(default=False, exclude_if=lambda value: not value)
 
     @model_validator(mode="after")
     def inventory_is_canonical(self) -> Self:
@@ -73,7 +74,7 @@ class DecouplingTerminalInventory(SemanticIrModel):
         if len({item.physical_pad_source_id for item in entries}) != len(entries):
             raise ValueError("terminal inventory physical pad source identities must be unique")
         pad_nodes = tuple((item.component_reference, item.pad_number) for item in entries)
-        if len(set(pad_nodes)) != len(pad_nodes):
+        if not self.distinct_physical_pad_instances and len(set(pad_nodes)) != len(pad_nodes):
             raise ValueError("terminal inventory component/pad identities must be unique")
         object.__setattr__(self, "entries", entries)
         return self
@@ -88,6 +89,9 @@ class DecouplingLoopPolicy(SemanticIrModel):
     maximum_via_count: ExactRational
     minimum_track_width_mm: Decimal | None
     maximum_projected_loop_area_mm2: ExactRational | None
+    projected_area_method: Literal["exact_simple", "conservative_envelope"] = Field(
+        default="exact_simple", exclude_if=lambda v: v == "exact_simple"
+    )
     require_dedicated: bool
     applicability_binding: EvidenceApplicabilityBinding | None
 
@@ -192,18 +196,10 @@ def decoupling_loop_context_fingerprint(
             "schema_version": 1,
             "declaration_id": declaration.declaration_id,
             "graph_fingerprint": declaration.graph_fingerprint,
-            "board_layout_snapshot_fingerprint": (
-                declaration.board_layout_snapshot_fingerprint
-            ),
-            "board_netlist_snapshot_fingerprint": (
-                declaration.board_netlist_snapshot_fingerprint
-            ),
-            "supply_path_result_fingerprint": (
-                declaration.supply_path_result_fingerprint
-            ),
-            "return_path_result_fingerprint": (
-                declaration.return_path_result_fingerprint
-            ),
+            "board_layout_snapshot_fingerprint": (declaration.board_layout_snapshot_fingerprint),
+            "board_netlist_snapshot_fingerprint": (declaration.board_netlist_snapshot_fingerprint),
+            "supply_path_result_fingerprint": (declaration.supply_path_result_fingerprint),
+            "return_path_result_fingerprint": (declaration.return_path_result_fingerprint),
             "terminal_roles": {
                 "source_power": (
                     declaration.source_power_anchor_id,
@@ -235,6 +231,11 @@ def decoupling_loop_context_fingerprint(
                     None
                     if policy.maximum_projected_loop_area_mm2 is None
                     else policy.maximum_projected_loop_area_mm2.model_dump(mode="json")
+                ),
+                **(
+                    {"projected_area_method": policy.projected_area_method}
+                    if policy.projected_area_method != "exact_simple"
+                    else {}
                 ),
                 "require_dedicated": policy.require_dedicated,
             },
@@ -281,6 +282,9 @@ class DecouplingLoopMetrics(SemanticIrModel):
     combined_neck_edge_ids: tuple[str, ...]
     combined_radical_length_terms: tuple[CopperRadicalLengthTerm, ...]
     projected_loop_area_mm2: ExactRational | None
+    projected_envelope_area_mm2: ExactRational | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
     closure_segments: tuple[DecouplingClosureSegment, ...]
     projected_closure_verification: Literal["exact_simple", "unverified_non_simple"]
     terminal_classification: Literal["dedicated", "daisy_chain", "unverified"]

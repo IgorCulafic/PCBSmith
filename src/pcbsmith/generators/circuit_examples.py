@@ -14,8 +14,10 @@ from pcbsmith.kicad.kicad_board_builder import (
     NetRef,
     ThreePadSmdFootprintSpec,
     TwoPadSmdFootprintSpec,
+    TwoPadThroughHoleFootprintSpec,
 )
 from pcbsmith.kicad.kicad_export import (
+    NATIVE_SYMBOL_SPECS,
     PCBSMITH_SYMBOL_LIBRARY_FILE_NAME,
     PCBSMITH_SYMBOL_TABLE_FILE_NAME,
     render_kicad_schematic_items,
@@ -26,6 +28,10 @@ from pcbsmith.kicad.kicad_export import (
 from pcbsmith.kicad.kicad_project import (
     create_kicad_project_skeleton,
     render_kicad_schematic_file,
+)
+from pcbsmith.kicad.project_library import (
+    project_local_footprint_id,
+    write_project_local_footprint_library,
 )
 from pcbsmith.operations.project_io import save_board, save_project, save_schematic
 from pcbsmith.rules.board_intelligence import (
@@ -277,6 +283,7 @@ def export_timer_555_astable_kicad_project(
         _render_timer_555_astable_board(circuit),
         encoding="utf-8",
     )
+    write_project_local_footprint_library(skeleton.project_dir, skeleton.board_file)
     return CircuitExampleKiCadResult(
         source_project_dir=source_project_dir,
         project_dir=skeleton.project_dir,
@@ -434,129 +441,106 @@ def _rc_low_pass_filter_schematic(circuit: RcLowPassFilterCircuit) -> Schematic:
 
 
 def _timer_555_astable_schematic(circuit: Timer555AstableCircuit) -> Schematic:
-    u1 = Point.from_mm(35.56, 25.4)
-    r1 = Point.from_mm(60.96, 12.7)
-    r2 = Point.from_mm(60.96, 20.32)
-    c1 = Point.from_mm(60.96, 30.48)
-    c2 = Point.from_mm(15.24, 12.7)
-    c3 = Point.from_mm(15.24, 30.48)
-    r3 = Point.from_mm(60.96, 40.64)
-    led1 = Point.from_mm(76.2, 40.64)
-    vcc = Point.from_mm(10.16, 5.08)
-    gnd = Point.from_mm(10.16, 48.26)
-    wires: list[Wire] = []
+    placements = {
+        "J1": ("canonical:CONN_01X02", Point.from_mm(7.62, 7.62)),
+        "U1": ("canonical:NE555D", Point.from_mm(38.1, 25.4)),
+        "R1": ("canonical:R", Point.from_mm(66.04, 10.16)),
+        "R2": ("canonical:R", Point.from_mm(76.2, 20.32)),
+        "C1": ("canonical:C", Point.from_mm(76.2, 33.02)),
+        "C2": ("canonical:C", Point.from_mm(17.78, 15.24)),
+        "C3": ("canonical:C", Point.from_mm(17.78, 33.02)),
+        "R3": ("canonical:R", Point.from_mm(66.04, 45.72)),
+        "LED1": ("canonical:LED", Point.from_mm(83.82, 45.72)),
+    }
+    pin_nets = {
+        "J1": {"1": "VCC", "2": "GND"},
+        "U1": {
+            "1": "GND",
+            "2": "TIMING",
+            "3": "OUT",
+            "4": "VCC",
+            "5": "CTRL",
+            "6": "TIMING",
+            "7": "DISCH",
+            "8": "VCC",
+        },
+        "R1": {"1": "VCC", "2": "DISCH"},
+        "R2": {"1": "DISCH", "2": "TIMING"},
+        "C1": {"1": "TIMING", "2": "GND"},
+        "C2": {"1": "VCC", "2": "GND"},
+        "C3": {"1": "CTRL", "2": "GND"},
+        "R3": {"1": "OUT", "2": "LED_A"},
+        "LED1": {"1": "GND", "2": "LED_A"},
+    }
+    values = {
+        "J1": f"{circuit.supply_voltage} Input",
+        "U1": "NE555",
+        "R1": circuit.timing_resistor_a,
+        "R2": circuit.timing_resistor_b,
+        "C1": circuit.timing_capacitor,
+        "C2": circuit.decoupling_capacitor,
+        "C3": circuit.control_capacitor,
+        "R3": circuit.led_resistor,
+        "LED1": circuit.led_value,
+    }
+    footprints = {
+        "J1": project_local_footprint_id("PCBSmith_POWER_CONNECTOR_2P_REAL"),
+        "U1": project_local_footprint_id("PCBSmith_SOIC8_NE555_REAL"),
+        "R1": project_local_footprint_id("PCBSmith_R_0603_REAL"),
+        "R2": project_local_footprint_id("PCBSmith_R_0603_REAL"),
+        "C1": project_local_footprint_id("PCBSmith_C_0603_REAL"),
+        "C2": project_local_footprint_id("PCBSmith_C_0603_REAL"),
+        "C3": project_local_footprint_id("PCBSmith_C_0603_REAL"),
+        "R3": project_local_footprint_id("PCBSmith_R_0603_REAL"),
+        "LED1": project_local_footprint_id("PCBSmith_LED_0603_REAL"),
+    }
+    symbols = [
+        SymbolInstance(
+            reference=reference,
+            symbol_id=symbol_id,
+            value=values[reference],
+            position=position,
+            footprint_id=footprints[reference],
+        )
+        for reference, (symbol_id, position) in placements.items()
+    ]
+    vcc = Point.from_mm(12.7, 7.62)
+    gnd = Point.from_mm(12.7, 50.8)
+    symbols.insert(
+        1,
+        SymbolInstance(reference="V1", symbol_id="stdlib:VCC", value="VCC", position=vcc),
+    )
+    symbols.append(
+        SymbolInstance(reference="G1", symbol_id="stdlib:GND", value="GND", position=gnd)
+    )
+    wires: list[Wire] = [
+        Wire(points=(vcc, vcc + Vec(mm_to_nm(2.54), 0))),
+        Wire(points=(gnd, gnd + Vec(mm_to_nm(2.54), 0))),
+    ]
     labels: list[NetLabel] = []
-    _add_label_stub(wires, labels, "VCC", vcc, Point.from_mm(12.7, 5.08))
-    _add_label_stub(wires, labels, "DISCH", _ne555_pin_point(u1, "7"), Point.from_mm(45.72, 22.86))
-    _add_label_stub(wires, labels, "TIMING", _ne555_pin_point(u1, "2"), Point.from_mm(25.4, 22.86))
-    _add_label_stub(wires, labels, "CTRL", _ne555_pin_point(u1, "5"), Point.from_mm(25.4, 27.94))
-    _add_label_stub(wires, labels, "OUT", _ne555_pin_point(u1, "3"), Point.from_mm(45.72, 30.48))
-    _add_label_stub(
-        wires, labels, "LED_A", r3 + Vec(mm_to_nm(5.08), 0), Point.from_mm(68.58, 40.64)
-    )
-    _add_label_stub(wires, labels, "GND", gnd, Point.from_mm(12.7, 48.26))
-    _add_label_stub(wires, labels, "GND", _ne555_pin_point(u1, "1"), Point.from_mm(25.4, 20.32))
-    _add_label_stub(wires, labels, "TIMING", _ne555_pin_point(u1, "6"), Point.from_mm(45.72, 25.4))
-    _add_label_stub(wires, labels, "VCC", _ne555_pin_point(u1, "4"), Point.from_mm(25.4, 25.4))
-    _add_label_stub(wires, labels, "VCC", _ne555_pin_point(u1, "8"), Point.from_mm(45.72, 20.32))
-    _add_label_stub(wires, labels, "VCC", r1 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(53.34, 12.7))
-    _add_label_stub(wires, labels, "DISCH", r1 + Vec(mm_to_nm(5.08), 0), Point.from_mm(68.58, 12.7))
-    _add_label_stub(
-        wires, labels, "DISCH", r2 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(53.34, 20.32)
-    )
-    _add_label_stub(
-        wires, labels, "TIMING", r2 + Vec(mm_to_nm(5.08), 0), Point.from_mm(68.58, 20.32)
-    )
-    _add_label_stub(
-        wires, labels, "TIMING", c1 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(53.34, 30.48)
-    )
-    _add_label_stub(wires, labels, "GND", c1 + Vec(mm_to_nm(5.08), 0), Point.from_mm(68.58, 30.48))
-    _add_label_stub(wires, labels, "VCC", c2 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(7.62, 12.7))
-    _add_label_stub(wires, labels, "GND", c2 + Vec(mm_to_nm(5.08), 0), Point.from_mm(22.86, 12.7))
-    _add_label_stub(wires, labels, "CTRL", c3 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(7.62, 30.48))
-    _add_label_stub(wires, labels, "GND", c3 + Vec(mm_to_nm(5.08), 0), Point.from_mm(22.86, 30.48))
-    _add_label_stub(wires, labels, "OUT", r3 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(53.34, 40.64))
-    _add_label_stub(
-        wires, labels, "LED_A", led1 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(68.58, 40.64)
-    )
-    _add_label_stub(
-        wires, labels, "GND", led1 + Vec(mm_to_nm(5.08), 0), Point.from_mm(83.82, 40.64)
-    )
-    return Schematic(
-        id="main",
-        symbols=(
-            SymbolInstance(
-                reference="V1",
-                symbol_id="stdlib:VCC",
-                value="VCC",
-                position=vcc,
-            ),
-            SymbolInstance(
-                reference="U1",
-                symbol_id="stdlib:NE555",
-                value="NE555",
-                position=u1,
-                footprint_id="stdlib:SOIC8",
-            ),
-            SymbolInstance(
-                reference="R1",
-                symbol_id="stdlib:R",
-                value=circuit.timing_resistor_a,
-                position=r1,
-                footprint_id="stdlib:R_0603",
-            ),
-            SymbolInstance(
-                reference="R2",
-                symbol_id="stdlib:R",
-                value=circuit.timing_resistor_b,
-                position=r2,
-                footprint_id="stdlib:R_0603",
-            ),
-            SymbolInstance(
-                reference="C1",
-                symbol_id="stdlib:C",
-                value=circuit.timing_capacitor,
-                position=c1,
-                footprint_id="stdlib:C_0603",
-            ),
-            SymbolInstance(
-                reference="C2",
-                symbol_id="stdlib:C",
-                value=circuit.decoupling_capacitor,
-                position=c2,
-                footprint_id="stdlib:C_0603",
-            ),
-            SymbolInstance(
-                reference="C3",
-                symbol_id="stdlib:C",
-                value=circuit.control_capacitor,
-                position=c3,
-                footprint_id="stdlib:C_0603",
-            ),
-            SymbolInstance(
-                reference="R3",
-                symbol_id="stdlib:R",
-                value=circuit.led_resistor,
-                position=r3,
-                footprint_id="stdlib:R_0603",
-            ),
-            SymbolInstance(
-                reference="LED1",
-                symbol_id="stdlib:LED",
-                value=circuit.led_value,
-                position=led1,
-                footprint_id="stdlib:LED_0603",
-            ),
-            SymbolInstance(
-                reference="G1",
-                symbol_id="stdlib:GND",
-                value="GND",
-                position=gnd,
-            ),
-        ),
-        wires=tuple(wires),
-        labels=tuple(labels),
-    )
+    stub_nm = mm_to_nm(2.54)
+    for reference, (symbol_id, position) in placements.items():
+        spec = NATIVE_SYMBOL_SPECS[symbol_id]
+        for pin_number, net_name in pin_nets[reference].items():
+            offset = spec.pin_offsets[int(pin_number) - 1]
+            pin_point = position + offset
+            if offset.dx < 0:
+                stub = Vec(-stub_nm, 0)
+            elif offset.dx > 0:
+                stub = Vec(stub_nm, 0)
+            elif offset.dy < 0:
+                stub = Vec(0, -stub_nm)
+            else:
+                stub = Vec(0, stub_nm)
+            endpoint = pin_point + stub
+            wires.append(Wire(points=(pin_point, endpoint)))
+            labels.append(NetLabel(name=net_name, position=endpoint))
+    label_order = {
+        name: index
+        for index, name in enumerate(("VCC", "DISCH", "TIMING", "CTRL", "OUT", "LED_A", "GND"))
+    }
+    labels.sort(key=lambda label: label_order[label.name])
+    return Schematic(id="main", symbols=tuple(symbols), wires=tuple(wires), labels=tuple(labels))
 
 
 def _timer_555_pwm_dimmer_schematic(circuit: Timer555PwmDimmerCircuit) -> Schematic:
@@ -604,9 +588,7 @@ def _timer_555_pwm_dimmer_schematic(circuit: Timer555PwmDimmerCircuit) -> Schema
     _add_label_stub(
         wires, labels, "PWM_NODE", rv1 + Vec(0, mm_to_nm(-5.08)), Point.from_mm(60.96, 5.08)
     )
-    _add_label_stub(
-        wires, labels, "VCC", rv1 + Vec(mm_to_nm(5.08), 0), Point.from_mm(68.58, 12.7)
-    )
+    _add_label_stub(wires, labels, "VCC", rv1 + Vec(mm_to_nm(5.08), 0), Point.from_mm(68.58, 12.7))
     _add_label_stub(
         wires, labels, "DISCH", d1 + Vec(mm_to_nm(-5.08), 0), Point.from_mm(53.34, 20.32)
     )
@@ -759,6 +741,11 @@ def _add_label_stub(
 ) -> None:
     wires.append(Wire(points=(start, end)))
     labels.append(NetLabel(name=name, position=end))
+
+
+def _canonical_pin_point(center: Point, symbol_id: str, pin_number: str) -> Point:
+    spec = NATIVE_SYMBOL_SPECS[symbol_id]
+    return center + spec.pin_offsets[int(pin_number) - 1]
 
 
 def _ne555_pin_point(center: Point, pin_number: str) -> Point:
@@ -1024,22 +1011,23 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     out = builder.net("OUT")
     led_a = builder.net("LED_A")
 
-    builder.add_power_pad(
-        "VCC",
-        *point(8.0, 10.0),
-        net=vcc,
-        value=f"{circuit.supply_voltage} Input",
-        reference_offset_mm=(-4.0, 0.0),
-    )
-    builder.add_power_pad(
-        "GND",
-        *point(8.0, 15.0),
-        net=gnd,
-        value="Return",
-        reference_offset_mm=(-4.0, 0.0),
+    connector_x, connector_y = point(8.0, 12.5)
+    builder.add_two_pad_through_hole_footprint(
+        TwoPadThroughHoleFootprintSpec(
+            footprint=project_local_footprint_id("PCBSmith_POWER_CONNECTOR_2P_REAL"),
+            reference="J1",
+            value=f"{circuit.supply_voltage} Input",
+            x_mm=connector_x,
+            y_mm=connector_y,
+            first_net=vcc,
+            second_net=gnd,
+            pad_offset_mm=2.5,
+            reference_offset_mm=(-4.0, 0.0),
+            description="Generic 1x2 connector",
+        )
     )
     builder.add_rectangular_ic_footprint(
-        footprint="PCBSmith_SOIC8_NE555_REAL",
+        footprint=project_local_footprint_id("PCBSmith_SOIC8_NE555_REAL"),
         reference="U1",
         value="NE555",
         x_mm=point(35.0, 25.0)[0],
@@ -1065,7 +1053,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_R_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_R_0603_REAL"),
             reference="R1",
             value=circuit.timing_resistor_a,
             x_mm=point(62.0, 14.0)[0],
@@ -1077,7 +1065,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_R_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_R_0603_REAL"),
             reference="R2",
             value=circuit.timing_resistor_b,
             x_mm=point(62.0, 24.0)[0],
@@ -1089,7 +1077,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_C_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_C_0603_REAL"),
             reference="C1",
             value=circuit.timing_capacitor,
             x_mm=point(76.0, 34.0)[0],
@@ -1101,7 +1089,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_C_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_C_0603_REAL"),
             reference="C2",
             value=circuit.decoupling_capacitor,
             x_mm=point(16.0, 14.0)[0],
@@ -1113,7 +1101,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_C_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_C_0603_REAL"),
             reference="C3",
             value=circuit.control_capacitor,
             x_mm=point(24.0, 38.0)[0],
@@ -1125,7 +1113,7 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_R_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_R_0603_REAL"),
             reference="R3",
             value=circuit.led_resistor,
             x_mm=point(62.0, 44.0)[0],
@@ -1137,16 +1125,21 @@ def _render_timer_555_astable_board(circuit: Timer555AstableCircuit) -> str:
     )
     builder.add_two_pad_smd_footprint(
         TwoPadSmdFootprintSpec(
-            footprint="PCBSmith_LED_0603_REAL",
+            footprint=project_local_footprint_id("PCBSmith_LED_0603_REAL"),
             reference="LED1",
             value=circuit.led_value,
             x_mm=point(76.0, 44.0)[0],
             y_mm=point(76.0, 44.0)[1],
             left_net=led_a,
             right_net=gnd,
+            left_pad_number="2",
+            right_pad_number="1",
             reference_offset_mm=(0.0, 2.2),
             silk_marker="cathode",
+            cathode_pad="1",
             show_anode_plus=circuit.show_polarity_marks,
+            anode_pad="2",
+            polarity_semantics="1=K;2=A",
         )
     )
 

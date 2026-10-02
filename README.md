@@ -1,30 +1,15 @@
 # PCBSmith
 
-> **Current project state (reconciled 2026-07-20):** PCBSmith has grown far
-> beyond the original Phase 0 CLI below. The tenth thermometer project is
-> complete as the accepted routed R005 proof-of-concept; R006 is a separate 3D
-> proxy visualization pilot. Its slow legacy-path success does not establish
-> generic negotiated-router scale or production/default adoption, but the board
-> will not be rerun merely to prove newer machinery. Generic R2-R6 routing,
-> corridor, bus, placement, and semantic authorities remain bounded tools to be
-> exercised on the next genuinely unseen project. Start with
-> [`docs/handoff-prompt.md`](docs/handoff-prompt.md),
-> [`docs/current-state.md`](docs/current-state.md), [`CLAUDE.md`](CLAUDE.md),
-> [`docs/reference/current-materials-knowledge-base-2026-07-14.md`](docs/reference/current-materials-knowledge-base-2026-07-14.md),
-> [`docs/reference/standards-table-reverification-2026-07-14.md`](docs/reference/standards-table-reverification-2026-07-14.md),
-> and [`docs/routing-placement-plan.md`](docs/routing-placement-plan.md).
-> The July 14 synthesis covers 31 reconciled sources; the local extraction
-> manifest now registers 41 documents. Registration is not the same as
-> distillation or production use. Historical and archived documents never
-> override the current-state record or active roadmap.
-> Phase 11/12 now have a callable generic foundation for approved-source
-> intake, private/redistributable KiCad assets, PNG outline and silkscreen
-> tracing, model preflight, standardized 2D/3D review packages, and observable
-> repository verification profiles. These are not yet automatically invoked by
-> every board generator. See
-> [`docs/evidence-assets-review-execution-guide.md`](docs/evidence-assets-review-execution-guide.md).
-> The remainder of this README documents the still-supported original
-> headless foundation.
+> **Current scope, 2026-10-02:** See [current state](docs/current-state.md),
+> [production usage](docs/production-usage.md) and
+> [development and verification](docs/development.md).
+> PCBSmith includes a schematic-editor prototype and native KiCad workflows with
+> source-bound readiness, automatic Freerouting, visual review and handover checks.
+> Single- and two-sided laser isolation artwork, interactive BOMs, editable vector
+> plans and qualified same-footprint SMD substitution are supported within their
+> documented limits. Physical process qualification remains separate.
+> This public software snapshot excludes unpublished manuscripts, private experiment
+> history, machine configuration, model weights and local board delivery archives.
 
 PCBSmith is an open-source PCB design application foundation. The long-term goal is to let users describe circuits in natural language or code-like text, validate that intent as structured intermediate data, and turn it into schematic and PCB project data.
 
@@ -63,24 +48,38 @@ The historical design and implementation records are retained under
 order remain authoritative in [`docs/current-state.md`](docs/current-state.md)
 and [`docs/routing-placement-plan.md`](docs/routing-placement-plan.md).
 
-## Verification
+## Setup and verification
 
-The maintained development and verification environment is Python 3.12. The
-package metadata and Ruff syntax floor retain Python 3.11 compatibility, which
-is checked separately; Python 3.14 is currently outside the supported range.
+Use Python **3.12.12** and uv **0.11.23**, the maintained verification versions.
+The declared runtime range is 3.11–3.13; that range is not a claim that every
+platform/version combination has passed the full suite. Install KiCad 10 with
+its footprint and symbol libraries for native board workflows. Live golden
+checks also require ngspice. See [development.md](docs/development.md) for
+native paths, fonts, isolated environments and the separate CI lanes.
 
-Run the deterministic offline gates from PowerShell:
+From the repository root in PowerShell:
 
 ```powershell
-$env:PYTEST_DISABLE_PLUGIN_AUTOLOAD='1'
-.\.venv\Scripts\python.exe -m pytest -q -p no:cacheprovider -W error
-.\.venv\Scripts\python.exe -m ruff check src tests
-.\.venv\Scripts\python.exe -m mypy --strict --python-version 3.12 src/pcbsmith
-pcbsmith verify .pcbsmith/verification/quick --profile quick
+uv sync --frozen --all-extras --python 3.12.12
+uv run --frozen --all-extras python -B tools/verify.py --output .pcbsmith/verification/first-run
+uv run --frozen --all-extras pcbsmith-gui
 ```
 
-The independent live KiCad/ngspice gate commands and their environment-variable
-cleanup are recorded in [`docs/handoff-prompt.md`](docs/handoff-prompt.md).
+Choose a new output directory for every verification run. The shared gate
+checks the lockfile, Ruff, strict mypy, architecture imports and the full
+ordinary pytest suite. It records logs, exit status, versions and heartbeats.
+Qt runs offscreen with an explicitly registered font and explicit pytest-qt/Hypothesis plugins.
+The `quick` profile is a subset; `deep` also enables live KiCad/ngspice golden
+checks. A missing native tool fails the deep lane explicitly.
+
+```powershell
+uv run --frozen --all-extras python -B tools/verify.py --profile quick --output .pcbsmith/verification/quick-001
+uv run --frozen --all-extras python -B tools/verify.py --profile deep --output .pcbsmith/verification/native-001
+```
+
+Existing `pcbsmith verify OUTPUT --profile PROFILE` uses the same gate factory
+and execution orchestrator. Verification is developer functionality requiring
+a source checkout. It is not a fabrication-release approval.
 
 ## Hard Rules
 

@@ -577,15 +577,15 @@ def test_target_copper_is_replaced_non_target_preserved_and_repeat_is_pinned() -
     assert first.result == second.result
     assert first.result.semantic_fingerprint() == second.result.semantic_fingerprint()
     assert first.result.selected_candidate_fingerprints == (
-        "0edb4e28b09d4b6394d0c024a60dc095d22a873a6768eb773c1d62b2246eb37f",
-        "aff3935ac1f8f90608239c00d78ff9c33b8d905be82afd968ee811e470fc80f6",
+        "0b3d324c37ff38de8acb7e533aac699b8e0d30eef0cfad50205e27d81f1f49bb",
+        "63c8b974cca5605ea73cac06ec19f40513a3b7f9ba8aa1889260051cdb8cd7a3",
     )
     assert first.result.semantic_fingerprint() == (
-        "426d95eb28888c26d831a4621445696357f793f51cd32006ea6f6f37e915f1f2"
+        "98dab51283c2a60ae2067e8c43362a8b4207e43bba1c7d0ea475663d252c082c"
     )
     selected_records = tuple(item for item in first.result.candidate_records if item.selected)
     assert tuple(item.corridor_plan_fingerprint for item in selected_records) == (
-        "f2153d02a79945ae42ec9a6e51c70536036c58423c6529eb7f8c16f3a59df383",
+        "e7b0eae38b4ab37eeda346df883fdfd30c5afea0f5cde8ec22b9dc5cb503f3ea",
         "f05cb50db71634cf96bb7946bab74f39f652f1e8a564650aa78a4a5176008217",
     )
     assert tuple(

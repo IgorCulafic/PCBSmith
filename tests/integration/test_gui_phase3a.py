@@ -60,7 +60,7 @@ def test_phase3a_main_window_uses_light_chrome_by_default(qtbot) -> None:  # typ
 def test_phase3a_options_menu_can_switch_themes(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = MainWindow()
     qtbot.addWidget(window)
-    actions = {action.text(): action for action in window.actions()}
+    actions = {action.text(): action for action in (*window.actions(), *window.view.actions())}
 
     actions["Dark Theme"].trigger()
     assert window.property("pcbsTheme") == "dark"
@@ -72,7 +72,7 @@ def test_phase3a_options_menu_can_switch_themes(qtbot) -> None:  # type: ignore[
 def test_phase3a_options_menu_can_change_wire_width(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = MainWindow()
     qtbot.addWidget(window)
-    actions = {action.text(): action for action in window.actions()}
+    actions = {action.text(): action for action in (*window.actions(), *window.view.actions())}
 
     actions["Wire Width 6"].trigger()
 
@@ -98,7 +98,7 @@ def test_phase3a_blank_canvas_fit_starts_centered_at_usable_scale(qtbot) -> None
 def test_phase3a_grid_units_default_to_mm_and_switch_to_cm(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = MainWindow()
     qtbot.addWidget(window)
-    actions = {action.text(): action for action in window.actions()}
+    actions = {action.text(): action for action in (*window.actions(), *window.view.actions())}
 
     assert window.view.grid_unit() == "mm"
     assert window.view.grid_spacing_label() == "2.54 mm"
@@ -185,7 +185,7 @@ def test_phase3a_shortcuts_are_registered(qtbot) -> None:  # type: ignore[no-unt
     window = MainWindow()
     qtbot.addWidget(window)
 
-    actions = {action.text(): action for action in window.actions()}
+    actions = {action.text(): action for action in (*window.actions(), *window.view.actions())}
     assert actions["Resistor"].shortcut() == QKeySequence("R")
     assert actions["Capacitor"].shortcut() == QKeySequence("C")
     assert actions["Diode"].shortcut() == QKeySequence("D")

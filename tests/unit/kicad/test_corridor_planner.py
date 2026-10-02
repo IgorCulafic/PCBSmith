@@ -281,10 +281,10 @@ def test_empty_rectangle_has_hand_counted_cells_portals_and_center_vias() -> Non
     assert len(result.graph.via_portals) == 9
     assert {portal.guaranteed_span_units for portal in result.graph.portals} == {200}
     assert result.graph.semantic_fingerprint() == (
-        "ddd06605a21b1dc348b702cccba94a18d7a01d7be2b51121f09ff25e2f363444"
+        "91e655708e3326e8b825ab689fb023a8bf7c8d7749646d6230b7bb18555805ef"
     )
     assert result.semantic_fingerprint() == (
-        "1cb79808fb91e578cbeca85f151e798732fee7a64f99437a6ee35a1f7842d70e"
+        "a39e892346070e70850827fb1137c47fe2511b8a5c9a2454f05067bb4509c12f"
     )
 
 

@@ -41,7 +41,7 @@ QToolButton:hover, QPushButton:hover {
     background: #e8f1fb;
     border-color: #8fb7e6;
 }
-QToolButton:pressed, QPushButton:pressed {
+QToolButton:checked, QToolButton:pressed, QPushButton:pressed {
     background: #d2e6fb;
 }
 QCheckBox {
@@ -51,6 +51,8 @@ QCheckBox {
 """
 
 DARK_STYLESHEET = """
+QWidget, QLabel, QStatusBar { background: #1f1f1f; color: #f2f4f7; }
+QMenuBar::item:selected, QMenu::item:selected { background: #395b80; }
 QMainWindow, QDialog, QDockWidget, QTextEdit, QListWidget, QToolBox {
     background: #1f1f1f;
     color: #f2f4f7;
@@ -78,6 +80,16 @@ QCheckBox {
 """
 
 
+FOCUS_STYLESHEET = """
+QPushButton:focus, QToolButton:focus, QLineEdit:focus, QListWidget:focus {
+    border: 2px solid #3684d6;
+}
+QCheckBox::indicator { width: 12px; height: 12px; border: 1px solid #8795a5; background: #ffffff; }
+QCheckBox::indicator:checked { border: 3px solid #ffffff; background: #2563eb; }
+QToolButton:checked { background: #395b80; color: #ffffff; border: 2px solid #79b8ff; }
+"""
+
+
 def apply_light_palette(app: QApplication) -> None:
     palette = QPalette()
     palette.setColor(QPalette.ColorRole.Window, QColor(243, 245, 247))
@@ -95,8 +107,8 @@ def apply_light_palette(app: QApplication) -> None:
 def apply_window_theme(widget: QWidget, theme: str) -> None:
     if theme == "dark":
         widget.setProperty("pcbsTheme", "dark")
-        widget.setStyleSheet(DARK_STYLESHEET)
+        widget.setStyleSheet(DARK_STYLESHEET + FOCUS_STYLESHEET)
         return
 
     widget.setProperty("pcbsTheme", "light")
-    widget.setStyleSheet(LIGHT_STYLESHEET)
+    widget.setStyleSheet(LIGHT_STYLESHEET + FOCUS_STYLESHEET)

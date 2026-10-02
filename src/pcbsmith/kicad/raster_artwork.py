@@ -211,7 +211,7 @@ def _load_mask(source_file: Path, settings: RasterTraceSettings) -> tuple[Any, A
 
 def _valid_polygon(points: tuple[Point, ...]) -> Any:
     try:
-        from shapely.geometry import Polygon  # type: ignore[import-untyped]
+        from shapely.geometry import Polygon
     except ImportError as exc:
         raise RuntimeError("Install the artwork extra: pip install 'pcbsmith[artwork]'.") from exc
     polygon = Polygon(points).buffer(0)

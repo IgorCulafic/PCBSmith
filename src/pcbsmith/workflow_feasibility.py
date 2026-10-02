@@ -182,8 +182,8 @@ def evaluate_pre_route_feasibility(
     """Evaluate exact containment and bounded alternative-neck allocation."""
 
     try:
-        from shapely.geometry import Polygon  # type: ignore[import-untyped]
-        from shapely.ops import unary_union  # type: ignore[import-untyped]
+        from shapely.geometry import Polygon
+        from shapely.ops import unary_union
     except ImportError as exc:  # pragma: no cover
         raise RuntimeError("Install the artwork extra for feasibility geometry.") from exc
     require_sha256(board_outline_sha256, "board_outline_sha256")

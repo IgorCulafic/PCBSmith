@@ -30,10 +30,10 @@ class InspectorWidget(QWidget):
         layout.addRow("Type", self.item_type_label)
         layout.addRow("Reference", self.reference_edit)
         layout.addRow("Value", self.value_edit)
-        layout.addRow("Rotation", self.rotation_edit)
+        layout.addRow("Rotation (°)", self.rotation_edit)
         layout.addRow("Footprint", self.footprint_edit)
         layout.addRow("Label", self.label_edit)
-        layout.addRow("Position", self.position_label)
+        layout.addRow("Position (mm)", self.position_label)
         layout.addRow("Diagnostics", self.diagnostic_label)
 
         self.reference_edit.editingFinished.connect(self.commit_reference_edit)
@@ -42,6 +42,19 @@ class InspectorWidget(QWidget):
         self.footprint_edit.editingFinished.connect(self.commit_footprint_edit)
         self.label_edit.editingFinished.connect(self.commit_label_edit)
 
+        for edit, name in (
+            (self.reference_edit, "Reference"),
+            (self.value_edit, "Value"),
+            (self.rotation_edit, "Rotation in degrees"),
+            (self.footprint_edit, "Footprint"),
+            (self.label_edit, "Net label"),
+        ):
+            edit.setAccessibleName(name)
+            label = layout.labelForField(edit)
+            if isinstance(label, QLabel):
+                label.setBuddy(edit)
+        self.position_label.setWordWrap(True)
+        self.diagnostic_label.setWordWrap(True)
         self._set_all_enabled(False)
 
     def show_selection(self, state: EditorState, selection: SelectionKey | None) -> None:
@@ -167,7 +180,7 @@ def _valid_index(selection: SelectionKey, length: int) -> int | None:
 
 
 def _format_position(position: Point) -> str:
-    return f"{position.x}, {position.y}"
+    return f"{position.x / 1_000_000:g}, {position.y / 1_000_000:g} mm"
 
 
 __all__ = ["InspectorWidget"]

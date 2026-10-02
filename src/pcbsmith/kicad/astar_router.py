@@ -66,6 +66,16 @@ DEFAULT_MAX_BOARD_EXPANSIONS = 100_000_000
 DEFAULT_MAX_EXPANSIONS_PER_NET = 5_000_000
 
 
+def routing_copper_layers(profile: PcbRuleProfile) -> tuple[str, ...]:
+    """Physical routing sides; KiCad may retain an unused back layer in its file."""
+    count = profile.geometry.copper_layer_count
+    if count == 1:
+        return ("F.Cu",)
+    if count == 2:
+        return LAYERS
+    raise ValueError("native A* supports one front copper side or two copper layers")
+
+
 class RoutingError(RuntimeError):
     """Typed routing failure with deterministic work already consumed."""
 
@@ -117,6 +127,7 @@ class GridRouter:
         self.width = track_width_mm
         self.grid = grid_mm
         self.profile = profile
+        self.layers = routing_copper_layers(profile)
         self.clearance = profile.fab_spacing.minimum_copper_clearance_mm
         self.edge_clearance = profile.fab_spacing.minimum_copper_to_edge_mm
         self.via_radius = profile.geometry.routing_via_diameter_mm / 2
@@ -136,6 +147,18 @@ class GridRouter:
             for item in items
             if (item.net == net_name and item.kind is _PhysicalItemKind.COPPER)
         ]
+        if len(self.layers) == 1:
+            for item in own:
+                if item.source_role is _PhysicalSourceRole.PAD and item.layer not in self.layers:
+                    if not any(
+                        twin.source_role is _PhysicalSourceRole.PAD
+                        and twin.parent_source_id == item.parent_source_id
+                        and item.parent_source_id is not None
+                        and twin.layer in self.layers
+                        for twin in own
+                    ):
+                        raise RoutingError("single-sided routing cannot reach a back-only pad")
+            own = [item for item in own if item.layer in self.layers]
         foreign = [
             item
             for item in _collect_items(layout, netlist, cover_rect_pads=True, profile=profile)
@@ -280,7 +303,7 @@ class GridRouter:
 
     def _pad_nodes(self, pad: _Stadium) -> list[tuple[str, int, int]]:
         layers = (
-            LAYERS
+            self.layers
             if (pad.source_role is _PhysicalSourceRole.PAD and self._is_through(pad))
             else (pad.layer,)
         )
@@ -333,7 +356,7 @@ class GridRouter:
         A*.  Previously that copper was merely made non-blocking; it was not
         part of the search tree, so a legal QFN escape did not help routing.
         Only the connected seed component touching the first eligible pad is
-        admitted here—disconnected same-net islands are never treated as
+        admitted hereâ€”disconnected same-net islands are never treated as
         electrically joined.
         """
 
@@ -369,10 +392,9 @@ class GridRouter:
                 (layer, ix - 1, iy + 1),
                 (layer, ix, iy + 1),
                 (layer, ix + 1, iy + 1),
-                (
-                    LAYERS[1] if layer == LAYERS[0] else LAYERS[0],
-                    ix,
-                    iy,
+                *(
+                    ((self.layers[1] if layer == self.layers[0] else self.layers[0], ix, iy),)
+                    if len(self.layers) == 2 else ()
                 ),
             )
             for neighbour in neighbours:
@@ -690,9 +712,10 @@ class GridRouter:
                 ):
                     continue
                 neighbours.append(((layer, nx, ny), self.grid * math.sqrt(2), (dx, dy)))
-            other = LAYERS[1] if layer == LAYERS[0] else LAYERS[0]
-            if (ix, iy) not in self.via_blocked and (ix, iy) not in self.blocked[other]:
-                neighbours.append(((other, ix, iy), VIA_COST_MM, None))
+            if len(self.layers) == 2:
+                other = self.layers[1] if layer == self.layers[0] else self.layers[0]
+                if (ix, iy) not in self.via_blocked and (ix, iy) not in self.blocked[other]:
+                    neighbours.append(((other, ix, iy), VIA_COST_MM, None))
             for neighbour, cost, step in neighbours:
                 if step is not None and came_dir is not None and step != came_dir:
                     cost += TURN_PENALTY_MM
@@ -1144,6 +1167,7 @@ def route_board(
     net_order: Sequence[str] | None = None,
     max_restarts: int = 8,
     max_passes: int | None = None,
+    max_stagnant_passes: int | None = None,
     max_expansions: int = DEFAULT_MAX_BOARD_EXPANSIONS,
     max_expansions_per_net: int = DEFAULT_MAX_EXPANSIONS_PER_NET,
     grid_mm: float = GRID_MM,
@@ -1157,7 +1181,17 @@ def route_board(
     Failed nets are promoted to the front of the next hard-blocking pass, as
     before. ``run_result`` records every attempted net and pass without claiming
     negotiated congestion, capacity overuse, or exact post-route acceptance.
+    Explicit stagnation limits count consecutive passes without a larger number
+    of completed nets in the same phase. Zero allows no failed-pass retry; None
+    retains the legacy pass-budget ceiling. Improved progress resets the count.
     """
+    layers = routing_copper_layers(profile)
+    if len(layers) == 1 and (
+        layout.vias
+        or any(segment.layer not in layers for segment in layout.segments)
+        or any(zone[1] not in layers for zone in layout.zones)
+    ):
+        raise ValueError("single-sided routing rejects retained vias or back-layer copper")
     if max_restarts < 0:
         raise ValueError("max_restarts must be non-negative")
     if max_expansions < 0:
@@ -1167,6 +1201,12 @@ def route_board(
     effective_max_passes = 2 * (max_restarts + 1) if max_passes is None else max_passes
     if effective_max_passes < 0:
         raise ValueError("max_passes must be non-negative")
+
+    effective_stagnant_passes = (
+        effective_max_passes if max_stagnant_passes is None else max_stagnant_passes
+    )
+    if effective_stagnant_passes < 0:
+        raise ValueError("max_stagnant_passes must be non-negative")
 
     widths = net_widths or {}
     fine = dict(fine_pitch_nets or {})
@@ -1190,11 +1230,13 @@ def route_board(
         max_passes=effective_max_passes,
         max_expansions=max_expansions,
         max_expansions_per_net=max_expansions_per_net,
-        max_stagnant_passes=effective_max_passes,
+        max_stagnant_passes=effective_stagnant_passes,
         max_exact_check_rejections=0,
     )
     passes: list[RoutingPassTelemetry] = []
     total_expansions = 0
+    best_completed: dict[frozenset[str], int] = {}
+    stagnant_passes = 0
 
     def unique_names(names: Sequence[str]) -> tuple[str, ...]:
         return tuple(dict.fromkeys(names))
@@ -1240,7 +1282,7 @@ def route_board(
         phase_grid_mm: float,
         unresolved_after_phase: Sequence[str],
     ) -> tuple[BoardLayout, list[RouteResult], str | None, RoutingError | None]:
-        nonlocal total_expansions
+        nonlocal total_expansions, stagnant_passes
         working = base_layout
         results: list[RouteResult] = []
         telemetry: list[NetRoutingTelemetry] = []
@@ -1294,6 +1336,14 @@ def route_board(
             )
             results.append(result)
             working = with_route(working, result)
+        # Reordering the same failed work is not progress. Compare completed
+        # net counts within each fine/coarse target set; a new phase gets its
+        # own baseline. Full success always terminates successfully below.
+        scope = frozenset(phase_order)
+        previous_best = best_completed.get(scope)
+        stagnant = previous_best is not None and len(results) <= previous_best
+        stagnant_passes = stagnant_passes + 1 if stagnant else 0
+        best_completed[scope] = max(previous_best or 0, len(results))
         pass_telemetry = RoutingPassTelemetry(
             pass_index=len(passes),
             net_telemetry=tuple(telemetry),
@@ -1301,7 +1351,7 @@ def route_board(
             resource_overuse=(),
             expansion_count=sum(item.expansion_count for item in telemetry),
             exact_check_rejection_count=0,
-            stagnant=False,
+            stagnant=stagnant,
         )
         passes.append(pass_telemetry)
         if pass_observer is not None:
@@ -1338,6 +1388,8 @@ def route_board(
         terminal_reason: RoutingFailureReason | None = None
         if failure.reason is RoutingFailureReason.EXPANSION_BUDGET:
             terminal_reason = RoutingFailureReason.EXPANSION_BUDGET
+        elif stagnant_passes >= effective_stagnant_passes:
+            terminal_reason = RoutingFailureReason.STAGNATION
         elif fine_order[0] == failed:
             terminal_reason = RoutingFailureReason.UNROUTABLE
         elif fine_restarts >= max_restarts or len(passes) >= effective_max_passes:
@@ -1394,6 +1446,8 @@ def route_board(
         terminal_reason = None
         if failure.reason is RoutingFailureReason.EXPANSION_BUDGET:
             terminal_reason = RoutingFailureReason.EXPANSION_BUDGET
+        elif stagnant_passes >= effective_stagnant_passes:
+            terminal_reason = RoutingFailureReason.STAGNATION
         elif order[0] == failed:
             terminal_reason = RoutingFailureReason.UNROUTABLE
         elif restarts >= max_restarts or len(passes) >= effective_max_passes:

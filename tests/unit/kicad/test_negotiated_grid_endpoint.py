@@ -172,11 +172,11 @@ def test_raw_exact_path_claims_and_reversed_construction_are_pinned() -> None:
     assert forward.semantic_fingerprint() == reverse.semantic_fingerprint()
     assert (
         forward.semantic_fingerprint()
-        == "849341d6cc38d515580c0e2049aaacfb7029edd04c78245f4fc8ba90f97d2aac"
+        == "0eea74fad423a87b5c48f9b3435340fa05fc390874efe3f9fea7d35fde0d04bb"
     )
     assert (
         forward.search_input_fingerprint
-        == "2d6dee6455537c4f0776311638aa9993fe736e7c3d7187a4af0483fcdb0d82dd"
+        == "2cc0ee13beadf3c9c95406aaf285f4e8d640db42ee450d9bed2c5c124e251414"
     )
     assert (
         forward.terminal_source_fingerprint

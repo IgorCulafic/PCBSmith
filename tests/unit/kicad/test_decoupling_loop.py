@@ -274,9 +274,7 @@ def _declaration(
         )
         declaration = declaration.model_copy(
             update={
-                "policy": declaration.policy.model_copy(
-                    update={"applicability_binding": binding}
-                )
+                "policy": declaration.policy.model_copy(update={"applicability_binding": binding})
             }
         )
     return declaration
@@ -718,3 +716,30 @@ def test_json_replay_direct_tamper_and_input_immutability() -> None:
     stale_path = supply.model_copy(update={"connectivity_state": "disconnected"})
     with pytest.raises(ValidationError):
         evaluate_decoupling_loop(graph, stale_path, return_leg, declaration)
+
+
+def test_explicit_envelope_accepts_crossing_closure_without_fabricating_simple_area():
+    graph, supply, return_leg = _graph_paths(bowtie=True)
+    declaration = _declaration(
+        graph, supply, return_leg, policy=_policy(projected_area_method="conservative_envelope")
+    )
+    result = evaluate_decoupling_loop(graph, supply, return_leg, declaration)
+    assert result.disposition is SemanticDisposition.PASS
+    assert result.metrics.projected_loop_area_mm2 is None
+    assert result.metrics.projected_closure_verification == "unverified_non_simple"
+    assert result.metrics.projected_envelope_area_mm2.fraction() > 0
+    old = _declaration(graph, supply, return_leg)
+    assert decoupling_loop_context_fingerprint(old) != decoupling_loop_context_fingerprint(
+        declaration
+    )
+    # The old binding cannot authorize a new method.
+    detached = declaration.model_copy(
+        update={
+            "policy": declaration.policy.model_copy(
+                update={"applicability_binding": old.policy.applicability_binding}
+            )
+        }
+    )
+    stale = evaluate_decoupling_loop(graph, supply, return_leg, detached)
+    assert stale.disposition is SemanticDisposition.UNVERIFIED
+    assert "hard_policy_context_fingerprint_mismatch" in stale.unverified_reasons

@@ -502,10 +502,10 @@ def test_single_transition_literal_and_pins_are_profile_free_and_pure() -> None:
         "ba5820fe3f26fc2f9eb59a749308e535b51bb5baa9fdfa31a65c29223309b777"
     )
     assert result.semantic_fingerprint() == (
-        "2850477e7a8efecf0987fd783e68f91fac6db170822ec7bb35a403076210f231"
+        "79d8e3a3dec3d4c8ab048ffdea78f21cfb6648a875a91c3f185bfa2ef9a888f1"
     )
     assert result.input_fingerprint == (
-        "767cb86ff10f5bdb6b3db59aa3a7c23565b9430c7d04414c634455917d0e338d"
+        "ce2bf03f65dafd0e1a375f90f537ffd8aedcf805dc676e0771259468074d5f04"
     )
 
 
@@ -535,10 +535,10 @@ def test_synchronous_members_use_distinct_sites_and_reversed_registry_is_stable(
 
     assert baseline.success and reverse.success
     assert baseline.semantic_fingerprint() == (
-        "0d1a1dc9d92560039464ac9f1a7d6659b3847b99327684b6cae9d130ffaf39d2"
+        "486e2272de9372ece6173fecb5379d96ef791aa72c6aa52c201b06b36d6e4a58"
     )
     assert baseline.input_fingerprint == (
-        "259cf89c094960fbc54f655163bdaca8fcf0a2d207bacebce8a82ecf6bf7b30c"
+        "ed3aa8fc32527b3cd2a6a3cd12d3f2dffe55afce7131d231fdd442a1db12233c"
     )
     assert tuple(item.semantic_fingerprint() for item in baseline.carriers) == (
         "05611e50f8138fc4999ddecb7ed2ce551b6911ed2370c5aa1c357deaf7b4a1d9",
@@ -894,15 +894,15 @@ def test_bus_escape_opt_in_generates_transition_prefixes_and_real_c2_candidate()
 
     assert result.success
     assert result.semantic_fingerprint() == (
-        "a1bca271e6d1064fe3a22eb7cae01b91f7894e7c7d92d9a774c4a80c567bdd92"
+        "3daf8ea9eaeab2d73f6fe83b8e3e2a3a4fea7e4eb7f67e8bd160357c3e6ad20a"
     )
     assert result.input_fingerprint == (
-        "70c40e739619cf50cf001f0c7e4f4b6e65fd1d16a3c56e7140f52122973c3086"
+        "5d673106cdd609e5dbf7520d0646680739533dfd4d53e4b3ffde7832b4b1070d"
     )
     assert result.escape_expansion_count == 8
     assert result.candidate is not None and result.candidate.success
     assert result.candidate.semantic_fingerprint() == (
-        "5020535b605849b0f36aceb05bb69f360afdc7e7b4e56deeac27e852f27f2d10"
+        "8f82d4d0b0e0e26c2f5e28c050d4828c2cf08c6d331cb5ee5dda8555e89b356f"
     )
     assert len(result.prefixes_by_member) == 2
     assert {
@@ -964,7 +964,7 @@ def test_subset_realization_is_canonical_bounded_and_preserves_full_behavior() -
 
     assert tuple(item.member_id for item in subset.trunks) == ("data1",)
     assert subset.semantic_fingerprint() == (
-        "0fb45cbd353c45333eb9e1a9784a379754e93ea9f9b515c8e0f08d3907e56435"
+        "652167e8ea560a1350fecb175a11e7af116f734db1d072270eadb7c1d3cd6aea"
     )
     assert subset.trunks[0].geometry_fingerprint == (
         "219a12586835b760aba125c21cad641424f0b7ee814b814ad8331cd0d1708049"
@@ -1049,10 +1049,10 @@ def test_mixed_transition_and_same_layer_member_reaches_real_c2_with_pins() -> N
 
     assert baseline.success and reverse.success
     assert baseline.semantic_fingerprint() == (
-        "68aa4afa4ef968ef27cd6cf8a41b6d6ede26a7e215e1ba9a0addac0c6b5c6efa"
+        "315006ffdc3688591c90d0313b34e3a42a7d2ef254ca6d2dc49310636c301a50"
     )
     assert baseline.input_fingerprint == (
-        "766f2585b002987930964c4045ab24ab636979c1e8bdbe7c48df57e21818ad9e"
+        "027105c0b8c368c976e284e121727a2478edd5e2d911354f8c846bc0c34cabab"
     )
     assert baseline.semantic_json() == reverse.semantic_json()
     assert {

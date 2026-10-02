@@ -109,6 +109,7 @@ def test_run_local_agent_review_allows_tool_call_then_final_plan(tmp_path: Path)
         runner=runner,
     )
 
+    output_dir = Path(result.transcript_path).parent
     assert result.exit_code == 0
     assert result.applied is False
     assert len(seen_bodies) == 2
@@ -154,6 +155,7 @@ def test_run_local_agent_review_accepts_plain_candidate_plan_response(
         runner=runner,
     )
 
+    output_dir = Path(result.transcript_path).parent
     assert result.exit_code == 0
     assert "Agent steps: 1" in result.lines
     assert "Tool calls: 0" in result.lines

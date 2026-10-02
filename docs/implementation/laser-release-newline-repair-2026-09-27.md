@@ -1,0 +1,9 @@
+# Separately scoped release identity repair
+
+Started 2026-09-26 22:33 UTC during the laser-test request. Scope: at most ten minutes to repair and test the routed release check's retained-manifest byte identity. The coupon job, board, immutable generations and genuine inspection decisions remain unchanged. No new board operation, routing, render, correction allowance or timer reset is granted.
+
+The coupon's bounded diagnostic found an exact Windows CRLF manifest committed as SHA-256 `f1a0db4b6f1c6e63f02840188c2dd4344df46f3f6ce37d348fc3129b42e675e6`. Routed release instead hashed an LF reserialization (`ea9e26f2652b985e65e5c2d66ba507e0b6c80651b11d6e37fb5860b571b96d7e`). The parsed content is identical. The existing placement gate already compares the retained model and then binds the exact retained bytes.
+
+Apply that same pattern to routed release. Regression coverage must accept unchanged CRLF bytes only when the supplied model matches, and reject changed retained bytes, a different supplied model and a missing manifest. Recheck the existing immutable coupon read-only after the repair; physical laser and assembly qualification remain held.
+
+Completed within the declared ten-minute scope: 59 focused readiness/release/recurring-handover tests pass; Ruff lint and formatting pass; workflow audit passes with 213 callers and no classification changes. The unchanged coupon release and mandatory handover now pass against the exact committed CRLF hash. The prior failed release and diagnosis are retained. No new board operation or continuation was required: only read-only release/handover replay and the existing verification-phase finish. Coupon timing is 56m25s wall, 45m55s evaluation, 10m30s supervised execution, within its original 90m/40m allowances; the platform investigation remains included in its honest wall/evaluation time.

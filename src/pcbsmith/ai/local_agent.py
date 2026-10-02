@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import urllib.request
 from pathlib import Path
 from typing import Any
 
@@ -16,9 +17,11 @@ from pcbsmith.ai.ai_openai_compatible_plan import (
 )
 from pcbsmith.ai.ai_plan_review import run_ai_plan_review
 from pcbsmith.ai.ai_planner_package import write_ai_planner_package
+from pcbsmith.ai.attempt_journal import AttemptJournal
 from pcbsmith.ai.local_model_config import load_local_model_config
 from pcbsmith.calculators.electronics import run_calculator
 from pcbsmith.knowledge.circuit_topologies import select_topologies_for_intent
+from pcbsmith.operations.file_transaction import atomic_write
 
 LOCAL_AGENT_TOOL_SCHEMA = "pcbsmith-local-agent-tool-v1"
 LOCAL_AGENT_TRANSCRIPT_SCHEMA = "pcbsmith-local-agent-transcript-v1"
@@ -94,6 +97,61 @@ def run_local_agent_review(
     max_steps: int = 4,
     runner: OpenAICompatibleRunner | None = None,
 ) -> LocalAgentReviewResult:
+    config = load_local_model_config(config_path)
+    journal = AttemptJournal(output_dir, secret=config.api_key)
+    steps: list[dict[str, Any]] = []
+
+    def retained_runner(request: urllib.request.Request, timeout: float) -> bytes:
+        # Headers (including Authorization) are never retained.
+        body = request.data
+        if body is not None and not isinstance(body, bytes):
+            raise TypeError("Agent requests must have a retained bytes body")
+        journal.raw("request", body or b"")
+        response = (runner or _default_runner)(request, timeout)
+        journal.raw("response", response)
+        return response
+
+    try:
+        journal.append("started", max_steps=max_steps, apply_requested=apply)
+        journal.checkpoint(steps, status="running")
+        result = _run_local_agent_review(
+            project_dir,
+            request_path,
+            journal.directory,
+            config_path=config_path,
+            kicad_project_dir=kicad_project_dir,
+            apply=apply,
+            max_steps=max_steps,
+            runner=retained_runner,
+            journal=journal,
+            steps=steps,
+        )
+        journal.append("completed", exit_code=result.exit_code, applied=result.applied)
+        journal.checkpoint(steps, status="completed" if result.exit_code == 0 else "rejected")
+        return result
+    except BaseException as exc:
+        try:
+            journal.append("failed", error_type=type(exc).__name__, error=str(exc))
+            journal.checkpoint(steps, status="failed")
+        except OSError as storage_error:
+            exc.add_note(f"Could not complete diagnostic storage: {storage_error}")
+        exc.add_note(f"Retained local-agent attempt: {journal.directory}")
+        raise
+
+
+def _run_local_agent_review(
+    project_dir: Path,
+    request_path: Path,
+    output_dir: Path,
+    *,
+    journal: AttemptJournal,
+    steps: list[dict[str, Any]],
+    config_path: Path | None = None,
+    kicad_project_dir: Path | None = None,
+    apply: bool = False,
+    max_steps: int = 4,
+    runner: OpenAICompatibleRunner | None = None,
+) -> LocalAgentReviewResult:
     if max_steps < 1:
         raise ValueError("max_steps must be at least 1")
 
@@ -112,13 +170,10 @@ def run_local_agent_review(
         kicad_project_dir=kicad_project_dir,
     )
     write_ai_planner_package(brief_path, planner_package_path)
-    planner_package = _command_capable_planner_package(
-        _read_json_object(planner_package_path)
-    )
+    planner_package = _command_capable_planner_package(_read_json_object(planner_package_path))
     _write_json(planner_package_path, planner_package)
 
     tool_results: list[dict[str, Any]] = []
-    steps: list[dict[str, Any]] = []
     for step in range(1, max_steps + 1):
         action = _request_agent_action(
             agent_package=_agent_package(
@@ -134,6 +189,7 @@ def run_local_agent_review(
             use_json_mode=config.use_json_mode,
             runner=runner,
         )
+        journal.append("action", step=step, action=action)
         if action["action"] == "tool_call":
             tool_result = _run_agent_tool(
                 action,
@@ -142,18 +198,15 @@ def run_local_agent_review(
             )
             tool_results.append(tool_result)
             steps.append({"step": step, "action": action, "tool_result": tool_result})
+            journal.append("tool_completed", step=step, result=tool_result)
+            journal.checkpoint(steps, status="running")
             continue
 
         candidate_plan = _candidate_plan_from_action(action)
         _write_json(candidate_plan_path, candidate_plan)
         steps.append({"step": step, "action": action})
-        _write_json(
-            transcript_path,
-            {
-                "schema": LOCAL_AGENT_TRANSCRIPT_SCHEMA,
-                "steps": steps,
-            },
-        )
+        journal.checkpoint(steps, status="reviewing")
+        journal.append("review_started", apply_requested=apply)
         review = run_ai_plan_review(
             project_dir,
             planner_package_path,
@@ -180,13 +233,7 @@ def run_local_agent_review(
             ),
         )
 
-    _write_json(
-        transcript_path,
-        {
-            "schema": LOCAL_AGENT_TRANSCRIPT_SCHEMA,
-            "steps": steps,
-        },
-    )
+    journal.checkpoint(steps, status="budget_exhausted")
     raise ValueError(f"Local agent did not return final_plan within {max_steps} steps")
 
 
@@ -273,8 +320,7 @@ def _request_agent_action(
                 "role": "user",
                 "content": (
                     "Return the next PCBSmith local-agent action JSON for this "
-                    "agent package:\n"
-                    + json.dumps(agent_package, indent=2, sort_keys=True)
+                    "agent package:\n" + json.dumps(agent_package, indent=2, sort_keys=True)
                 ),
             },
         ],
@@ -377,8 +423,7 @@ def _read_json_object(path: Path) -> dict[str, Any]:
 
 
 def _write_json(path: Path, data: dict[str, Any]) -> None:
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n", encoding="utf-8")
+    atomic_write(path, (json.dumps(data, indent=2) + "\n").encode("utf-8"))
 
 
 __all__ = [

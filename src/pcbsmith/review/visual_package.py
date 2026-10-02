@@ -83,9 +83,7 @@ class DiagnosticViewDeclaration(BaseModel):
     applicability: Literal["applicable", "not_applicable", "unresolved"]
     trigger_ids: tuple[str, ...] = ()
     source_image: str | None = None
-    authority_sha256: str | None = Field(
-        default=None, pattern=r"^[0-9a-f]{64}$"
-    )
+    authority_sha256: str | None = Field(default=None, pattern=r"^[0-9a-f]{64}$")
     rationale: str = Field(min_length=1)
 
     @model_validator(mode="after")
@@ -95,18 +93,12 @@ class DiagnosticViewDeclaration(BaseModel):
             raise ValueError("diagnostic trigger identities must be unique")
         if self.applicability == "applicable":
             if not triggers or self.source_image is None or self.authority_sha256 is None:
-                raise ValueError(
-                    "applicable diagnostic requires triggers, source, and authority"
-                )
+                raise ValueError("applicable diagnostic requires triggers, source, and authority")
         elif self.applicability == "unresolved":
             if not triggers or self.source_image is not None:
-                raise ValueError(
-                    "unresolved diagnostic requires triggers and no invented source"
-                )
+                raise ValueError("unresolved diagnostic requires triggers and no invented source")
         elif self.source_image is not None or triggers:
-            raise ValueError(
-                "not-applicable diagnostic cannot retain triggers or a source"
-            )
+            raise ValueError("not-applicable diagnostic cannot retain triggers or a source")
         object.__setattr__(self, "trigger_ids", triggers)
         return self
 
@@ -251,9 +243,7 @@ _CAMERAS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("rear-low", ("--perspective", "--side", "back", "--rotate", "18,0,180")),
 )
 
-_COMPARISON_SIDES: tuple[
-    tuple[Literal["front", "back"], tuple[str, ...], bool], ...
-] = (
+_COMPARISON_SIDES: tuple[tuple[Literal["front", "back"], tuple[str, ...], bool], ...] = (
     ("front", ("F.Cu", "F.Mask", "F.Silkscreen", "Edge.Cuts"), False),
     ("back", ("B.Cu", "B.Mask", "B.Silkscreen", "Edge.Cuts"), True),
 )
@@ -283,13 +273,15 @@ def generate_visual_review_package(
     install = finder()
     if install is None:
         raise RuntimeError("KiCad CLI is required to generate the visual review package.")
-    raster = rasterizer or rasterize_svg_with_resvg
+    from pcbsmith.review.raster_cache import CachedSvgRasterizer, runtime_identity
+
+    raster = rasterizer or CachedSvgRasterizer(
+        rasterize_svg_with_resvg, Path.cwd() / ".tmp/raster-cache-v1", runtime_identity()
+    )
     board_payload = board.read_bytes()
     board_sha256 = hashlib.sha256(board_payload).hexdigest()
     if model_preflight.board_sha256 != board_sha256:
-        raise ValueError(
-            "3D model preflight belongs to a different saved board revision."
-        )
+        raise ValueError("3D model preflight belongs to a different saved board revision.")
     board_root = parse_sexpr(board_payload.decode("utf-8"))
     routing_evidence = inspect_saved_board_routing(board)
     features = _augment_features_from_board(features, board_root)
@@ -324,9 +316,7 @@ def generate_visual_review_package(
         if svg_result is not None:
             package_findings.append(svg_result)
         routing_artifact_findings = (
-            _routing_artifact_findings(stage, routing_evidence)
-            if category == "routing"
-            else ()
+            _routing_artifact_findings(stage, routing_evidence) if category == "routing" else ()
         )
         if (
             svg_path.exists()
@@ -432,11 +422,28 @@ def generate_visual_review_package(
             )
         )
     artifacts.extend(_collect_declared_overlays(features, review_dir))
-    artifacts.extend(_collect_diagnostics(features, review_dir))
 
-    if model_preflight.status == "failed":
-        package_findings.append("Required 3D model preflight failed; 3D renders are withheld.")
-        artifacts.extend(_missing_3d_artifacts(review_dir))
+    if model_preflight.status != "passed":
+        package_findings.append(
+            "Populated 3D rendering withheld because required-model preflight did not pass "
+            f"({model_preflight.status})."
+        )
+        artifacts.extend(_missing_3d_artifacts(review_dir, populations=("populated",)))
+        report_progress("3D profiles: populated set withheld; starting bare-board cameras")
+        artifacts.extend(
+            _render_three_d(
+                board=board,
+                board_root=board_root,
+                model_preflight=model_preflight,
+                review_dir=review_dir,
+                install=install,
+                runner=runner,
+                profile=profile,
+                findings=package_findings,
+                progress=report_progress,
+                populations=("bare",),
+            )
+        )
     else:
         report_progress("3D profiles: starting populated and bare-board camera set")
         artifacts.extend(
@@ -453,17 +460,16 @@ def generate_visual_review_package(
             )
         )
 
+    # Diagnostics can depend on this run's 3D cameras.
+    artifacts.extend(_collect_diagnostics(features, review_dir))
+
     routing_incomplete = (
-        stage == "final"
-        and routing_evidence.state is not RoutingArtifactState.ROUTED_CANDIDATE
+        stage == "final" and routing_evidence.state is not RoutingArtifactState.ROUTED_CANDIDATE
     )
     if routing_incomplete:
-        package_findings.append(
-            "Final review refused: the saved board is not a routed candidate."
-        )
-    generation_failed = (
-        routing_incomplete
-        or any(item.required and item.state == "missing" for item in artifacts)
+        package_findings.append("Final review refused: the saved board is not a routed candidate.")
+    generation_failed = routing_incomplete or any(
+        item.required and item.state == "missing" for item in artifacts
     )
     manifest = VisualReviewManifest(
         schema_id="pcbsmith-visual-review-manifest-v1",
@@ -513,12 +519,15 @@ def generate_visual_review_package(
             }
         )
     else:
-        manifest = manifest.model_copy(
-            update={"workflow_conformance_status": conformance_status}
-        )
+        manifest = manifest.model_copy(update={"workflow_conformance_status": conformance_status})
     write_visual_review_manifest(review_dir / "manifest.json", manifest)
     _write_review_report(review_dir / "review-report.md", manifest)
     _write_conformance_report(review_dir / "conformance.json", conformance)
+    if isinstance(raster, CachedSvgRasterizer):
+        (review_dir / "raster-timing.json").write_text(
+            json.dumps({"authority": "timing_only", "events": raster.events}, indent=2) + "\n",
+            encoding="utf-8",
+        )
     return manifest
 
 
@@ -530,6 +539,23 @@ def record_visual_inspection(
     decisions: dict[str, tuple[InspectionState, tuple[str, ...]]],
 ) -> VisualReviewManifest:
     manifest = VisualReviewManifest.model_validate_json(manifest_path.read_text("utf-8"))
+    if not reviewer.strip() or not mechanism.strip():
+        raise ValueError("visual inspection requires a reviewer and mechanism")
+    known = {item.artifact_id for item in manifest.artifacts}
+    if not decisions or set(decisions) - known:
+        raise ValueError("visual decisions must identify existing artifacts")
+    # Validate the complete batch before changing any retained decision.
+    for artifact in manifest.artifacts:
+        decision = decisions.get(artifact.artifact_id)
+        if decision is None:
+            continue
+        state, findings = decision
+        if state not in {"uninspected", "accepted", "attention_required"}:
+            raise ValueError("invalid visual inspection state")
+        if state != "uninspected":
+            if not findings or any(not isinstance(n, str) or not n.strip() for n in findings):
+                raise ValueError("visual inspection requires specific nonblank findings")
+            _require_inspection_artifact(manifest_path.parent, artifact)
     artifacts: list[ReviewArtifact] = []
     for artifact in manifest.artifacts:
         decision = decisions.get(artifact.artifact_id)
@@ -566,9 +592,36 @@ def record_visual_inspection(
     else:
         status = "generated_pending_inspection"
     updated = manifest.model_copy(update={"artifacts": tuple(artifacts), "package_status": status})
+    if updated.package_status == "accepted":
+        require_visual_acceptance(updated, manifest_path.parent)
     write_visual_review_manifest(manifest_path, updated)
     _write_review_report(manifest_path.parent / "review-report.md", updated)
     return updated
+
+
+def _require_inspection_artifact(root: Path, artifact: ReviewArtifact) -> None:
+    path = (root / artifact.relative_path).resolve()
+    if not path.is_relative_to(root.resolve()) or artifact.state != "generated":
+        raise ValueError("inspection requires a generated, confined artifact")
+    if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != artifact.sha256:
+        raise ValueError("visual inspection artifact is missing or stale")
+
+
+def require_visual_acceptance(manifest: VisualReviewManifest, root: Path) -> None:
+    """Validate actual required files and observations at a live acceptance boundary."""
+    required = tuple(item for item in manifest.artifacts if item.required)
+    if manifest.package_status != "accepted" or not required:
+        raise ValueError("visual package is not accepted or has no required views")
+    for artifact in required:
+        if (
+            artifact.inspection != "accepted"
+            or not (artifact.reviewer or "").strip()
+            or not (artifact.inspection_mechanism or "").strip()
+            or not artifact.findings
+            or any(not n.strip() for n in artifact.findings)
+        ):
+            raise ValueError(f"visual inspection is incomplete: {artifact.artifact_id}")
+        _require_inspection_artifact(root, artifact)
 
 
 def write_visual_review_manifest(path: Path, manifest: VisualReviewManifest) -> None:
@@ -588,9 +641,7 @@ def audit_visual_review_package(
 
     manifest = VisualReviewManifest.model_validate_json(manifest_path.read_text("utf-8"))
     conformance_path = manifest_path.parent / "conformance.json"
-    retained = WorkflowConformanceReport.model_validate_json(
-        conformance_path.read_text("utf-8")
-    )
+    retained = WorkflowConformanceReport.model_validate_json(conformance_path.read_text("utf-8"))
     report = evaluate_workflow_conformance(
         profile=retained.profile,
         observations=_visual_observations(manifest, manifest_path.parent),
@@ -629,6 +680,109 @@ def _routing_blocks_final_acceptance(manifest: VisualReviewManifest) -> bool:
         manifest.routing_evidence is None
         or manifest.routing_evidence.state is not RoutingArtifactState.ROUTED_CANDIDATE
     )
+
+
+def complete_retained_diagnostics(
+    manifest_path: Path,
+    output_dir: Path,
+    *,
+    features: ReviewFeatures,
+    model_preflight: ModelPreflightReport,
+) -> VisualReviewManifest:
+    """Complete missing copies from exact retained images; never render or approve."""
+    from pcbsmith.board_job import require_library_worker
+    from pcbsmith.manufacturing_lineage import file_sha256
+    from pcbsmith.operations.file_transaction import project_path
+
+    require_library_worker()
+    manifest = VisualReviewManifest.model_validate_json(manifest_path.read_bytes())
+    source_root = manifest_path.parent.resolve()
+    if (
+        file_sha256(Path(manifest.board_file)) != manifest.board_sha256
+        or model_preflight.board_sha256 != manifest.board_sha256
+        or model_preflight.status != manifest.model_preflight_status
+    ):
+        raise ValueError("diagnostic completion has stale board/model inputs")
+    for model in model_preflight.models:
+        if (
+            model.status != "resolved"
+            or not model.resolved_path
+            or file_sha256(Path(model.resolved_path)) != model.sha256
+        ):
+            raise ValueError("diagnostic completion has stale model dependencies")
+    generated = {}
+    for artifact in manifest.artifacts:
+        if artifact.state == "generated":
+            path = project_path(source_root, artifact.relative_path)
+            if file_sha256(path) != artifact.sha256:
+                raise ValueError("diagnostic completion has stale retained artifact")
+            if artifact.media_type == "image/png" and not artifact.category.startswith(
+                "diagnostics"
+            ):
+                generated[path.resolve()] = artifact.sha256
+    declarations = {
+        f"diagnostic:{x.kind}:{x.view_id}": x
+        for x in features.diagnostic_views
+        if x.applicability != "not_applicable"
+    }
+    existing = {
+        a.artifact_id: a for a in manifest.artifacts if a.category.startswith("diagnostics")
+    }
+    if features.diagnostic_images or set(declarations) != set(existing):
+        raise ValueError("diagnostic completion cannot add or remove declarations")
+    missing = {key for key, item in existing.items() if item.state == "missing"}
+    if not missing:
+        raise ValueError("no missing diagnostic copies to complete")
+    for key, declaration in declarations.items():
+        expected = (
+            f"Applicability: {declaration.applicability}.",
+            f"Rationale: {declaration.rationale}",
+            f"Triggers: {', '.join(declaration.trigger_ids)}",
+            f"Applicability authority: {declaration.authority_sha256}",
+            f"Diagnostic source: {Path(declaration.source_image or '')}",
+        )
+        if not set(expected) <= set(existing[key].findings):
+            raise ValueError("diagnostic completion cannot change reviewed declarations")
+        if key in missing and Path(declaration.source_image or "").resolve() not in generated:
+            raise ValueError("missing diagnostic requires an exact inventoried source image")
+    if output_dir.exists() or output_dir.resolve().is_relative_to(source_root):
+        raise ValueError("diagnostic completion requires a fresh independent output")
+    destination = output_dir / "review"
+    shutil.copytree(source_root, destination)
+    additions = {a.artifact_id: a for a in _collect_diagnostics(features, destination)}
+    updated = manifest.model_copy(
+        update={
+            "artifacts": tuple(
+                additions[a.artifact_id] if a.artifact_id in missing else a
+                for a in manifest.artifacts
+            ),
+            "findings": (
+                *manifest.findings,
+                "Missing diagnostic copies completed from exact retained images; no render.",
+            ),
+        }
+    )
+    write_visual_review_manifest(destination / "manifest.json", updated)
+    reprofile_visual_review_package(
+        destination / "manifest.json", features=features, evaluated_on=date.today()
+    )
+    (destination / "diagnostic-completion.json").write_text(
+        json.dumps(
+            {
+                "predecessor_manifest": str(manifest_path.resolve()),
+                "predecessor_manifest_sha256": file_sha256(manifest_path),
+                "board_sha256": manifest.board_sha256,
+                "completed_artifact_ids": sorted(missing),
+                "source_images": {str(k): v for k, v in generated.items()},
+                "renders_performed": 0,
+                "inspection_granted": False,
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return VisualReviewManifest.model_validate_json((destination / "manifest.json").read_bytes())
 
 
 def reprofile_visual_review_package(
@@ -735,9 +889,7 @@ def build_visual_review_workflow_profile(
                     else None
                 ),
                 minimum_pixels_per_mm=(
-                    manifest.render_profile.overview_pixels_per_mm
-                    if extension == "png"
-                    else None
+                    manifest.render_profile.overview_pixels_per_mm if extension == "png" else None
                 ),
                 board_sha256=manifest.board_sha256,
                 stage=manifest.stage,
@@ -823,9 +975,7 @@ def build_visual_review_workflow_profile(
     for declaration in features.diagnostic_views:
         if declaration.applicability == "not_applicable":
             continue
-        artifact_id = (
-            f"diagnostic:{declaration.kind}:{declaration.view_id}"
-        )
+        artifact_id = f"diagnostic:{declaration.kind}:{declaration.view_id}"
         requirements.append(
             _visual_requirement(
                 requirement_id=_visual_requirement_id(artifact_id),
@@ -1016,9 +1166,7 @@ def _constraint_from_artifact(
         population=_artifact_population(artifact.artifact_id),
         layers_exact=artifact.layers,
         minimum_pixels_per_mm=artifact.pixels_per_mm,
-        minimum_long_edge_px=(
-            None if artifact.pixel_size is None else max(artifact.pixel_size)
-        ),
+        minimum_long_edge_px=(None if artifact.pixel_size is None else max(artifact.pixel_size)),
         board_sha256=manifest.board_sha256,
         stage=manifest.stage,
     )
@@ -1126,6 +1274,7 @@ def _render_three_d(
     profile: RenderProfile,
     findings: list[str],
     progress: ProgressReporter,
+    populations: tuple[Literal["populated", "bare"], ...] = ("populated", "bare"),
 ) -> tuple[ReviewArtifact, ...]:
     artifacts: list[ReviewArtifact] = []
     render_input = review_dir / ".render-input"
@@ -1141,10 +1290,14 @@ def _render_three_d(
     bare_board = render_input / f"{board.stem}-bare.kicad_pcb"
     bare_board.parent.mkdir(parents=True, exist_ok=True)
     bare_board.write_text(serialize_sexpr(_without_models(resolved_root)) + "\n", encoding="utf-8")
-    for population, source_board in (("populated", populated_board), ("bare", bare_board)):
+    source_by_population = {"populated": populated_board, "bare": bare_board}
+    for population in populations:
+        source_board = source_by_population[population]
         for camera, camera_args in _CAMERAS:
             progress(f"3D {population}/{camera}: rendering")
             width, height = _three_d_pixels(camera, profile.three_d_long_edge_px)
+            # KiCad 10 on Windows can subtract viewport chrome from requested pixels.
+            # Modest overscan keeps the target; actual PNG dimensions are recorded below.
             output = review_dir / "3d" / population / f"{camera}.png"
             output.parent.mkdir(parents=True, exist_ok=True)
             result = runner(
@@ -1155,9 +1308,9 @@ def _render_three_d(
                     "--output",
                     output,
                     "--width",
-                    str(width),
+                    str(width + 64),
                     "--height",
-                    str(height),
+                    str(height + 64),
                     "--quality",
                     "high",
                     "--background",
@@ -1494,21 +1647,14 @@ def _collect_diagnostics(
         if declaration.applicability == "not_applicable":
             continue
         artifact_id = f"diagnostic:{declaration.kind}:{declaration.view_id}"
-        destination = (
-            review_dir
-            / "diagnostics"
-            / declaration.kind
-            / f"{declaration.view_id}.png"
-        )
+        destination = review_dir / "diagnostics" / declaration.kind / f"{declaration.view_id}.png"
         findings = [
             f"Applicability: {declaration.applicability}.",
             f"Rationale: {declaration.rationale}",
             f"Triggers: {', '.join(declaration.trigger_ids)}",
         ]
         if declaration.authority_sha256 is not None:
-            findings.append(
-                f"Applicability authority: {declaration.authority_sha256}"
-            )
+            findings.append(f"Applicability authority: {declaration.authority_sha256}")
         if declaration.source_image is not None:
             source = Path(declaration.source_image)
             if source.is_file():
@@ -1529,7 +1675,11 @@ def _collect_diagnostics(
     return tuple(artifacts)
 
 
-def _missing_3d_artifacts(review_dir: Path) -> tuple[ReviewArtifact, ...]:
+def _missing_3d_artifacts(
+    review_dir: Path,
+    *,
+    populations: tuple[Literal["populated", "bare"], ...] = ("populated", "bare"),
+) -> tuple[ReviewArtifact, ...]:
     return tuple(
         ReviewArtifact(
             artifact_id=f"3d:{population}:{camera}",
@@ -1542,7 +1692,7 @@ def _missing_3d_artifacts(review_dir: Path) -> tuple[ReviewArtifact, ...]:
             camera=camera,
             findings=("Required 3D model preflight failed.",),
         )
-        for population in ("populated", "bare")
+        for population in populations
         for camera, _args in _CAMERAS
     )
 
@@ -1565,6 +1715,12 @@ def _artifact_from_file(
     findings: tuple[str, ...] = (),
 ) -> ReviewArtifact:
     exists = path.is_file()
+    if exists and media_type == "image/png":
+        from PIL import Image
+
+        with Image.open(path) as rendered:
+            rendered.verify()
+            pixel_size = rendered.size
     return ReviewArtifact(
         artifact_id=artifact_id,
         category=category,
@@ -1613,36 +1769,40 @@ def _routing_artifact_findings(
 
 
 def _add_svg_watermark(path: Path, label: str) -> None:
-    """Add an unmistakable stage warning before rasterization."""
+    """Put the stage warning in a margin above the native board viewport."""
+    import re
+    import xml.etree.ElementTree as ET
+    from xml.sax.saxutils import escape
 
     text = path.read_text(encoding="utf-8")
-    closing = text.rfind("</svg>")
-    if closing < 0:
-        raise ValueError(f"SVG lacks a closing element: {path}")
-    escaped = (
-        label.replace("&", "&amp;")
-        .replace("<", "&lt;")
-        .replace(">", "&gt;")
-        .replace('"', "&quot;")
-    )
+    root = ET.fromstring(text)
+    x, y, width, height = map(float, root.attrib["viewBox"].split())
+    margin = max(width * 0.055, 2.0)
+    root.attrib["viewBox"] = f"{x:g} {y - margin:g} {width:g} {height + margin:g}"
+    height_mm = float(root.attrib["height"].removesuffix("mm"))
+    root.attrib["height"] = f"{height_mm * (height + margin) / height:g}mm"
+    opening = text.index("<svg")
+    closing = text.index(">", opening)
+    head = text[opening : closing + 1]
+    for key in ("viewBox", "height"):
+        head = re.sub(rf'{key}="[^"]*"', f'{key}="{root.attrib[key]}"', head)
+    text = text[:opening] + head + text[closing + 1 :]
+    font_size = min(margin * 0.48, width / max(len(label) * 0.65, 1))
     overlay = (
         '<g id="pcbsmith-routing-stage-watermark" pointer-events="none">'
-        '<rect x="20%" y="2%" width="60%" height="9%" rx="4" '
-        'fill="#fff4cc" fill-opacity="0.94" stroke="#b00020" stroke-width="1"/>'
-        '<text x="50%" y="8%" text-anchor="middle" '
-        'font-family="sans-serif" font-size="18" font-weight="700" '
-        f'fill="#b00020">{escaped}</text></g>'
+        f'<rect x="{x:g}" y="{y - margin:g}" width="{width:g}" height="{margin:g}" fill="#fff4cc"/>'
+        f'<text x="{x + width / 2:g}" y="{y - margin * 0.3:g}" text-anchor="middle" '
+        f'font-family="sans-serif" font-size="{font_size:g}" font-weight="700" '
+        f'fill="#b00020">{escape(label)}</text></g>'
     )
-    path.write_text(text[:closing] + overlay + text[closing:], encoding="utf-8")
+    path.write_text(text.replace("</svg>", overlay + "</svg>"), encoding="utf-8")
 
 
 def _augment_features_from_board(features: ReviewFeatures, root: SList) -> ReviewFeatures:
     """Strengthen caller declarations with objective saved-board facts."""
 
     direct = tuple(child for child in root if isinstance(child, list) and child)
-    footprints = tuple(
-        child for child in direct if _atom(child[0]) in {"footprint", "module"}
-    )
+    footprints = tuple(child for child in direct if _atom(child[0]) in {"footprint", "module"})
     has_bottom_components = any(
         any(
             isinstance(item, list)
@@ -1670,11 +1830,47 @@ def _augment_features_from_board(features: ReviewFeatures, root: SList) -> Revie
         if _atom(child[0]) == "zone"
         for item in child
     )
+    edge_nodes = [
+        node
+        for node in direct
+        if any(
+            isinstance(item, list)
+            and len(item) > 1
+            and _atom(item[0]) == "layer"
+            and _atom(item[1]) == "Edge.Cuts"
+            for item in node
+        )
+    ]
+    endpoints: list[set[tuple[float, float]]] = []
+    closed_count = 0
+    uncertain = False
+    for node in edge_nodes:
+        kind = _atom(node[0])
+        if kind in {"gr_rect", "gr_circle", "gr_poly"}:
+            closed_count += 1
+        elif kind in {"gr_line", "gr_arc"}:
+            ends = {
+                (round(float(_atom(item[1])), 4), round(float(_atom(item[2])), 4))
+                for item in node
+                if isinstance(item, list) and len(item) >= 3 and _atom(item[0]) in {"start", "end"}
+            }
+            if len(ends) != 2:
+                uncertain = True
+            endpoints.append(ends)
+        else:
+            uncertain = True
+    components: list[set[tuple[float, float]]] = []
+    for ends in endpoints:
+        touching = [part for part in components if part & ends]
+        for part in touching:
+            components.remove(part)
+            ends = ends | part
+        components.append(ends)
+    needs_outline_detail = uncertain or closed_count + len(components) > 1
     return features.model_copy(
         update={
-            "has_bottom_components": (
-                features.has_bottom_components or has_bottom_components
-            ),
+            "has_cutouts": features.has_cutouts or needs_outline_detail,
+            "has_bottom_components": (features.has_bottom_components or has_bottom_components),
             "has_holes": features.has_holes or has_holes,
             "has_vias": features.has_vias or has_vias,
             "has_zones": features.has_zones or has_zones,
@@ -1764,6 +1960,75 @@ def _copper_hash(root: SList) -> str:
     return hashlib.sha256(canonical).hexdigest()
 
 
+def _review_follow_up_guidance(manifest: VisualReviewManifest) -> tuple[str, ...]:
+    """Explain outstanding work without treating missing evidence as a board defect.
+
+    This is advisory disposition, not an approval or a new retry allowance. Physical
+    qualification is deliberately unknown here: this manifest cannot attest to it.
+    """
+
+    required = tuple(item for item in manifest.artifacts if item.required)
+    guidance: list[str] = []
+    if manifest.package_status == "generation_failed" or any(
+        item.state == "missing" for item in required
+    ):
+        guidance.append(
+            "Evidence generation or workflow validation is blocked. Diagnose the exact "
+            "missing artifact or failed gate before choosing a remedy; this status alone "
+            "does not justify moving components, rerouting or rebuilding."
+        )
+    if manifest.package_status == "attention_required" or any(
+        item.inspection == "attention_required" for item in required
+    ):
+        guidance.append(
+            "Review findings need diagnosis. Distinguish a confirmed CAD defect from "
+            "a model/render limitation or an external qualification requirement. Only "
+            "a confirmed defect with a scoped effective change enters a bounded local "
+            "correction; recurrence or stagnation goes to the diagnostic checkpoint."
+        )
+    pending = tuple(
+        item.artifact_id
+        for item in required
+        if item.state == "generated" and item.inspection == "uninspected"
+    )
+    if pending:
+        guidance.append(
+            "Inspection records are pending for: " + ", ".join(pending) + ". "
+            "Verify the exact board, render and model identities, inspect the retained "
+            "views, and record reviewer/mechanism, decision and findings through the "
+            "supported inspection owner. Missing decisions alone require no CAD edit "
+            "or rerender. Preserve committed generations; use a supported immutable "
+            "successor when that operation is authorized."
+        )
+    if (
+        manifest.package_status == "accepted"
+        and required
+        and all(item.state == "generated" and item.inspection == "accepted" for item in required)
+    ):
+        guidance.append(
+            "Required visual inspection is complete for these exact inputs. Stop "
+            "optional visual corrections. Reopen only for a material input change, "
+            "new defect evidence or an explicit changed requirement."
+        )
+    if not guidance:
+        guidance.append(
+            "Inspection coverage is incomplete or inconsistent. Resolve the evidence "
+            "coverage before claiming acceptance; no board correction is implied."
+        )
+    guidance.extend(
+        (
+            "Physical qualification is not established by this visual manifest. Track any "
+            "outstanding build, measurement or purchased-package checks with an owner, "
+            "method, acceptance criterion and exact board revision. Await those results; "
+            "do not repeat CAD corrections to resolve an unmeasured physical unknown.",
+            "These follow-ups grant no acceptance, retry or runtime extension. Preserve "
+            "the job identity, history and correction counters. A finished or expired job "
+            "stays closed; record blocked follow-up work without a new-root reset.",
+        )
+    )
+    return tuple(guidance)
+
+
 def _write_review_report(path: Path, manifest: VisualReviewManifest) -> None:
     lines = [
         f"# Visual review: {Path(manifest.board_file).name}",
@@ -1773,11 +2038,10 @@ def _write_review_report(path: Path, manifest: VisualReviewManifest) -> None:
         f"Workflow conformance: **{manifest.workflow_conformance_status}**",
         "",
         (
-            "Routing evidence: **legacy manifest without saved-board routing "
-            "inventory**"
+            "Routing evidence: **legacy manifest without saved-board routing inventory**"
             if manifest.routing_evidence is None
             else (
-                f"Routing evidence: **{manifest.routing_evidence.state.value}** — "
+                f"Routing evidence: **{manifest.routing_evidence.state.value}** â€” "
                 f"{manifest.routing_evidence.segment_count} segments, "
                 f"{manifest.routing_evidence.via_count} vias, "
                 f"{manifest.routing_evidence.copper_carrier_net_count}/"
@@ -1790,6 +2054,9 @@ def _write_review_report(path: Path, manifest: VisualReviewManifest) -> None:
         "artifacts remain unaccepted until an inspection record names its reviewer or",
         "inspection mechanism.",
         "",
+        "## Next action and stop conditions",
+        "",
+        *[paragraph + "\n" for paragraph in _review_follow_up_guidance(manifest)],
         "| Artifact | Generated | Inspection | Required |",
         "| --- | --- | --- | --- |",
     ]
@@ -1814,3 +2081,55 @@ def _atom(node: SExpr) -> str:
 
 def _number(value: float) -> str:
     return f"{value:.6f}".rstrip("0").rstrip(".")
+
+
+def retain_visual_review_package(
+    *, source_manifest: Path, board_file: Path, output_dir: Path
+) -> VisualReviewManifest:
+    """Reuse actual unchanged rendered artifacts; retain their review dispositions.
+
+    This does not render, inspect, waive a missing view, or grant acceptance.
+    Every artifact digest is checked before copying and its paths are confined.
+    """
+    import shutil
+    from pathlib import PurePosixPath
+
+    manifest = VisualReviewManifest.model_validate_json(source_manifest.read_bytes())
+    if manifest.board_sha256 != hashlib.sha256(board_file.read_bytes()).hexdigest():
+        raise ValueError("retained visual review targets another board")
+    root = source_manifest.parent.resolve()
+    if output_dir.exists():
+        raise ValueError("retained visual review needs a fresh output directory")
+    files = {}
+    for artifact in manifest.artifacts:
+        relative = PurePosixPath(artifact.relative_path)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ValueError("review artifact path escapes its source")
+        path = root / relative
+        if not path.resolve().is_relative_to(root) or path.is_symlink():
+            raise ValueError("review artifact path escapes its source")
+        if artifact.state == "missing":
+            if artifact.required:
+                raise ValueError("retained review has a missing required artifact")
+            continue
+        if not path.is_file() or hashlib.sha256(path.read_bytes()).hexdigest() != artifact.sha256:
+            raise ValueError("retained review artifact is missing or stale")
+        files[relative] = path
+    output_dir.mkdir(parents=True)
+    for relative, source in files.items():
+        destination = output_dir / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    from pcbsmith.kicad.routing_evidence import retarget_saved_board_routing_evidence
+
+    manifest = manifest.model_copy(
+        update={
+            "board_file": str(board_file.resolve()),
+            "routing_evidence": None
+            if manifest.routing_evidence is None
+            else retarget_saved_board_routing_evidence(manifest.routing_evidence, board_file),
+        }
+    )
+    write_visual_review_manifest(output_dir / "manifest.json", manifest)
+    _write_review_report(output_dir / "review-report.md", manifest)
+    return manifest

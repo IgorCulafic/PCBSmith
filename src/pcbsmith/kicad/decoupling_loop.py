@@ -111,7 +111,13 @@ def _validate_inputs(
         item for item in graph.terminal_anchors if item.net_name in declared_nets
     )
     graph_pad_nodes = tuple((item.component_reference, item.pad_number) for item in graph_relevant)
-    if len(set(graph_pad_nodes)) != len(graph_pad_nodes):
+    physical_positions = {
+        (a.component_reference, a.pad_number, a.x_mm, a.y_mm) for a in graph_relevant
+    }
+    if (
+        not inventory.distinct_physical_pad_instances
+        and len(set(graph_pad_nodes)) != len(graph_pad_nodes)
+    ) or len(physical_positions) != len(graph_relevant):
         raise ValueError("routed graph has duplicate component/pad anchor aliases")
     if len({item.physical_pad_source_id for item in graph_relevant}) != len(graph_relevant):
         raise ValueError("routed graph has duplicate physical pad source aliases")
@@ -278,6 +284,33 @@ def _area_and_closures(
     return ExactRational.build(abs(twice_area) / 2), closures, "exact_simple"
 
 
+def _convex_envelope_area(points: tuple[Point, ...]) -> ExactRational | None:
+    """Exact hull of projected path centerlines and their straight closures.
+
+    This bounds the planar enclosure only, not trace width, internal package
+    current paths, inductance or EMC. Degenerate projections stay unverified.
+    """
+    ordered = sorted(set(points))
+    if len(ordered) < 3:
+        return None
+
+    def half(values: list[Point]) -> list[Point]:
+        hull: list[Point] = []
+        for point in values:
+            while len(hull) >= 2 and _orientation(hull[-2], hull[-1], point) <= 0:
+                hull.pop()
+            hull.append(point)
+        return hull
+
+    hull = half(ordered)[:-1] + half(list(reversed(ordered)))[:-1]
+    twice_area = sum(
+        (a[0] * b[1] - a[1] * b[0] for a, b in zip(hull, hull[1:] + hull[:1], strict=True)),
+        Fraction(0),
+    )
+    area = abs(twice_area) / 2
+    return ExactRational.build(area) if area > 0 else None
+
+
 def _combine_terms(
     supply: ResolvedCopperPathResult, return_leg: ResolvedCopperPathResult
 ) -> tuple[CopperRadicalLengthTerm, ...]:
@@ -348,6 +381,16 @@ def _derive_metrics(
         combined_neck_edge_ids=necks,
         combined_radical_length_terms=_combine_terms(supply, return_leg),
         projected_loop_area_mm2=area,
+        projected_envelope_area_mm2=(
+            _convex_envelope_area(
+                tuple(
+                    _point(graph, node_id)
+                    for node_id in (*supply.ordered_node_ids, *return_leg.ordered_node_ids)
+                )
+            )
+            if declaration.policy.projected_area_method == "conservative_envelope"
+            else None
+        ),
         closure_segments=closures,
         projected_closure_verification=closure_status,
         terminal_classification=classification,
@@ -434,14 +477,26 @@ def rederive_decoupling_loop(
     unverified = list(path_reasons)
     if metrics is not None:
         policy = retained.policy
-        if metrics.projected_closure_verification != "exact_simple":
+        if (
+            policy.projected_area_method == "exact_simple"
+            and metrics.projected_closure_verification != "exact_simple"
+        ):
             unverified.append("projected_loop_area_unverified")
         if metrics.terminal_classification == "unverified":
             unverified.append("terminal_inventory_incomplete")
         if policy.minimum_track_width_mm is not None:
             if metrics.combined_minimum_track_width_mm is None:
                 unverified.append("track_width_unavailable")
-        if policy.maximum_projected_loop_area_mm2 is not None:
+        if policy.projected_area_method == "conservative_envelope":
+            envelope = metrics.projected_envelope_area_mm2
+            limit = policy.maximum_projected_loop_area_mm2
+            if envelope is None or limit is None:
+                unverified.append("projected_envelope_unavailable")
+            elif envelope.fraction() > limit.fraction():
+                # A large upper bound alone cannot prove the real loop exceeds
+                # its area limit. Require investigation, never fabricate a fail.
+                unverified.append("projected_envelope_bound_inconclusive")
+        elif policy.maximum_projected_loop_area_mm2 is not None:
             if metrics.projected_loop_area_mm2 is None:
                 unverified.append("projected_loop_area_unverified")
         if policy.mode == "sourced_hard":

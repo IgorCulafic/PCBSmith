@@ -7,12 +7,12 @@ INK = QColor(24, 32, 42)
 BLUE = QColor(25, 96, 179)
 
 
-def _base_icon(size: int) -> tuple[QPixmap, QPainter]:
+def _base_icon(size: int, color: QColor | None = None) -> tuple[QPixmap, QPainter]:
     pixmap = QPixmap(size, size)
     pixmap.fill(Qt.GlobalColor.transparent)
     painter = QPainter(pixmap)
     painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-    pen = QPen(INK, max(2, size // 18))
+    pen = QPen(color if color is not None else INK, max(2, size // 18))
     pen.setCapStyle(Qt.PenCapStyle.RoundCap)
     pen.setJoinStyle(Qt.PenJoinStyle.RoundJoin)
     painter.setPen(pen)
@@ -24,16 +24,16 @@ def _draw_line(painter: QPainter, x1: float, y1: float, x2: float, y2: float) ->
     painter.drawLine(QPointF(x1, y1), QPointF(x2, y2))
 
 
-def symbol_icon(symbol_id: str, size: int = 40) -> QIcon:
-    pixmap, painter = _base_icon(size)
+def symbol_icon(symbol_id: str, size: int = 40, *, color: QColor | None = None) -> QIcon:
+    pixmap, painter = _base_icon(size, color)
     rect = QRectF(size * 0.16, size * 0.16, size * 0.68, size * 0.68)
     _draw_symbol_preview(painter, symbol_id, rect)
     painter.end()
     return QIcon(pixmap)
 
 
-def tool_icon(name: str, size: int = 22) -> QIcon:
-    pixmap, painter = _base_icon(size)
+def tool_icon(name: str, size: int = 22, *, color: QColor | None = None) -> QIcon:
+    pixmap, painter = _base_icon(size, color)
     center = size / 2
     if name == "select":
         painter.drawPolygon(
@@ -55,7 +55,7 @@ def tool_icon(name: str, size: int = 22) -> QIcon:
         _draw_line(painter, size * 0.1, center, size * 0.9, center)
     elif name == "wire":
         pen = painter.pen()
-        pen.setColor(BLUE)
+        pen.setColor(QColor("#79b8ff") if color is not None and color.lightness() > 160 else BLUE)
         pen.setWidth(max(3, size // 7))
         painter.setPen(pen)
         painter.drawPolyline(

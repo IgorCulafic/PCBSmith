@@ -526,3 +526,79 @@ def test_router_source_selection_and_through_layers_ignore_labels(
         {layer for layer, *_ in router._pad_nodes(pad)} == {"F.Cu", "B.Cu"}
         for pad in pads
     )
+
+
+@pytest.mark.parametrize("fine", [False, True])
+def test_reordered_failed_passes_stop_at_stagnation_limit(monkeypatch, fine):
+    from pcbsmith.kicad import astar_router
+
+    layout, netlist = _fixture()
+    monkeypatch.setattr(astar_router, "_routable_nets", lambda *args: {"/A": 1, "/B": 2})
+    calls = []
+
+    def alternating_failure(_layout, _netlist, name, **kwargs):
+        calls.append(name)
+        if len(calls) % 2 == 0:
+            raise RoutingError("synthetic conflicting order", expansion_count=1)
+        return astar_router.RouteResult(name, (), (), 0, expansion_count=1)
+
+    monkeypatch.setattr(astar_router, "route_net", alternating_failure)
+    outcome = route_board(
+        layout, netlist, max_passes=100, max_restarts=49,
+        max_stagnant_passes=2,
+        fine_pitch_nets={"/A": 0.2, "/B": 0.2} if fine else None,
+    )
+    assert outcome.run_result.failure_reason is RoutingFailureReason.STAGNATION
+    assert len(outcome.run_result.passes) == 3
+    assert [p.stagnant for p in outcome.run_result.passes] == [False, True, True]
+    assert len(calls) == 6
+    assert outcome.run_result.budget.max_stagnant_passes == 2
+    assert not outcome.run_result.accepted
+
+
+def test_zero_stagnation_allowance_keeps_first_failed_pass_without_retry(monkeypatch):
+    from pcbsmith.kicad import astar_router
+
+    layout, netlist = _fixture()
+
+    def fail(*args, **kwargs):
+        raise RoutingError("synthetic blocked path", expansion_count=1)
+
+    monkeypatch.setattr(astar_router, "route_net", fail)
+    outcome = route_board(layout, netlist, max_stagnant_passes=0)
+    assert outcome.run_result.failure_reason is RoutingFailureReason.STAGNATION
+    assert len(outcome.run_result.passes) == 1
+    assert not outcome.run_result.passes[0].stagnant
+    assert outcome.restarts == 0
+
+
+def test_negative_stagnation_limit_is_rejected():
+    layout, netlist = _fixture()
+    with pytest.raises(ValueError, match="max_stagnant_passes"):
+        route_board(layout, netlist, max_stagnant_passes=-1)
+
+
+
+def test_improving_pass_resets_stagnation_before_success(monkeypatch):
+    from pcbsmith.kicad import astar_router
+
+    layout, netlist = _fixture()
+    names = ("/A", "/B", "/C", "/D")
+    monkeypatch.setattr(astar_router, "_routable_nets", lambda *args: dict.fromkeys(names, 1))
+    fail_after = iter((1, 1, 2, 2, None))
+    threshold = next(fail_after)
+    successes = 0
+
+    def progress(_layout, _netlist, name, **kwargs):
+        nonlocal successes, threshold
+        if successes == threshold:
+            successes = 0
+            threshold = next(fail_after)
+            raise RoutingError("synthetic partial pass", expansion_count=1)
+        successes += 1
+        return astar_router.RouteResult(name, (), (), 0, expansion_count=1)
+
+    monkeypatch.setattr(astar_router, "route_net", progress)
+    outcome = route_board(layout, netlist, max_passes=100, max_stagnant_passes=2)
+    assert outcome.run_result.success
+    assert [p.stagnant for p in outcome.run_result.passes] == [False, True, False, True, False]

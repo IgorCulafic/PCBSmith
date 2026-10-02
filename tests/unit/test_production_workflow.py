@@ -15,6 +15,7 @@ from pcbsmith.kicad.board import (
     BoardNetlist,
 )
 from pcbsmith.kicad.negotiated_board import ExactRouteCheckResult
+from pcbsmith.pre_route_integrity import PreRouteIntegrityEvidence
 from pcbsmith.production_workflow import (
     CompletedRouteDomain,
     GenerationArtifact,
@@ -71,6 +72,38 @@ SHA_A = "a" * 64
 SHA_B = "b" * 64
 SHA_C = "c" * 64
 SHA_D = "d" * 64
+
+
+@pytest.fixture(autouse=True)
+def _independent_readiness_authority(monkeypatch):
+    """These older synthetic gate fixtures use symbolic hashes, not native files.
+
+    Isolate their existing gate responsibility. Real retained-readiness checks,
+    stale-input controls and publication integration live in test_production_readiness.py.
+    """
+    monkeypatch.setattr("pcbsmith.production_workflow.readiness_blockers", lambda **_: ())
+    # This test isolates byte identity; mandatory review behavior has separate controls.
+    monkeypatch.setattr(
+        "pcbsmith.production_workflow.mandatory_routing_review_blockers", lambda *_: ()
+    )
+
+
+def _clean_pre_route_integrity(
+    board_sha256: str = SHA_B,
+) -> PreRouteIntegrityEvidence:
+    return PreRouteIntegrityEvidence.build(
+        board_file="board.kicad_pcb",
+        schematic_file="board.kicad_sch",
+        board_sha256=board_sha256,
+        schematic_sha256=SHA_C,
+        erc_report_sha256=SHA_A,
+        drc_report_sha256=SHA_D,
+        erc_finding_count=0,
+        drc_violation_count=0,
+        drc_unconnected_item_count=0,
+        schematic_parity_count=0,
+        schematic_parity_evaluated=True,
+    )
 
 
 def _empty_component_review(project_id: str = "project"):
@@ -238,7 +271,12 @@ def test_placement_persistence_automatically_invokes_review_and_commits_it(
         generation_sha256=SHA_B,
         reviewer="fixture-reviewer",
         mechanism="human visual inspection",
-        decisions={"2d:front-design:png": ("accepted", ())},
+        decisions={
+            "2d:front-design:png": (
+                "accepted",
+                ("Synthetic transaction fixture: front view retained.",),
+            )
+        },
     )
     assert inspected.transaction.manifest.status == "committed"
     assert inspected.review_manifest.package_status == "accepted"
@@ -458,7 +496,18 @@ def test_routed_persistence_requires_exact_clean_drc_and_final_review(
             model_preflight_status="passed",
             workflow_conformance_status="conformant",
             package_status="generated_pending_inspection",
-            artifacts=(),
+            artifacts=(
+                ReviewArtifact(
+                    artifact_id="2d:front-design:png",
+                    category="overview/front-design",
+                    relative_path="front.png",
+                    media_type="image/png",
+                    required=True,
+                    state="generated",
+                    side="front",
+                    sha256=hashlib.sha256(b"routed-review").hexdigest(),
+                ),
+            ),
         )
 
     result = persist_routed_board_and_generate_review(
@@ -478,6 +527,20 @@ def test_routed_persistence_requires_exact_clean_drc_and_final_review(
     assert result.drc_evidence.clean
     assert Path(result.review_manifest.board_file).read_bytes() == board_payload
     assert Path(result.drc_evidence.report_file).is_file()
+
+    # Ordinary routed generations may have no component-execution artifact.
+    # Inspection still creates a successor and preserves the native board.
+    inspected = inspect_current_placement_review(
+        transaction_root=tmp_path,
+        generation_id="route-inspected",
+        generation_sha256=SHA_B,
+        reviewer="synthetic-test",
+        mechanism="synthetic regression fixture",
+        decisions={"2d:front-design:png": ("accepted", ("Synthetic source-bound view fixture.",))},
+    )
+    assert inspected.transaction.manifest.status == "committed"
+    assert Path(inspected.review_manifest.board_file).read_bytes() == board_payload
+    assert (tmp_path / "generations/route-1/design/board.kicad_pcb").read_bytes() == board_payload
 
 
 def test_routed_persistence_rejects_placement_only_board_before_callbacks(
@@ -910,6 +973,7 @@ def test_routing_entry_gate_requires_reviewed_transactional_saved_board() -> Non
         engineering_gate=engineering_gate,
         component_review_execution=component_review,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
+        pre_route_integrity=_clean_pre_route_integrity(),
     )
 
     assert report.allowed
@@ -926,6 +990,7 @@ def test_routing_entry_gate_requires_reviewed_transactional_saved_board() -> Non
         engineering_gate=engineering_gate,
         component_review_execution=component_review,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
+        pre_route_integrity=_clean_pre_route_integrity(),
     )
     assert not rejected.allowed
     assert any("different saved board" in item for item in rejected.blockers)
@@ -958,6 +1023,7 @@ def test_routing_entry_gate_requires_reviewed_transactional_saved_board() -> Non
         engineering_gate=incomplete_engineering,
         component_review_execution=component_review,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
+        pre_route_integrity=_clean_pre_route_integrity(),
     )
     assert not engineering_rejected.allowed
     assert any("engineering" in item for item in engineering_rejected.blockers)
@@ -992,6 +1058,7 @@ def test_routing_entry_gate_requires_reviewed_transactional_saved_board() -> Non
         engineering_gate=engineering_gate,
         component_review_execution=blocked_component_review,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
+        pre_route_integrity=_clean_pre_route_integrity(),
     )
     assert not component_rejected.allowed
     assert any(
@@ -1024,6 +1091,7 @@ def test_native_router_consumes_gate_profile_budget_and_emits_pass_telemetry() -
         engineering_gate=engineering_gate,
         component_review_execution=component_review,
         budget_bindings=bindings,
+        pre_route_integrity=_clean_pre_route_integrity(),
     )
     components = (
         BoardComponent(
@@ -1088,3 +1156,207 @@ def test_native_router_consumes_gate_profile_budget_and_emits_pass_telemetry() -
     assert exact_rejected.result.run_result.success
     assert exact_rejected.telemetry.termination == "failed"
     assert exact_rejected.telemetry.findings == (SHA_D,)
+
+
+def test_routing_entry_gate_rejects_missing_dirty_and_stale_pre_route_integrity() -> None:
+    (
+        examination,
+        context,
+        feasibility,
+        drift,
+        review,
+        committed,
+        engineering_gate,
+        component_review,
+    ) = _ready_gate_inputs()
+    common = {
+        "generation_sha256": SHA_A,
+        "saved_board_sha256": SHA_B,
+        "saved_layout_fingerprint": SHA_B,
+        "examination": examination,
+        "context": context,
+        "feasibility": feasibility,
+        "concept_drift": drift,
+        "placement_review": review,
+        "committed_review_transaction": committed,
+        "engineering_gate": engineering_gate,
+        "component_review_execution": component_review,
+        "budget_bindings": bind_execution_profile(EXECUTION_PROFILES["quick"]),
+    }
+
+    missing = evaluate_routing_entry_gate(**common)
+    assert not missing.allowed
+    assert any("evidence is missing" in item for item in missing.blockers)
+
+    dirty = PreRouteIntegrityEvidence.build(
+        board_file="board.kicad_pcb",
+        schematic_file="board.kicad_sch",
+        board_sha256=SHA_B,
+        schematic_sha256=SHA_C,
+        erc_report_sha256=SHA_A,
+        drc_report_sha256=SHA_D,
+        erc_finding_count=2,
+        drc_violation_count=0,
+        drc_unconnected_item_count=0,
+        schematic_parity_count=1,
+        schematic_parity_evaluated=True,
+    )
+    dirty_result = evaluate_routing_entry_gate(**common, pre_route_integrity=dirty)
+    assert not dirty_result.allowed
+    assert any("erc_findings:2" in item for item in dirty_result.blockers)
+    assert any("schematic_parity_findings:1" in item for item in dirty_result.blockers)
+
+    stale = evaluate_routing_entry_gate(
+        **common,
+        pre_route_integrity=_clean_pre_route_integrity(board_sha256=SHA_D),
+    )
+    assert not stale.allowed
+    assert any("different saved board" in item for item in stale.blockers)
+
+
+@pytest.mark.parametrize("family", ["decoupling_loop", "switching_hot_loop", "return_adjacency"])
+def test_only_missing_routed_geometry_results_can_be_deferred(family):
+    from pcbsmith.production_workflow import routing_engineering_deferrals
+    from pcbsmith.project_engineering_gate_ir import Phase14FeatureDeclaration
+
+    context = _ready_gate_inputs()[6].context
+    fields = context.model_dump(
+        exclude={
+            "context_fingerprint",
+            "board_netlist_snapshot_json",
+            "board_netlist_snapshot_fingerprint",
+            "schema_id",
+            "schema_version",
+        }
+    )
+    feature = Phase14FeatureDeclaration(
+        feature_id="loop",
+        family=family,
+        subject_component_references=(),
+        required_declaration_ids=("loop-check",),
+        rationale="Synthetic stage dependency test",
+        source_context_ids=("fixture",),
+    )
+    fields["phase14_features"] = (feature,)
+    changed = ProjectEngineeringContext.build(
+        **fields, board_netlist=BoardNetlist(components=(), nets=())
+    )
+    gate = evaluate_project_engineering_gate(changed, Phase14EvaluationBundle())
+    assert routing_engineering_deferrals(gate) == (feature,)
+
+
+@pytest.mark.parametrize("family", ["connector_protection_order", "oscillator_zone"])
+def test_placement_evaluable_engineering_cannot_be_deferred(family):
+    from pcbsmith.production_workflow import routing_engineering_deferrals
+    from pcbsmith.project_engineering_gate_ir import Phase14FeatureDeclaration
+
+    context = _ready_gate_inputs()[6].context
+    fields = context.model_dump(
+        exclude={
+            "context_fingerprint",
+            "board_netlist_snapshot_json",
+            "board_netlist_snapshot_fingerprint",
+            "schema_id",
+            "schema_version",
+        }
+    )
+    fields["phase14_features"] = (
+        Phase14FeatureDeclaration(
+            feature_id="check",
+            family=family,
+            subject_component_references=(),
+            required_declaration_ids=("required-check",),
+            rationale="Synthetic stage dependency test",
+            source_context_ids=("fixture",),
+        ),
+    )
+    changed = ProjectEngineeringContext.build(
+        **fields, board_netlist=BoardNetlist(components=(), nets=())
+    )
+    gate = evaluate_project_engineering_gate(changed, Phase14EvaluationBundle())
+    with pytest.raises(ValueError, match="cannot be deferred"):
+        routing_engineering_deferrals(gate)
+
+
+def test_routed_closure_rejects_dropped_feature_despite_otherwise_ready_gate():
+    from pcbsmith.production_workflow import (
+        RoutingEntryGateReport,
+        require_routed_engineering_closure,
+    )
+    from pcbsmith.project_engineering_gate_ir import Phase14FeatureDeclaration
+
+    feature = Phase14FeatureDeclaration(
+        feature_id="loop",
+        family="decoupling_loop",
+        subject_component_references=(),
+        required_declaration_ids=("check",),
+        rationale="Synthetic source obligation",
+        source_context_ids=("fixture",),
+    )
+    entry = RoutingEntryGateReport.model_construct(deferred_routed_features=(feature,))
+    with pytest.raises(ValueError, match="dropped or changed"):
+        require_routed_engineering_closure(entry, _ready_gate_inputs()[6])
+
+
+@pytest.fixture(autouse=True)
+def isolated_producer_contracts(monkeypatch):
+    """Synthetic inner-contract tests; real job authorization is tested separately."""
+    monkeypatch.setattr("pcbsmith.board_job.require_library_worker", lambda: None)
+
+
+@pytest.mark.parametrize("newline", ["\n", "\r\n"])
+def test_route_gate_binds_actual_review_bytes_and_rejects_changed_content(
+    tmp_path, monkeypatch, newline
+):
+    examination, context, feasibility, drift, review, committed, engineering, component = (
+        _ready_gate_inputs()
+    )
+    monkeypatch.setattr("pcbsmith.production_workflow.readiness_blockers", lambda **_: ())
+    # This test isolates byte identity; mandatory review behavior has separate controls.
+    monkeypatch.setattr(
+        "pcbsmith.production_workflow.mandatory_routing_review_blockers", lambda *_: ()
+    )
+    path = tmp_path / "review/manifest.json"
+    path.parent.mkdir()
+    payload = (
+        (json.dumps(review.model_dump(mode="json", by_alias=True), indent=2) + "\n")
+        .replace("\n", newline)
+        .encode()
+    )
+    path.write_bytes(payload)
+    artifacts = tuple(
+        a.model_copy(update={"content_sha256": hashlib.sha256(payload).hexdigest()})
+        if a.relative_path == "review/manifest.json"
+        else a
+        for a in committed.artifacts
+    )
+    committed = GenerationTransactionManifest.build(
+        project_id=committed.project_id,
+        generation_id=committed.generation_id,
+        generation_sha256=committed.generation_sha256,
+        stage=committed.stage,
+        status="committed",
+        artifacts=artifacts,
+    )
+    args = dict(
+        generation_sha256=SHA_A,
+        saved_board_sha256=SHA_B,
+        saved_layout_fingerprint=SHA_B,
+        examination=examination,
+        context=context,
+        feasibility=feasibility,
+        concept_drift=drift,
+        placement_review=review,
+        committed_review_transaction=committed,
+        engineering_gate=engineering,
+        component_review_execution=component,
+        budget_bindings=bind_execution_profile(EXECUTION_PROFILES["quick"]),
+        pre_route_integrity=_clean_pre_route_integrity(),
+        generation_root=tmp_path,
+    )
+    assert evaluate_routing_entry_gate(**args).allowed
+    changed = review.model_copy(update={"findings": ("new finding",)})
+    path.write_bytes(changed.model_dump_json(by_alias=True).encode())
+    result = evaluate_routing_entry_gate(**args)
+    assert not result.allowed
+    assert "retained review manifest differs from supplied review" in result.blockers

@@ -26,6 +26,16 @@ from pcbsmith.review.visual_package import RenderProfile, VisualReviewManifest
 from pcbsmith.workflow_authority import WorkflowStage
 
 
+@pytest.fixture(autouse=True)
+def _independent_readiness_authority(monkeypatch):
+    """These older synthetic gate fixtures use symbolic hashes, not native files.
+
+    Isolate their existing gate responsibility. Real retained-readiness checks,
+    stale-input controls and publication integration live in test_production_readiness.py.
+    """
+    monkeypatch.setattr("pcbsmith.production_workflow.readiness_blockers", lambda **_: ())
+
+
 def _board_text(*, routed: bool) -> str:
     segment = (
         """
@@ -101,6 +111,12 @@ def _transaction(
             relative_path="review/manifest.json",
             content_sha256=_sha256(review_payload),
         ),
+        GenerationArtifact(
+            artifact_id="release-1.0003",
+            role="verification",
+            relative_path="verification/drc.json",
+            content_sha256=_sha256((board.parent / "drc.json").read_bytes()),
+        ),
     )
     return GenerationTransactionManifest.build(
         project_id="release-test",
@@ -154,7 +170,7 @@ def _applicability_execution(board: Path) -> ProjectApplicabilityExecutionManife
     board_sha256 = _sha256(board.read_bytes())
     context_sha256 = _sha256(b"test-check-context")
     requirement = ApplicableCheckRequirement.build(
-        check_id="test.saved-board",
+        check_id="kicad.drc",
         rule_ids=("test.saved-board.rule",),
         applicability=ProjectCheckApplicability.APPLICABLE,
         applicability_authority_id="test.saved-board.applicability",
@@ -165,11 +181,11 @@ def _applicability_execution(board: Path) -> ProjectApplicabilityExecutionManife
     execution = CheckExecutionRecord.build(
         check_id=requirement.check_id,
         exact_input_sha256s=requirement.exact_input_sha256s,
-        producer_id="test.saved-board.checker",
+        producer_id="kicad-cli.pcb.drc",
         tool_version="test-1",
         evaluated_object_count=1,
         disposition=ProjectCheckDisposition.PASS,
-        result_sha256=_sha256(b"test-check-result"),
+        result_sha256=_sha256((board.parent / "drc.json").read_bytes()),
     )
     return ProjectApplicabilityExecutionManifest.build(
         project_id="test-project",
@@ -197,6 +213,54 @@ def test_release_gate_accepts_only_the_exact_verified_routed_revision(
 
     assert report.allowed
     assert report.blockers == ()
+
+
+@pytest.mark.parametrize(
+    "fault", ["unretained", "wrong_report", "wrong_producer", "missing_execution"]
+)
+def test_release_gate_rejects_unbound_drc(tmp_path, fault):
+    board = tmp_path / "release-candidate.kicad_pcb"
+    board.write_text(_board_text(routed=True), encoding="utf-8")
+    drc = _clean_drc(tmp_path / "drc.json")
+    review = _review(board)
+    transaction = _transaction(board, review)
+    applicability = _applicability_execution(board)
+    if fault == "unretained":
+        transaction = GenerationTransactionManifest.build(
+            project_id=transaction.project_id,
+            generation_id=transaction.generation_id,
+            generation_sha256=transaction.generation_sha256,
+            stage=transaction.stage,
+            status=transaction.status,
+            artifacts=tuple(a for a in transaction.artifacts if a.role != "verification"),
+        )
+    elif fault == "wrong_report":
+        drc.write_bytes(drc.read_bytes() + b"\n")
+    else:
+        records = ()
+        if fault == "wrong_producer":
+            (original,) = applicability.executions
+            fields = original.model_dump(
+                exclude={"schema_id", "schema_version", "execution_fingerprint"}
+            )
+            fields["producer_id"] = "unrelated.checker"
+            records = (CheckExecutionRecord.build(**fields),)
+        applicability = ProjectApplicabilityExecutionManifest.build(
+            project_id=applicability.project_id,
+            saved_design_sha256=applicability.saved_design_sha256,
+            requirements=applicability.requirements,
+            executions=records,
+        )
+    result = evaluate_routed_board_release_gate(
+        board_file=board,
+        drc_report_file=drc,
+        final_review=review,
+        committed_transaction=transaction,
+        verification_evidence=_verification(board),
+        applicability_execution=applicability,
+    )
+    assert not result.allowed
+    assert any("KiCad DRC" in blocker for blocker in result.blockers)
 
 
 def test_release_gate_cannot_promote_an_accepted_placement_manifest(

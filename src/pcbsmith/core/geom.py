@@ -80,3 +80,28 @@ def snap(point: Point, grid_nm: int) -> Point:
         x=_snap_axis(point.x, grid_nm),
         y=_snap_axis(point.y, grid_nm),
     )
+
+
+def transform_schematic_offset(
+    point: Point, rotation_deg: int, *, mirrored_x: bool = False
+) -> Point:
+    """Internal schematic convention v1: rotate, then reflect world X.
+
+    This preserves the Qt editor's persisted visual orientation. Native KiCad
+    board coordinates use their own adapter; do not reuse this as that adapter.
+    """
+    rotation = rotation_deg % 360
+    if rotation == 0:
+        x, y = point.x, point.y
+    elif rotation == 90:
+        x, y = -point.y, point.x
+    elif rotation == 180:
+        x, y = -point.x, -point.y
+    elif rotation == 270:
+        x, y = point.y, -point.x
+    else:
+        raise ValueError(
+            f"Unsupported symbol rotation {rotation_deg}; "
+            "expected one of 0, 90, 180, or 270 degrees"
+        )
+    return Point(x=-x if mirrored_x else x, y=y)

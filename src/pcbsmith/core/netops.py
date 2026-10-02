@@ -8,7 +8,7 @@ from pydantic import BaseModel, ConfigDict
 
 from pcbsmith.core.geom import Point
 from pcbsmith.core.library import Symbol
-from pcbsmith.core.schematic import Schematic
+from pcbsmith.core.schematic import Schematic, SymbolInstance
 
 PinRef = tuple[str, str]
 Anchor = tuple[int, int]
@@ -77,30 +77,11 @@ def _anchor(point: Point) -> Anchor:
     return (point.x, point.y)
 
 
-def _rotate_offset(point: Point, rotation_deg: int) -> Anchor:
-    rotation = rotation_deg % 360
-    if rotation == 0:
-        return (point.x, point.y)
-    if rotation == 90:
-        return (-point.y, point.x)
-    if rotation == 180:
-        return (-point.x, -point.y)
-    if rotation == 270:
-        return (point.y, -point.x)
-    msg = (
-        f"Unsupported symbol rotation {rotation_deg}; "
-        "expected one of 0, 90, 180, or 270 degrees"
-    )
-    raise NetlistDerivationError(msg)
-
-
-def _pin_tip(
-    instance_position: Point,
-    pin_position: Point,
-    rotation_deg: int,
-) -> Anchor:
-    pin_x, pin_y = _rotate_offset(pin_position, rotation_deg)
-    return (instance_position.x + pin_x, instance_position.y + pin_y)
+def _pin_tip(instance: SymbolInstance, pin_position: Point) -> Anchor:
+    try:
+        return _anchor(instance.pin_position(pin_position))
+    except ValueError as exc:
+        raise NetlistDerivationError(str(exc)) from exc
 
 
 def _point_on_segment(point: Anchor, start: Anchor, end: Anchor) -> bool:
@@ -124,7 +105,7 @@ def derive_netlist(schematic: Schematic, symbols: dict[str, Symbol]) -> Netlist:
     for instance in schematic.symbols:
         symbol = symbols[instance.symbol_id]
         for pin in symbol.pins:
-            anchor = _pin_tip(instance.position, pin.position, instance.rotation_deg)
+            anchor = _pin_tip(instance, pin.position)
             uf.add(anchor)
             pin_at_anchor[anchor].append((instance.reference, pin.number))
 

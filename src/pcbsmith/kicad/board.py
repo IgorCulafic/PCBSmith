@@ -21,12 +21,12 @@ from pcbsmith.kicad.identity import stable_kicad_uuid
 from pcbsmith.kicad.library import (
     FootprintLibraryError,
     FootprintSpec,
+    LazyFootprintLibrary,
     PadSpec,
     QuotedString,
     SilkLine,
     SilkText,
     SList,
-    build_footprint_library,
     load_footprint,
     parse_sexpr,
     render_embedded_footprint,
@@ -101,7 +101,7 @@ class BoardGenerationError(RuntimeError):
     pass
 
 
-FOOTPRINT_LIBRARY: dict[str, FootprintSpec] = build_footprint_library()
+FOOTPRINT_LIBRARY = LazyFootprintLibrary()
 
 # Official KiCad footprints are drawn in their datasheet orientation; the row
 # layout needs pins spread along x facing the routing channel below, so some
@@ -377,9 +377,20 @@ def parse_board_netlist(xml_text: str) -> BoardNetlist:
     nets: list[BoardNet] = []
     for net in root.iter("net"):
         name = net.get("name") or ""
+        native_nodes = tuple(net.iter("node"))
+        no_connects = tuple(
+            node for node in native_nodes if "no_connect" in (node.get("pintype") or "").split("+")
+        )
+        if no_connects:
+            # Native XML gives deliberate NC pins synthetic one-terminal nets,
+            # while KiCad 10 schematic parity expects those pads to be netless.
+            # Use explicit native pin intent, never infer NC from a net name alone.
+            if len(native_nodes) != 1 or not name.startswith("unconnected-"):
+                raise BoardGenerationError("Native no-connect pin belongs to a connected net.")
+            continue
         nodes = tuple(
             (node.get("ref") or "", node.get("pin") or "")
-            for node in net.iter("node")
+            for node in native_nodes
             if (node.get("ref") or "") in placed
         )
         if name and nodes:
@@ -398,20 +409,37 @@ def generate_board(
     sensitive_net_names: frozenset[str] = frozenset(),
     ground_pour: bool = False,
     thermal_pour_references: tuple[str, ...] = (),
+    layout: BoardLayout | None = None,
+    layout_input: dict[str, object] | None = None,
     profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
     finder: Callable[[], KiCadInstall | None] = find_kicad_cli,
     runner: Callable[[Sequence[str]], KiCadProcessResult] | None = None,
 ) -> BoardNetlist:
+    if isinstance(profile, dict):
+        profile = PcbRuleProfile.model_validate(profile)
+    if layout_input is not None and layout is not None:
+        raise BoardGenerationError("Specify one reviewed layout representation")
     netlist_file = export_kicad_netlist_xml(schematic_file, finder=finder, runner=runner)
     netlist = parse_board_netlist(netlist_file.read_text(encoding="utf-8"))
-    layout = compute_board_layout(
-        netlist,
-        power_net_names,
-        sensitive_net_names,
-        ground_pour=ground_pour,
-        thermal_pour_references=thermal_pour_references,
-        profile=profile,
-    )
+    if layout_input is not None:
+        from pcbsmith.kicad.layout_input import ReviewedLayoutInput
+
+        layout = ReviewedLayoutInput.model_validate(layout_input).bind(netlist)
+    if layout is None:
+        layout = compute_board_layout(
+            netlist,
+            power_net_names,
+            sensitive_net_names,
+            ground_pour=ground_pour,
+            thermal_pour_references=thermal_pour_references,
+            profile=profile,
+        )
+    else:
+        # A reviewed layout may enter the same registered boundary as the
+        # automatic proposal, but cannot omit/substitute native components.
+        placed = tuple(component for component, _ in layout.placements)
+        if len(placed) != len(netlist.components) or set(placed) != set(netlist.components):
+            raise BoardGenerationError("Reviewed layout differs from schematic components")
     board_file.write_text(
         render_board_from_layout(netlist, layout, profile=profile), encoding="utf-8"
     )
@@ -1440,9 +1468,7 @@ def _render_raw_board_graphic(
         child
         for child in node
         if not (
-            isinstance(child, list)
-            and child
-            and _raw_graphic_head(child) in {"uuid", "tstamp"}
+            isinstance(child, list) and child and _raw_graphic_head(child) in {"uuid", "tstamp"}
         )
     ]
     semantic = serialize_sexpr(node)
@@ -1586,15 +1612,15 @@ def _zone(
     return f"""  (zone
     (net {_q(net_name)})
     (layer "{layer}")
-    (uuid {item_uuid}){priority_clause}
+    (uuid "{item_uuid}"){priority_clause}
     (hatch edge 0.5)
     (connect_pads yes
       (clearance 0.5))
     (min_thickness 0.25)
-    (filled_areas_thickness no)
     (fill yes
       (thermal_gap 0.5)
       (thermal_bridge_width 0.5)
+      (island_removal_mode 0)
     )
     (polygon
       (pts

@@ -17,11 +17,11 @@ tables, not by SPICE.
 from __future__ import annotations
 
 import math
-import re
 import subprocess
 from collections.abc import Callable
 from pathlib import Path
 
+from pcbsmith.calculators.passive import parse_resistance_ohms as _ohms
 from pcbsmith.circuit.models import CircuitObject, SimulationReport
 from pcbsmith.simulation.ngspice import find_ngspice, run_ngspice_batch
 from pcbsmith.simulation.ngspice_buck import parse_ngspice_meas_results
@@ -41,20 +41,10 @@ LED_IDEALITY = 2.0
 THERMAL_VOLTAGE_V = 0.02585
 
 
-def _ohms(value: str) -> float:
-    match = re.fullmatch(r"(\d+(?:\.\d+)?)([kKmMrR]?)(?:R|)?", value)
-    if match is None:
-        raise ValueError(f"Unparseable resistance {value!r}")
-    scale = {"": 1.0, "r": 1.0, "k": 1e3, "m": 1e6}[match.group(2).lower()]
-    return float(match.group(1)) * scale
-
-
 def _led_saturation_current() -> float:
     """IS for a diode that hits the datasheet (Vf, If) point at the
     chosen ideality: IS = If / exp(Vf / (N*VT))."""
-    return LED_IF_TEST_A / math.exp(
-        LED_VF_TYP_V / (LED_IDEALITY * THERMAL_VOLTAGE_V)
-    )
+    return LED_IF_TEST_A / math.exp(LED_VF_TYP_V / (LED_IDEALITY * THERMAL_VOLTAGE_V))
 
 
 def render_thermometer_netlist(circuit: CircuitObject) -> str:
@@ -112,10 +102,7 @@ def evaluate_thermometer_measurements(
     # 74HC595 continuous output current is +/-35mA absolute maximum;
     # the design must sit far below it.
     if seg_ma > 20.0:
-        findings.append(
-            f"Segment LED current {seg_ma:.2f}mA crowds the register's "
-            "per-pin limit."
-        )
+        findings.append(f"Segment LED current {seg_ma:.2f}mA crowds the register's per-pin limit.")
     if not 1.5 <= v_f <= 2.2:
         findings.append(
             f"LED forward voltage {v_f:.2f}V is outside the red AlGaInP "
@@ -123,8 +110,7 @@ def evaluate_thermometer_measurements(
         )
     if not 0.5 <= i_pwled * 1e3 <= 3.0:
         findings.append(
-            f"Power LED current {i_pwled * 1e3:.2f}mA is outside the "
-            "0.5-3mA indicator band."
+            f"Power LED current {i_pwled * 1e3:.2f}mA is outside the 0.5-3mA indicator band."
         )
     if findings:
         return ("failed", tuple(findings), measurements)

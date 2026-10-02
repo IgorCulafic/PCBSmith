@@ -95,6 +95,13 @@ class CopperTerminalAnchorBinding(SemanticIrModel):
     layer: Literal["F.Cu", "B.Cu"]
     x_mm: Decimal
     y_mm: Decimal
+    through_hole_diameter_mm: Decimal | None = Field(
+        default=None, gt=0, exclude_if=lambda value: value is None
+    )
+
+    copper_contact_radius_mm: Decimal | None = Field(
+        default=None, gt=0, exclude_if=lambda value: value is None
+    )
 
     @model_validator(mode="after")
     def binding_is_exact(self) -> Self:
@@ -139,7 +146,7 @@ class RoutedCopperEdge(SemanticIrModel):
     schema_version: Literal[1] = 1
     edge_id: str
     source_id: str
-    kind: Literal["track", "via", "exact_zone_fill"]
+    kind: Literal["track", "via", "exact_zone_fill", "pad_contact"]
     net_name: str
     start_node_id: str
     end_node_id: str
@@ -164,6 +171,16 @@ class RoutedCopperEdge(SemanticIrModel):
             if self.final_fill_record_sha256 is None:
                 raise ValueError("exact zone edge requires its final-fill record")
             require_sha256(self.final_fill_record_sha256, "final_fill_record_sha256")
+        elif self.kind == "pad_contact":
+            if (
+                self.width_mm is not None
+                or self.via_size_mm is not None
+                or self.planar_squared_length is None
+                or self.final_fill_record_sha256 is not None
+            ):
+                raise ValueError(
+                    "pad contact must not fabricate trace width, via size or fill authority"
+                )
         elif self.kind == "track":
             if (
                 self.width_mm is None
@@ -247,6 +264,7 @@ class RoutedCopperGraphResult(SemanticIrModel):
     board_netlist_snapshot_fingerprint: str
     terminal_anchors: tuple[CopperTerminalAnchorBinding, ...]
     exact_filled_zones: tuple[ExactFilledZoneCopper, ...]
+    resolve_point_contacts: bool = Field(default=False, exclude_if=lambda value: not value)
     nodes: tuple[RoutedCopperNode, ...]
     edges: tuple[RoutedCopperEdge, ...]
     unknown_zone_reasons: tuple[RoutedCopperUnknownZoneReason, ...]
@@ -273,6 +291,7 @@ class RoutedCopperGraphResult(SemanticIrModel):
             self.board_netlist_snapshot_json,
             self.terminal_anchors,
             self.exact_filled_zones,
+            resolve_point_contacts=self.resolve_point_contacts,
         )
         compared = (
             "board_layout_snapshot_fingerprint",

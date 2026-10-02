@@ -32,7 +32,7 @@ def write_authority_review_bundle(
 ) -> Path:
     bundle = AuthorityReviewBundle(
         schema_id="pcbsmith-circuit-review-bundle-v2",
-        status=_derive_status(
+        status=derive_authority_status(
             circuit=circuit,
             evidence=evidence,
             kicad=kicad,
@@ -58,7 +58,7 @@ def write_authority_review_bundle(
     return path
 
 
-def _derive_status(
+def derive_authority_status(
     *,
     circuit: CircuitObject,
     evidence: EvidenceReport,
@@ -92,3 +92,7 @@ def _derive_status(
     ):
         return "needs_human_review"
     return "passed"
+
+
+# Historical private import compatibility.
+_derive_status = derive_authority_status

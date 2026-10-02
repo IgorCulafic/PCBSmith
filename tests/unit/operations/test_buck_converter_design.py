@@ -32,12 +32,24 @@ def test_generate_buck_converter_design_writes_real_lm2596_bundle(tmp_path: Path
     assert "D1" in schematic_text
     assert "RFB1" in schematic_text
     assert "RFB2" in schematic_text
+    assert '(property "Value" "VIN"' in schematic_text
+    assert '(property "Value" "GND"' in schematic_text
+    assert '(lib_id "PCBSmith:K10_C_POLARIZED")' in schematic_text
 
     board_text = result.board_file.read_text(encoding="utf-8")
     assert "PCBSmith_LM2596_TO263_REAL" in board_text
     assert "VIN 7-24V" in board_text
     assert "VOUT 5V 1A" in board_text
     assert "LM2596 Buck Demo" in board_text
+    assert '(footprint "PCBSmith:PCBSmith_LM2596_TO263_REAL"' in board_text
+    assert '(property "PCBSmith_Polarity" "1=K;2=A"' in board_text
+    assert board_text.count('(property "PCBSmith_Polarity" "1=+;2=-"') == 2
+    assert '(property "PCBSmith_Mating" "VIN"' in board_text
+    assert '(property "PCBSmith_Mating" "VOUT"' in board_text
+    assert board_text.count('(fp_text user "+"') == 2
+    assert '(fp_text user "K"' in board_text
+    assert (output_dir / "fp-lib-table").exists()
+    assert (output_dir / "PCBSmith.pretty" / "PCBSmith_LM2596_TO263_REAL.kicad_mod").exists()
 
     policy = json.loads(result.kicad_board_policy_report_file.read_text(encoding="utf-8"))
     assert policy["summary"] == {

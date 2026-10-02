@@ -155,15 +155,15 @@ def test_opt_in_rectangular_adapter_preserves_fields_and_source_authority() -> N
     assert not adapted.result.exact_shaped_body_authority
     assert (
         adapted.result.semantic_fingerprint()
-        == "74400f87b973134bdeff897b4ae37693965af489a6299162098955c27dc425cd"
+        == "052671ac833723ae5038d9ee0d42fbb999028614480f1b9edcbc341bd6173ec8"
     )
     assert (
         adapted.result.source_authority_fingerprint
-        == "484ddc8250208d5a88b371e72daa9117a79d3214b446d786b12c3f7ca93c3ec6"
+        == "631de09feb75ef534fc1231a2dac7776fd3f7e9025e5416569f7f8b849cfc9fa"
     )
     assert (
         adapted.result.input_fingerprint
-        == "e47cdef9170ca5e234338b28f3d2e50a0c6c232e9e225b2b59f27218a605a4c1"
+        == "6c0144db1f061e8e84647c20cd3176b06e821f08fb1cf38934e79b679e05ece1"
     )
     assert (
         adapted.result.probe_result_fingerprint

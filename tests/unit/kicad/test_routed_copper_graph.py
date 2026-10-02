@@ -508,3 +508,75 @@ def test_input_layout_netlist_and_anchor_values_are_not_mutated() -> None:
     resolve_copper_path(graph, _selection(graph))
     after = (repr(layout), repr(netlist), tuple(item.model_dump_json() for item in anchors))
     assert after == before
+
+
+def test_native_through_pad_bridges_layers_without_inventing_layout_via():
+    anchors = list(_anchors())
+    anchors[0] = anchors[0].model_copy(update={"through_hole_diameter_mm": Decimal("1.6")})
+    layout = _layout(segments=(TrackSegment(0, 0, 10, 0, "B.Cu", "VDD", 0.2),), vias=())
+    graph = build_routed_copper_graph(layout, _netlist(), anchors)
+    path = resolve_copper_path(graph, _selection(graph))
+    assert path.connectivity_state == "connected"
+    assert path.verification is SemanticVerification.EXACT
+    assert path.via_source_ids == ("pad:U1:1",)
+    assert '"vias":[]' in graph.board_layout_snapshot_json
+    plain = build_routed_copper_graph(layout, _netlist(), _anchors())
+    assert resolve_copper_path(plain, _selection(plain)).connectivity_state != "connected"
+    assert "through_hole_diameter_mm" not in plain.model_dump_json()
+    assert "resolve_point_contacts" not in plain.model_dump_json()
+
+
+def test_point_contact_resolution_is_explicit_exact_and_replay_bound():
+    anchors = _anchors(end_point=("F.Cu", "5", "5"))
+    layout = _layout(
+        segments=(
+            TrackSegment(0, 0, 10, 0, "F.Cu", "VDD", 0.2),
+            TrackSegment(5, 0, 5, 5, "F.Cu", "VDD", 0.2),
+        ),
+        vias=(),
+    )
+    legacy = build_routed_copper_graph(layout, _netlist(), anchors)
+    assert legacy.unverified_contacts
+    exact = build_routed_copper_graph(layout, _netlist(), anchors, resolve_point_contacts=True)
+    assert not exact.unverified_contacts
+    path = resolve_copper_path(exact, _selection(exact))
+    assert path.connectivity_state == "connected"
+    assert path.verification is SemanticVerification.EXACT
+    payload = exact.model_dump(mode="json")
+    payload["resolve_point_contacts"] = False
+    with pytest.raises(ValueError):
+        RoutedCopperGraphResult.model_validate(payload)
+
+
+def test_exact_contact_mode_keeps_collinear_overlap_unverified():
+    layout = _layout(
+        segments=(
+            TrackSegment(0, 0, 10, 0, "F.Cu", "VDD", 0.2),
+            TrackSegment(5, 0, 15, 0, "F.Cu", "VDD", 0.2),
+        ),
+        vias=(),
+    )
+    result = build_routed_copper_graph(layout, _netlist(), _anchors(), resolve_point_contacts=True)
+    assert any(c.reason == "collinear_track_overlap" for c in result.unverified_contacts)
+
+
+@pytest.mark.parametrize("offset,connected", [("0.7", True), ("0.8", False), ("0.9", False)])
+def test_native_pad_contact_uses_strict_exact_region(offset, connected):
+    anchors = list(_anchors(end_point=("F.Cu", "10", "0")))
+    anchors[0] = anchors[0].model_copy(update={"copper_contact_radius_mm": Decimal("0.8")})
+    layout = _layout(segments=(TrackSegment(float(offset), 0, 10, 0, "F.Cu", "VDD", 0.2),), vias=())
+    graph = build_routed_copper_graph(layout, _netlist(), anchors)
+    path = resolve_copper_path(graph, _selection(graph))
+    assert (path.connectivity_state == "connected") is connected
+    contacts = [e for e in graph.edges if e.kind == "pad_contact"]
+    assert bool(contacts) is connected
+    if connected:
+        assert contacts[0].width_mm is None and contacts[0].via_size_mm is None
+        assert path.via_count == 0 and path.minimum_width_mm == Decimal("0.2")
+        assert float(path.exact_rational_planar_length_mm.fraction()) == pytest.approx(
+            10 - float(offset)
+        )
+    payload = graph.model_dump(mode="json")
+    payload["terminal_anchors"][0]["copper_contact_radius_mm"] = "2"
+    with pytest.raises(ValueError):
+        RoutedCopperGraphResult.model_validate(payload)

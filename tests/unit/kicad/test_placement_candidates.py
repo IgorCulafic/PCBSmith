@@ -221,16 +221,16 @@ def test_repeated_and_reversed_inputs_pin_order_and_base_first() -> None:
         _ids(first.result)
         == _ids(second.result)
         == (
-            "9424ab5b3fb1",
-            "0650e6eae696",
-            "890bbf4d4ebe",
-            "3d1479ea0d24",
-            "ed1daa42b0cf",
-            "2c4df210fe86",
-            "1eaa1147dbdc",
-            "4cad49a771b0",
-            "5f8fb704bbf8",
-            "1e5049346e60",
+            "25f0f673611f",
+            "6286b83a134b",
+            "396cb21813c5",
+            "0a443730cdb2",
+            "08cd20853827",
+            "0589856e790e",
+            "b814f603e9ea",
+            "797d717750ec",
+            "26422b9966be",
+            "e7b4ee13baab",
         )
     )
     assert first.result.candidates[0].provenance.proposal_kind is PlacementProposalKind.BASE
@@ -241,10 +241,10 @@ def test_repeated_and_reversed_inputs_pin_order_and_base_first() -> None:
     assert first.result.telemetry.terminal_reason is PlacementCandidateTerminalReason.COMPLETED
     assert first.result.semantic_fingerprint() == second.result.semantic_fingerprint()
     assert first.result.semantic_fingerprint() == (
-        "05bfebc39cf0a1decb32214b7ae65db17eda12ac1ffc9c10d4e1470664f5ada0"
+        "3ec0dc4058ee153cb11510b0ee8c83d696a5db159a30e92e4eca1b94d9d4421a"
     )
     assert first.result.telemetry.semantic_fingerprint() == (
-        "c2895b46631900fd5a23ab3a821f4711e251ab0df1be2fdf3ac32fd74f4649f1"
+        "e9aad2ea89763aa94031606d36abc5e8dfcc667ed2f85d11c12523711987ef8d"
     )
 
 

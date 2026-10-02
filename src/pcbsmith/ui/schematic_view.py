@@ -3,7 +3,7 @@ from __future__ import annotations
 import math
 from typing import Literal
 
-from PySide6.QtCore import QPoint, QRect, QRectF, Qt
+from PySide6.QtCore import QLineF, QPoint, QRect, QRectF, Qt
 from PySide6.QtGui import QColor, QMouseEvent, QPainter, QPen, QShowEvent, QWheelEvent
 from PySide6.QtWidgets import QGraphicsScene, QGraphicsView, QWidget
 
@@ -13,6 +13,8 @@ from pcbsmith.ui.items import CANVAS_BACKGROUND, GRID_COLOR
 GRID_NM = 2_540_000
 DEFAULT_VIEW_WIDTH_MM = 160
 DEFAULT_VIEW_HEIGHT_MM = 100
+MIN_VIEW_SCALE = 1e-7
+MAX_VIEW_SCALE = 2e-4
 ZOOM_IN_FACTOR = 1.15
 ZOOM_OUT_FACTOR = 1 / ZOOM_IN_FACTOR
 GridUnit = Literal["mm", "cm"]
@@ -29,11 +31,11 @@ class SchematicView(QGraphicsView):
         self._last_pan_pos: QPoint | None = None
         self._grid_unit: GridUnit = "mm"
         self._did_initial_fit = False
+        self._pan_mode = False
+        self.setAccessibleName("Schematic canvas")
         scene.setBackgroundBrush(CANVAS_BACKGROUND)
 
-        self.setRenderHints(
-            QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing
-        )
+        self.setRenderHints(QPainter.RenderHint.Antialiasing | QPainter.RenderHint.TextAntialiasing)
         self.setTransformationAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setResizeAnchor(QGraphicsView.ViewportAnchor.AnchorUnderMouse)
         self.setDragMode(QGraphicsView.DragMode.NoDrag)
@@ -42,22 +44,19 @@ class SchematicView(QGraphicsView):
         super().drawBackground(painter, rect)
         rect_f = QRectF(rect)
 
-        left = math.floor(rect_f.left() / GRID_NM) * GRID_NM
-        top = math.floor(rect_f.top() / GRID_NM) * GRID_NM
-
+        step = self.display_grid_spacing(rect_f)
+        left = math.floor(rect_f.left() / step) * step
+        top = math.floor(rect_f.top() / step) * step
         painter.save()
         painter.setPen(QPen(GRID_COLOR, 0))
-
         x = left
         while x <= rect_f.right():
-            painter.drawLine(int(x), int(rect_f.top()), int(x), int(rect_f.bottom()))
-            x += GRID_NM
-
+            painter.drawLine(QLineF(x, rect_f.top(), x, rect_f.bottom()))
+            x += step
         y = top
         while y <= rect_f.bottom():
-            painter.drawLine(int(rect_f.left()), int(y), int(rect_f.right()), int(y))
-            y += GRID_NM
-
+            painter.drawLine(QLineF(rect_f.left(), y, rect_f.right(), y))
+            y += step
         painter.restore()
 
     def drawForeground(self, painter: QPainter, rect: QRectF | QRect) -> None:
@@ -80,15 +79,18 @@ class SchematicView(QGraphicsView):
     def wheelEvent(self, event: QWheelEvent) -> None:
         if event.modifiers() & Qt.KeyboardModifier.ControlModifier:
             factor = ZOOM_IN_FACTOR if event.angleDelta().y() > 0 else ZOOM_OUT_FACTOR
-            self.scale(factor, factor)
+            self.zoom_by(factor)
             event.accept()
             return
 
         super().wheelEvent(event)
 
     def mousePressEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.MiddleButton:
+        if event.button() == Qt.MouseButton.MiddleButton or (
+            self._pan_mode and event.button() == Qt.MouseButton.LeftButton
+        ):
             self._last_pan_pos = event.position().toPoint()
+            self.setCursor(Qt.CursorShape.ClosedHandCursor)
             event.accept()
             return
 
@@ -107,12 +109,46 @@ class SchematicView(QGraphicsView):
         super().mouseMoveEvent(event)
 
     def mouseReleaseEvent(self, event: QMouseEvent) -> None:
-        if event.button() == Qt.MouseButton.MiddleButton and self._last_pan_pos is not None:
+        if (
+            event.button() in (Qt.MouseButton.MiddleButton, Qt.MouseButton.LeftButton)
+            and self._last_pan_pos is not None
+        ):
             self._last_pan_pos = None
+            self.setCursor(
+                Qt.CursorShape.OpenHandCursor if self._pan_mode else Qt.CursorShape.ArrowCursor
+            )
             event.accept()
             return
 
         super().mouseReleaseEvent(event)
+
+    def set_pan_mode(self, enabled: bool) -> None:
+        self._pan_mode = enabled
+        self._last_pan_pos = None
+        self.setCursor(Qt.CursorShape.OpenHandCursor if enabled else Qt.CursorShape.ArrowCursor)
+
+    def display_grid_spacing(self, rect: QRectF) -> int:
+        scale = max(abs(self.transform().m11()), MIN_VIEW_SCALE)
+        multiple = max(
+            1,
+            math.ceil(8 / (GRID_NM * scale)),
+            math.ceil((abs(rect.width()) + abs(rect.height())) / (GRID_NM * 400)),
+        )
+        return GRID_NM * multiple
+
+    def zoom_by(self, factor: float) -> None:
+        if not math.isfinite(factor) or factor <= 0:
+            raise ValueError("Zoom factor must be finite and positive")
+        current = abs(self.transform().m11())
+        target = min(MAX_VIEW_SCALE, max(MIN_VIEW_SCALE, current * factor))
+        self.scale(target / current, target / current)
+        self._sync_pick_scale()
+
+    def _sync_pick_scale(self) -> None:
+        update = getattr(self.scene(), "set_wire_pick_scale", None)
+        if callable(update):
+            update(abs(self.transform().m11()))
+        self.viewport().update()
 
     def default_view_rect(self) -> QRectF:
         width = mm_to_nm(DEFAULT_VIEW_WIDTH_MM)
@@ -122,6 +158,7 @@ class SchematicView(QGraphicsView):
     def reset_to_default_view(self) -> None:
         target = self.default_view_rect()
         self.fitInView(target, Qt.AspectRatioMode.KeepAspectRatio)
+        self.zoom_by(1)
         self.centerOn(target.center())
 
     def grid_unit(self) -> GridUnit:
@@ -145,6 +182,7 @@ class SchematicView(QGraphicsView):
             target = target.adjusted(-GRID_NM, -GRID_NM, GRID_NM, GRID_NM)
 
         self.fitInView(target, Qt.AspectRatioMode.KeepAspectRatio)
+        self.zoom_by(1)
         self.centerOn(target.center())
 
 

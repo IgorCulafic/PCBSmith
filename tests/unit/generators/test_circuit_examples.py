@@ -213,6 +213,7 @@ def test_create_timer_555_astable_project_writes_shared_schematic_and_board(
     assert result.board_path == "boards/main.brd.json"
     assert project.name == "555 Astable"
     assert [symbol.reference for symbol in schematic.symbols] == [
+        "J1",
         "V1",
         "U1",
         "R1",
@@ -251,13 +252,18 @@ def test_timer_555_astable_direct_kicad_export_uses_ic_and_support_parts(
     schematic_text = result.schematic_file.read_text(encoding="utf-8")
     board_text = result.board_file.read_text(encoding="utf-8")
     assert result.source_project_dir == source_dir
-    assert '(lib_id "PCBSmith:NE555")' in schematic_text
-    assert '(footprint "PCBSmith_SOIC8_NE555_REAL"' in board_text
-    assert '(footprint "PCBSmith_R_0603_REAL"' in board_text
-    assert '(footprint "PCBSmith_C_0603_REAL"' in board_text
-    assert '(footprint "PCBSmith_LED_0603_REAL"' in board_text
+    assert '(lib_id "PCBSmith:K10_NE555D")' in schematic_text
+    assert '(property "Footprint" "PCBSmith:PCBSmith_SOIC8_NE555_REAL"' in schematic_text
+    assert '(property "Footprint" "PCBSmith:PCBSmith_POWER_CONNECTOR_2P_REAL"' in schematic_text
+    assert '(footprint "PCBSmith:PCBSmith_POWER_CONNECTOR_2P_REAL"' in board_text
+    assert '(footprint "PCBSmith:PCBSmith_SOIC8_NE555_REAL"' in board_text
+    assert '(footprint "PCBSmith:PCBSmith_R_0603_REAL"' in board_text
+    assert '(footprint "PCBSmith:PCBSmith_C_0603_REAL"' in board_text
+    assert '(footprint "PCBSmith:PCBSmith_LED_0603_REAL"' in board_text
     assert '(property "Reference" "U1"' in board_text
     assert '(property "Value" "NE555"' in board_text
+    assert (result.project_dir / "fp-lib-table").exists()
+    assert (result.project_dir / "PCBSmith.pretty" / "PCBSmith_SOIC8_NE555_REAL.kicad_mod").exists()
     assert "(fp_circle" in board_text
     assert '(net 1 "VCC")' in board_text
     assert '(net 2 "GND")' in board_text
@@ -266,6 +272,10 @@ def test_timer_555_astable_direct_kicad_export_uses_ic_and_support_parts(
     assert '(net 5 "CTRL")' in board_text
     assert '(net 6 "OUT")' in board_text
     assert '(net 7 "LED_A")' in board_text
+    assert '(property "PCBSmith_Polarity" "1=K;2=A"' in board_text
+    assert '(fp_text user "K"' in board_text
+    assert '(fp_text user "+"' in board_text
+    assert '(pad "2" smd roundrect' in board_text
     assert "(via" in board_text
     assert '(layers "F.Cu" "B.Cu")' in board_text
     assert '(layer "B.Cu")' in board_text

@@ -9,6 +9,9 @@ import threading
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from pcbsmith.board_job import BoardJob, run_operation
+from pcbsmith.production_generators import GENERATOR_REGISTRY
+
 FIXTURE = Path("tests/fixtures/voltage_divider")
 
 
@@ -53,19 +56,36 @@ def _run_cli(
     )
 
 
-def test_production_generator_audit_is_clean_and_reports_capabilities() -> None:
-    result = _run_cli("production-generator-audit")
-
-    assert result.returncode == 0
-    assert result.stderr == ""
-    payload = json.loads(result.stdout)
+def test_production_generator_audit_is_clean_and_reports_capabilities(tmp_path: Path) -> None:
+    # Exercise the actual supervised CLI, not a fabricated worker environment.
+    job = BoardJob(tmp_path / "audit-job")
+    job.start(complexity="simple", rationale="Integration audit through supported worker")
+    assert run_operation(job, "pcbsmith.cli", ["production-generator-audit"]) == 0
+    attempt = job.snapshot().attempts[-1]
+    receipt = json.loads(
+        (job.root / ".pcbsmith/job-runs" / attempt.token / "result.json").read_text()
+    )
+    assert receipt["termination"] == "passed"
+    assert Path(receipt["stderr_file"]).read_text() == ""
+    payload = json.loads(Path(receipt["stdout_file"]).read_text())
+    job.stop("Integration audit completed", finished=True)
     assert payload["clean"] is True
-    assert len(payload["registered_generators"]) == 19
-    assert {
-        item["capability"] for item in payload["registered_generators"]
-    } == {"placement", "routed"}
+    assert len(payload["registered_generators"]) == len(GENERATOR_REGISTRY)
+    assert {item["capability"] for item in payload["registered_generators"]} == {
+        "placement",
+        "routed",
+        "paused",
+        "research",
+    }
     assert payload["unregistered_ids"] == []
     assert payload["stale_registration_ids"] == []
+
+
+
+def test_production_generator_audit_rejects_unsupervised_cli() -> None:
+    result = _run_cli("production-generator-audit")
+    assert result.returncode == 2
+    assert "no unsupervised board CLI" in result.stderr
 
 
 def test_info_prints_project_summary(tmp_path: Path) -> None:
@@ -1135,9 +1155,9 @@ def test_local_agent_review_can_call_tool_then_preview_plan(tmp_path: Path) -> N
             self.send_header("Content-Type", "application/json")
             self.end_headers()
             self.wfile.write(
-                json.dumps(
-                    {"choices": [{"message": {"content": json.dumps(response)}}]}
-                ).encode("utf-8")
+                json.dumps({"choices": [{"message": {"content": json.dumps(response)}}]}).encode(
+                    "utf-8"
+                )
             )
 
         def log_message(self, _format: str, *_args: object) -> None:
@@ -1164,13 +1184,18 @@ def test_local_agent_review_can_call_tool_then_preview_plan(tmp_path: Path) -> N
 
     assert result.returncode == 0
     assert result.stderr == ""
+    attempts = tuple((output_dir / "attempts").iterdir())
+    assert len(attempts) == 1
+    attempt_dir = attempts[0]
+    assert attempt_dir.is_dir()
+    assert not (output_dir / "candidate-plan.json").exists()
     assert result.stdout.splitlines() == [
-        f"AI local agent review bundle: {output_dir}",
+        f"AI local agent review bundle: {attempt_dir}",
         f"Local model: local-agent-test (openai-compatible, {config['base_url']})",
-        f"Brief: {output_dir / 'ai-brief.json'}",
-        f"Planner package: {output_dir / 'ai-planner-package.json'}",
-        f"Transcript: {output_dir / 'agent-transcript.json'}",
-        f"Candidate plan: {output_dir / 'candidate-plan.json'}",
+        f"Brief: {attempt_dir / 'ai-brief.json'}",
+        f"Planner package: {attempt_dir / 'ai-planner-package.json'}",
+        f"Transcript: {attempt_dir / 'agent-transcript.json'}",
+        f"Candidate plan: {attempt_dir / 'candidate-plan.json'}",
         "Agent steps: 2",
         "Tool calls: 1",
         "AI plan: valid",
@@ -1183,7 +1208,7 @@ def test_local_agent_review_can_call_tool_then_preview_plan(tmp_path: Path) -> N
         "Dry run only; no files changed. Pass --apply to save changes.",
     ]
     assert not responses
-    transcript = json.loads((output_dir / "agent-transcript.json").read_text(encoding="utf-8"))
+    transcript = json.loads((attempt_dir / "agent-transcript.json").read_text(encoding="utf-8"))
     assert transcript["steps"][0]["tool_result"]["calculator"] == "lc-resonance"
 
 
@@ -1316,6 +1341,7 @@ def test_design_led_art_writes_structured_review_bundle(tmp_path: Path) -> None:
 
     result = _run_cli(
         "design-led-art",
+        "--research",
         str(output_dir),
         "--name",
         "AI VIR LAB",
@@ -1329,7 +1355,7 @@ def test_design_led_art_writes_structured_review_bundle(tmp_path: Path) -> None:
     )
 
     assert result.returncode == 0
-    assert result.stderr == ""
+    assert "Research/compatibility output" in result.stderr
     board_policy_file = output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
     assert result.stdout.splitlines() == [
         "Design operation: led_art",
@@ -1357,6 +1383,7 @@ def test_design_attiny_led_controller_writes_structured_review_bundle(
 
     result = _run_cli(
         "design-attiny-led-controller",
+        "--research",
         str(output_dir),
         "--name",
         "R6 ATtiny Controller",
@@ -1364,7 +1391,7 @@ def test_design_attiny_led_controller_writes_structured_review_bundle(
     )
 
     assert result.returncode == 0
-    assert result.stderr == ""
+    assert "Research/compatibility output" in result.stderr
     board_policy_file = output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
     assert result.stdout.splitlines() == [
         "Design operation: attiny_led_controller",
@@ -1389,6 +1416,7 @@ def test_design_silkscreen_artwork_writes_structured_review_bundle(
 
     result = _run_cli(
         "design-silkscreen-artwork",
+        "--research",
         str(output_dir),
         "--name",
         "R7A Logo Placement",
@@ -1402,7 +1430,7 @@ def test_design_silkscreen_artwork_writes_structured_review_bundle(
     )
 
     assert result.returncode == 0
-    assert result.stderr == ""
+    assert "Research/compatibility output" in result.stderr
     board_policy_file = output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
     assert result.stdout.splitlines() == [
         "Design operation: silkscreen_artwork",
@@ -1428,6 +1456,7 @@ def test_design_buck_converter_writes_structured_review_bundle(tmp_path: Path) -
 
     result = _run_cli(
         "design-buck-converter",
+        "--research",
         str(output_dir),
         "--name",
         "LM2596 Buck Demo",
@@ -1435,7 +1464,7 @@ def test_design_buck_converter_writes_structured_review_bundle(tmp_path: Path) -
     )
 
     assert result.returncode == 0
-    assert result.stderr == ""
+    assert "Research/compatibility output" in result.stderr
     board_policy_file = output_dir / ".pcbsmith" / "board-reports" / "kicad-board-policy.json"
     assert result.stdout.splitlines() == [
         "Design operation: buck_converter",

@@ -38,6 +38,7 @@ dev = [
   "pytest>=8.0",
   "pytest-qt>=4.4",
   "ruff>=0.5",
+  "types-shapely>=2.0",
 ]
 
 [project.scripts]
@@ -46,6 +47,20 @@ pcbsmith-gui = "pcbsmith.ui.app:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/pcbsmith"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"ai_assets/kicad_footprints" = "pcbsmith/assets/kicad_footprints"
+"ai_assets/kicad_symbols" = "pcbsmith/assets/kicad_symbols"
+"THIRD_PARTY_NOTICES.md" = "pcbsmith/assets/THIRD_PARTY_NOTICES.md"
+
+# Software distributions deliberately exclude papers, experiments, output
+# boards, local configuration, model weights and private reference material.
+[tool.hatch.build.targets.sdist]
+include = [
+  "/src/pcbsmith", "/pyproject.toml", "/README.md", "/LICENSE", "/uv.lock", "/.gitignore",
+  "/THIRD_PARTY_NOTICES.md", "/ai_assets/kicad_footprints", "/ai_assets/kicad_symbols",
+]
+exclude = ["**/__pycache__", "**/*.pyc", "**/*.pyo"]
 
 [tool.pytest.ini_options]
 markers = [
@@ -75,6 +90,7 @@ plugins = ["pydantic.mypy"]
 
 [tool.importlinter]
 root_package = "pcbsmith"
+include_external_packages = true
 
 [[tool.importlinter.contracts]]
 name = "Core does not import services or CLI"

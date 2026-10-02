@@ -32,6 +32,19 @@ from pcbsmith.manufacturing_ir import (
     ManufacturingReleaseStatus,
     derive_release_status,
 )
+from pcbsmith.manufacturing_lineage import (
+    ExportProcess,
+    ExportReceipt,
+    file_sha256,
+    native_input_hashes,
+    retain_export_receipt,
+    run_recorded_export,
+    saved_assembly_rows,
+    validate_assembly_payloads,
+    validate_export_receipt,
+    validate_ibom_lineage,
+)
+from pcbsmith.production_workflow import retained_production_release_evidence
 from pcbsmith.routed_copper_graph_ir import fingerprint, require_identity, require_sha256
 from pcbsmith.semantic_ir import SemanticIrModel
 
@@ -829,7 +842,10 @@ def generate_interactive_html_bom(
         or tool_evidence.status is not ManufacturingToolStatus.AVAILABLE
     ):
         raise ValueError("interactive BOM requires available pinned InteractiveHtmlBom evidence")
-    output_directory.mkdir(parents=True, exist_ok=True)
+    if output_directory.exists():
+        raise ValueError(f"interactive BOM target already exists: {output_directory}")
+    initial_inputs = native_input_hashes(board_file)
+    output_directory.mkdir(parents=True)
     side = (
         "FB"
         if profile.include_front and profile.include_back
@@ -857,23 +873,30 @@ def generate_interactive_html_bom(
     if profile.dnp_reference_ids:
         command.extend(("--blacklist", ",".join(profile.dnp_reference_ids)))
     command.append(str(board_file))
-    before = set(output_directory.glob("*.html"))
     environment = os.environ.copy()
     environment["INTERACTIVE_HTML_BOM_NO_DISPLAY"] = "1"
     environment["INTERACTIVE_HTML_BOM_CLI_MODE"] = "1"
-    completed = subprocess.run(
-        command,
-        capture_output=True,
-        text=True,
-        check=False,
-        env=environment,
+    processes: list[ExportProcess] = []
+    run_recorded_export(
+        command=command,
+        processes=processes,
+        log_file=output_directory / "ibom-process.json",
+        initial_inputs=initial_inputs,
+        environment=environment,
     )
-    produced = tuple(sorted(set(output_directory.glob("*.html")) - before))
-    if completed.returncode != 0 or len(produced) != 1:
-        raise RuntimeError(
-            "InteractiveHtmlBom generation failed or was ambiguous: "
-            + (completed.stderr.strip() or completed.stdout.strip())
-        )
+    produced = tuple(sorted(output_directory.glob("*.html")))
+    if len(produced) != 1:
+        raise RuntimeError("InteractiveHtmlBom generation omitted or duplicated its HTML")
+    retain_export_receipt(
+        path=produced[0].with_suffix(".receipt.json"),
+        producer="interactive-html-bom",
+        board_file=board_file,
+        initial_inputs=initial_inputs,
+        tool_version=tool_evidence.pinned_version,
+        configuration={"interactive_bom_profile": fingerprint(profile.model_dump(mode="json"))},
+        processes=processes,
+        sources={"interactive_bom": produced},
+    )
     return produced[0]
 
 
@@ -898,6 +921,7 @@ class ManufacturingArtifactRole(StrEnum):
     PANEL_BOARD = "panel_board"
     PANEL_DRC = "panel_drc"
     OTHER = "other"
+    EXPORT_RECEIPT = "export_receipt"
 
 
 MANDATORY_NEUTRAL_ROLES = frozenset(
@@ -1022,6 +1046,8 @@ def assemble_neutral_manufacturing_package(
     dfm_dft: DfmDftReport,
     source_artifacts: Mapping[ManufacturingArtifactRole, tuple[Path, ...]],
     tool_evidence: tuple[ManufacturingToolEvidence, ...],
+    production_generation_root: Path | None = None,
+    production_release_report_file: Path | None = None,
 ) -> tuple[NeutralManufacturingPackage, Path]:
     """Atomically assemble exact exporter outputs into one neutral package."""
 
@@ -1051,6 +1077,15 @@ def assemble_neutral_manufacturing_package(
             "required manufacturing tools unavailable or version-mismatched: "
             + ", ".join(sorted(unavailable_tools))
         )
+    release_payloads: tuple[tuple[str, bytes], ...] = ()
+    if production_generation_root is None or production_release_report_file is None:
+        blockers.append("current production readiness/release evidence was not supplied")
+    else:
+        release_payloads = retained_production_release_evidence(
+            generation_root=production_generation_root,
+            release_report_file=production_release_report_file,
+            board_file=board_file,
+        )
     supplied_roles = set(source_artifacts)
     reserved = supplied_roles & MANDATORY_NEUTRAL_EVIDENCE_ROLES
     if reserved:
@@ -1065,7 +1100,67 @@ def assemble_neutral_manufacturing_package(
             + ", ".join(sorted(item.value for item in missing))
         )
 
+    receipts = source_artifacts.get(ManufacturingArtifactRole.EXPORT_RECEIPT, ())
+    if len(receipts) != 1:
+        raise ValueError("manufacturing package requires one native export receipt")
+    export_sources = {
+        role.value: paths
+        for role, paths in source_artifacts.items()
+        if role is not ManufacturingArtifactRole.EXPORT_RECEIPT
+    }
+    receipt = validate_export_receipt(
+        path=receipts[0],
+        board_file=board_file,
+        producer="kicad-cli.neutral",
+        sources=export_sources,
+        configuration={
+            "profile": profile.profile_fingerprint,
+            "identities": identities.registry_fingerprint,
+        },
+    )
+    ibom_receipt_files = tuple(
+        path
+        for path in source_artifacts.get(ManufacturingArtifactRole.OTHER, ())
+        if path.name == "interactive-bom.receipt.json"
+    )
+    if len(ibom_receipt_files) != 1:
+        raise ValueError("neutral export omits the upstream interactive BOM receipt")
+    ibom_receipt = ExportReceipt.model_validate_json(ibom_receipt_files[0].read_bytes())
+    iboms = source_artifacts[ManufacturingArtifactRole.INTERACTIVE_BOM]
+    if len(iboms) != 1:
+        raise ValueError("neutral package requires exactly one interactive BOM")
+    validate_ibom_lineage(ibom_receipt, board_file, iboms[0])
+    if receipt.configuration.get("interactive_bom_receipt") != ibom_receipt.receipt_fingerprint:
+        raise ValueError("neutral export uses another interactive BOM receipt")
+    for tool_id, version in (
+        ("kicad-cli", receipt.tool_version),
+        ("interactive-html-bom", ibom_receipt.tool_version),
+    ):
+        if not any(
+            item.tool_id == tool_id
+            and item.pinned_version == version
+            and item.status is ManufacturingToolStatus.AVAILABLE
+            for item in tool_evidence
+        ):
+            raise ValueError(f"export receipt lacks matching tool evidence: {tool_id}")
+    _validate_source_assembly(board_file, identities, source_artifacts)
+    source_hashes = {
+        source.resolve(): file_sha256(source)
+        for paths in source_artifacts.values()
+        for source in paths
+    }
+    initial_inputs = native_input_hashes(board_file)
+    validate_export_receipt(
+        path=receipts[0],
+        board_file=board_file,
+        producer="kicad-cli.neutral",
+        sources=export_sources,
+        configuration=receipt.configuration,
+    )
+
     target = output_directory.resolve()
+    if target.exists() or Path(str(target) + ".zip").exists():
+        raise ValueError("manufacturing package or archive target already exists")
     target.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix=f".{target.name}-", dir=target.parent) as temporary:
         staging = Path(temporary) / "package"
@@ -1114,6 +1209,8 @@ def assemble_neutral_manufacturing_package(
                 ),
             ),
         }
+        if release_payloads:
+            generated_evidence[ManufacturingArtifactRole.OTHER] = release_payloads
         artifact_payloads: list[tuple[ManufacturingArtifactRole, str, bytes, Path]] = []
         for role, paths in source_artifacts.items():
             if not paths:
@@ -1121,7 +1218,10 @@ def assemble_neutral_manufacturing_package(
             for source in paths:
                 if not source.is_file():
                     raise ValueError(f"manufacturing source artifact is missing: {source}")
-                artifact_payloads.append((role, source.name, source.read_bytes(), source))
+                payload = source.read_bytes()
+                if _bytes_sha256(payload) != source_hashes[source.resolve()]:
+                    raise ValueError("manufacturing source changed during package assembly")
+                artifact_payloads.append((role, source.name, payload, source))
         for role, entries in generated_evidence.items():
             for name, payload in entries:
                 artifact_payloads.append((role, name, payload, Path(name)))
@@ -1189,6 +1289,8 @@ def assemble_neutral_manufacturing_package(
         (staging / "SHA256SUMS").write_text(hashes + "\n", encoding="utf-8")
         if target.exists():
             raise ValueError(f"manufacturing package target already exists: {target}")
+        if native_input_hashes(board_file) != initial_inputs:
+            raise ValueError("native inputs changed during package assembly")
         os.replace(staging, target)
     archive = Path(
         shutil.make_archive(
@@ -1210,6 +1312,7 @@ def export_kicad_neutral_sources(
     interactive_bom_file: Path,
     kicad_cli: Path,
     kicad_version: str,
+    bom_metadata: Mapping[str, Mapping[str, str]] | None = None,
 ) -> tuple[
     dict[ManufacturingArtifactRole, tuple[Path, ...]],
     ManufacturingToolEvidence,
@@ -1218,6 +1321,14 @@ def export_kicad_neutral_sources(
 
     if output_directory.exists():
         raise ValueError(f"neutral export target already exists: {output_directory}")
+    initial_inputs = native_input_hashes(board_file)
+    if identities != extract_saved_board_manufacturing_identities(board_file):
+        raise ValueError("manufacturing identities do not match the saved board")
+    ibom_receipt_file = interactive_bom_file.with_suffix(".receipt.json")
+    if not ibom_receipt_file.is_file():
+        raise ValueError("interactive BOM producer receipt is missing")
+    ibom_receipt = ExportReceipt.model_validate_json(ibom_receipt_file.read_bytes())
+    validate_ibom_lineage(ibom_receipt, board_file, interactive_bom_file)
     output_directory.mkdir(parents=True)
     tool = inspect_version_pinned_tool(
         tool_id="kicad-cli",
@@ -1302,24 +1413,23 @@ def export_kicad_neutral_sources(
             mirror=True,
         ),
     )
+    processes: list[ExportProcess] = []
+    process_log = output_directory / "export-processes.json"
     for command in commands:
-        completed = subprocess.run(
-            command,
-            capture_output=True,
-            text=True,
-            check=False,
+        run_recorded_export(
+            command=command,
+            processes=processes,
+            log_file=process_log,
+            initial_inputs=initial_inputs,
         )
-        if completed.returncode != 0:
-            raise RuntimeError(
-                "KiCad neutral export failed: "
-                + (completed.stderr.strip() or completed.stdout.strip())
-            )
+        if native_input_hashes(board_file) != initial_inputs:
+            raise ValueError("native inputs changed during export")
     drill_map_pdfs = tuple(sorted(drill_dir.glob("*.pdf")))
     if len(drill_map_pdfs) != 1:
         raise RuntimeError("KiCad neutral export requires exactly one PDF drill/fabrication map")
     shutil.copy2(drill_map_pdfs[0], drawing_dir / "fabrication.pdf")
     bom_file = output_directory / "bom.csv"
-    _write_identity_bom(bom_file, identities)
+    _write_identity_bom(bom_file, identities, board_file=board_file, metadata=bom_metadata)
     stackup_file = output_directory / "stackup-notes.md"
     _write_stackup_notes(stackup_file, profile)
     readme_file = output_directory / "README.md"
@@ -1338,6 +1448,10 @@ def export_kicad_neutral_sources(
     )
     retained_ibom = output_directory / "interactive-bom.html"
     shutil.copy2(interactive_bom_file, retained_ibom)
+    retained_ibom_receipt = output_directory / "interactive-bom.receipt.json"
+    shutil.copy2(ibom_receipt_file, retained_ibom_receipt)
+    enrichment_file = output_directory / "bom-enrichment.json"
+    enrichment_file.write_text(json.dumps(bom_metadata or {}, indent=2) + "\n", encoding="utf-8")
     gerbers = tuple(sorted(path for path in gerber_dir.glob("*") if path.is_file()))
     gerber_jobs = tuple(path for path in gerbers if path.suffix.casefold() == ".gbrjob")
     paste = tuple(
@@ -1374,7 +1488,9 @@ def export_kicad_neutral_sources(
         ManufacturingArtifactRole.INTERACTIVE_BOM: (retained_ibom,),
         ManufacturingArtifactRole.README: (readme_file,),
     }
-    other = tuple((*gerber_jobs, *drill_reports))
+    other = tuple(
+        (*gerber_jobs, *drill_reports, process_log, retained_ibom_receipt, enrichment_file)
+    )
     if other:
         sources[ManufacturingArtifactRole.OTHER] = other
     missing_files = tuple(
@@ -1384,6 +1500,24 @@ def export_kicad_neutral_sources(
     )
     if missing_files:
         raise RuntimeError("KiCad neutral export omitted roles: " + ", ".join(missing_files))
+    _validate_source_assembly(board_file, identities, sources)
+    receipt_file = output_directory / "export-receipt.json"
+    retain_export_receipt(
+        path=receipt_file,
+        producer="kicad-cli.neutral",
+        board_file=board_file,
+        initial_inputs=initial_inputs,
+        tool_version=kicad_version,
+        configuration={
+            "profile": profile.profile_fingerprint,
+            "identities": identities.registry_fingerprint,
+            "interactive_bom_receipt": ibom_receipt.receipt_fingerprint,
+            "bom_metadata": file_sha256(enrichment_file),
+        },
+        processes=processes,
+        sources={role.value: paths for role, paths in sources.items()},
+    )
+    sources[ManufacturingArtifactRole.EXPORT_RECEIPT] = (receipt_file,)
     return sources, tool
 
 
@@ -1564,26 +1698,60 @@ def _pdf_export_command(
     return tuple(command)
 
 
+def _bom_stable_ids(identities: ManufacturingIdentityRegistry) -> dict[str, str]:
+    return {
+        dict(key.split("=", 1) for key in item.source_keys)["reference"]: item.stable_id
+        for item in identities.identities
+        if item.kind is ManufacturingIdentityKind.BOM_ROW
+    }
+
+
+def _validate_source_assembly(
+    board_file: Path,
+    identities: ManufacturingIdentityRegistry,
+    sources: Mapping[ManufacturingArtifactRole, tuple[Path, ...]],
+) -> None:
+    boms = sources[ManufacturingArtifactRole.BOM]
+    placements = sources[ManufacturingArtifactRole.PLACEMENT]
+    if len(boms) != 1 or len(placements) != 1:
+        raise ValueError("neutral package requires one BOM and one placement CSV")
+    validate_assembly_payloads(
+        board_file=board_file,
+        bom_payload=boms[0].read_bytes(),
+        placement_payload=placements[0].read_bytes(),
+        stable_ids=_bom_stable_ids(identities),
+    )
+
+
 def _write_identity_bom(
     path: Path,
     identities: ManufacturingIdentityRegistry,
+    *,
+    board_file: Path,
+    metadata: Mapping[str, Mapping[str, str]] | None = None,
 ) -> None:
     import csv
 
-    rows = tuple(
-        item for item in identities.identities if item.kind is ManufacturingIdentityKind.BOM_ROW
-    )
+    rows = tuple(row for row in saved_assembly_rows(board_file) if row.in_bom)
+    stable_ids = _bom_stable_ids(identities)
+    base_fields = ("Ref", "Value", "Footprint", "StableId")
+    enrichment = metadata or {}
+    if set(enrichment) - {row.reference for row in rows}:
+        raise ValueError("BOM metadata references excluded or absent components")
+    extra_fields = tuple(sorted({key for data in enrichment.values() for key in data}))
+    if set(extra_fields) & set(base_fields):
+        raise ValueError("BOM metadata cannot replace native identity fields")
     with path.open("w", encoding="utf-8", newline="") as handle:
-        writer = csv.writer(handle)
-        writer.writerow(("Ref", "Value", "Footprint", "StableId"))
-        for item in rows:
-            keys = dict(key.split("=", 1) for key in item.source_keys if "=" in key)
+        writer = csv.DictWriter(handle, fieldnames=(*base_fields, *extra_fields))
+        writer.writeheader()
+        for row in rows:
             writer.writerow(
-                (
-                    keys.get("reference", ""),
-                    keys.get("value", ""),
-                    keys.get("library_id", ""),
-                    item.stable_id,
+                dict(
+                    Ref=row.reference,
+                    Value=row.value,
+                    Footprint=row.footprint,
+                    StableId=stable_ids[row.reference],
+                    **enrichment.get(row.reference, {}),
                 )
             )
 
@@ -1597,7 +1765,7 @@ def _write_stackup_notes(
         "",
         f"- Board thickness: {profile.board_thickness_mm:g} mm",
         f"- Base material: {profile.base_material}",
-        f"- Material Tg: {profile.material_tg_c:g} °C",
+        f"- Material Tg: {profile.material_tg_c:g} Â°C",
         f"- Surface finish: {profile.surface_finish}",
         f"- Insulation basis: {profile.insulation_basis}",
         "",
@@ -1608,7 +1776,7 @@ def _write_stackup_notes(
         copper = f"{layer.copper_weight_oz:g} oz" if layer.copper_weight_oz is not None else "n/a"
         lines.append(
             f"| {layer.sequence} | {layer.layer_id} | {layer.kind.value} | "
-            f"{layer.material} | {layer.thickness_um:g} µm | {copper} |"
+            f"{layer.material} | {layer.thickness_um:g} Âµm | {copper} |"
         )
     lines.extend(
         (

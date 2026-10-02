@@ -245,6 +245,89 @@ def _artifact_payload(role: ManufacturingArtifactRole) -> bytes:
     return f"# {role.value}\n".encode()
 
 
+def _attach_ibom_receipt(board, html):
+    from pcbsmith.manufacturing_lineage import (
+        ExportProcess,
+        native_input_hashes,
+        retain_export_receipt,
+    )
+    from pcbsmith.routed_copper_graph_ir import fingerprint
+
+    return retain_export_receipt(
+        path=html.with_suffix(".receipt.json"),
+        producer="interactive-html-bom",
+        board_file=board,
+        initial_inputs=native_input_hashes(board),
+        tool_version="2.11.2",
+        configuration={
+            "interactive_bom_profile": fingerprint(InteractiveBomProfile().model_dump(mode="json"))
+        },
+        processes=(
+            ExportProcess(
+                command=("synthetic-ibom", str(board)), returncode=0, stdout="", stderr=""
+            ),
+        ),
+        sources={"interactive_bom": (html,)},
+    )
+
+
+def _lineage_tools():
+    return tuple(
+        inspect_version_pinned_tool(
+            tool_id=tool_id,
+            command=(sys.executable, "-c", f'print("{version}")'),
+            pinned_version=version,
+        )
+        for tool_id, version in [("kicad-cli", "10.0.3"), ("interactive-html-bom", "2.11.2")]
+    )
+
+
+def _attach_source_lineage(board, profile, sources, *, preserve_invalid_gerber=False):
+    """Synthetic producer fixture for packaging tests, not physical/CAM evidence."""
+    from pcbsmith.manufacturing_lineage import (
+        ExportProcess,
+        native_input_hashes,
+        retain_export_receipt,
+    )
+    from pcbsmith.manufacturing_release import _write_identity_bom
+
+    identities = extract_saved_board_manufacturing_identities(board)
+    root = board.parent
+    _write_identity_bom(sources[ManufacturingArtifactRole.BOM][0], identities, board_file=board)
+    sources[ManufacturingArtifactRole.PLACEMENT][0].write_text(
+        "Ref,Val,Package,PosX,PosY,Rot,Side\nU1,TEST,SOIC-8_3.9x4.9mm_P1.27mm,10,-20,90,top\n"
+    )
+    ibom = sources[ManufacturingArtifactRole.INTERACTIVE_BOM][0]
+    upstream = _attach_ibom_receipt(board, ibom)
+    retained = root / "interactive-bom.receipt.json"
+    retained.write_bytes(ibom.with_suffix(".receipt.json").read_bytes())
+    sources[ManufacturingArtifactRole.OTHER] = (retained,)
+    receipt_path = root / "export-receipt.json"
+    retain_export_receipt(
+        path=receipt_path,
+        producer="kicad-cli.neutral",
+        board_file=board,
+        initial_inputs=native_input_hashes(board),
+        tool_version="10.0.3",
+        configuration={
+            "profile": profile.profile_fingerprint,
+            "identities": identities.registry_fingerprint,
+            "interactive_bom_receipt": upstream.receipt_fingerprint,
+        },
+        processes=tuple(
+            ExportProcess(
+                command=("synthetic-kicad", "pcb", "export", operation, str(board)),
+                returncode=0,
+                stdout="",
+                stderr="",
+            )
+            for operation in ("gerbers", "drill", "ipcd356", "pos", "pdf", "pdf")
+        ),
+        sources={role.value: paths for role, paths in sources.items()},
+    )
+    sources[ManufacturingArtifactRole.EXPORT_RECEIPT] = (receipt_path,)
+
+
 def test_saved_board_identities_cover_manufacturing_rows_and_apertures(
     tmp_path: Path,
 ) -> None:
@@ -627,6 +710,8 @@ def test_neutral_export_retains_gerber_job_without_misclassifying_it(
         encoding="utf-8",
     )
 
+    _attach_ibom_receipt(board, interactive_bom)
+
     def fake_run(*args, **kwargs):
         command = args[0]
         if command[1] == "version":
@@ -661,7 +746,7 @@ def test_neutral_export_retains_gerber_job_without_misclassifying_it(
             output.write_text("C  IPC-D-356 fixture\nP  JOB fixture\n", encoding="utf-8")
         elif "pos" in command:
             output.write_text(
-                "Ref,Val,Package,PosX,PosY,Rot,Side\nU1,TEST,SOIC,1,2,0,top\n",
+                "Ref,Val,Package,PosX,PosY,Rot,Side\nU1,TEST,SOIC-8_3.9x4.9mm_P1.27mm,10,-20,90,top\n",
                 encoding="utf-8",
             )
         elif "pdf" in command:
@@ -683,7 +768,7 @@ def test_neutral_export_retains_gerber_job_without_misclassifying_it(
     assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.GERBER]) == (".gbr",)
     assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.DRILL_MAP]) == (".pdf",)
     assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.PASTE]) == (".gtp",)
-    assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.OTHER]) == (
+    assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.OTHER][:2]) == (
         ".gbrjob",
         ".txt",
     )
@@ -716,7 +801,12 @@ def test_baseline_dfm_dft_runs_supported_checks_and_exposes_missing_authority(
 
 def test_neutral_package_is_atomic_hashed_and_not_release_approved(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Isolate downstream packaging/approval semantics from upstream release replay.
+    monkeypatch.setattr(
+        "pcbsmith.manufacturing_release.retained_production_release_evidence", lambda **_: ()
+    )
     board = _board(tmp_path / "board.kicad_pcb")
     board_sha256 = _sha(board.read_bytes())
     profile = _profile()
@@ -727,6 +817,8 @@ def test_neutral_package_is_atomic_hashed_and_not_release_approved(
         artifact.write_bytes(_artifact_payload(role))
         sources[role] = (artifact,)
 
+    _attach_source_lineage(board, profile, sources)
+
     manifest, archive = assemble_neutral_manufacturing_package(
         output_directory=tmp_path / "release-package",
         project_id="fixture-project",
@@ -736,7 +828,9 @@ def test_neutral_package_is_atomic_hashed_and_not_release_approved(
         current_paths=(_current_path(board_sha256, profile),),
         dfm_dft=_dfm(board_sha256),
         source_artifacts=sources,
-        tool_evidence=(_tool(),),
+        tool_evidence=_lineage_tools(),
+        production_generation_root=tmp_path,
+        production_release_report_file=tmp_path / "synthetic-release-control.json",
     )
 
     assert archive.is_file()
@@ -769,7 +863,12 @@ def test_neutral_package_is_atomic_hashed_and_not_release_approved(
 
 def test_release_language_requires_exact_human_fab_and_assembler_approvals(
     tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
+    # Isolate downstream packaging/approval semantics from upstream release replay.
+    monkeypatch.setattr(
+        "pcbsmith.manufacturing_release.retained_production_release_evidence", lambda **_: ()
+    )
     board = _board(tmp_path / "board.kicad_pcb")
     board_sha256 = _sha(board.read_bytes())
     profile = _profile()
@@ -778,6 +877,8 @@ def test_release_language_requires_exact_human_fab_and_assembler_approvals(
         artifact = tmp_path / f"{role.value}.dat"
         artifact.write_bytes(_artifact_payload(role))
         sources[role] = (artifact,)
+    _attach_source_lineage(board, profile, sources)
+
     manifest, _ = assemble_neutral_manufacturing_package(
         output_directory=tmp_path / "release-package",
         project_id="fixture-project",
@@ -787,7 +888,9 @@ def test_release_language_requires_exact_human_fab_and_assembler_approvals(
         current_paths=(_current_path(board_sha256, profile),),
         dfm_dft=_dfm(board_sha256),
         source_artifacts=sources,
-        tool_evidence=(_tool(),),
+        tool_evidence=_lineage_tools(),
+        production_generation_root=tmp_path,
+        production_release_report_file=tmp_path / "synthetic-release-control.json",
     )
 
     def approval(role: ManufacturingApprovalRole) -> ManufacturingApproval:
@@ -830,6 +933,8 @@ def test_neutral_package_rejects_role_labels_on_unrecognizable_content(
         )
         sources[role] = (artifact,)
 
+    _attach_source_lineage(board, profile, sources)
+
     with pytest.raises(ValueError, match="not recognizable Gerber"):
         assemble_neutral_manufacturing_package(
             output_directory=tmp_path / "release-package",
@@ -840,7 +945,7 @@ def test_neutral_package_rejects_role_labels_on_unrecognizable_content(
             current_paths=(_current_path(board_sha256, profile),),
             dfm_dft=_dfm(board_sha256),
             source_artifacts=sources,
-            tool_evidence=(_tool(),),
+            tool_evidence=_lineage_tools(),
         )
 
 

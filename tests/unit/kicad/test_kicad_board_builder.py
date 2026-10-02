@@ -59,7 +59,7 @@ def test_board_builder_can_add_through_hole_pad() -> None:
 
     assert '(footprint "PCBSmith_THROUGH_HOLE_PAD"' in text
     assert '(pad "1" thru_hole circle' in text
-    assert '(drill 0.9)' in text
+    assert "(drill 0.9)" in text
     assert '(layers "*.Cu" "*.Mask")' in text
     assert '(net 1 "RESET")' in text
     assert "(hide yes)" in text
@@ -116,7 +116,7 @@ def test_board_builder_can_add_toggleable_anode_plus_marker() -> None:
     text = builder.render(outline_end_mm=(30, 20))
 
     assert '(fp_text user "+"' in text
-    assert "(at -1.75 1.75 0)" in text
+    assert "(at -2.85 1.75 0)" in text
     assert '(layer "F.SilkS")' in text
 
 
@@ -222,3 +222,33 @@ def test_board_builder_quotes_user_text_for_kicad_strings() -> None:
     text = builder.render(outline_end_mm=(10, 10))
 
     assert '(gr_text "VIR \\"LAB\\""' in text
+
+
+def test_two_pad_component_can_bind_rotation_and_visible_polarity_to_pad_roles() -> None:
+    builder = KiCadBoardBuilder()
+    gnd = builder.net("GND")
+    led_a = builder.net("LED_A")
+    builder.add_two_pad_smd_footprint(
+        TwoPadSmdFootprintSpec(
+            footprint="PCBSmith:LED",
+            reference="LED1",
+            value="LED",
+            x_mm=10,
+            y_mm=12,
+            left_net=led_a,
+            right_net=gnd,
+            left_pad_number="2",
+            right_pad_number="1",
+            silk_marker="cathode",
+            cathode_pad="1",
+            show_anode_plus=True,
+            anode_pad="2",
+            polarity_semantics="1=K;2=A",
+        )
+    )
+    text = builder.render(outline_end_mm=(30, 20))
+    assert '(pad "2" smd roundrect' in text
+    assert '(pad "1" smd roundrect' in text
+    assert '(property "PCBSmith_Polarity" "1=K;2=A"' in text
+    assert '(fp_text user "K"' in text
+    assert '(fp_text user "+"' in text

@@ -395,12 +395,12 @@ def test_checked_commit_accepts_cold_and_warm_target_once(
     assert result.exact_disposition is MixedGroupExactDisposition.ACCEPTED
     assert (
         result.candidate.semantic_fingerprint()
-        == "198afa99ec7f2a000583f797b1016de21e1d28bef44b0b0132ac3aa10b71d9d7"
+        == "bf429e0f527450409fe5bd40060bb2772136642bd1d9940ce329f2f05c5025b8"
     )
     expected_result_fingerprint = (
-        "0fbfe19ac4db75052920d66913e130da263d6c5afabb72321067cf05585a9d19"
+        "f6774513c73459877637eedd6393d3dd5d64ed1e6aedbc365f45d7f153743291"
         if warm
-        else "1a89daab65d38ff75f90aeef0d6e7b47d8c37bb0dc832bb5bc153bd1ac5c42d1"
+        else "bf5ffed17637d7c9f26d0728deb600149e9452bb052de91f286f4f300381e078"
     )
     assert result.semantic_fingerprint() == expected_result_fingerprint
     assert (
@@ -827,11 +827,11 @@ def test_real_certified_bus_adapter_reports_exact_nested_expansion_work() -> Non
     assert result.negotiation.bundle_map()[target.target_id].bus == bus
     assert (
         result.semantic_fingerprint()
-        == "b50884166b74fcd0bb5c893a5f7334d73557665fbf7b9444e7e0626a8011d40b"
+        == "a9266497dd7a2a9ec8c15a78f1601cadfb3038e3b15b51b5a1f244f5809bce5d"
     )
     assert (
         result.search_bindings[0].binding_fingerprint
-        == "ada1869ed2e1f9a339d455889e09f11d05a4dcb65099ec62e11bf9ac1ab79e56"
+        == "c36d327e1233d4817e89248e01b4c56b40334caf51c7947fee624f886473fef4"
     )
     assert (
         audit.result_fingerprint
@@ -1065,9 +1065,9 @@ def test_two_real_certified_buses_share_one_group_exact_check() -> None:
     assert set(routes) == {"/A", "/B", "/C", "/D"}
     assert (
         result.candidate.semantic_fingerprint()
-        == "483c41a4f35ab061f9408745aec0a3238413e69d9b93d61383581cbcd1b07cf4"
+        == "4f0dc4a19311eedb0217f5639db39b3d553e83605a6e68404a3a532fc051df1e"
     )
     assert (
         result.semantic_fingerprint()
-        == "7d1b22f6397d95425e2a8c8b8810b1aa53a35f8f3acf457cb18adfde955eff45"
+        == "93d1f20e35bc9dc73080cb290a116030998c2e4a0ac9e3aa749abd0d85f074a5"
     )

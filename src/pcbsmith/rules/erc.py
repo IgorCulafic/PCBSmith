@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict
 
-from pcbsmith.core.geom import Point
 from pcbsmith.core.library import Pin, PinElectricalType, Symbol
 from pcbsmith.core.netops import PinRef, derive_netlist
 from pcbsmith.core.schematic import Schematic, SymbolInstance
@@ -16,26 +15,9 @@ class ERCIssue(BaseModel):
     where: str
 
 
-def _rotate_offset(point: Point, rotation_deg: int) -> tuple[int, int]:
-    rotation = rotation_deg % 360
-    if rotation == 0:
-        return (point.x, point.y)
-    if rotation == 90:
-        return (-point.y, point.x)
-    if rotation == 180:
-        return (-point.x, -point.y)
-    if rotation == 270:
-        return (point.y, -point.x)
-    msg = (
-        f"Unsupported symbol rotation {rotation_deg}; "
-        "expected one of 0, 90, 180, or 270 degrees"
-    )
-    raise ValueError(msg)
-
-
 def _pin_tip(instance: SymbolInstance, pin: Pin) -> tuple[int, int]:
-    pin_x, pin_y = _rotate_offset(pin.position, instance.rotation_deg)
-    return (instance.position.x + pin_x, instance.position.y + pin_y)
+    position = instance.pin_position(pin.position)
+    return position.x, position.y
 
 
 def _where(pin_ref: PinRef) -> str:

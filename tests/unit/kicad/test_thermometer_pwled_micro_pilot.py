@@ -135,7 +135,7 @@ def test_input_authority_replays_deterministically_without_acceptance_claim() ->
     assert first == second == retained
     assert retained_authority == first.authority
     assert first.input_fingerprint == (
-        "d03f6603a4c09c2b2452b2bf42c24f2b51d47e40fa088e8afce3f3422d8b9d4a"
+        "6e6671658c55c956c6f29019cdc858118fd8bd09e614a8e443116ec68ca5662b"
     )
     assert first.authority.move_policy.movable_references == ("R17",)
     assert first.authority.move_policy.translation_step_mm == 0.5
@@ -225,7 +225,7 @@ def test_reviewed_move_maps_both_terminals_and_r3_plan_succeeds_without_routing(
     assert plan.guidance_ready
     assert plan.failure_reason is None
     assert plan.resource_overuse == ()
-    assert sum(item.expansion_count for item in plan.passes) == 202
+    assert sum(item.expansion_count for item in plan.passes) == 223
     assert sum(item.expansion_count for item in plan.passes) <= (
         authority.corridor_budget.max_expansions
     )

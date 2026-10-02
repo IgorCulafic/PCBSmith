@@ -305,7 +305,7 @@ def test_evidence_and_fingerprint_ignore_construction_order_and_are_pinned() -> 
     assert first == second and first.semantic_fingerprint() == second.semantic_fingerprint()
     assert (
         first.semantic_fingerprint()
-        == "12ef040078dc9c44a2c9ec4f289bf24ff57fec4190ae85a78ea5d2bd0f5a2ca6"
+        == "7f8ca7b88fddb0524ce54ab06d00e65830bfd3f2bd3d8de49d7b2def91db55c2"
     )
     with pytest.raises(ValidationError):
         PlacementCorridorEvidence(state="absent", verified_summary=_verified(ready=True))

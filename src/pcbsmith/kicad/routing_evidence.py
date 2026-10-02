@@ -209,14 +209,9 @@ def inspect_kicad_drc_report(report_file: Path) -> KiCadDrcEvidence:
     report = report_file.resolve()
     payload = report.read_bytes()
     data = json.loads(payload)
-    if not isinstance(data, dict):
-        raise ValueError("KiCad DRC report root must be a JSON object")
-    counts: dict[str, int] = {}
-    for section in ("violations", "unconnected_items", "schematic_parity"):
-        entries = data.get(section, [])
-        if not isinstance(entries, list):
-            raise ValueError(f"KiCad DRC report section {section} must be a list")
-        counts[section] = len(entries)
+    from pcbsmith.kicad.check_reports import drc_sections
+
+    counts = {section: len(entries) for section, entries in drc_sections(data).items()}
     fields: dict[str, Any] = {
         "report_file": str(report),
         "report_sha256": hashlib.sha256(payload).hexdigest(),

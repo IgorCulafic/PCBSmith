@@ -68,12 +68,15 @@ def test_kicad_validate_runs_erc_and_drc_with_json_reports(tmp_path: Path) -> No
         report_file = Path(command[command.index("--output") + 1])
         if command[1:3] == ["sch", "erc"]:
             report_file.write_text(
-                json.dumps({"sheets": [{"violations": []}]}),
+                _native_json({"sheets": [{"violations": []}]}, command=command),
                 encoding="utf-8",
             )
         elif command[1:3] == ["pcb", "drc"]:
             report_file.write_text(
-                json.dumps({"violations": [], "unconnected_items": []}),
+                _native_json(
+                    {"violations": [], "unconnected_items": [], "schematic_parity": []},
+                    command=command,
+                ),
                 encoding="utf-8",
             )
         return KiCadProcessResult(returncode=0, stdout="ok", stderr="")
@@ -89,6 +92,7 @@ def test_kicad_validate_runs_erc_and_drc_with_json_reports(tmp_path: Path) -> No
             "erc",
             "--format",
             "json",
+            "--severity-all",
             "--output",
             str(tmp_path / ".pcbsmith" / "kicad-reports" / "erc.json"),
             str(tmp_path / "Demo.kicad_sch"),
@@ -99,8 +103,11 @@ def test_kicad_validate_runs_erc_and_drc_with_json_reports(tmp_path: Path) -> No
             "drc",
             "--format",
             "json",
+            "--severity-all",
             "--output",
             str(tmp_path / ".pcbsmith" / "kicad-reports" / "drc.json"),
+            "--schematic-parity",
+            "--refill-zones",
             str(tmp_path / "Demo.kicad_pcb"),
         ),
     ]
@@ -108,7 +115,7 @@ def test_kicad_validate_runs_erc_and_drc_with_json_reports(tmp_path: Path) -> No
         f"KiCad project: {tmp_path}",
         "KiCad CLI: C:\\Tools\\KiCad\\bin\\kicad-cli.exe (PCBSMITH_KICAD_CLI)",
         "ERC: passed (0 violations)",
-        "DRC: passed (0 violations, 0 unconnected)",
+        "DRC: passed (0 violations, 0 unconnected, 0 parity)",
     ]
 
 
@@ -119,16 +126,20 @@ def test_kicad_validate_reports_rule_violations(tmp_path: Path) -> None:
         report_file = Path(command[command.index("--output") + 1])
         if command[1:3] == ["sch", "erc"]:
             report_file.write_text(
-                json.dumps({"sheets": [{"violations": [{"type": "erc_error"}]}]}),
+                _native_json(
+                    {"sheets": [{"violations": [{"type": "erc_error"}]}]}, command=command
+                ),
                 encoding="utf-8",
             )
         elif command[1:3] == ["pcb", "drc"]:
             report_file.write_text(
-                json.dumps(
+                _native_json(
                     {
                         "violations": [{"type": "invalid_outline"}],
                         "unconnected_items": [{"type": "ratsnest"}],
-                    }
+                        "schematic_parity": [],
+                    },
+                    command=command,
                 ),
                 encoding="utf-8",
             )
@@ -142,7 +153,7 @@ def test_kicad_validate_reports_rule_violations(tmp_path: Path) -> None:
         f"KiCad project: {tmp_path}",
         "KiCad CLI: C:\\Tools\\KiCad\\bin\\kicad-cli.exe (PCBSMITH_KICAD_CLI)",
         "ERC: failed (1 violations)",
-        "DRC: failed (1 violations, 1 unconnected)",
+        "DRC: failed (1 violations, 1 unconnected, 0 parity)",
     ]
 
 
@@ -155,7 +166,7 @@ def test_kicad_validate_ignores_generated_pcbs_library_mismatch(
         report_file = Path(command[command.index("--output") + 1])
         if command[1:3] == ["sch", "erc"]:
             report_file.write_text(
-                json.dumps(
+                _native_json(
                     {
                         "sheets": [
                             {
@@ -163,35 +174,37 @@ def test_kicad_validate_ignores_generated_pcbs_library_mismatch(
                                     {
                                         "type": "lib_symbol_mismatch",
                                         "description": (
-                                            "Symbol 'R' doesn't match copy in "
-                                            "library 'PCBSmith'"
+                                            "Symbol 'R' doesn't match copy in library 'PCBSmith'"
                                         ),
                                     }
                                 ]
                             }
                         ]
-                    }
+                    },
+                    command=command,
                 ),
                 encoding="utf-8",
             )
         elif command[1:3] == ["pcb", "drc"]:
             report_file.write_text(
-                json.dumps({"violations": [], "unconnected_items": []}),
+                _native_json(
+                    {"violations": [], "unconnected_items": [], "schematic_parity": []},
+                    command=command,
+                ),
                 encoding="utf-8",
             )
         return KiCadProcessResult(returncode=0, stdout="", stderr="")
 
     report = run_kicad_validation(tmp_path, finder=_install, runner=runner)
     sanitized_erc = json.loads(
-        (tmp_path / ".pcbsmith" / "kicad-reports" / "erc.json").read_text(
-            encoding="utf-8"
-        )
+        (tmp_path / ".pcbsmith" / "kicad-reports" / "erc.json").read_text(encoding="utf-8")
     )
 
     assert report.exit_code == 0
     assert report.ready is True
-    assert format_kicad_validation_report(report)[2] == "ERC: passed (0 violations)"
-    assert sanitized_erc["sheets"][0]["violations"] == []
+    assert "1 generated-library mismatches waived" in format_kicad_validation_report(report)[2]
+    assert len(sanitized_erc["sheets"][0]["violations"]) == 1
+    assert report.checks[0].waived_violations == 1
 
 
 def test_kicad_validate_reports_cli_failure(tmp_path: Path) -> None:
@@ -210,3 +223,14 @@ def test_kicad_validate_reports_cli_failure(tmp_path: Path) -> None:
         "ERC: error (bad input)",
         "DRC: error (bad input)",
     ]
+
+
+def _native_json(payload: dict, *, command: Sequence[str]) -> str:
+    return json.dumps(
+        {
+            "$schema": f"https://schemas.kicad.org/{command[2]}.v1.json",
+            "source": Path(command[-1]).name,
+            "kicad_version": "10.0.3",
+            **payload,
+        }
+    )

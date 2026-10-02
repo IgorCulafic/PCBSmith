@@ -12,6 +12,7 @@ def test_design_divider_highpass_led_writes_review_bundle(tmp_path: Path) -> Non
     exit_code = main(
         [
             "design-divider-highpass-led",
+            "--research",
             str(output_dir),
             "--request",
             "Generate a voltage divider connected to a high-pass filter and LED indicator",

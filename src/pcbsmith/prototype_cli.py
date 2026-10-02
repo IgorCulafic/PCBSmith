@@ -1188,6 +1188,14 @@ def build_parser() -> argparse.ArgumentParser:
     )
     design_buck_parser.set_defaults(func=_cmd_design_buck_converter)
 
+    for command_parser in subparsers.choices.values():
+        handler = command_parser.get_default("func")
+        if handler is not None and handler.__name__.startswith("_cmd_design_"):
+            command_parser.add_argument(
+                "--research",
+                action="store_true",
+                help="explicitly use the legacy research path; output is not production accepted",
+            )
     return parser
 
 
@@ -1196,6 +1204,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
     try:
         command: Callable[[argparse.Namespace], int] = args.func
+        if command.__name__.startswith("_cmd_design_"):
+            if not getattr(args, "research", False):
+                raise ValueError(
+                    "legacy design command requires --research; use production-generate-board "
+                    "or production-edit-board for supported work"
+                )
+            print(
+                "Research/compatibility output: production acceptance is not granted.",
+                file=sys.stderr,
+            )
         return command(args)
     except (FileExistsError, KiCadPlanError, ProjectIOError, KeyError, ValueError) as exc:
         print(f"error: {exc}", file=sys.stderr)

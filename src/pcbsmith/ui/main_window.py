@@ -1,9 +1,10 @@
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 
 from PySide6.QtCore import QEvent, QObject, Qt
-from PySide6.QtGui import QAction, QKeyEvent, QKeySequence
+from PySide6.QtGui import QAction, QCloseEvent, QColor, QKeyEvent, QKeySequence
 from PySide6.QtWidgets import (
     QDockWidget,
     QFileDialog,
@@ -37,6 +38,8 @@ class MainWindow(QMainWindow):
         self.project_dir: Path | None = None
         self.project: Project | None = None
         self.scene = SchematicScene(self)
+        self._saved_state = self.scene.editor_state
+        self._saved_file_hashes: dict[str, str] = {}
         self.view = SchematicView(self.scene, self)
         self.component_browser = ComponentBrowser()
         self.library_dock = QDockWidget("Library", self)
@@ -83,6 +86,76 @@ class MainWindow(QMainWindow):
         self._create_toolbar()
         self.apply_theme("light")
         self.scene.selectionChanged.connect(self.refresh_inspector)
+        self.scene.editor_state_changed.connect(self._refresh_document_state)
+        self._refresh_document_state()
+        self.scene.tool_changed.connect(self._sync_tool_mode)
+        self._sync_tool_mode(self.scene.current_tool())
+        available = self.screen().availableGeometry()
+        self.resize(min(1100, available.width()), min(760, available.height()))
+        self.resizeDocks(
+            [self.library_dock, self.inspector_dock], [250, 210], Qt.Orientation.Horizontal
+        )
+        self.resizeDocks([self.console_dock], [100], Qt.Orientation.Vertical)
+        self.console.setAccessibleName("Project messages")
+        self.inspector.setAccessibleName("Selection properties")
+
+    def _sync_tool_mode(self, mode: str) -> None:
+        for tool, action in (
+            ("select", self.select_action),
+            ("pan", self.pan_action),
+            ("wire", self.wire_action),
+            ("label", self.label_action),
+            ("no_connect", self.no_connect_action),
+        ):
+            action.setCheckable(True)
+            action.setChecked(tool == mode)
+            color = (
+                QColor("#f2f4f7")
+                if tool == mode or self.property("pcbsTheme") == "dark"
+                else QColor("#18202a")
+            )
+            action.setIcon(tool_icon(tool, color=color))
+        self.view.set_pan_mode(mode == "pan")
+        self.view.setFocus()
+        instruction = (
+            "Click to place or Enter at canvas center; Escape cancels"
+            if mode == "place_catalog"
+            else "Escape returns to Select"
+        )
+        self.statusBar().showMessage(f"{mode.replace('_', ' ').title()} — {instruction}")
+
+    @property
+    def is_dirty(self) -> bool:
+        return self.scene.editor_state != self._saved_state
+
+    def _refresh_document_state(self) -> None:
+        name = self.project.name if self.project is not None else "Untitled"
+        self.setWindowTitle(f"{name}[*] — PCBSmith")
+        self.setWindowModified(self.is_dirty)
+        self.undo_action.setEnabled(self.scene.can_undo)
+        self.redo_action.setEnabled(self.scene.can_redo)
+
+    def _confirm_discard_changes(self) -> bool:
+        if not self.is_dirty:
+            return True
+        answer = QMessageBox.question(
+            self,
+            "Unsaved changes",
+            "Save changes to the current schematic before continuing?",
+            QMessageBox.StandardButton.Save
+            | QMessageBox.StandardButton.Discard
+            | QMessageBox.StandardButton.Cancel,
+            QMessageBox.StandardButton.Cancel,
+        )
+        if answer == QMessageBox.StandardButton.Save:
+            return self.save_project()
+        return answer == QMessageBox.StandardButton.Discard
+
+    def closeEvent(self, event: QCloseEvent) -> None:
+        if self._confirm_discard_changes():
+            event.accept()
+        else:
+            event.ignore()
 
     def _configure_actions(self) -> None:
         self.select_action.setShortcut(QKeySequence("V"))
@@ -92,7 +165,7 @@ class MainWindow(QMainWindow):
 
         self.pan_action.setShortcut(QKeySequence("P"))
         self.pan_action.setIcon(tool_icon("pan"))
-        self.pan_action.triggered.connect(lambda: self.view.setFocus())
+        self.pan_action.triggered.connect(lambda: self.scene.set_tool("pan"))
         self._register_action(self.pan_action)
 
         self.wire_action.setShortcut(QKeySequence("W"))
@@ -168,9 +241,12 @@ class MainWindow(QMainWindow):
             self._register_action(action)
 
     def _register_action(self, action: QAction) -> None:
-        action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+        action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         self._refresh_action_tooltip(action)
-        self.addAction(action)
+        if action.shortcuts():
+            self.view.addAction(action)
+        else:
+            self.addAction(action)
 
     def _refresh_action_tooltip(self, action: QAction) -> None:
         shortcuts = action.shortcuts()
@@ -230,17 +306,37 @@ class MainWindow(QMainWindow):
         for action in self.wire_width_actions:
             options_menu.addAction(action)
         options_menu.addSeparator()
-        options_menu.addAction(QAction("Grid And Snap Settings", self))
-        project_menu.addAction(QAction("Project Settings", self))
-        help_menu.addAction(QAction("About PCBSmith", self))
+        for menu, title in (
+            (options_menu, "Grid And Snap Settings"),
+            (project_menu, "Project Settings"),
+        ):
+            placeholder = QAction(title, self)
+            placeholder.setEnabled(False)
+            placeholder.setToolTip("Not available in the current editor")
+            menu.addAction(placeholder)
+        about = QAction("About PCBSmith", self)
+        about.triggered.connect(
+            lambda: QMessageBox.about(
+                self,
+                "About PCBSmith",
+                "PCBSmith schematic editor prototype.\n"
+                "AGPL-3.0-or-later. See LICENSE and docs/current-state.md.",
+            )
+        )
+        help_menu.addAction(about)
+        search = QAction("Search Components", self)
+        search.setShortcut(QKeySequence("Ctrl+K"))
+        search.triggered.connect(self.focus_component_browser_search)
+        self.addAction(search)
+        components_menu.addAction(search)
 
     def _component_action(self, text: str, entry_id: str, shortcut: str) -> QAction:
         action = QAction(text, self)
         action.setShortcut(QKeySequence(shortcut))
-        action.setShortcutContext(Qt.ShortcutContext.ApplicationShortcut)
+        action.setShortcutContext(Qt.ShortcutContext.WidgetWithChildrenShortcut)
         action.triggered.connect(lambda: self.arm_catalog_entry_by_id(entry_id))
         self._refresh_action_tooltip(action)
-        self.addAction(action)
+        self.view.addAction(action)
         return action
 
     def eventFilter(self, watched: QObject, event: QEvent) -> bool:
@@ -259,6 +355,13 @@ class MainWindow(QMainWindow):
     def _handle_bare_shortcut(self, key: int) -> bool:
         if key == Qt.Key.Key_V:
             self.select_action.trigger()
+        elif key == Qt.Key.Key_P:
+            self.pan_action.trigger()
+        elif key == Qt.Key.Key_Return or key == Qt.Key.Key_Enter:
+            if self.scene.current_tool() != "place_catalog":
+                return False
+            center = self.view.mapToScene(self.view.viewport().rect().center())
+            self.scene.handle_canvas_click(Point(x=int(center.x()), y=int(center.y())))
         elif key == Qt.Key.Key_W:
             self.wire_action.trigger()
         elif key == Qt.Key.Key_T:
@@ -326,6 +429,25 @@ class MainWindow(QMainWindow):
 
     def apply_theme(self, theme: str) -> None:
         apply_window_theme(self, theme)
+        color = QColor("#f2f4f7") if theme == "dark" else QColor("#18202a")
+        for action, name in (
+            (self.select_action, "select"),
+            (self.pan_action, "pan"),
+            (self.wire_action, "wire"),
+            (self.label_action, "label"),
+            (self.no_connect_action, "no_connect"),
+            (self.fit_action, "fit"),
+            (self.run_erc_action, "erc"),
+            (self.undo_action, "undo"),
+            (self.redo_action, "redo"),
+            (self.delete_action, "delete"),
+            (self.rotate_action, "rotate"),
+            (self.mirror_horizontal_action, "mirror"),
+        ):
+            action.setIcon(
+                tool_icon(name, color=QColor("#f2f4f7") if action.isChecked() else color)
+            )
+        self.component_browser.set_icon_color(color)
 
     def arm_catalog_entry_by_id(self, entry_id: str) -> None:
         try:
@@ -334,6 +456,7 @@ class MainWindow(QMainWindow):
             self.show_error(str(exc))
             return
         self.scene.arm_catalog_entry(entry)
+        self.view.setFocus()
         self.console.append(f"Ready to place {entry.variant.name}")
 
     def place_catalog_entry_by_id(self, entry_id: str) -> None:
@@ -345,6 +468,7 @@ class MainWindow(QMainWindow):
             self.show_error("No component is selected")
             return
         self.scene.arm_catalog_entry(entry)
+        self.view.setFocus()
         self.console.append(f"Ready to place {entry.variant.name}")
 
     def focus_component_browser_search(self) -> None:
@@ -371,13 +495,15 @@ class MainWindow(QMainWindow):
             self.console.append(f"{issue.code}: {issue.message} ({issue.where})")
 
     def create_project(self, project_dir: Path, name: str) -> None:
+        if not self._confirm_discard_changes():
+            return
         try:
             project_io.create_project(project_dir, name)
         except ProjectIOError as exc:
             self.show_error(str(exc))
             return
 
-        self.open_project(project_dir)
+        self.open_project(project_dir, discard_confirmed=True)
 
     def create_project_dialog(self) -> None:
         directory = QFileDialog.getExistingDirectory(self, "New Project Directory")
@@ -397,7 +523,7 @@ class MainWindow(QMainWindow):
 
         self.open_project(Path(directory))
 
-    def open_project(self, project_dir: Path) -> None:
+    def open_project(self, project_dir: Path, *, discard_confirmed: bool = False) -> None:
         try:
             project = project_io.load_project(project_dir)
             if not project.schematics:
@@ -408,38 +534,70 @@ class MainWindow(QMainWindow):
             self.show_error(str(exc))
             return
 
+        if not discard_confirmed and not self._confirm_discard_changes():
+            return
+        # A Save decision can have changed this same project's files. Reload
+        # after the decision, and bind later saves to these exact source bytes.
+        try:
+            watched = [project_io.PROJECT_FILE, *project.schematics[:1]]
+            hashes = {
+                p: hashlib.sha256((project_dir / p).read_bytes()).hexdigest() for p in watched
+            }
+            project = project_io.load_project(project_dir)
+            schematic = project_io.load_schematic(project_dir, project.schematics[0])
+            if any(
+                hashlib.sha256((project_dir / p).read_bytes()).hexdigest() != digest
+                for p, digest in hashes.items()
+            ):
+                raise ProjectIOError("Project changed while it was being opened; retry opening")
+            for symbol in schematic.symbols:
+                symbol.pin_position(Point(x=0, y=0))
+        except (ProjectIOError, OSError, ValueError, IndexError) as exc:
+            self.show_error(str(exc))
+            return
         self.project_dir = project_dir
         self.project = project
+        self._saved_file_hashes = hashes
         self.component_browser.set_project_preferences(
             enabled_group_ids=project.catalog_preferences.enabled_group_ids,
             visible_entry_ids=project.catalog_preferences.visible_entry_ids,
             hidden_entry_ids=project.catalog_preferences.hidden_entry_ids,
         )
-        self.scene.load_editor_state(EditorState.from_schematic(schematic))
+        self._saved_state = EditorState.from_schematic(schematic)
+        self.scene.cancel_active_tool()
+        self.scene.load_editor_state(self._saved_state)
         self.view.fit_to_contents()
         self.refresh_inspector()
         self.console.append(f"Opened {project.name}")
 
-    def save_project(self) -> None:
+    def save_project(self) -> bool:
         if self.project_dir is None or self.project is None:
             self.show_error("No project is open")
-            return
+            return False
 
         if not self.project.schematics:
             self.show_error("No schematic is open")
-            return
+            return False
 
         try:
             project_io.save_schematic(
                 self.project_dir,
                 self.project.schematics[0],
                 self.scene.editor_state.to_schematic(),
+                expected_sha256s=self._saved_file_hashes,
             )
         except ProjectIOError as exc:
             self.show_error(str(exc))
-            return
+            return False
 
+        self._saved_state = self.scene.editor_state
+        relative = self.project.schematics[0]
+        self._saved_file_hashes[relative] = hashlib.sha256(
+            (self.scene.editor_state.to_schematic().model_dump_json(indent=2) + "\n").encode()
+        ).hexdigest()
+        self._refresh_document_state()
         self.console.append("Saved schematic")
+        return True
 
     def show_error(self, message: str) -> None:
         self.console.append(message)

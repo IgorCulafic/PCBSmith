@@ -97,8 +97,16 @@ def _model_report(board: Path, status: str = "passed") -> ModelPreflightReport:
         board_file=str(board),
         board_sha256=hashlib.sha256(board.read_bytes()).hexdigest(),
         status=status,
+        applicability="applicable",
         models=(),
+        required_references=("U1",),
     )
+
+
+def _png(path, width, height):
+    from PIL import Image
+
+    Image.new("RGB", (width, height), "white").save(path)
 
 
 class FakeRunner:
@@ -119,7 +127,9 @@ class FakeRunner:
                 encoding="utf-8",
             )
         else:
-            output.write_bytes(b"\x89PNG\r\n\x1a\nfixture")
+            _png(
+                output, int(text[text.index("--width") + 1]), int(text[text.index("--height") + 1])
+            )
         return KiCadProcessResult(command=text, returncode=0, stdout="ok", stderr="")
 
 
@@ -131,7 +141,7 @@ def _rasterize(
     _view_box: tuple[float, float, float, float] | None,
 ) -> None:
     destination.parent.mkdir(parents=True, exist_ok=True)
-    destination.write_bytes(b"\x89PNG\r\n\x1a\nfixture")
+    _png(destination, _width, _height)
 
 
 def test_generates_matrix_with_4k_scale_details_3d_and_pending_inspection(
@@ -139,7 +149,7 @@ def test_generates_matrix_with_4k_scale_details_3d_and_pending_inspection(
 ) -> None:
     board = _board(tmp_path)
     overlay = tmp_path / "sensor-overlay.png"
-    overlay.write_bytes(b"\x89PNG\r\n\x1a\noverlay")
+    _png(overlay, 400, 300)
     runner = FakeRunner()
     manifest = generate_visual_review_package(
         board_file=board,
@@ -183,7 +193,7 @@ def test_golden_render_contract_repeats_tiles_mirroring_cameras_and_diagnostics(
 ) -> None:
     board = _board(tmp_path)
     diagnostic = tmp_path / "return-current.png"
-    diagnostic.write_bytes(b"\x89PNG\r\n\x1a\ndiagnostic")
+    _png(diagnostic, 400, 300)
     profile = RenderProfile(tile_max_edge_px=2048)
 
     def generate(output: str) -> VisualReviewManifest:
@@ -208,20 +218,14 @@ def test_golden_render_contract_repeats_tiles_mirroring_cameras_and_diagnostics(
     assert first.board_sha256 == second.board_sha256
     assert first.copper_sha256 == second.copper_sha256
     assert set(first_by_id) == set(second_by_id)
-    assert {
-        artifact_id: item.sha256 for artifact_id, item in first_by_id.items()
-    } == {
+    assert {artifact_id: item.sha256 for artifact_id, item in first_by_id.items()} == {
         artifact_id: item.sha256 for artifact_id, item in second_by_id.items()
     }
     front_tiles = tuple(
-        item
-        for item in first.artifacts
-        if item.artifact_id.startswith("detail:tile:front:")
+        item for item in first.artifacts if item.artifact_id.startswith("detail:tile:front:")
     )
     back_tiles = tuple(
-        item
-        for item in first.artifacts
-        if item.artifact_id.startswith("detail:tile:back:")
+        item for item in first.artifacts if item.artifact_id.startswith("detail:tile:back:")
     )
     assert len(front_tiles) > 1
     assert len(front_tiles) == len(back_tiles)
@@ -229,17 +233,13 @@ def test_golden_render_contract_repeats_tiles_mirroring_cameras_and_diagnostics(
     assert all(item.mirrored for item in back_tiles)
     assert all(item.pixels_per_mm == 192.0 for item in (*front_tiles, *back_tiles))
     assert {
-        item.camera
-        for item in first.artifacts
-        if item.artifact_id.startswith("3d:populated:")
+        item.camera for item in first.artifacts if item.artifact_id.startswith("3d:populated:")
     } == {"top", "bottom", "perspective", "front-low", "rear-low"}
     assert first_by_id["3d:populated:bottom"].side == "back"
     assert first_by_id["3d:populated:rear-low"].side == "back"
     retained_diagnostic = first_by_id["diagnostic:01"]
     assert retained_diagnostic.required
-    assert retained_diagnostic.sha256 == hashlib.sha256(
-        diagnostic.read_bytes()
-    ).hexdigest()
+    assert retained_diagnostic.sha256 == hashlib.sha256(diagnostic.read_bytes()).hexdigest()
 
 
 def test_declared_class_without_overlay_fails_generation(tmp_path: Path) -> None:
@@ -266,7 +266,7 @@ def test_triggered_diagnostic_views_are_required_and_unresolved_fails_closed(
 ) -> None:
     board = _board(tmp_path)
     return_current = tmp_path / "return-current.png"
-    return_current.write_bytes(b"\x89PNG\r\n\x1a\nreturn-current")
+    _png(return_current, 400, 300)
     manifest = generate_visual_review_package(
         board_file=board,
         output_dir=tmp_path / "out",
@@ -312,8 +312,7 @@ def test_triggered_diagnostic_views_are_required_and_unresolved_fails_closed(
     unresolved = next(
         item
         for item in manifest.artifacts
-        if item.artifact_id
-        == "diagnostic:thermal_current_density:power-density"
+        if item.artifact_id == "diagnostic:thermal_current_density:power-density"
     )
     assert available.required and available.state == "generated"
     assert unresolved.required and unresolved.state == "missing"
@@ -342,9 +341,7 @@ def test_saved_board_facts_strengthen_incomplete_feature_declaration(tmp_path: P
     holes = next(item for item in manifest.artifacts if item.artifact_id == "2d:holes-vias:png")
     assert back_assembly.required
     assert holes.required
-    conformance = json.loads(
-        (tmp_path / "out" / "review" / "conformance.json").read_text("utf-8")
-    )
+    conformance = json.loads((tmp_path / "out" / "review" / "conformance.json").read_text("utf-8"))
     requirement_ids = {item["requirement_id"] for item in conformance["evaluations"]}
     assert "visual.2d.back-assembly.png" in requirement_ids
     assert "visual.2d.holes-vias.png" in requirement_ids
@@ -384,7 +381,9 @@ def test_reprofile_promotes_existing_supplement_when_applicability_is_corrected(
     ).required
 
 
-def test_failed_required_model_preflight_withholds_all_3d_artifacts(tmp_path: Path) -> None:
+def test_failed_required_model_preflight_withholds_populated_but_keeps_bare_3d(
+    tmp_path: Path,
+) -> None:
     board = _board(tmp_path)
 
     manifest = generate_visual_review_package(
@@ -400,7 +399,12 @@ def test_failed_required_model_preflight_withholds_all_3d_artifacts(tmp_path: Pa
 
     three_d = tuple(item for item in manifest.artifacts if item.artifact_id.startswith("3d:"))
     assert len(three_d) == 10
-    assert all(item.state == "missing" for item in three_d)
+    assert all(
+        item.state == "missing" for item in three_d if item.artifact_id.startswith("3d:populated:")
+    )
+    assert all(
+        item.state == "generated" for item in three_d if item.artifact_id.startswith("3d:bare:")
+    )
     assert manifest.package_status == "generation_failed"
 
 
@@ -436,7 +440,14 @@ def test_inspection_gate_requires_every_required_artifact_to_be_accepted(tmp_pat
         rasterizer=_rasterize,
     )
     path = tmp_path / "out" / "review" / "manifest.json"
-    decisions = {item.artifact_id: ("accepted", ()) for item in manifest.artifacts if item.required}
+    decisions = {
+        item.artifact_id: (
+            "accepted",
+            ("Synthetic renderer fixture: required view generated with expected board geometry.",),
+        )
+        for item in manifest.artifacts
+        if item.required
+    }
 
     accepted = record_visual_inspection(
         path,
@@ -465,7 +476,10 @@ def test_final_inspection_cannot_promote_an_unrouted_board(tmp_path: Path) -> No
     assert manifest.package_status == "generation_failed"
     path = tmp_path / "out" / "review" / "manifest.json"
     decisions = {
-        item.artifact_id: ("accepted", ())
+        item.artifact_id: (
+            "accepted",
+            ("Synthetic renderer fixture: required view generated with expected board geometry.",),
+        )
         for item in manifest.artifacts
         if item.required
     }
@@ -531,9 +545,7 @@ def test_retained_profile_detects_deleted_file_and_reduces_package_status(tmp_pa
 
     assert report.disposition is ConformanceDisposition.NONCONFORMANT
     evaluation = next(
-        item
-        for item in report.evaluations
-        if item.requirement_id == "visual.3d.populated.rear-low"
+        item for item in report.evaluations if item.requirement_id == "visual.3d.populated.rear-low"
     )
     assert evaluation.state is RequirementState.INVALID
     updated = VisualReviewManifest.model_validate_json(manifest_path.read_text("utf-8"))
@@ -643,3 +655,93 @@ def test_bldc_r002_legacy_custom_views_are_retained_as_failure_corpus(
         states[requirement_id] is RequirementState.MISSING
         for requirement_id in fixture["must_remain_missing"]
     )
+
+
+def _current_camera_diagnostic(tmp_path, monkeypatch, legacy_missing=False):
+    import pcbsmith.review.visual_package as owner
+
+    board = _board(tmp_path)
+    features = ReviewFeatures(
+        diagnostic_views=(
+            DiagnosticViewDeclaration(
+                view_id="current-top",
+                kind="dfm",
+                applicability="applicable",
+                trigger_ids=("synthetic-dfm",),
+                authority_sha256="a" * 64,
+                source_image=str((tmp_path / "out/review/3d/populated/top.png").resolve()),
+                rationale="Synthetic current-camera dependency",
+            ),
+        )
+    )
+    collect = owner._collect_diagnostics
+    if legacy_missing:
+
+        def missing(features, root):
+            return tuple(
+                a.model_copy(update={"state": "missing", "sha256": None})
+                for a in collect(features, root)
+            )
+
+        monkeypatch.setattr(owner, "_collect_diagnostics", missing)
+    runner = FakeRunner()
+    manifest = generate_visual_review_package(
+        board_file=board,
+        output_dir=tmp_path / "out",
+        stage="final",
+        features=features,
+        model_preflight=_model_report(board),
+        finder=lambda: KiCadInstall(path=Path("kicad-cli"), source="fixture"),
+        runner=runner,
+        rasterizer=_rasterize,
+    )
+    monkeypatch.setattr(owner, "_collect_diagnostics", collect)
+    return board, features, manifest, runner
+
+
+def test_current_run_camera_is_ready_before_diagnostic_collection(tmp_path, monkeypatch):
+    _, _, manifest, _ = _current_camera_diagnostic(tmp_path, monkeypatch)
+    diagnostic = next(a for a in manifest.artifacts if a.category == "diagnostics/dfm")
+    top = next(a for a in manifest.artifacts if a.artifact_id == "3d:populated:top")
+    assert diagnostic.state == "generated" and diagnostic.sha256 == top.sha256
+    assert manifest.package_status == "generated_pending_inspection"
+
+
+@pytest.mark.parametrize("fault", [None, "board", "image", "declaration", "source"])
+def test_missing_diagnostics_complete_without_render_or_approval(tmp_path, monkeypatch, fault):
+    from pcbsmith.review.visual_package import complete_retained_diagnostics
+
+    board, features, _, runner = _current_camera_diagnostic(tmp_path, monkeypatch, True)
+    model = _model_report(board)
+    source = tmp_path / "out/review/manifest.json"
+    before = source.read_bytes()
+    commands = list(runner.commands)
+    if fault == "board":
+        board.write_text(board.read_text() + " ")
+    elif fault == "image":
+        (tmp_path / "out/review/3d/populated/top.png").write_bytes(b"changed")
+    elif fault in {"declaration", "source"}:
+        change = (
+            {"rationale": "changed"}
+            if fault == "declaration"
+            else {"source_image": str(tmp_path / "unbound.png")}
+        )
+        features = features.model_copy(
+            update={"diagnostic_views": (features.diagnostic_views[0].model_copy(update=change),)}
+        )
+    monkeypatch.setattr("pcbsmith.board_job.require_library_worker", lambda: None)
+    if fault:
+        with pytest.raises(ValueError):
+            complete_retained_diagnostics(
+                source, tmp_path / "successor", features=features, model_preflight=model
+            )
+        assert not (tmp_path / "successor").exists()
+    else:
+        result = complete_retained_diagnostics(
+            source, tmp_path / "successor", features=features, model_preflight=model
+        )
+        assert result.package_status == "generated_pending_inspection"
+        assert all(a.inspection == "uninspected" for a in result.artifacts)
+        assert all(a.state == "generated" for a in result.artifacts if a.required)
+    assert source.read_bytes() == before
+    assert runner.commands == commands

@@ -86,7 +86,7 @@ def examine_concept(
     """Evaluate proposed envelopes against the real traced substrate."""
 
     try:
-        from shapely.geometry import Polygon  # type: ignore[import-untyped]
+        from shapely.geometry import Polygon
     except ImportError as exc:  # pragma: no cover - dependency contract
         raise RuntimeError("Install the artwork extra: pip install 'pcbsmith[artwork]'.") from exc
 
@@ -224,7 +224,7 @@ def _item_shape(item: ConceptItem) -> tuple[Any, str | None]:
         )
         if not shapes:
             raise ValueError(f"{item.footprint_id} has no pads or holes")
-        from shapely.ops import unary_union  # type: ignore[import-untyped]
+        from shapely.ops import unary_union
 
         shape = unary_union(shapes)
     else:

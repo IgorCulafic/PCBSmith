@@ -8,6 +8,8 @@ the complete application context and qualified evidence are recorded.
 
 from __future__ import annotations
 
+import hashlib
+import json
 from datetime import date
 from typing import Literal, Self
 
@@ -92,6 +94,24 @@ class FabricationGeometryProfile(BaseModel):
     default_pad_solder_mask_expansion_mm: float | None = Field(default=None, allow_inf_nan=False)
     minimum_solder_mask_web_mm: float | None = Field(default=None, gt=0)
     minimum_component_body_to_edge_mm: float | None = Field(default=None, gt=0)
+    minimum_silkscreen_line_width_mm: float | None = Field(default=None, gt=0)
+    minimum_silkscreen_text_height_mm: float | None = Field(default=None, gt=0)
+    minimum_silkscreen_to_mask_clearance_mm: float | None = Field(default=None, ge=0)
+    solder_mask_process: Literal["not_declared", "none", "photoimageable"] = "not_declared"
+    silkscreen_process: Literal["not_declared", "none", "printed"] = "not_declared"
+    plated_through_vias_available: bool | None = None
+    via_process: Literal[
+        "not_declared",
+        "plated_through_hole",
+        "manual_rivet_or_wire",
+        "none",
+    ] = "not_declared"
+    assembly_process: Literal[
+        "not_declared",
+        "hand_soldering",
+        "reflow",
+        "mixed_hand_and_reflow",
+    ] = "not_declared"
     evidence: tuple[EvidenceRef, ...] = ()
 
     @model_validator(mode="after")
@@ -115,6 +135,18 @@ class FabricationGeometryProfile(BaseModel):
             power_ring = (self.power_via_diameter_mm - self.power_via_drill_mm) / 2
             if min(routing_ring, power_ring) < self.minimum_annular_ring_mm:
                 raise ValueError("generated via annular ring is below the minimum")
+        if self.plated_through_vias_available is True and self.via_process not in {
+            "plated_through_hole",
+            "manual_rivet_or_wire",
+        }:
+            raise ValueError("available through vias require a declared conductive process")
+        if (
+            self.plated_through_vias_available is False
+            and self.via_process == "plated_through_hole"
+        ):
+            raise ValueError("plated-through-hole via process contradicts unavailable plated vias")
+        if self.solder_mask_process == "none" and self.minimum_solder_mask_web_mm is not None:
+            raise ValueError("a no-mask process cannot declare a solder-mask web")
         return self
 
 
@@ -323,6 +355,60 @@ DEFAULT_PCB_RULE_PROFILE = PcbRuleProfile(
         status="not_applicable",
     ),
 )
+
+HOME_2LAYER_PCB_RULE_PROFILE = PcbRuleProfile(
+    profile_id="pcbsmith-home-two-layer-hand-assembly-v1",
+    geometry=FabricationGeometryProfile(
+        profile_id="home-two-layer-mechanical-v1",
+        basis="project_requirement",
+        manufacturer_process_id="owner-qualified-home-process-required",
+        minimum_trace_width_mm=0.3,
+        default_signal_trace_width_mm=0.4,
+        default_power_trace_width_mm=1.0,
+        routing_via_diameter_mm=1.2,
+        routing_via_drill_mm=0.6,
+        power_via_diameter_mm=1.6,
+        power_via_drill_mm=0.8,
+        board_thickness_mm=1.6,
+        copper_layer_count=2,
+        outer_copper_thickness_um=35.0,
+        trace_thermal_model_id="not_declared",
+        minimum_finished_hole_mm=0.6,
+        minimum_annular_ring_mm=0.2,
+        minimum_hole_to_hole_web_mm=0.4,
+        minimum_component_body_to_edge_mm=1.0,
+        solder_mask_process="none",
+        silkscreen_process="none",
+        plated_through_vias_available=False,
+        via_process="manual_rivet_or_wire",
+        assembly_process="hand_soldering",
+    ),
+    fab_spacing=FabElectricalSpacingProfile(
+        profile_id="home-two-layer-spacing-v1",
+        basis="project_requirement",
+        manufacturer_process_id="owner-qualified-home-process-required",
+        minimum_copper_clearance_mm=0.3,
+        minimum_copper_to_edge_mm=0.5,
+        minimum_hole_to_copper_mm=0.3,
+    ),
+    insulation=InsulationProfile(
+        profile_id="home-low-voltage-unspecified-v1",
+        status="not_applicable",
+    ),
+)
+
+
+def pcb_rule_profile_fingerprint(profile: PcbRuleProfile) -> str:
+    """One canonical fingerprint shared by every physical-design consumer."""
+
+    payload = json.dumps(
+        profile.model_dump(mode="json"),
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+        allow_nan=False,
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
 QualifiedInsulationClearanceGroup = tuple[

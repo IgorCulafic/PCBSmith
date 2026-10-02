@@ -98,7 +98,7 @@ def test_main_window_resistor_action_arms_catalog_resistor(qtbot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    actions = {action.text(): action for action in window.actions()}
+    actions = {action.text(): action for action in (*window.actions(), *window.view.actions())}
     actions["Resistor"].trigger()
 
     assert window.scene.armed_catalog_entry_id() == "pcbs:resistor_0603"
@@ -116,7 +116,7 @@ def test_main_window_capacitor_action_arms_capacitor(qtbot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    actions = {action.text(): action for action in window.actions()}
+    actions = {action.text(): action for action in (*window.actions(), *window.view.actions())}
     actions["Capacitor"].trigger()
 
     assert window.scene.armed_catalog_entry_id() == "pcbs:capacitor_0603"
@@ -133,7 +133,7 @@ def test_main_window_led_action_arms_led(qtbot) -> None:
     window = MainWindow()
     qtbot.addWidget(window)
 
-    actions = {action.text(): action for action in window.actions()}
+    actions = {action.text(): action for action in (*window.actions(), *window.view.actions())}
     actions["LED"].trigger()
 
     assert window.scene.armed_catalog_entry_id() == "pcbs:led_0603"

@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import sys
-from typing import cast
+from collections import defaultdict, deque
+from collections.abc import Callable, Hashable
+from typing import TypeVar, cast
 
-from PySide6.QtCore import QObject, Qt
+from PySide6.QtCore import QObject, Qt, Signal
 from PySide6.QtGui import QKeyEvent
-from PySide6.QtWidgets import QApplication, QGraphicsScene, QGraphicsSceneMouseEvent
+from PySide6.QtWidgets import QApplication, QGraphicsItem, QGraphicsScene, QGraphicsSceneMouseEvent
 
 from pcbsmith.core.catalog import CatalogEntry
 from pcbsmith.core.geom import Point, mm_to_nm, snap
@@ -14,17 +16,23 @@ from pcbsmith.knowledge.builtin_library import SYMBOLS
 from pcbsmith.operations.schematic_anchors import nearest_anchor, schematic_anchors
 from pcbsmith.ui.editor_state import EditorState
 from pcbsmith.ui.history import EditHistory
-from pcbsmith.ui.items import NetLabelItem, NoConnectItem, SymbolItem, WireItem
+from pcbsmith.ui.items import JunctionItem, NetLabelItem, NoConnectItem, SymbolItem, WireItem
 from pcbsmith.ui.schematic_view import GRID_NM
 from pcbsmith.ui.selection import SelectionKey
 
+ItemT = TypeVar("ItemT", bound=QGraphicsItem)
+ModelT = TypeVar("ModelT", bound=Hashable)
 ToolName = str
 ANCHOR_SNAP_TOLERANCE_NM = mm_to_nm(1.5)
 
 
 class SchematicScene(QGraphicsScene):
+    editor_state_changed = Signal()
+    tool_changed = Signal(str)
     _app: QApplication | None = None
-    _tools = frozenset(("select", "place_resistor", "place_catalog", "wire", "label", "no_connect"))
+    _tools = frozenset(
+        ("select", "pan", "place_resistor", "place_catalog", "wire", "label", "no_connect")
+    )
 
     def __init__(self, parent: QObject | None = None) -> None:
         if QApplication.instance() is None:
@@ -35,6 +43,7 @@ class SchematicScene(QGraphicsScene):
         self._history = EditHistory(self._editor_state)
         self._symbol_items: list[SymbolItem] = []
         self._wire_items: list[WireItem] = []
+        self._junction_items: list[JunctionItem] = []
         self._label_items: list[NetLabelItem] = []
         self._no_connect_items: list[NoConnectItem] = []
         self._tool: ToolName = "select"
@@ -42,6 +51,7 @@ class SchematicScene(QGraphicsScene):
         self._armed_catalog_entry: CatalogEntry | None = None
         self._placement_preview: SymbolItem | None = None
         self._wire_stroke_width = 4
+        self._wire_pick_scale = 4e-6
 
     @property
     def editor_state(self) -> EditorState:
@@ -55,27 +65,83 @@ class SchematicScene(QGraphicsScene):
     def can_redo(self) -> bool:
         return self._history.can_redo
 
-    def _render_editor_state(self, state: EditorState) -> None:
-        self.clear()
-        self._editor_state = state
-        self._pending_wire_start = None
-        self._placement_preview = None
-        self._symbol_items = [SymbolItem(symbol) for symbol in state.symbols]
-        self._wire_items = [
-            WireItem(wire, index, self._wire_stroke_width) for index, wire in enumerate(state.wires)
-        ]
-        self._label_items = [NetLabelItem(label, index) for index, label in enumerate(state.labels)]
-        self._no_connect_items = [
-            NoConnectItem(no_connect, index) for index, no_connect in enumerate(state.no_connects)
-        ]
+    def _reconcile_items(
+        self,
+        previous: list[ItemT],
+        models: tuple[ModelT, ...],
+        value: Callable[[ItemT], ModelT],
+        create: Callable[[ModelT], ItemT],
+    ) -> list[ItemT]:
+        available: dict[ModelT, deque[ItemT]] = defaultdict(deque)
+        for item in previous:
+            available[value(item)].append(item)
+        result: list[ItemT] = []
+        for model in models:
+            bucket = available.get(model)
+            if bucket:
+                item = bucket.popleft()
+            else:
+                item = create(model)
+                self.addItem(item)
+            result.append(item)
+        for bucket in available.values():
+            for item in bucket:
+                self.removeItem(item)
+        return result
 
-        for item in (
-            *self._wire_items,
-            *self._symbol_items,
-            *self._label_items,
-            *self._no_connect_items,
-        ):
-            self.addItem(item)
+    def _render_editor_state(self, state: EditorState) -> None:
+        self._clear_placement_preview()
+        selected = self.selected_key()
+        # Index-based keys must not jump to the next wire/label after deletion.
+        old_selected = self.selectedItems()
+        self.blockSignals(True)
+        try:
+            self._editor_state = state
+            self._pending_wire_start = None
+            self._symbol_items = self._reconcile_items(
+                self._symbol_items, state.symbols, lambda i: i.symbol, SymbolItem
+            )
+            self._wire_items = self._reconcile_items(
+                self._wire_items,
+                state.wires,
+                lambda i: i.wire,
+                lambda w: WireItem(w, 0, self._wire_stroke_width),
+            )
+            self._label_items = self._reconcile_items(
+                self._label_items, state.labels, lambda i: i.label, lambda v: NetLabelItem(v, 0)
+            )
+            self._junction_items = self._reconcile_items(
+                self._junction_items, state.junctions, lambda i: i.junction, JunctionItem
+            )
+            self._no_connect_items = self._reconcile_items(
+                self._no_connect_items,
+                state.no_connects,
+                lambda i: i.no_connect,
+                lambda v: NoConnectItem(v, 0),
+            )
+            for index, wire_item in enumerate(self._wire_items):
+                wire_item.index = index
+            for index, label_item in enumerate(self._label_items):
+                label_item.index = index
+            for index, no_connect_item in enumerate(self._no_connect_items):
+                no_connect_item.index = index
+            self.set_wire_pick_scale(self._wire_pick_scale)
+            if selected is not None and selected.kind == "symbol":
+                self.select_key(selected)
+            elif old_selected and old_selected[0].scene() is not self:
+                self.clearSelection()
+        finally:
+            self.blockSignals(False)
+        self.selectionChanged.emit()
+        self.editor_state_changed.emit()
+
+    def set_wire_pick_scale(self, scale: float) -> None:
+        self._wire_pick_scale = scale
+        for item in self._wire_items:
+            item.set_pick_scale(scale)
+
+    def junction_items(self) -> tuple[JunctionItem, ...]:
+        return tuple(self._junction_items)
 
     def load_editor_state(self, state: EditorState) -> None:
         self._history.reset(state)
@@ -110,6 +176,8 @@ class SchematicScene(QGraphicsScene):
                 return
 
     def apply_editor_state(self, state: EditorState) -> None:
+        if state == self._editor_state:
+            return
         committed = self._history.commit(state)
         self._render_editor_state(committed)
 
@@ -158,6 +226,7 @@ class SchematicScene(QGraphicsScene):
             self._armed_catalog_entry = None
             self._clear_placement_preview()
         self._pending_wire_start = None
+        self.tool_changed.emit(tool)
 
     def current_tool(self) -> ToolName:
         return self._tool
@@ -169,10 +238,11 @@ class SchematicScene(QGraphicsScene):
         if width < 1:
             raise ValueError("Wire width must be at least 1")
         self._wire_stroke_width = width
-        self._render_editor_state(self._editor_state)
+        for item in self._wire_items:
+            item.set_stroke_width(width)
 
     def arm_catalog_entry(self, entry: CatalogEntry) -> None:
-        self._tool = "place_catalog"
+        self.set_tool("place_catalog")
         self._armed_catalog_entry = entry
         self._pending_wire_start = None
         self._clear_placement_preview()
@@ -183,10 +253,7 @@ class SchematicScene(QGraphicsScene):
         return self._armed_catalog_entry.id
 
     def cancel_active_tool(self) -> None:
-        self._tool = "select"
-        self._armed_catalog_entry = None
-        self._pending_wire_start = None
-        self._clear_placement_preview()
+        self.set_tool("select")
 
     def handle_canvas_click(self, position: Point) -> None:
         if self._tool == "place_resistor":

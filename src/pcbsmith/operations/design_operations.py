@@ -59,6 +59,7 @@ from pcbsmith.kicad.kicad_project import (
     sanitize_kicad_project_name,
 )
 from pcbsmith.kicad.kicad_validate import KiCadValidationReport, run_kicad_validation
+from pcbsmith.kicad.project_library import write_project_local_footprint_library
 from pcbsmith.knowledge.circuit_topologies import select_topologies_for_intent
 from pcbsmith.operations.revision_brief import (
     RevisionBrief,
@@ -229,9 +230,7 @@ def generate_led_art_design(
                 board_file=board_file,
                 revision_brief_file=revision_brief_file,
                 kicad_board_policy_report_file=kicad_board_policy_report_file,
-                kicad_board_policy_status=_board_policy_status(
-                    kicad_board_policy_report
-                ),
+                kicad_board_policy_status=_board_policy_status(kicad_board_policy_report),
                 validation_status=validation_status,
                 preview_status=preview_status,
                 revision_brief_status=revision_brief.status,
@@ -344,9 +343,7 @@ def generate_attiny_led_controller_design(
                 board_file=board_file,
                 revision_brief_file=revision_brief_file,
                 kicad_board_policy_report_file=kicad_board_policy_report_file,
-                kicad_board_policy_status=_board_policy_status(
-                    kicad_board_policy_report
-                ),
+                kicad_board_policy_status=_board_policy_status(kicad_board_policy_report),
                 validation_status=validation_status,
                 preview_status=preview_status,
                 revision_brief_status=revision_brief.status,
@@ -430,6 +427,7 @@ def generate_buck_converter_design(
         encoding="utf-8",
     )
     board_file.write_text(render_buck_converter_board(spec, calculation), encoding="utf-8")
+    write_project_local_footprint_library(project_dir, board_file)
 
     _write_buck_readme(project_dir, project_name, request, calculation)
     reports_dir = project_dir / ".pcbsmith" / "reports"
@@ -474,9 +472,7 @@ def generate_buck_converter_design(
                 calculation_report_file=calculation_report_file,
                 topology=topology,
                 calculation=calculation,
-                kicad_board_policy_status=_board_policy_status(
-                    kicad_board_policy_report
-                ),
+                kicad_board_policy_status=_board_policy_status(kicad_board_policy_report),
                 validation_status=validation_status,
                 preview_status=preview_status,
                 revision_brief_status=revision_brief.status,
@@ -609,9 +605,7 @@ def generate_silkscreen_artwork_design(
                 board_file=board_file,
                 revision_brief_file=revision_brief_file,
                 kicad_board_policy_report_file=kicad_board_policy_report_file,
-                kicad_board_policy_status=_board_policy_status(
-                    kicad_board_policy_report
-                ),
+                kicad_board_policy_status=_board_policy_status(kicad_board_policy_report),
                 preflight_report_file=preflight_report_file,
                 validation_status=validation_status,
                 preview_status=preview_status,
@@ -796,8 +790,7 @@ def _write_buck_readme(
                 f"- Input: {request.input_voltage_min_v:g}-"
                 f"{request.input_voltage_max_v:g} V "
                 f"(nominal {request.input_voltage_nominal_v:g} V).",
-                f"- Output: {request.output_voltage_v:g} V at "
-                f"{request.load_current_a:g} A.",
+                f"- Output: {request.output_voltage_v:g} V at {request.load_current_a:g} A.",
                 f"- Selected inductor: {outputs['selected_inductance_uH']:g} uH.",
                 f"- Feedback divider: {outputs['selected_feedback_upper_ohms']:g} ohm "
                 f"over {outputs['feedback_lower_ohms']:g} ohm.",

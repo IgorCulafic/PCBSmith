@@ -242,3 +242,19 @@ def _result_for(obligation) -> ComponentReviewResult:
         evidence_query_count=1,
         evidence_query_budget=2,
     )
+
+
+def test_obligations_preserve_pins_when_multiple_pins_share_a_supply_net() -> None:
+    from dataclasses import replace
+
+    netlist = _netlist()
+    netlist = replace(netlist, nets=tuple(
+        replace(net, nodes=net.nodes + (("U1", "3"),)) if net.name == "+3V3"
+        else replace(net, nodes=tuple(node for node in net.nodes if node != ("U1", "3")))
+        for net in netlist.nets
+    ))
+    neighborhood = build_component_review_neighborhood(netlist, _pin_evidence(), "U1")
+    obligations = derive_component_review_obligations(neighborhood)
+    power = next(item for item in obligations if item.area is ReviewArea.POWER_DECOUPLING)
+    assert set(power.pin_numbers) == {"1", "2", "3"}
+    assert power.net_names == ("+3V3", "GND")

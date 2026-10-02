@@ -22,7 +22,7 @@ PORTAL_SPAN_UNITS = 20
 QUANTITY_CAPACITY = 2
 PORTAL_RESIDUAL_UNITS = 4
 NAMED_PORTAL_RESOURCE_ID = (
-    "channel:73c6e6be545e48d788d41f98e34b61edbb4da2e99dae51df30fd44597f499357"
+    "channel:71c9e47ea9db5a90866a316ad84b40767fbe25d1e722166a27a070821dfaa4ec"
 )
 
 # Both chambers are 14 x 6 mm.  The 6 mm-wide stem leaves exactly one

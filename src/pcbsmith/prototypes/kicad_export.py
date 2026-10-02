@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
+from copy import deepcopy
 from dataclasses import dataclass
 from pathlib import Path
 from uuid import UUID, uuid4
@@ -26,6 +27,7 @@ from pcbsmith.kicad.kicad_project import (
     render_kicad_board_file,
     render_kicad_schematic_file,
 )
+from pcbsmith.kicad.library import QuotedString, parse_sexpr, serialize_sexpr
 from pcbsmith.operations.project_io import load_board, load_project, load_schematic
 
 HANDOFF_FILE_NAME = "pcbsmith_handoff.json"
@@ -33,9 +35,13 @@ HANDOFF_SCHEMA = "pcbsmith-kicad-handoff-v1"
 PCBSMITH_SYMBOL_LIBRARY_FILE_NAME = "PCBSmith.kicad_sym"
 PCBSMITH_SYMBOL_TABLE_FILE_NAME = "sym-lib-table"
 PCBSMITH_LIBRARY_NAME = "PCBSmith"
+PCBSMITH_CANONICAL_SYMBOL_RESOURCE = (
+    Path(__file__).resolve().parents[1] / "kicad" / "resources" / "PCBSmithCanonical.kicad_sym"
+)
 KICAD_ZERO_OFFSET = Vec(0, 0)
 KICAD_SCHEMATIC_ITEM_OFFSET = Vec(25_400_000, 25_400_000)
 KICAD_SCHEMATIC_SHEET_CENTER = Point(mm_to_nm(147.32), mm_to_nm(104.14))
+KICAD_CONNECTION_GRID_NM = mm_to_nm(1.27)
 KICAD_BOARD_DISPLAY_OFFSET_X_MM = 123.5
 KICAD_BOARD_DISPLAY_OFFSET_Y_MM = 87.5
 KICAD_BOARD_OUTLINE_START_MM = "123.5 87.5"
@@ -115,6 +121,93 @@ class KiCadExportResult(BaseModel):
 
 
 NATIVE_SYMBOL_SPECS: dict[str, NativeSymbolSpec] = {
+    "canonical:R": NativeSymbolSpec(
+        source_symbol_id="canonical:R",
+        library_symbol_name="K10_R",
+        reference_prefix="R",
+        value="R",
+        description="Generic resistor",
+        pin_offsets=(Vec(0, mm_to_nm(-3.81)), Vec(0, mm_to_nm(3.81))),
+    ),
+    "canonical:C": NativeSymbolSpec(
+        source_symbol_id="canonical:C",
+        library_symbol_name="K10_C",
+        reference_prefix="C",
+        value="C",
+        description="Generic capacitor",
+        pin_offsets=(Vec(0, mm_to_nm(-3.81)), Vec(0, mm_to_nm(3.81))),
+    ),
+    "canonical:C_POLARIZED": NativeSymbolSpec(
+        source_symbol_id="canonical:C_POLARIZED",
+        library_symbol_name="K10_C_POLARIZED",
+        reference_prefix="C",
+        value="C_Polarized",
+        description="Generic polarized capacitor",
+        pin_offsets=(Vec(0, mm_to_nm(-3.81)), Vec(0, mm_to_nm(3.81))),
+    ),
+    "canonical:D_SCHOTTKY": NativeSymbolSpec(
+        source_symbol_id="canonical:D_SCHOTTKY",
+        library_symbol_name="K10_D_SCHOTTKY",
+        reference_prefix="D",
+        value="D_Schottky",
+        description="Generic diode",
+        pin_offsets=(Vec(mm_to_nm(-3.81), 0), Vec(mm_to_nm(3.81), 0)),
+    ),
+    "canonical:L": NativeSymbolSpec(
+        source_symbol_id="canonical:L",
+        library_symbol_name="K10_L",
+        reference_prefix="L",
+        value="L",
+        description="Generic inductor",
+        pin_offsets=(Vec(0, mm_to_nm(-3.81)), Vec(0, mm_to_nm(3.81))),
+    ),
+    "canonical:LED": NativeSymbolSpec(
+        source_symbol_id="canonical:LED",
+        library_symbol_name="K10_LED",
+        reference_prefix="LED",
+        value="LED",
+        description="Generic LED",
+        pin_offsets=(Vec(mm_to_nm(-3.81), 0), Vec(mm_to_nm(3.81), 0)),
+    ),
+    "canonical:CONN_01X02": NativeSymbolSpec(
+        source_symbol_id="canonical:CONN_01X02",
+        library_symbol_name="K10_CONN_01X02",
+        reference_prefix="J",
+        value="Conn_01x02",
+        description="Generic 1x2 connector",
+        pin_offsets=(Vec(mm_to_nm(-5.08), 0), Vec(mm_to_nm(-5.08), mm_to_nm(2.54))),
+    ),
+    "canonical:NE555D": NativeSymbolSpec(
+        source_symbol_id="canonical:NE555D",
+        library_symbol_name="K10_NE555D",
+        reference_prefix="U",
+        value="NE555D",
+        description="Generic 555 timer IC",
+        pin_offsets=(
+            Vec(0, mm_to_nm(10.16)),
+            Vec(mm_to_nm(-10.16), mm_to_nm(5.08)),
+            Vec(mm_to_nm(10.16), 0),
+            Vec(mm_to_nm(-10.16), mm_to_nm(-5.08)),
+            Vec(0, mm_to_nm(-10.16)),
+            Vec(mm_to_nm(-10.16), mm_to_nm(2.54)),
+            Vec(mm_to_nm(-10.16), mm_to_nm(-2.54)),
+            Vec(mm_to_nm(2.54), mm_to_nm(-10.16)),
+        ),
+    ),
+    "canonical:LM2596S_ADJ": NativeSymbolSpec(
+        source_symbol_id="canonical:LM2596S_ADJ",
+        library_symbol_name="K10_LM2596S_ADJ",
+        reference_prefix="U",
+        value="LM2596S-ADJ",
+        description="LM2596 adjustable buck regulator",
+        pin_offsets=(
+            Vec(mm_to_nm(-12.7), mm_to_nm(-2.54)),
+            Vec(mm_to_nm(12.7), mm_to_nm(2.54)),
+            Vec(0, mm_to_nm(7.62)),
+            Vec(mm_to_nm(12.7), mm_to_nm(-2.54)),
+            Vec(mm_to_nm(-12.7), mm_to_nm(2.54)),
+        ),
+    ),
     "stdlib:R": NativeSymbolSpec(
         source_symbol_id="stdlib:R",
         library_symbol_name="R",
@@ -293,9 +386,7 @@ def export_pcbs_project_to_kicad(
                 project_name=skeleton.project_name,
                 uuid_factory=uuid_factory,
             ),
-            lib_symbol_items=render_pcbs_kicad_embedded_symbols()
-            if native_symbols
-            else (),
+            lib_symbol_items=render_pcbs_kicad_embedded_symbols() if native_symbols else (),
         ),
         encoding="utf-8",
     )
@@ -367,16 +458,14 @@ def render_kicad_schematic_items(
     project_name: str = "",
     uuid_factory: Callable[[], UUID] = uuid4,
 ) -> tuple[str, ...]:
-    native_symbols = _native_symbol_instances(
-        schematic, uuid_factory=uuid_factory
-    ) if native_symbols is None else native_symbols
-    pin_points = {
-        (point.x, point.y)
-        for symbol in native_symbols
-        for point in symbol.pin_points
-    }
+    native_symbols = (
+        _native_symbol_instances(schematic, uuid_factory=uuid_factory)
+        if native_symbols is None
+        else native_symbols
+    )
+    pin_points = {(point.x, point.y) for symbol in native_symbols for point in symbol.pin_points}
     power_points = {
-        (point.x, point.y): symbol.spec.library_symbol_name
+        (point.x, point.y): symbol.source.value or symbol.spec.library_symbol_name
         for symbol in native_symbols
         if symbol.spec.power
         for point in symbol.pin_points
@@ -400,8 +489,7 @@ def render_kicad_schematic_items(
         for symbol in native_symbols
     )
     items.extend(
-        _render_kicad_wire(wire, uuid_factory(), offset=display_offset)
-        for wire in native_wires
+        _render_kicad_wire(wire, uuid_factory(), offset=display_offset) for wire in native_wires
     )
     for label in schematic.labels:
         if not _should_render_native_label(
@@ -450,11 +538,13 @@ def render_kicad_board_items(
     native_symbols: tuple[NativeSymbolInstance, ...] | None = None,
     uuid_factory: Callable[[], UUID] = uuid4,
 ) -> tuple[str, ...]:
-    native_symbols = _native_symbol_instances(
-        schematic, uuid_factory=uuid_factory
-    ) if native_symbols is None else native_symbols
+    native_symbols = (
+        _native_symbol_instances(schematic, uuid_factory=uuid_factory)
+        if native_symbols is None
+        else native_symbols
+    )
     power_points = {
-        (point.x, point.y): symbol.spec.library_symbol_name
+        (point.x, point.y): symbol.source.value or symbol.spec.library_symbol_name
         for symbol in native_symbols
         if symbol.spec.power
         for point in symbol.pin_points
@@ -487,8 +577,7 @@ def render_kicad_board_items(
         if net.name in {"VCC", "GND"}
     )
     items.extend(
-        _render_board_footprint(footprint, uuid_factory=uuid_factory)
-        for footprint in footprints
+        _render_board_footprint(footprint, uuid_factory=uuid_factory) for footprint in footprints
     )
     items.extend(_render_board_segments(board_pads, uuid_factory=uuid_factory))
     if board is not None:
@@ -500,10 +589,7 @@ def render_kicad_board_items(
                     uuid_factory=uuid_factory,
                 )
             )
-        items.extend(
-            _render_command_board_text(text, uuid=uuid_factory())
-            for text in board.texts
-        )
+        items.extend(_render_command_board_text(text, uuid=uuid_factory()) for text in board.texts)
         items.extend(
             _render_command_board_graphic(graphic, uuid=uuid_factory())
             for graphic in board.graphics
@@ -599,18 +685,14 @@ def _wire_connects_native_points(
 ) -> bool:
     if len({(point.x, point.y) for point in wire.points}) <= 1:
         return False
-    return (
-        (wire.points[0].x, wire.points[0].y) in pin_points
-        and (wire.points[-1].x, wire.points[-1].y) in pin_points
-    )
+    return (wire.points[0].x, wire.points[0].y) in pin_points and (
+        wire.points[-1].x,
+        wire.points[-1].y,
+    ) in pin_points
 
 
 def _native_wires(wires: tuple[Wire, ...]) -> list[Wire]:
-    return [
-        wire
-        for wire in wires
-        if len({(point.x, point.y) for point in wire.points}) > 1
-    ]
+    return [wire for wire in wires if len({(point.x, point.y) for point in wire.points}) > 1]
 
 
 def _schematic_display_offset(
@@ -627,10 +709,21 @@ def _schematic_display_offset(
     bottom = max(point.y for point in points)
     center_x = (left + right) // 2
     center_y = (top + bottom) // 2
-    return Vec(
+    centered = Vec(
         KICAD_SCHEMATIC_SHEET_CENTER.x - center_x,
         KICAD_SCHEMATIC_SHEET_CENTER.y - center_y,
     )
+    return Vec(
+        _nearest_connection_grid_nm(centered.dx),
+        _nearest_connection_grid_nm(centered.dy),
+    )
+
+
+def _nearest_connection_grid_nm(value_nm: int) -> int:
+    grid_nm = KICAD_CONNECTION_GRID_NM
+    if value_nm >= 0:
+        return ((value_nm + (grid_nm // 2)) // grid_nm) * grid_nm
+    return -(((-value_nm + (grid_nm // 2)) // grid_nm) * grid_nm)
 
 
 def _schematic_display_points(
@@ -687,15 +780,12 @@ def _point_on_wire(point: Point, wire: Wire) -> bool:
 
 
 def _point_on_segment(point: Point, start: Point, end: Point) -> bool:
-    cross = (point.x - start.x) * (end.y - start.y) - (
-        point.y - start.y
-    ) * (end.x - start.x)
+    cross = (point.x - start.x) * (end.y - start.y) - (point.y - start.y) * (end.x - start.x)
     if cross != 0:
         return False
-    return (
-        min(start.x, end.x) <= point.x <= max(start.x, end.x)
-        and min(start.y, end.y) <= point.y <= max(start.y, end.y)
-    )
+    return min(start.x, end.x) <= point.x <= max(start.x, end.x) and min(
+        start.y, end.y
+    ) <= point.y <= max(start.y, end.y)
 
 
 def _power_wire_endpoint_labels(
@@ -758,9 +848,7 @@ def _wire_component_net_names(
     component_names: dict[int, str] = {}
     next_fallback = 1
     for component in sorted({find(index) for index in range(len(wires))}):
-        component_wires = [
-            wire for index, wire in enumerate(wires) if find(index) == component
-        ]
+        component_wires = [wire for index, wire in enumerate(wires) if find(index) == component]
         name = _wire_group_net_name(labels, component_wires, power_points)
         if name is None:
             name = f"N${next_fallback}"
@@ -837,12 +925,8 @@ def _native_board_footprints(
                 center_x_mm=center_x_mm,
                 center_y_mm=_board_y_mm(20 + nm_to_mm(symbol.source.position.y)),
                 pad_nets=(
-                    point_nets.get(
-                        (symbol.pin_points[0].x, symbol.pin_points[0].y)
-                    ),
-                    point_nets.get(
-                        (symbol.pin_points[1].x, symbol.pin_points[1].y)
-                    ),
+                    point_nets.get((symbol.pin_points[0].x, symbol.pin_points[0].y)),
+                    point_nets.get((symbol.pin_points[1].x, symbol.pin_points[1].y)),
                 ),
             )
         )
@@ -901,12 +985,14 @@ def _render_kicad_symbol(
         position.y - 2_540_000,
         hidden=symbol.spec.power,
     )
-    value_y = position.y + (
-        2_540_000 if not symbol.spec.power else -2_540_000
-    )
+    value_y = position.y + (2_540_000 if not symbol.spec.power else -2_540_000)
     value_property = _render_symbol_property("Value", value, position.x, value_y)
     footprint_property = _render_symbol_property(
-        "Footprint", "", position.x, position.y, hidden=True
+        "Footprint",
+        source.footprint_id or "",
+        position.x,
+        position.y,
+        hidden=True,
     )
     datasheet_property = _render_symbol_property(
         "Datasheet",
@@ -965,13 +1051,15 @@ def _render_symbol_property(
     *,
     hidden: bool = False,
 ) -> str:
-    hide = "\n        (hide yes)" if hidden else ""
+    hide = "\n      (hide yes)" if hidden else ""
     return f"""(property "{_escape_kicad_string(name)}" "{_escape_kicad_string(value)}"
       (at {_format_mm(x_nm)} {_format_mm(y_nm)} 0)
+      (show_name no)
+      (do_not_autoplace no){hide}
       (effects
         (font
           (size 1.27 1.27)
-        ){hide}
+        )
       )
     )"""
 
@@ -986,14 +1074,25 @@ def _render_kicad_label(
     position = label.position + offset
     font_size = "0.01 0.01" if hidden else "1.27 1.27"
     hide_line = "\n      (hide yes)" if hidden else ""
-    return f"""  (label "{_escape_kicad_string(label.name)}"
+    return f"""  (global_label "{_escape_kicad_string(label.name)}"
+    (shape bidirectional)
     (at {_format_mm(position.x)} {_format_mm(position.y)} 0)
+    (fields_autoplaced yes)
     (effects
       (font
         (size {font_size})
       ){hide_line}
     )
     (uuid "{item_uuid}")
+    (property "Intersheetrefs" "${{INTERSHEET_REFS}}"
+      (at {_format_mm(position.x)} {_format_mm(position.y)} 0)
+      (effects
+        (font
+          (size 1.27 1.27)
+        )
+        (hide yes)
+      )
+    )
   )"""
 
 
@@ -1097,9 +1196,7 @@ def _render_board_pad(
     uuid: UUID,
 ) -> str:
     net_text = (
-        '(net 0 "")'
-        if net is None
-        else f'(net {net.number} "{_escape_kicad_string(net.name)}")'
+        '(net 0 "")' if net is None else f'(net {net.number} "{_escape_kicad_string(net.name)}")'
     )
     return f"""    (pad "{number}" smd roundrect
       (at {x_mm} 0)
@@ -1394,9 +1491,7 @@ def _ground_return_lane_segments(
         return ()
 
     lane_x = max(
-        _board_pad_escape_point(pad)[0]
-        if pad.escape_direction > 0
-        else float(pad.x_mm)
+        _board_pad_escape_point(pad)[0] if pad.escape_direction > 0 else float(pad.x_mm)
         for pad in routed_pads
     )
     lane_y = float(_board_y_mm(36))
@@ -1472,9 +1567,7 @@ def _route_segments_from_points(
             (_format_plain_mm(start_x), _format_plain_mm(start_y)),
             (_format_plain_mm(end_x), _format_plain_mm(end_y)),
         )
-        for (start_x, start_y), (end_x, end_y) in zip(
-            route_points, route_points[1:], strict=False
-        )
+        for (start_x, start_y), (end_x, end_y) in zip(route_points, route_points[1:], strict=False)
         if start_x != end_x or start_y != end_y
     )
 
@@ -1587,8 +1680,14 @@ def render_pcbs_kicad_symbol_table() -> str:
 
 def render_pcbs_kicad_symbol_library() -> str:
     symbols = "\n\n".join(
-        _render_library_symbol(spec, embedded=False)
-        for spec in NATIVE_SYMBOL_SPECS.values()
+        (
+            *(
+                _render_library_symbol(spec, embedded=False)
+                for spec in NATIVE_SYMBOL_SPECS.values()
+                if not spec.source_symbol_id.startswith("canonical:")
+            ),
+            *_canonical_library_symbols(embedded=False),
+        )
     )
     return f"""(kicad_symbol_lib
   (version 20251024)
@@ -1600,10 +1699,29 @@ def render_pcbs_kicad_symbol_library() -> str:
 
 
 def render_pcbs_kicad_embedded_symbols() -> tuple[str, ...]:
-    return tuple(
-        _render_library_symbol(spec, embedded=True)
-        for spec in NATIVE_SYMBOL_SPECS.values()
+    return (
+        *(
+            _render_library_symbol(spec, embedded=True)
+            for spec in NATIVE_SYMBOL_SPECS.values()
+            if not spec.source_symbol_id.startswith("canonical:")
+        ),
+        *_canonical_library_symbols(embedded=True),
     )
+
+
+def _canonical_library_symbols(*, embedded: bool) -> tuple[str, ...]:
+    root = parse_sexpr(PCBSMITH_CANONICAL_SYMBOL_RESOURCE.read_text(encoding="utf-8"))
+    symbols: list[str] = []
+    for child in root:
+        if not isinstance(child, list) or not child or child[0] != "symbol":
+            continue
+        symbol = deepcopy(child)
+        if embedded:
+            name = symbol[1]
+            assert isinstance(name, QuotedString)
+            name.value = f"{PCBSMITH_LIBRARY_NAME}:{name.value}"
+        symbols.append(serialize_sexpr(symbol))
+    return tuple(symbols)
 
 
 def _render_library_symbol(spec: NativeSymbolSpec, *, embedded: bool) -> str:
@@ -1707,6 +1825,8 @@ def _render_two_pin_box_library_symbol(
     (exclude_from_sim no)
     (in_bom yes)
     (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
     {_render_symbol_property("Reference", reference, 0, -2_540_000)}
     {_render_symbol_property("Value", value, 0, 2_540_000)}
     {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
@@ -1751,6 +1871,7 @@ def _render_two_pin_box_library_symbol(
         )
       )
     )
+    (embedded_fonts no)
   )"""
 
 
@@ -1775,6 +1896,8 @@ def _render_power_library_symbol(
     (exclude_from_sim no)
     (in_bom yes)
     (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
     {_render_symbol_property("Reference", "#PWR", 0, -3_810_000, hidden=True)}
     {_render_symbol_property("Value", value, 0, value_y_nm)}
     {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
@@ -1801,6 +1924,7 @@ def _render_power_library_symbol(
         )
       )
     )
+    (embedded_fonts no)
   )"""
 
 
@@ -1815,6 +1939,8 @@ def _render_ne555_library_symbol(name: str, description: str) -> str:
     (exclude_from_sim no)
     (in_bom yes)
     (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
     {_render_symbol_property("Reference", "U", 0, -10_160_000)}
     {_render_symbol_property("Value", "NE555", 0, 10_160_000)}
     {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
@@ -1843,6 +1969,7 @@ def _render_ne555_library_symbol(name: str, description: str) -> str:
 {_ne555_pin("7", "DISCH", 7.62, 2.54, 180)}
 {_ne555_pin("8", "VCC", 7.62, 5.08, 180)}
     )
+    (embedded_fonts no)
   )"""
 
 
@@ -1857,6 +1984,8 @@ def _render_lm2596_library_symbol(name: str, description: str) -> str:
     (exclude_from_sim no)
     (in_bom yes)
     (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
     {_render_symbol_property("Reference", "U", 0, -8_890_000)}
     {_render_symbol_property("Value", "LM2596-ADJ", 0, 8_890_000)}
     {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
@@ -1876,12 +2005,13 @@ def _render_lm2596_library_symbol(name: str, description: str) -> str:
       )
     )
     (symbol "LM2596_ADJ_1_1"
-{_ne555_pin("1", "VIN", -7.62, -5.08, 0)}
+{_ne555_pin("1", "VIN", -7.62, 5.08, 0)}
 {_ne555_pin("2", "SW", 7.62, 5.08, 180)}
 {_ne555_pin("3", "GND", -7.62, 0, 0)}
 {_ne555_pin("4", "FB", 7.62, 0, 180)}
-{_ne555_pin("5", "ON/OFF", -7.62, 5.08, 0)}
+{_ne555_pin("5", "ON/OFF", -7.62, -5.08, 0)}
     )
+    (embedded_fonts no)
   )"""
 
 
@@ -1896,6 +2026,8 @@ def _render_pot_library_symbol(name: str, description: str) -> str:
     (exclude_from_sim no)
     (in_bom yes)
     (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
     {_render_symbol_property("Reference", "RV", 0, -6_350_000)}
     {_render_symbol_property("Value", "POT", 0, 5_080_000)}
     {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
@@ -1937,6 +2069,7 @@ def _render_pot_library_symbol(name: str, description: str) -> str:
 {_generic_pin("2", "W", 0, 5.08, 90)}
 {_generic_pin("3", "B", 5.08, 0, 180)}
     )
+    (embedded_fonts no)
   )"""
 
 
@@ -1951,6 +2084,8 @@ def _render_nmos_library_symbol(name: str, description: str) -> str:
     (exclude_from_sim no)
     (in_bom yes)
     (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
     {_render_symbol_property("Reference", "Q", 0, -6_350_000)}
     {_render_symbol_property("Value", "NMOS", 0, 6_350_000)}
     {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
@@ -2006,6 +2141,7 @@ def _render_nmos_library_symbol(name: str, description: str) -> str:
 {_generic_pin("2", "D", 5.08, 0, 180)}
 {_generic_pin("3", "S", 0, -5.08, 270)}
     )
+    (embedded_fonts no)
   )"""
 
 
@@ -2020,6 +2156,8 @@ def _render_connector_01x02_library_symbol(name: str, description: str) -> str:
     (exclude_from_sim no)
     (in_bom yes)
     (on_board yes)
+    (in_pos_files yes)
+    (duplicate_pin_numbers_are_jumpers no)
     {_render_symbol_property("Reference", "J", 3_810_000, -2_540_000)}
     {_render_symbol_property("Value", "Conn_01x02", 3_810_000, 5_080_000)}
     {_render_symbol_property("Footprint", "", 0, 0, hidden=True)}
@@ -2042,6 +2180,7 @@ def _render_connector_01x02_library_symbol(name: str, description: str) -> str:
 {_generic_pin("1", "Pin_1", 0, 0, 0)}
 {_generic_pin("2", "Pin_2", 0, -2.54, 0)}
     )
+    (embedded_fonts no)
   )"""
 
 

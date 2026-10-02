@@ -49,8 +49,9 @@ def test_schematic_anchors_apply_symbol_rotation_and_mirroring() -> None:
     anchors = schematic_anchors(schematic, SYMBOLS)
 
     assert [(anchor.id, anchor.position) for anchor in anchors] == [
-        ("D1.1", Point(x=0, y=mm_to_nm(5.08))),
-        ("D1.2", Point(x=0, y=-mm_to_nm(5.08))),
+        # Internal v1 preserves the editor's horizontal reflection after rotation.
+        ("D1.1", Point(x=0, y=-mm_to_nm(5.08))),
+        ("D1.2", Point(x=0, y=mm_to_nm(5.08))),
     ]
 
 

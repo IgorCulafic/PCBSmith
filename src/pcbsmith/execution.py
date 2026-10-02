@@ -154,6 +154,11 @@ class VerificationOrchestrator:
     ) -> VerificationRun:
         run_dir = output_dir.resolve()
         run_dir.mkdir(parents=True, exist_ok=True)
+        for retained in ("progress.jsonl", "checkpoint.json", "verification-run.json", "logs"):
+            if (run_dir / retained).exists():
+                raise ValueError(
+                    "Verification output already contains a run; choose a new directory"
+                )
         progress_file = run_dir / "progress.jsonl"
         progress_file.write_text("", encoding="utf-8")
 
@@ -236,6 +241,8 @@ class SubprocessGateRunner:
         profile: ExecutionProfile,
         output_dir: Path,
         emit: Callable[[str, Mapping[str, object]], None],
+        stop_requested: Callable[[], str | None] | None = None,
+        require_tree_limit: bool = False,
     ) -> GateExecutionResult:
         executable = _resolve_executable(gate.command[0])
         command = (executable, *gate.command[1:]) if executable is not None else gate.command
@@ -259,6 +266,8 @@ class SubprocessGateRunner:
         timeout = gate.timeout_seconds or profile.default_gate_timeout_seconds
         start = time.monotonic()
         limiter: _ProcessLimiter | None = None
+        process: subprocess.Popen[str] | None = None
+        cleanup_deadline: float | None = None
         termination: TerminationKind = "failed"
         returncode: int | None = None
         findings: list[str] = []
@@ -267,6 +276,9 @@ class SubprocessGateRunner:
                 stdout_path.open("w", encoding="utf-8") as stdout_handle,
                 stderr_path.open("w", encoding="utf-8") as stderr_handle,
             ):
+                reason = None if stop_requested is None else stop_requested()
+                if reason:
+                    raise OSError("Job stopped before process launch: " + reason)
                 process, limiter = _spawn_limited_process(
                     command,
                     cwd=Path.cwd(),
@@ -275,9 +287,18 @@ class SubprocessGateRunner:
                     stderr=stderr_handle,
                     memory_limit_bytes=profile.memory_limit_mb * 1024 * 1024,
                 )
+                if require_tree_limit and (limiter is None or not limiter.enforced):
+                    raise OSError("Required process-tree limit could not be installed")
+                emit("process_started", {"pid": process.pid})
                 next_heartbeat = start + profile.heartbeat_seconds
                 while process.poll() is None:
                     now = time.monotonic()
+                    reason = None if stop_requested is None else stop_requested()
+                    if reason:
+                        termination = "interrupted"
+                        findings.append(reason)
+                        _terminate_process_tree(process, limiter)
+                        break
                     if now - start >= timeout:
                         termination = "timeout"
                         findings.append(f"Gate exceeded its {timeout:g} second wall-time limit.")
@@ -293,8 +314,9 @@ class SubprocessGateRunner:
                         )
                         next_heartbeat = now + profile.heartbeat_seconds
                     time.sleep(min(0.2, profile.heartbeat_seconds / 4))
-                returncode = process.wait()
-                if termination != "timeout":
+                cleanup_deadline = time.monotonic() + 30
+                returncode = process.wait(timeout=30)
+                if termination not in {"timeout", "interrupted"}:
                     if returncode == 0:
                         termination = "passed"
                     elif limiter is not None and limiter.memory_limit_likely_exceeded():
@@ -308,7 +330,19 @@ class SubprocessGateRunner:
         except OSError as exc:
             termination = "unavailable"
             findings.append(f"Gate could not start: {exc}")
+        except subprocess.TimeoutExpired:
+            termination = "timeout"
+            findings.append("Child did not exit within the 30-second cleanup allowance.")
         finally:
+            if process is not None and (process.poll() is None or require_tree_limit):
+                _terminate_process_tree(process, limiter)
+                try:
+                    if cleanup_deadline is None:
+                        cleanup_deadline = time.monotonic() + 30
+                    process.wait(timeout=max(0, cleanup_deadline - time.monotonic()))
+                except subprocess.TimeoutExpired:
+                    termination = "timeout"
+                    findings.append("Process cleanup remains incomplete.")
             peak = None if limiter is None else limiter.peak_memory_bytes()
             enforced = limiter is not None and limiter.enforced
             if limiter is not None:
@@ -374,54 +408,96 @@ def standard_verification_gates(
     *,
     profile_name: Literal["quick", "standard", "deep"],
     python_executable: str | None = None,
+    output_dir: Path | None = None,
 ) -> tuple[VerificationGate, ...]:
+    """The shared CLI/local/CI gate matrix; output paths stay inside this run."""
     python = python_executable or sys.executable
+    repository = Path(__file__).resolve().parents[2]
     common = (
         VerificationGate(gate_id="lock", command=("uv", "lock", "--check")),
         VerificationGate(
             gate_id="ruff",
-            command=(python, "-m", "ruff", "check", "src", "tests", "tools"),
+            command=(python, "-B", "-m", "ruff", "check", "--no-cache", "src", "tests", "tools"),
+        ),
+        VerificationGate(
+            gate_id="board-workflow-audit",
+            command=(python, "-B", str(repository / "tools/audit_board_workflow.py"))
+            + (("--output", str(output_dir / "board-workflow-audit.json")) if output_dir else ()),
         ),
         VerificationGate(
             gate_id="mypy",
-            command=(python, "-m", "mypy", "src/pcbsmith"),
+            command=(python, "-B", "-m", "mypy", "src/pcbsmith")
+            + (("--cache-dir", str(output_dir / "mypy-cache")) if output_dir else ()),
+        ),
+        VerificationGate(
+            gate_id="imports",
+            command=(
+                python,
+                "-B",
+                "-c",
+                "from importlinter.cli import lint_imports; lint_imports()",
+                "--config",
+                "pyproject.toml",
+                "--no-cache",
+            ),
         ),
     )
-    pytest_base = (
-        python,
-        "-m",
-        "pytest",
-        "-q",
-        "-p",
-        "no:cacheprovider",
-        "-W",
-        "error",
-    )
-    if profile_name == "quick":
-        tests = (
+    # Development verification requires the checkout, as do lint and type checks.
+    worker = Path(__file__).resolve().parents[2] / "tools" / "verify.py"
+    pytest_base: tuple[str, ...] = (python, "-B", str(worker), "--pytest-worker", "-q")
+    if output_dir:
+        pytest_base += (
+            "--basetemp",
+            str(output_dir / "pytest"),
+            "--junitxml",
+            str(output_dir / "tests.xml"),
+        )
+    tests = (
+        (
             "tests/unit/evidence",
             "tests/unit/review",
             "tests/unit/kicad/test_model_preflight.py",
             "tests/unit/kicad/test_raster_artwork.py",
             "tests/unit/kicad/test_asset_install.py",
             "tests/unit/test_execution.py",
+            "tests/unit/test_board_job.py",
+            "tests/unit/test_board_job_diagnostic.py",
+            "tests/unit/test_board_job_continuation.py",
+            "tests/unit/test_readiness_preflight.py",
+            "tests/unit/test_board_revision.py",
+            "tests/unit/test_board_revision_completion.py",
+            "tests/unit/test_local_routing_repair.py",
+            "tests/unit/kicad/test_native_zone_edits.py",
+            "tests/unit/kicad/test_final_fill_adapter.py",
+            "tests/unit/test_board_rebuild.py",
+            "tests/unit/test_workflow_entrypoint_audit.py",
+            "tests/unit/kicad/test_native_edits.py",
         )
-        return (
-            *common,
-            VerificationGate(
-                gate_id="pytest-focused",
-                command=(*pytest_base, *tests),
-                environment={"PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"},
-            ),
+        if profile_name == "quick"
+        else ("tests",)
+    )
+    environment = {
+        "PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1",
+        "PYTHONDONTWRITEBYTECODE": "1",
+        "QT_QPA_PLATFORM": "offscreen",
+        "PCBSMITH_GOLDEN": "1" if profile_name == "deep" else "",
+    }
+    environment.update({
+        name: '1' if profile_name == 'deep' else ''
+        for name in (
+            'PCBSMITH_R2_KICAD_GOLDEN', 'PCBSMITH_R4_KICAD_GOLDEN',
+            'PCBSMITH_R5_KICAD_GOLDEN', 'PCBSMITH_PWLED_MICRO_KICAD_GOLDEN',
         )
-    environment = {"PYTEST_DISABLE_PLUGIN_AUTOLOAD": "1"}
-    if profile_name == "deep":
-        environment["PCBSMITH_GOLDEN"] = "1"
+    })
+    if output_dir:
+        environment["HYPOTHESIS_STORAGE_DIRECTORY"] = str(output_dir / "hypothesis")
     return (
         *common,
         VerificationGate(
-            gate_id="pytest-full" if profile_name == "standard" else "pytest-deep",
-            command=pytest_base,
+            gate_id={"quick": "pytest-focused", "standard": "pytest-full", "deep": "pytest-deep"}[
+                profile_name
+            ],
+            command=(*pytest_base, *tests),
             environment=environment,
         ),
     )
@@ -554,6 +630,26 @@ class _WindowsJobLimiter:
 
     def __init__(self, process: subprocess.Popen[str], limit_bytes: int) -> None:
         kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        # ctypes otherwise assumes 32-bit integer handles, truncating HANDLE
+        # values on 64-bit Windows and silently disabling the job limit.
+        signatures = {
+            "CreateJobObjectW": ([ctypes.c_void_p, ctypes.c_wchar_p], ctypes.c_void_p),
+            "SetInformationJobObject": (
+                [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32],
+                ctypes.c_int,
+            ),
+            "AssignProcessToJobObject": ([ctypes.c_void_p, ctypes.c_void_p], ctypes.c_int),
+            "TerminateJobObject": ([ctypes.c_void_p, ctypes.c_uint32], ctypes.c_int),
+            "QueryInformationJobObject": (
+                [ctypes.c_void_p, ctypes.c_int, ctypes.c_void_p, ctypes.c_uint32, ctypes.c_void_p],
+                ctypes.c_int,
+            ),
+            "CloseHandle": ([ctypes.c_void_p], ctypes.c_int),
+        }
+        for name, (arguments, result) in signatures.items():
+            function = getattr(kernel32, name)
+            function.argtypes = arguments
+            function.restype = result
         self._kernel32 = kernel32
         self._limit_bytes = limit_bytes
         self._handle = kernel32.CreateJobObjectW(None, None)

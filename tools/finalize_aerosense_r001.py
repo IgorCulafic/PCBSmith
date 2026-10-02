@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import csv
 import json
 import shutil
 import subprocess
@@ -135,11 +134,7 @@ def _model_registry(board: Path) -> tuple[ModelRegistryEntry, ...]:
                 if proxy
                 else "KiCad_official_library_local_install"
             ),
-            source_url=(
-                None
-                if proxy
-                else "https://gitlab.com/kicad/libraries/kicad-packages3D"
-            ),
+            source_url=(None if proxy else "https://gitlab.com/kicad/libraries/kicad-packages3D"),
             redistributable=proxy,
         )
     return tuple(entries.values())
@@ -411,12 +406,8 @@ def _unverified_current_path(
 ) -> CurrentPathRecord:
     coverages: list[CurrentPathCoverage] = []
     for kind in CurrentPathElementKind:
-        not_applicable = (
-            kind is CurrentPathElementKind.ZONE_OR_PLANE
-            or (
-                kind is CurrentPathElementKind.PARALLEL_SHARING
-                and not parallel_sharing_applicable
-            )
+        not_applicable = kind is CurrentPathElementKind.ZONE_OR_PLANE or (
+            kind is CurrentPathElementKind.PARALLEL_SHARING and not parallel_sharing_applicable
         )
         coverages.append(
             CurrentPathCoverage(
@@ -453,11 +444,11 @@ def _manufacturing_package() -> dict[str, object]:
     manufacturing.mkdir(parents=True, exist_ok=True)
     raw = manufacturing / "neutral-source"
     package = manufacturing / "release-package"
-    for target in (raw, package):
-        if target.exists():
-            shutil.rmtree(target)
-    archive = package.with_suffix(".zip")
-    archive.unlink(missing_ok=True)
+    if any(
+        path.exists()
+        for path in (raw, package, Path(str(package) + ".zip"), manufacturing / "interactive-bom")
+    ):
+        raise ValueError("manufacturing outputs already exist; preserve them and use a new attempt")
 
     ibom_evidence = inspect_version_pinned_tool(
         tool_id="interactive-html-bom",
@@ -486,8 +477,8 @@ def _manufacturing_package() -> dict[str, object]:
         interactive_bom_file=ibom,
         kicad_cli=KICAD_CLI,
         kicad_version="10.0.3",
+        bom_metadata=_manufacturer_bom_metadata(BOARD),
     )
-    _enrich_manufacturer_bom(raw / "bom.csv")
     drc_report = DESIGN / ".pcbsmith" / "kicad" / "drc.json"
     dfm_dft = evaluate_baseline_dfm_dft(
         board_file=BOARD,
@@ -551,48 +542,27 @@ def _manufacturing_package() -> dict[str, object]:
     }
 
 
-def _enrich_manufacturer_bom(bom_file: Path) -> None:
+def _manufacturer_bom_metadata(board_file: Path) -> dict[str, dict[str, str]]:
+    """Supply enrichment before the export receipt seals the BOM bytes."""
+    from pcbsmith.manufacturing_lineage import saved_assembly_rows
+
     selection = json.loads(
         (PROJECT / "intake" / "exact-part-selection.json").read_text(encoding="utf-8")
     )
-    selected: dict[str, dict[str, object]] = {}
-    for part in selection["parts"]:
-        for reference in part["references"]:
-            selected[reference] = part
-    with bom_file.open("r", encoding="utf-8", newline="") as handle:
-        rows = tuple(csv.DictReader(handle))
-    with bom_file.open("w", encoding="utf-8", newline="") as handle:
-        fieldnames = (
-            "Ref",
-            "Value",
-            "Footprint",
-            "Manufacturer",
-            "MPN",
-            "Lifecycle",
-            "SelectionStatus",
-            "Authority",
-            "StableId",
-        )
-        writer = csv.DictWriter(handle, fieldnames=fieldnames)
-        writer.writeheader()
-        for row in rows:
-            reference = row["Ref"]
-            part = selected.get(reference)
-            non_assembled = reference.startswith(("H", "TP"))
-            writer.writerow(
-                {
-                    **row,
-                    "Manufacturer": "" if part is None else part["manufacturer"],
-                    "MPN": "" if part is None else part["mpn"],
-                    "Lifecycle": "" if part is None else part["lifecycle"],
-                    "SelectionStatus": (
-                        "not_assembled_pcb_feature"
-                        if non_assembled
-                        else ("exact_selected" if part is not None else "specification_only")
-                    ),
-                    "Authority": "" if part is None else part["authority"],
-                }
-            )
+    selected = {reference: part for part in selection["parts"] for reference in part["references"]}
+    result: dict[str, dict[str, str]] = {}
+    for row in saved_assembly_rows(board_file):
+        if not row.in_bom:
+            continue
+        part = selected.get(row.reference, {})
+        result[row.reference] = {
+            "Manufacturer": str(part.get("manufacturer") or ""),
+            "MPN": str(part.get("mpn") or ""),
+            "Lifecycle": str(part.get("lifecycle") or ""),
+            "SelectionStatus": "exact_selected" if part else "specification_only",
+            "Authority": str(part.get("authority") or ""),
+        }
+    return result
 
 
 def main() -> int:

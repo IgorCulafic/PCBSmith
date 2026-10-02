@@ -1,0 +1,9 @@
+# Finite Freerouting production bridge — 2026-09-12
+
+User explicitly requested the installed autorouter after the native A* stagnation diagnostic. A separately timed platform scope connected registered Freerouting 2.3.0 to the existing saved-placement candidate transaction. It retains pinned JAR/DSN/SES inputs, maps single-sided rectangular rules, disables neckdown/fanout, and enforces owned process time/pass limits. Native expansion limits remain the default; an explicit external budget declares no expansion accounting and cannot be consumed by the native router. External completion requires an independent native-check callback and does not bypass final transaction validation.
+
+The same-root continuation owner now permits one explicit fourth routing invocation to switch a native-only predecessor to pinned Freerouting. It verifies the completed diagnostic, new user decision, exact configuration and runtime, and the actual command. Historical stop/evidence/counters are preserved; no extra correction cycles or automatic renewal.
+
+57 affected/new tests passed, five source files passed focused mypy, and 208 workflow callers passed classification audit. Evidence: `outputs/freerouting-production-bridge-2026-09-12`. This is scoped software coverage, not final live production acceptance.
+
+The live CircleBlink run executed Freerouting successfully and retained 53 F.Cu tracks, 0 vias, 0.8 mm signals, 1.2 mm power/ground. Freerouting and independent KiCad agree on five opens. Native DRC violations and schematic parity issues are zero. Exact immutable readback also rejected tiny imported annotation-coordinate differences; that remaining integration issue is distinct from the unresolved electrical routes. The transaction is rejected and no final manufacturing approval exists. One bounded diagnostic was completed, with no further routing loop. See the board README and `freerouting-2026-09-12` evidence. Do not describe this as a passed fresh-board proof.

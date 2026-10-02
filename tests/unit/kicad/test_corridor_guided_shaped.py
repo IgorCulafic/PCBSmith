@@ -40,14 +40,14 @@ OUTLINE = (
     (6.0, 10.0),
     (0.0, 10.0),
 )
-EXPECTED_GRAPH_FINGERPRINT = "8a6e6749acba33d8c139c3deac1eb2413c28df0b2a2194956ab9d40e358e9740"
-EXPECTED_PLAN_FINGERPRINT = "56871d128305dfc53955fababd0555258d2f5d642fbb7cc7811f86675839b446"
-EXPECTED_PLAN_PASS_FINGERPRINT = "4fc1076fecca0a072e544f45d55b0b9c0d387812c651dbafeddf0b92a29202fc"
+EXPECTED_GRAPH_FINGERPRINT = "c93b13341d47a359da6e0bc9904274c73809c328dd414d55ec5de2a0494aeada"
+EXPECTED_PLAN_FINGERPRINT = "cdd76cfea5d2d9ca2c3be55a8bb391e2748c16c8fbfc32bf9e4fe481f4c11f49"
+EXPECTED_PLAN_PASS_FINGERPRINT = "e3b43852c9c294a734ded4f02b445798dc5de66f8b735e9b5d2f5374d5249b5e"
 EXPECTED_PROJECTED_GUIDE_FINGERPRINT = (
-    "1c88a0f729d602e34580218313bd81ba6aba8f9b5cd43753b196fe0f6dd408fa"
+    "a8b166ea5e20b46504e63208877e211a68d9cc7f6547e2cb506f111387aed6ed"
 )
 EXPECTED_GUIDANCE_REPORT_FINGERPRINT = (
-    "fb7c790aec4571e208872af9b7679938b5eaf8e94cf5310c3446fb09518165c7"
+    "d183980fcdfdadc1f54a5561d1aa9b6fd9854113f3eac1ee73a762eb4339a86c"
 )
 EXPECTED_ROUTING_RUN_FINGERPRINT = (
     "ab558b43e41c8750fc63da33fd65f5d64c6cc10e7c7472309fe60e6a0dbba65e"
@@ -184,7 +184,7 @@ def test_real_shaped_corridor_plan_guides_detailed_route_deterministically(
     assert plan.semantic_fingerprint() == EXPECTED_PLAN_FINGERPRINT
     assert len(plan.passes) == 1
     assert plan.passes[0].semantic_fingerprint() == EXPECTED_PLAN_PASS_FINGERPRINT
-    assert plan.passes[0].expansion_count == 29
+    assert plan.passes[0].expansion_count == 22
 
     coarse_guide = build_corridor_route_guide(
         first_build.graph,

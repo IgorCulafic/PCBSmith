@@ -196,7 +196,7 @@ def test_save_project_reports_project_io_errors(monkeypatch, tmp_path, qtbot) ->
     errors: list[str] = []
     window.show_error = errors.append  # type: ignore[method-assign]
 
-    def fail_save_schematic(project_dir, relative_path, schematic):  # type: ignore[no-untyped-def]
+    def fail_save_schematic(project_dir, relative_path, schematic, **kwargs):  # type: ignore[no-untyped-def]
         raise ProjectIOError("save failed")
 
     monkeypatch.setattr(project_io, "save_schematic", fail_save_schematic)
@@ -219,7 +219,7 @@ def test_save_project_reports_missing_schematic_list(qtbot) -> None:  # type: ig
     assert errors == ["No schematic is open"]
 
 
-def test_save_project_uses_opened_schematic_path(tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
+def test_save_project_refuses_externally_changed_manifest(tmp_path, qtbot) -> None:  # type: ignore[no-untyped-def]
     project_dir = tmp_path / "demo"
     project_io.create_project(project_dir, "Demo")
 
@@ -233,15 +233,18 @@ def test_save_project_uses_opened_schematic_path(tmp_path, qtbot) -> None:  # ty
         project_dir,
         Project(name="Demo", schematics=("schematics/other.sch.json",)),
     )
-
-    window.save_project()
+    errors = []
+    window.show_error = errors.append
+    assert not window.save_project()
+    assert window.is_dirty
+    assert "changed since" in errors[0]
 
     opened_schematic = project_io.load_schematic(project_dir, "schematics/main.sch.json")
     changed_manifest_schematic = project_io.load_schematic(
         project_dir,
         "schematics/other.sch.json",
     )
-    assert [symbol.reference for symbol in opened_schematic.symbols] == ["R1"]
+    assert opened_schematic.symbols == ()
     assert changed_manifest_schematic.symbols == ()
 
 

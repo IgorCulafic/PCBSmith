@@ -107,6 +107,11 @@ from pcbsmith.generation.thermometer import (
     compose_thermometer,
     write_thermometer_project,
 )
+from pcbsmith.iterative_fixing_ir import (
+    ChangeImpactBudget,
+    FindingObservation,
+    generate_dry_run_impact_report,
+)
 from pcbsmith.kicad.asset_install import (
     KiCadAssetInstallRequest,
     install_kicad_asset,
@@ -164,6 +169,7 @@ from pcbsmith.kicad.thermometer_board import (
 )
 from pcbsmith.kicad.validate import export_schematic_svg, run_kicad_drc, run_kicad_erc
 from pcbsmith.kicad.virtual_drc import run_virtual_drc
+from pcbsmith.pre_route_integrity import PreRouteIntegrityEvidence
 from pcbsmith.production_generators import (
     GENERATOR_REGISTRY,
     audit_generator_registry,
@@ -285,6 +291,14 @@ def _cmd_new(args: argparse.Namespace) -> int:
         raise ValueError(f"Project target already exists: {project_dir}")
     project = create_project(project_dir, args.name)
     print(f"Created project '{project.name}' at {project_dir}")
+    return 0
+
+
+def _cmd_recover(args: argparse.Namespace) -> int:
+    from pcbsmith.operations.project_io import recover_project
+
+    recovered = recover_project(Path(args.project))
+    print("Recovered interrupted project edit" if recovered else "No interrupted edit found")
     return 0
 
 
@@ -2569,13 +2583,46 @@ def _cmd_model_preflight(args: argparse.Namespace) -> int:
         Path(args.board),
         registry=tuple(ModelRegistryEntry.model_validate(item) for item in registry_payload),
         requirements=tuple(ModelRequirement.model_validate(item) for item in requirement_payload),
+        applicability=args.model_applicability,
+        applicability_rationale=args.model_applicability_rationale,
     )
     rendered = json.dumps(report.model_dump(mode="json", by_alias=True), indent=2) + "\n"
     if args.output:
         Path(args.output).write_text(rendered, encoding="utf-8")
     else:
         print(rendered, end="")
-    return 0 if report.status != "failed" else 1
+    return 0 if report.status in {"passed", "not_applicable"} else 1
+
+
+def _cmd_asset_resolve(args: argparse.Namespace) -> int:
+    from pcbsmith.kicad.asset_resolution import AssetPin, resolve_or_acquire_asset
+
+    pin = AssetPin.model_validate_json(Path(args.request).read_text("utf-8"))
+    intake = (
+        SourceIntakeRequest.model_validate_json(Path(args.intake).read_text("utf-8"))
+        if args.intake
+        else None
+    )
+    service = (
+        SourceIntakeService(
+            private_manifest_path=Path(args.private_manifest),
+            public_manifest_path=Path(args.public_manifest),
+            cache_dir=Path(args.cache_dir),
+            downloader=_source_intake_downloader(args),
+            clock=_utc_timestamp,
+        )
+        if intake
+        else None
+    )
+    record = resolve_or_acquire_asset(
+        pin,
+        repository_root=Path(args.repository_root),
+        private_asset_root=Path(args.private_asset_root),
+        intake=intake,
+        service=service,
+    )
+    print(json.dumps(record, indent=2))
+    return 0
 
 
 def _cmd_asset_install(args: argparse.Namespace) -> int:
@@ -2592,6 +2639,15 @@ def _cmd_asset_install(args: argparse.Namespace) -> int:
 
 
 def _cmd_visual_review(args: argparse.Namespace) -> int:
+    if args.stage == "final":
+        from pcbsmith.mandatory_review import require_current_native_checks
+
+        checks = getattr(args, "native_checks", None)
+        if not checks:
+            raise ValueError(
+                "Final visual review requires --native-checks with current ERC/DRC receipts"
+            )
+        require_current_native_checks(Path(args.board), Path(checks))
     features = ReviewFeatures.model_validate_json(Path(args.features).read_text("utf-8"))
     preflight = ModelPreflightReport.model_validate_json(
         Path(args.model_preflight).read_text("utf-8")
@@ -2607,6 +2663,21 @@ def _cmd_visual_review(args: argparse.Namespace) -> int:
     )
     print(json.dumps(manifest.model_dump(mode="json", by_alias=True), indent=2))
     return 0 if manifest.package_status != "generation_failed" else 1
+
+
+def _cmd_visual_complete_diagnostics(args: argparse.Namespace) -> int:
+    from pcbsmith.review.visual_package import complete_retained_diagnostics
+
+    result = complete_retained_diagnostics(
+        Path(args.manifest),
+        Path(args.output),
+        features=ReviewFeatures.model_validate_json(Path(args.features).read_bytes()),
+        model_preflight=ModelPreflightReport.model_validate_json(
+            Path(args.model_preflight).read_bytes()
+        ),
+    )
+    print(result.model_dump_json(indent=2))
+    return 0 if result.package_status != "generation_failed" else 1
 
 
 def _cmd_schematic_review_package(args: argparse.Namespace) -> int:
@@ -2653,6 +2724,11 @@ def _cmd_component_review_execute(args: argparse.Namespace) -> int:
 
 def _cmd_visual_inspect(args: argparse.Namespace) -> int:
     payload = json.loads(Path(args.decisions).read_text("utf-8"))
+    source_manifest = VisualReviewManifest.model_validate_json(Path(args.manifest).read_bytes())
+    identities = {a.artifact_id: a.sha256 for a in source_manifest.artifacts}
+    for key, decision in payload.items():
+        if key not in identities or decision.get("sha256") != identities[key]:
+            raise ValueError("inspection decision must name the exact viewed artifact hash")
     decisions = {
         artifact_id: (item["inspection"], tuple(item.get("findings", ())))
         for artifact_id, item in payload.items()
@@ -2685,6 +2761,34 @@ def _cmd_workflow_examine(args: argparse.Namespace) -> int:
     return 0 if examination.outcome == "ready_for_concept" else 1
 
 
+def _cmd_production_generate_board(args: argparse.Namespace) -> int:
+    from pcbsmith.board_rebuild import RebuildDecision
+    from pcbsmith.production_generators import generate_registered_board_candidate
+    from pcbsmith.production_readiness import PredesignReadinessBundle
+
+    bundle = PredesignReadinessBundle.model_validate_json(Path(args.predesign).read_bytes())
+    options = (
+        {} if args.builder_options is None else json.loads(Path(args.builder_options).read_text())
+    )
+    if not isinstance(options, dict):
+        raise ValueError("builder options must be a JSON object")
+    board = generate_registered_board_candidate(
+        generator_id=args.generator_id,
+        schematic_file=Path(args.schematic),
+        output_directory=Path(args.output_directory),
+        predesign=bundle,
+        artifact_root=Path(args.predesign_artifacts),
+        builder_options=options,
+        rebuild_decision=RebuildDecision.model_validate_json(
+            Path(args.rebuild_decision).read_bytes()
+        )
+        if args.rebuild_decision
+        else None,
+    )
+    print(json.dumps({"status": "candidate_generated", "board": str(board)}, indent=2))
+    return 0
+
+
 def _cmd_production_generator_audit(_args: argparse.Namespace) -> int:
     audit = audit_generator_registry(Path(__file__).parent / "kicad")
     payload = {
@@ -2710,9 +2814,7 @@ def _load_production_support_payloads(entries: list[str]) -> dict[str, bytes]:
     for entry in entries:
         source_text, separator, relative_path = entry.partition("=")
         if not separator or not source_text or not relative_path:
-            raise ValueError(
-                "production support files require SOURCE=GENERATION_RELATIVE_PATH"
-            )
+            raise ValueError("production support files require SOURCE=GENERATION_RELATIVE_PATH")
         if relative_path in payloads:
             raise ValueError(f"duplicate production support destination: {relative_path}")
         source = Path(source_text)
@@ -2729,7 +2831,23 @@ def _cmd_production_placement_review(args: argparse.Namespace) -> int:
         Path(args.model_preflight).read_text("utf-8")
     )
 
+    from pcbsmith.production_readiness import PublicationReadinessRequest
+
+    readiness = PublicationReadinessRequest.model_validate_json(
+        Path(args.readiness_request).read_bytes()
+    )
+    if readiness.model_preflight != preflight:
+        raise ValueError("render and readiness must use the same exact model preflight")
+
     def generate(board_file: Path, output_dir: Path) -> VisualReviewManifest:
+        if getattr(args, "review_manifest", None):
+            from pcbsmith.review.visual_package import retain_visual_review_package
+
+            return retain_visual_review_package(
+                source_manifest=Path(args.review_manifest),
+                board_file=board_file,
+                output_dir=output_dir,
+            )
         return generate_visual_review_package(
             board_file=board_file,
             output_dir=output_dir,
@@ -2742,6 +2860,8 @@ def _cmd_production_placement_review(args: argparse.Namespace) -> int:
 
     result = persist_registered_placement_candidate(
         generator_id=args.generator_id,
+        readiness_request=readiness,
+        readiness_artifact_root=Path(args.readiness_artifacts),
         transaction_root=Path(args.transaction_root),
         project_id=args.project_id,
         generation_id=args.generation_id,
@@ -2762,13 +2882,37 @@ def _cmd_production_placement_review(args: argparse.Namespace) -> int:
 
 
 def _cmd_production_routed_review(args: argparse.Namespace) -> int:
+    from pcbsmith.routing_revision import (
+        RevisionPublicationAuthority,
+        parse_routing_publication_proof,
+    )
+
     board = Path(args.board)
     features = ReviewFeatures.model_validate_json(Path(args.features).read_text("utf-8"))
     preflight = ModelPreflightReport.model_validate_json(
         Path(args.model_preflight).read_text("utf-8")
     )
+    routing_execution = parse_routing_publication_proof(
+        Path(args.routing_execution).read_text("utf-8")
+    )
+
+    from pcbsmith.production_readiness import PublicationReadinessRequest
+
+    readiness = PublicationReadinessRequest.model_validate_json(
+        Path(args.readiness_request).read_bytes()
+    )
+    if readiness.model_preflight != preflight:
+        raise ValueError("render and readiness must use the same exact model preflight")
 
     def generate(board_file: Path, output_dir: Path) -> VisualReviewManifest:
+        if getattr(args, "review_manifest", None):
+            from pcbsmith.review.visual_package import retain_visual_review_package
+
+            return retain_visual_review_package(
+                source_manifest=Path(args.review_manifest),
+                board_file=board_file,
+                output_dir=output_dir,
+            )
         return generate_visual_review_package(
             board_file=board_file,
             output_dir=output_dir,
@@ -2781,6 +2925,8 @@ def _cmd_production_routed_review(args: argparse.Namespace) -> int:
 
     result = persist_registered_routed_candidate(
         generator_id=args.generator_id,
+        readiness_request=readiness,
+        readiness_artifact_root=Path(args.readiness_artifacts),
         transaction_root=Path(args.transaction_root),
         project_id=args.project_id,
         generation_id=args.generation_id,
@@ -2794,6 +2940,12 @@ def _cmd_production_routed_review(args: argparse.Namespace) -> int:
             schematic_parity=not args.no_schematic_parity,
         ),
         support_payloads=_load_production_support_payloads(args.support_file),
+        routing_execution=routing_execution,
+        revision_authority=None
+        if args.revision_authority is None
+        else RevisionPublicationAuthority.model_validate_json(
+            Path(args.revision_authority).read_bytes()
+        ),
     )
     rendered = json.dumps(result.model_dump(mode="json"), indent=2) + "\n"
     if args.output:
@@ -2819,7 +2971,11 @@ def _cmd_workflow_route_gate(args: argparse.Namespace) -> int:
     component_review_execution = ProjectComponentReviewExecution.model_validate_json(
         Path(args.component_review_execution).read_text("utf-8")
     )
+    pre_route_integrity = PreRouteIntegrityEvidence.model_validate_json(
+        Path(args.pre_route_integrity).read_text("utf-8")
+    )
     report = evaluate_routing_entry_gate(
+        generation_root=Path(args.generation_root),
         generation_sha256=args.generation_sha256,
         saved_board_sha256=args.saved_board_sha256,
         saved_layout_fingerprint=args.saved_layout_fingerprint,
@@ -2832,6 +2988,7 @@ def _cmd_workflow_route_gate(args: argparse.Namespace) -> int:
         engineering_gate=engineering_gate,
         component_review_execution=component_review_execution,
         budget_bindings=bind_execution_profile(EXECUTION_PROFILES[args.profile]),
+        pre_route_integrity=pre_route_integrity,
     )
     rendered = json.dumps(report.model_dump(mode="json"), indent=2) + "\n"
     Path(args.output).write_text(rendered, encoding="utf-8")
@@ -2997,7 +3154,16 @@ def _cmd_routed_release_gate(args: argparse.Namespace) -> int:
     applicability_execution = ProjectApplicabilityExecutionManifest.model_validate_json(
         Path(args.applicability_execution).read_text("utf-8")
     )
+    from pcbsmith.production_workflow import assemble_routed_release_execution
+
+    applicability_execution = assemble_routed_release_execution(
+        applicability_execution, Path(args.board), Path(args.drc_report)
+    )
+    Path(args.output).with_suffix(".applicability.json").write_text(
+        applicability_execution.model_dump_json(indent=2) + "\n", encoding="utf-8"
+    )
     report = evaluate_routed_board_release_gate(
+        generation_root=Path(args.generation_root),
         board_file=Path(args.board),
         drc_report_file=Path(args.drc_report),
         final_review=review,
@@ -3040,7 +3206,22 @@ def _cmd_applicability_execution_manifest(args: argparse.Namespace) -> int:
 
 
 def _cmd_production_visual_inspect(args: argparse.Namespace) -> int:
+    from pcbsmith.production_workflow import resolve_current_generation
+
     payload = json.loads(Path(args.decisions).read_text("utf-8"))
+    current = resolve_current_generation(Path(args.transaction_root))
+    source_manifest = VisualReviewManifest.model_validate_json(
+        (
+            Path(args.transaction_root)
+            / "generations"
+            / current.generation_id
+            / "review/manifest.json"
+        ).read_bytes()
+    )
+    identities = {a.artifact_id: a.sha256 for a in source_manifest.artifacts}
+    for key, decision in payload.items():
+        if key not in identities or decision.get("sha256") != identities[key]:
+            raise ValueError("inspection decision must name the exact viewed artifact hash")
     decisions = {
         artifact_id: (item["inspection"], tuple(item.get("findings", ())))
         for artifact_id, item in payload.items()
@@ -3076,6 +3257,79 @@ def _cmd_production_component_review_repair(args: argparse.Namespace) -> int:
     return 0 if result.component_review_execution.ready_for_routing else 1
 
 
+def _cmd_board_revision(args: argparse.Namespace) -> int:
+    from pcbsmith.board_revision import (
+        BoardRevisionRequest,
+        apply_board_revision,
+        create_board_revision,
+        inspect_board_revision,
+    )
+
+    if args.revision_action == "inspect":
+        from pcbsmith.kicad.part_substitution import PartSubstitution
+
+        substitutions = (
+            tuple(
+                PartSubstitution.model_validate(item)
+                for item in json.loads(Path(args.substitutions).read_bytes())
+            )
+            if args.substitutions
+            else ()
+        )
+        payload = inspect_board_revision(Path(args.board), substitutions=substitutions)
+        text = json.dumps(payload, indent=2) + "\n"
+        if args.output:
+            from pcbsmith.operations.file_transaction import atomic_write
+
+            target = Path(args.output).resolve()
+            if target.exists() or target.is_relative_to(Path(args.board).resolve().parent):
+                raise ValueError("inspection output must be fresh and outside the source project")
+            atomic_write(target, text.encode())
+        else:
+            print(text, end="")
+        return 0
+    if args.revision_action == "apply":
+        transaction = apply_board_revision(board=Path(args.board), directory=Path(args.revision))
+        print(
+            json.dumps(
+                {
+                    "status": "working_revision_applied",
+                    "transaction": transaction,
+                    "production_accepted": False,
+                }
+            )
+        )
+        return 0
+    request = BoardRevisionRequest.model_validate_json(Path(args.request).read_bytes())
+    candidate = create_board_revision(
+        board=Path(args.board), request=request, output=Path(args.output), resume=args.resume
+    )
+    receipt = json.loads((Path(args.output) / "revision.json").read_bytes())
+    print(json.dumps({"board": str(candidate), **receipt}, indent=2))
+    return 0 if receipt["status"] in {"digitally_checked_candidate", "no_change"} else 1
+
+
+def _cmd_iterative_fix_dry_run(args: argparse.Namespace) -> int:
+    observation = FindingObservation.model_validate_json(
+        Path(args.finding).read_text(encoding="utf-8")
+    )
+    budget = ChangeImpactBudget.model_validate_json(Path(args.budget).read_text(encoding="utf-8"))
+    report = generate_dry_run_impact_report(
+        board_file=Path(args.board),
+        observation=observation,
+        budget=budget,
+        require_schematic_authority=args.require_schematic_authority,
+    )
+    payload = report.model_dump_json(indent=2)
+    if args.output:
+        destination = Path(args.output)
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(payload + "\n", encoding="utf-8")
+    else:
+        print(payload)
+    return 0
+
+
 def _cmd_verify(args: argparse.Namespace) -> int:
     profile = EXECUTION_PROFILES[args.profile].with_timeout_scale(args.timeout_scale)
     orchestrator = VerificationOrchestrator(
@@ -3083,7 +3337,9 @@ def _cmd_verify(args: argparse.Namespace) -> int:
         wall_clock=_utc_timestamp,
     )
     run = orchestrator.run(
-        gates=standard_verification_gates(profile_name=args.profile),
+        gates=standard_verification_gates(
+            profile_name=args.profile, output_dir=Path(args.output).resolve()
+        ),
         profile=profile,
         output_dir=Path(args.output),
     )
@@ -3690,40 +3946,57 @@ def _authority_bundle_status(
     board: BoardReport | None = None,
     design_review: DesignReviewReport | None = None,
 ) -> AuthorityStatus:
-    authority_statuses = (evidence.status, kicad.status, simulation.status, reconciliation.status)
-    board_status = board.status if board is not None else None
-    review_status = design_review.status if design_review is not None else None
-    if circuit.math.status == "failed" or "failed" in authority_statuses:
-        return "failed"
-    if board_status == "failed" or review_status == "failed":
-        return "failed"
-    if "unavailable" in authority_statuses or board_status == "unavailable":
-        return "unavailable"
-    if "not_run" in authority_statuses:
-        return "not_run"
+    from pcbsmith.review.authority_bundle import derive_authority_status
 
-    if (
-        circuit.math.status != "passed"
-        or evidence.status != "passed"
-        or kicad.status != "passed"
-        or simulation.status != "passed"
-        or reconciliation.status != "passed"
-        or (board_status is not None and board_status != "passed")
-        or (review_status is not None and review_status != "passed")
-        or any(component.support_status != "supported" for component in circuit.components)
-    ):
-        return "needs_human_review"
-    return "passed"
+    return derive_authority_status(
+        circuit=circuit,
+        evidence=evidence,
+        kicad=kicad,
+        simulation=simulation,
+        reconciliation=reconciliation,
+        board=board,
+        design_review=design_review,
+    )
+
+
+def _cmd_native_review_preflight(args: argparse.Namespace) -> int:
+    from pcbsmith.mandatory_review import inspect_native_review
+
+    result = inspect_native_review(Path(args.request))
+    print(json.dumps(result, indent=2))
+    return 0 if result["ready"] else 1
+
+
+def _cmd_board_handover(args: argparse.Namespace) -> int:
+    from pcbsmith.board_handover import inspect_handover
+
+    report = inspect_handover(Path(args.request))
+    print(json.dumps(report, indent=2))
+    return 0 if report["cad_handover_ready"] else 1
 
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="pcbsmith")
     subparsers = parser.add_subparsers(dest="command", required=True)
+    native_review = subparsers.add_parser(
+        "native-review-preflight", help="collect bound ERC and DRC omissions before publication"
+    )
+    native_review.add_argument("request")
+    native_review.set_defaults(func=_cmd_native_review_preflight)
+    handover_parser = subparsers.add_parser(
+        "board-handover", help="check CAD delivery and requested CAM without changing the board"
+    )
+    handover_parser.add_argument("request")
+    handover_parser.set_defaults(func=_cmd_board_handover)
 
     new_parser = subparsers.add_parser("new", help="create a new PCBSmith project")
     new_parser.add_argument("project")
     new_parser.add_argument("--name", required=True)
     new_parser.set_defaults(func=_cmd_new)
+
+    recover_parser = subparsers.add_parser("recover", help="recover an interrupted project edit")
+    recover_parser.add_argument("project")
+    recover_parser.set_defaults(func=_cmd_recover)
 
     info_parser = subparsers.add_parser("info", help="print a project summary")
     info_parser.add_argument("project")
@@ -4068,8 +4341,26 @@ def build_parser() -> argparse.ArgumentParser:
     model_preflight_parser.add_argument("board")
     model_preflight_parser.add_argument("--registry")
     model_preflight_parser.add_argument("--requirements")
+    model_preflight_parser.add_argument(
+        "--model-applicability",
+        choices=("applicable", "not_applicable", "unresolved"),
+    )
+    model_preflight_parser.add_argument("--model-applicability-rationale")
     model_preflight_parser.add_argument("--output")
     model_preflight_parser.set_defaults(func=_cmd_model_preflight)
+
+    asset_resolve_parser = subparsers.add_parser(
+        "asset-resolve",
+        help="resolve an exact local KiCad pin before optional approved intake",
+    )
+    asset_resolve_parser.add_argument("request", help="AssetPin JSON")
+    asset_resolve_parser.add_argument("--intake", help="approved SourceIntakeRequest JSON on miss")
+    asset_resolve_parser.add_argument("--repository-root", default=".")
+    asset_resolve_parser.add_argument(
+        "--private-asset-root", default=".pcbsmith-private/kicad-assets"
+    )
+    _add_source_intake_download_arguments(asset_resolve_parser)
+    asset_resolve_parser.set_defaults(func=_cmd_asset_resolve)
 
     asset_install_parser = subparsers.add_parser(
         "asset-install",
@@ -4094,7 +4385,19 @@ def build_parser() -> argparse.ArgumentParser:
     visual_review_parser.add_argument("--features", required=True)
     visual_review_parser.add_argument("--model-preflight", required=True)
     visual_review_parser.add_argument("--source-revision")
+    visual_review_parser.add_argument(
+        "--native-checks", help="current ERC/DRC receipt directory; required for final rendering"
+    )
     visual_review_parser.set_defaults(func=_cmd_visual_review)
+
+    diagnostic_completion = subparsers.add_parser(
+        "visual-complete-diagnostics", help="complete missing copies from exact retained images"
+    )
+    diagnostic_completion.add_argument("manifest")
+    diagnostic_completion.add_argument("output")
+    diagnostic_completion.add_argument("--features", required=True)
+    diagnostic_completion.add_argument("--model-preflight", required=True)
+    diagnostic_completion.set_defaults(func=_cmd_visual_complete_diagnostics)
 
     schematic_review_parser = subparsers.add_parser(
         "schematic-review-package",
@@ -4143,6 +4446,21 @@ def build_parser() -> argparse.ArgumentParser:
     )
     generator_audit_parser.set_defaults(func=_cmd_production_generator_audit)
 
+    generation_parser = subparsers.add_parser(
+        "production-generate-board",
+        help="enforce predesign before generating an isolated candidate; no release approval",
+    )
+    generation_parser.add_argument("schematic")
+    generation_parser.add_argument("output_directory")
+    generation_parser.add_argument("--generator-id", default="pcbsmith.kicad.board:generate_board")
+    generation_parser.add_argument("--predesign", required=True)
+    generation_parser.add_argument("--predesign-artifacts", required=True)
+    generation_parser.add_argument("--builder-options")
+    generation_parser.add_argument(
+        "--rebuild-decision", help="source-bound decision required when an input PCB exists"
+    )
+    generation_parser.set_defaults(func=_cmd_production_generate_board)
+
     placement_review_parser = subparsers.add_parser(
         "production-placement-review",
         help=(
@@ -4166,6 +4484,8 @@ def build_parser() -> argparse.ArgumentParser:
     )
     placement_review_parser.add_argument("--features", required=True)
     placement_review_parser.add_argument("--model-preflight", required=True)
+    placement_review_parser.add_argument("--readiness-request", required=True)
+    placement_review_parser.add_argument("--readiness-artifacts", required=True)
     placement_review_parser.add_argument(
         "--component-review-request",
         required=True,
@@ -4175,6 +4495,9 @@ def build_parser() -> argparse.ArgumentParser:
         ),
     )
     placement_review_parser.add_argument("--source-revision")
+    placement_review_parser.add_argument(
+        "--review-manifest", help="reuse hash-verified existing native views for this exact board"
+    )
     placement_review_parser.add_argument(
         "--support-file",
         action="append",
@@ -4208,7 +4531,23 @@ def build_parser() -> argparse.ArgumentParser:
     )
     routed_review_parser.add_argument("--features", required=True)
     routed_review_parser.add_argument("--model-preflight", required=True)
+    routed_review_parser.add_argument("--readiness-request", required=True)
+    routed_review_parser.add_argument("--readiness-artifacts", required=True)
+    routed_review_parser.add_argument(
+        "--routing-execution",
+        required=True,
+        help=(
+            "accepted routing-execution receipt derived from the exact immutable "
+            "routing-candidate transaction"
+        ),
+    )
+    routed_review_parser.add_argument(
+        "--revision-authority", help="fresh checked substitution engineering/component authority"
+    )
     routed_review_parser.add_argument("--source-revision")
+    routed_review_parser.add_argument(
+        "--review-manifest", help="reuse hash-verified existing native views for this exact board"
+    )
     routed_review_parser.add_argument(
         "--support-file",
         action="append",
@@ -4270,8 +4609,10 @@ def build_parser() -> argparse.ArgumentParser:
     route_gate_parser.add_argument("--concept-drift", required=True)
     route_gate_parser.add_argument("--review-manifest", required=True)
     route_gate_parser.add_argument("--transaction-manifest", required=True)
+    route_gate_parser.add_argument("--generation-root", required=True)
     route_gate_parser.add_argument("--engineering-gate", required=True)
     route_gate_parser.add_argument("--component-review-execution", required=True)
+    route_gate_parser.add_argument("--pre-route-integrity", required=True)
     route_gate_parser.add_argument(
         "--profile",
         choices=("quick", "standard", "deep"),
@@ -4308,6 +4649,7 @@ def build_parser() -> argparse.ArgumentParser:
     release_gate_parser.add_argument("--drc-report", required=True)
     release_gate_parser.add_argument("--review-manifest", required=True)
     release_gate_parser.add_argument("--transaction-manifest", required=True)
+    release_gate_parser.add_argument("--generation-root", required=True)
     release_gate_parser.add_argument(
         "--verification-evidence",
         required=True,
@@ -4335,6 +4677,47 @@ def build_parser() -> argparse.ArgumentParser:
     applicability_execution_parser.add_argument("--output", required=True)
     applicability_execution_parser.set_defaults(func=_cmd_applicability_execution_manifest)
 
+    for command_name, action in (
+        ("production-inspect-board", "inspect"),
+        ("production-edit-board", "edit"),
+        ("production-apply-board-edit", "apply"),
+    ):
+        edit_parser = subparsers.add_parser(
+            command_name, help="inspect/edit/apply native objects; never grants release approval"
+        )
+        edit_parser.add_argument("board")
+        if action == "edit":
+            edit_parser.add_argument(
+                "--resume", action="store_true", help="resume an interrupted source-bound edit"
+            )
+            edit_parser.add_argument("--request", required=True)
+            edit_parser.add_argument("--output", required=True)
+        elif action == "apply":
+            edit_parser.add_argument("--revision", required=True)
+        else:
+            edit_parser.add_argument("--output")
+            edit_parser.add_argument(
+                "--substitutions", help="JSON list of source-bound replacements"
+            )
+        edit_parser.set_defaults(func=_cmd_board_revision, revision_action=action)
+
+    iterative_fix_parser = subparsers.add_parser(
+        "iterative-fix-dry-run",
+        help=(
+            "diagnose one exact-revision finding and emit a bounded impact "
+            "proposal without changing the source or creating a candidate"
+        ),
+    )
+    iterative_fix_parser.add_argument("board")
+    iterative_fix_parser.add_argument("--finding", required=True)
+    iterative_fix_parser.add_argument("--budget", required=True)
+    iterative_fix_parser.add_argument("--output")
+    iterative_fix_parser.add_argument(
+        "--require-schematic-authority",
+        action="store_true",
+        help="fail closed when the board-only graph lacks schematic dependency detail",
+    )
+    iterative_fix_parser.set_defaults(func=_cmd_iterative_fix_dry_run)
     verify_parser = subparsers.add_parser(
         "verify",
         help="run the existing verification gates with profiles, heartbeats, and typed limits",
@@ -4355,11 +4738,26 @@ def build_parser() -> argparse.ArgumentParser:
     _add_datasheet_provider_arguments(facts_parser)
     facts_parser.set_defaults(func=_cmd_datasheet_facts)
 
+    subparsers.add_parser(
+        "board-job", help="start/status/run/correct/resume a persistent bounded board job"
+    )
+    for command_parser in subparsers.choices.values():
+        handler = command_parser.get_default("func")
+        if handler is not None and handler.__name__.startswith("_cmd_design_"):
+            command_parser.add_argument(
+                "--research",
+                action="store_true",
+                help="explicitly use the legacy research path; output is not production accepted",
+            )
     return parser
 
 
 def main(argv: list[str] | None = None) -> int:
     effective_argv = list(sys.argv[1:] if argv is None else argv)
+    if effective_argv and effective_argv[0] == "board-job":
+        from pcbsmith.board_job import main as board_job_main
+
+        return board_job_main(effective_argv[1:])
     if effective_argv and effective_argv[0] in _PROTOTYPE_COMMANDS:
         from pcbsmith.prototype_cli import main as prototype_main
 
@@ -4367,7 +4765,22 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
     args = parser.parse_args(effective_argv)
     try:
+        from pcbsmith.board_job import CLI_OPERATIONS, require_library_worker, require_worker
+
+        if effective_argv and effective_argv[0] in CLI_OPERATIONS:
+            require_worker("pcbsmith.cli", effective_argv)
+            require_library_worker()
         command: Callable[[argparse.Namespace], int] = args.func
+        if command.__name__.startswith("_cmd_design_"):
+            if not getattr(args, "research", False):
+                raise ValueError(
+                    "legacy design command requires --research; use production-generate-board "
+                    "or production-edit-board for supported work"
+                )
+            print(
+                "Research/compatibility output: production acceptance is not granted.",
+                file=sys.stderr,
+            )
         return command(args)
     except (
         ProjectIOError,

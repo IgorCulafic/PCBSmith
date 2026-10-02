@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+from pcbsmith.cli import main as cli_main
 from pcbsmith.kicad.model_preflight import (
     ModelRegistryEntry,
     ModelRequirement,
@@ -178,3 +179,62 @@ def test_registry_local_path_overrides_an_unresolved_board_variable(tmp_path: Pa
 
     assert report.status == "passed"
     assert report.models[0].resolved_path == str(model.resolve())
+
+
+def test_empty_requirement_inventory_is_unresolved_not_a_vacuous_pass(tmp_path: Path) -> None:
+    board = tmp_path / "empty.kicad_pcb"
+    board.write_text("(kicad_pcb (version 20241229) (generator pcbnew))", encoding="utf-8")
+
+    report = preflight_board_models(board)
+
+    assert report.applicability == "unresolved"
+    assert report.status == "attention_required"
+    assert any("applicability was not declared" in item for item in report.findings)
+
+
+def test_models_can_be_explicitly_not_applicable_only_with_rationale(tmp_path: Path) -> None:
+    board = tmp_path / "bare.kicad_pcb"
+    board.write_text("(kicad_pcb (version 20241229) (generator pcbnew))", encoding="utf-8")
+
+    report = preflight_board_models(
+        board,
+        applicability="not_applicable",
+        applicability_rationale=(
+            "Bare-board fabrication review intentionally excludes assembly models."
+        ),
+    )
+
+    assert report.status == "not_applicable"
+    assert report.applicability == "not_applicable"
+
+
+def test_applicable_models_require_at_least_one_declared_reference(tmp_path: Path) -> None:
+    board = tmp_path / "empty.kicad_pcb"
+    board.write_text("(kicad_pcb (version 20241229) (generator pcbnew))", encoding="utf-8")
+
+    report = preflight_board_models(board, applicability="applicable")
+
+    assert report.status == "failed"
+    assert any("no required component references" in item for item in report.findings)
+
+
+def test_cli_blocks_unresolved_model_applicability_and_accepts_explicit_na(
+    tmp_path: Path,
+) -> None:
+    board = tmp_path / "empty.kicad_pcb"
+    board.write_text("(kicad_pcb (version 20241229) (generator pcbnew))", encoding="utf-8")
+
+    assert cli_main(["model-preflight", str(board)]) == 1
+    assert (
+        cli_main(
+            [
+                "model-preflight",
+                str(board),
+                "--model-applicability",
+                "not_applicable",
+                "--model-applicability-rationale",
+                "Bare-board-only review.",
+            ]
+        )
+        == 0
+    )

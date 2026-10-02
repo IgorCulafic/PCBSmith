@@ -7,11 +7,12 @@ import os
 import shutil
 import tempfile
 import time
-from collections.abc import Callable, Mapping
+from collections.abc import Callable, Iterator, Mapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path, PurePosixPath
-from typing import Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from pydantic import Field, model_validator
 
@@ -40,8 +41,12 @@ from pcbsmith.kicad.routing_evidence import (
     retarget_kicad_drc_evidence,
     retarget_saved_board_routing_evidence,
 )
+from pcbsmith.pre_route_integrity import PreRouteIntegrityEvidence
+from pcbsmith.production_readiness import readiness_blockers
 from pcbsmith.project_engineering_gate_ir import (
     InventoryStatus,
+    Phase14FeatureDeclaration,
+    Phase14RuleFamily,
     ProjectEngineeringGateResult,
     ProjectGateOutcome,
 )
@@ -54,7 +59,8 @@ from pcbsmith.review.visual_package import (
 )
 from pcbsmith.routed_copper_graph_ir import fingerprint, require_identity, require_sha256
 from pcbsmith.routing_ir import RoutingPassTelemetry
-from pcbsmith.semantic_ir import SemanticIrModel
+from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
+from pcbsmith.semantic_ir import SemanticDisposition, SemanticIrModel
 from pcbsmith.workflow_authority import (
     ProjectContextBundle,
     ProjectContextStatus,
@@ -65,6 +71,11 @@ from pcbsmith.workflow_feasibility import (
     FeasibilityOutcome,
     PreRouteFeasibilityReport,
 )
+
+if TYPE_CHECKING:
+    from pcbsmith.inspection_completion import InspectionCompletionPermit
+    from pcbsmith.production_readiness import PublicationReadinessRequest
+    from pcbsmith.routing_revision import RevisionPublicationAuthority, UnchangedCopperRevision
 
 ArtifactRole = Literal[
     "prompt",
@@ -372,6 +383,17 @@ class PlacementReviewTransactionResult(SemanticIrModel):
     component_review_execution: ProjectComponentReviewExecution
 
 
+class InspectionReviewTransactionResult(SemanticIrModel):
+    """Metadata-only result; absent legacy component evidence is never invented."""
+
+    schema_id: Literal["pcbsmith-inspection-review-result-v1"] = (
+        "pcbsmith-inspection-review-result-v1"
+    )
+    transaction: GenerationTransactionResult
+    review_manifest: VisualReviewManifest
+    component_review_execution: ProjectComponentReviewExecution | None = None
+
+
 class BudgetedPlacementReviewResult(SemanticIrModel):
     """Placement/review outcome governed by operative native stage budgets."""
 
@@ -443,6 +465,9 @@ def produce_budgeted_placement_review(
     The rendering callback must account for at least one pass per emitted
     review artifact. Nothing is committed unless both stages complete.
     """
+    from pcbsmith.board_job import require_library_worker
+
+    require_library_worker()
 
     if placement_binding.algorithm is not NativeAlgorithm.PLACEMENT:
         raise ValueError("placement binding must target the placement algorithm")
@@ -590,6 +615,48 @@ def prepare_generation_transaction(
     )
 
 
+@contextmanager
+def _retained_review_work(work_parent: Path, generation_id: str) -> Iterator[str]:
+    prefix = _bytes_sha256(generation_id.encode())[:12] + "-"
+    with tempfile.TemporaryDirectory(prefix=prefix, dir=work_parent) as temporary:
+        try:
+            yield temporary
+        except BaseException as exc:
+            failed = work_parent.parent / ".failed-reviews" / Path(temporary).name
+            try:
+                shutil.copytree(temporary, failed)
+                (failed / "failure.json").write_text(
+                    json.dumps(
+                        {
+                            "generation_id": generation_id,
+                            "status": "failed",
+                            "error": str(exc),
+                        },
+                        indent=2,
+                    )
+                    + "\n",
+                    encoding="utf-8",
+                )
+                exc.add_note(f"Failed candidate work retained at {failed}")
+            except OSError as retention_error:
+                exc.add_note(f"Could not retain failed candidate work: {retention_error}")
+            raise
+
+
+def review_output_root(output: Path, manifest: VisualReviewManifest) -> Path:
+    """Resolve the canonical renderer's review subdirectory without nesting it twice."""
+    roots = [path for path in (output, output / "review") if (path / "manifest.json").is_file()]
+    if len(roots) > 1:
+        raise ValueError("review output contains ambiguous manifest roots")
+    if not roots:
+        return output
+    root = roots[0]
+    retained = VisualReviewManifest.model_validate_json((root / "manifest.json").read_bytes())
+    if retained != manifest:
+        raise ValueError("generated review manifest differs from its saved manifest")
+    return root
+
+
 def persist_placement_and_generate_review(
     *,
     transaction_root: Path,
@@ -608,12 +675,15 @@ def persist_placement_and_generate_review(
     return a placement-stage visual manifest. All emitted review files and the
     board are then committed under one immutable generation identity.
     """
+    from pcbsmith.board_job import require_library_worker
+
+    require_library_worker()
 
     _safe_relative_path(board_relative_path)
     root = transaction_root.resolve()
     work_parent = root / ".review-work"
     work_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(prefix=f"{generation_id}-", dir=work_parent) as temporary:
+    with _retained_review_work(work_parent, generation_id) as temporary:
         work_root = Path(temporary)
         board_file = work_root / PurePosixPath(board_relative_path)
         _require_descendant(work_root, board_file)
@@ -653,6 +723,7 @@ def persist_placement_and_generate_review(
                 ),
             }
         )
+        review_output = review_output_root(review_output, generated_manifest)
         payloads: dict[str, bytes] = {board_relative_path: board_payload}
         roles: dict[str, ArtifactRole] = {board_relative_path: "board"}
         for relative_path, payload in retained_support.items():
@@ -735,6 +806,10 @@ def persist_routed_board_and_generate_review(
     review_generator: Callable[[Path, Path], VisualReviewManifest],
     drc_generator: Callable[[Path, Path], None],
     support_payloads: Mapping[str, bytes] | None = None,
+    revision_authority: RevisionPublicationAuthority | None = None,
+    revision_proof: UnchangedCopperRevision | None = None,
+    readiness_request: PublicationReadinessRequest | None = None,
+    routing_execution_evidence: bytes | None = None,
 ) -> RoutedReviewTransactionResult:
     """Persist one routed board, exact DRC, and final review atomically.
 
@@ -743,14 +818,38 @@ def persist_routed_board_and_generate_review(
     KiCad JSON DRC is clean, and the generated review is a final-stage package
     bound to that exact board revision.
     """
+    from pcbsmith.board_job import require_library_worker
+
+    require_library_worker()
+
+    # Only this transaction owner may create these reserved evidence artifacts.
+    revision_payloads: dict[str, bytes] = {}
+    if revision_authority is not None or revision_proof is not None:
+        from pcbsmith.routing_revision import (
+            require_revision_publication_authority,
+            require_unchanged_copper_revision,
+        )
+
+        if revision_proof is None:
+            raise ValueError("revision authority requires unchanged-copper revision provenance")
+        require_unchanged_copper_revision(revision_proof, board_payload)
+        require_revision_publication_authority(
+            revision_authority, revision_proof, board_payload, project_id, readiness_request
+        )
+        assert revision_authority is not None
+        revision_payloads = {
+            relative: (value.model_dump_json(indent=2) + "\n").encode("utf-8")
+            for relative, value in {
+                "evidence/revision-publication-authority.json": revision_authority,
+                "evidence/component-review/execution.json": revision_authority.component_review,
+            }.items()
+        }
 
     _safe_relative_path(board_relative_path)
     root = transaction_root.resolve()
     work_parent = root / ".review-work"
     work_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(
-        prefix=f"{generation_id}-routed-", dir=work_parent
-    ) as temporary:
+    with _retained_review_work(work_parent, generation_id) as temporary:
         work_root = Path(temporary)
         board_file = work_root / PurePosixPath(board_relative_path)
         _require_descendant(work_root, board_file)
@@ -827,11 +926,15 @@ def persist_routed_board_and_generate_review(
             }
         )
 
+        review_output = review_output_root(review_output, generated_manifest)
         payloads: dict[str, bytes] = {board_relative_path: board_payload}
         roles: dict[str, ArtifactRole] = {board_relative_path: "board"}
         for relative_path, payload in retained_support.items():
             payloads[relative_path] = payload
             roles[relative_path] = _support_artifact_role(relative_path)
+        for relative_path, payload in revision_payloads.items():
+            payloads[relative_path] = payload
+            roles[relative_path] = "evidence"
         if review_output.exists():
             for path in sorted(item for item in review_output.rglob("*") if item.is_file()):
                 relative = PurePosixPath("review") / path.relative_to(review_output).as_posix()
@@ -848,6 +951,18 @@ def persist_routed_board_and_generate_review(
         roles["review/manifest.json"] = "review"
         payloads["verification/drc.json"] = drc_report.read_bytes()
         roles["verification/drc.json"] = "verification"
+        for name in (
+            "drc.execution.json",
+            "drc.process.json",
+            "erc.json",
+            "erc.process.json",
+            "native-rule-worklist.json",
+        ):
+            receipt_path = drc_report.parent / name
+            if receipt_path.is_file():
+                receipt_relative = "verification/" + receipt_path.name
+                payloads[receipt_relative] = receipt_path.read_bytes()
+                roles[receipt_relative] = "evidence"
         payloads["verification/routing-evidence.json"] = (
             json.dumps(
                 retained_routing.model_dump(mode="json", by_alias=True),
@@ -864,6 +979,9 @@ def persist_routed_board_and_generate_review(
             + "\n"
         ).encode("utf-8")
         roles["verification/drc-evidence.json"] = "evidence"
+        if routing_execution_evidence is not None:
+            payloads["verification/routing-execution.json"] = routing_execution_evidence
+            roles["verification/routing-execution.json"] = "evidence"
 
         _, previous_current_sha256 = _read_current_pointer(root / "CURRENT.json")
         transaction = prepare_generation_transaction(
@@ -896,7 +1014,8 @@ def inspect_current_placement_review(
     reviewer: str,
     mechanism: str,
     decisions: dict[str, tuple[InspectionState, tuple[str, ...]]],
-) -> PlacementReviewTransactionResult:
+    inspection_completion: InspectionCompletionPermit | None = None,
+) -> PlacementReviewTransactionResult | InspectionReviewTransactionResult:
     """Record review decisions as a new immutable generation revision."""
 
     root = transaction_root.resolve()
@@ -917,12 +1036,14 @@ def inspect_current_placement_review(
         None,
     )
     if component_review_artifact is None:
-        raise ValueError("current generation has no component review execution")
+        source_visual = VisualReviewManifest.model_validate_json(
+            (current_dir / "review/manifest.json").read_bytes()
+        )
+        if source_visual.stage != "final":
+            raise ValueError("current generation has no component review execution")
     work_parent = root / ".review-work"
     work_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(
-        prefix=f"{generation_id}-inspection-", dir=work_parent
-    ) as temporary:
+    with _retained_review_work(work_parent, generation_id) as temporary:
         work_root = Path(temporary)
         roles: dict[str, ArtifactRole] = {}
         for artifact in current.artifacts:
@@ -938,10 +1059,17 @@ def inspect_current_placement_review(
             mechanism=mechanism,
             decisions=decisions,
         )
-        component_review_execution = ProjectComponentReviewExecution.model_validate_json(
-            (work_root / PurePosixPath(component_review_artifact.relative_path)).read_text(
-                encoding="utf-8"
+        if inspection_completion is not None:
+            inspection_completion.expected_package_status = updated_manifest.package_status
+            inspection_completion.expected_report_bytes = (
+                work_root / "review/review-report.md"
+            ).read_bytes()
+        component_review_execution = (
+            ProjectComponentReviewExecution.model_validate_json(
+                (work_root / component_review_artifact.relative_path).read_bytes()
             )
+            if component_review_artifact is not None
+            else None
         )
         board_artifacts = tuple(item for item in current.artifacts if item.role == "board")
         if len(board_artifacts) != 1:
@@ -974,7 +1102,7 @@ def inspect_current_placement_review(
             project_id=current.project_id,
             generation_id=generation_id,
             generation_sha256=generation_sha256,
-            stage=WorkflowStage.PLACEMENT,
+            stage=current.stage,
             payloads=payloads,
             roles=roles,
             previous_current_sha256=previous_current_sha256,
@@ -983,6 +1111,11 @@ def inspect_current_placement_review(
             transaction_root=root,
             manifest=staged,
             payloads=payloads,
+            inspection_completion=inspection_completion,
+        )
+    if component_review_execution is None:
+        return InspectionReviewTransactionResult(
+            transaction=result, review_manifest=updated_manifest
         )
     return PlacementReviewTransactionResult(
         transaction=result,
@@ -999,6 +1132,9 @@ def repair_current_component_review(
     component_review_generator: Callable[[Path], ProjectComponentReviewExecution],
 ) -> PlacementReviewTransactionResult:
     """Replace component-review evidence in a new immutable placement revision."""
+    from pcbsmith.board_job import require_library_worker
+
+    require_library_worker()
 
     root = transaction_root.resolve()
     current = resolve_current_generation(root)
@@ -1023,10 +1159,7 @@ def repair_current_component_review(
 
     work_parent = root / ".review-work"
     work_parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.TemporaryDirectory(
-        prefix=f"{generation_id}-component-repair-",
-        dir=work_parent,
-    ) as temporary:
+    with _retained_review_work(work_parent, generation_id) as temporary:
         work_root = Path(temporary)
         roles: dict[str, ArtifactRole] = {}
         for artifact in current.artifacts:
@@ -1147,6 +1280,7 @@ def commit_generation_transaction(
     manifest: GenerationTransactionManifest,
     payloads: Mapping[str, bytes],
     before_pointer_swap: Callable[[], None] | None = None,
+    inspection_completion: InspectionCompletionPermit | None = None,
 ) -> GenerationTransactionResult:
     """Publish one immutable generation by atomically swapping a small pointer.
 
@@ -1154,6 +1288,16 @@ def commit_generation_transaction(
     previously committed ``CURRENT.json`` is never modified until every new
     artifact and the final manifest have been written and verified.
     """
+    from pcbsmith.board_job import require_library_worker
+
+    if inspection_completion is None:
+        require_library_worker()
+    else:
+        from pcbsmith.inspection_completion import InspectionCompletionPermit
+
+        if type(inspection_completion) is not InspectionCompletionPermit:
+            raise ValueError("invalid inspection completion capability")
+        inspection_completion.validate_commit(transaction_root, manifest, payloads)
 
     if manifest.status != "staged":
         raise ValueError("only a staged transaction may be committed")
@@ -1206,6 +1350,8 @@ def commit_generation_transaction(
         generations_parent.mkdir(parents=True, exist_ok=True)
         os.replace(staging, committed_dir)
         promoted = True
+        if inspection_completion is not None:
+            inspection_completion.check_sources()
         if before_pointer_swap is not None:
             before_pointer_swap()
         pointer_payload = _canonical_bytes(
@@ -1320,9 +1466,7 @@ def _write_generation_support_payloads(
         if relative == board_path:
             raise ValueError("support payload cannot overwrite the canonical board")
         if relative.parts[0] in {"review", "verification", "evidence"}:
-            raise ValueError(
-                "support payload cannot occupy a transaction-owned artifact directory"
-            )
+            raise ValueError("support payload cannot occupy a transaction-owned artifact directory")
         destination = work_root / relative
         _require_descendant(work_root, destination)
         destination.parent.mkdir(parents=True, exist_ok=True)
@@ -1586,7 +1730,9 @@ class RoutingEntryGateReport(SemanticIrModel):
     review_transaction_fingerprint: str
     engineering_gate_fingerprint: str
     component_review_execution_fingerprint: str
+    pre_route_integrity_fingerprint: str | None
     budget_profile_name: Literal["quick", "standard", "deep"]
+    deferred_routed_features: tuple[Phase14FeatureDeclaration, ...] = ()
     report_fingerprint: str
 
     @model_validator(mode="after")
@@ -1605,12 +1751,91 @@ class RoutingEntryGateReport(SemanticIrModel):
             "report_fingerprint",
         ):
             require_sha256(getattr(self, field_name), field_name)
+        if self.pre_route_integrity_fingerprint is not None:
+            require_sha256(
+                self.pre_route_integrity_fingerprint,
+                "pre_route_integrity_fingerprint",
+            )
         if self.allowed != (not self.blockers):
             raise ValueError("routing gate disposition is stale")
         payload = self.model_dump(mode="json", exclude={"report_fingerprint"})
+        if not self.deferred_routed_features:
+            payload.pop("deferred_routed_features")
         if self.report_fingerprint != fingerprint(payload):
             raise ValueError("routing-entry report fingerprint is stale")
         return self
+
+
+def routing_engineering_deferrals(
+    gate: ProjectEngineeringGateResult,
+) -> tuple[Phase14FeatureDeclaration, ...]:
+    """Only absent copper-dependent results may await the proposed routing.
+
+    Failed/advisory supplied results, incomplete inventories, absent exact-part
+    resources and placement-evaluable obligations cannot use this transition.
+    The returned declarations remain mandatory at routed publication/release.
+    """
+    if gate.context.inventory_status is not InventoryStatus.COMPLETE_REVIEWED:
+        raise ValueError("engineering inventory is not complete")
+    if any(not record.ready for record in gate.part_resource_records):
+        raise ValueError("exact-part resources are not ready")
+    routed_families = {
+        Phase14RuleFamily.DECOUPLING_LOOP,
+        Phase14RuleFamily.SWITCHING_HOT_LOOP,
+        Phase14RuleFamily.RETURN_ADJACENCY,
+    }
+    deferred_families = set()
+    for axis in gate.axis_records:
+        if axis.disposition in {SemanticDisposition.PASS, SemanticDisposition.NOT_APPLICABLE}:
+            continue
+        if (
+            axis.family not in routed_families
+            or axis.supplied_declaration_ids
+            or not axis.required_declaration_ids
+            or axis.disposition is not SemanticDisposition.UNVERIFIED
+            or axis.findings != ("Required and supplied declaration identities differ.",)
+        ):
+            raise ValueError(f"engineering {axis.family.value} cannot be deferred")
+        deferred_families.add(axis.family)
+    return tuple(
+        feature for feature in gate.context.phase14_features if feature.family in deferred_families
+    )
+
+
+def require_routed_engineering_closure(
+    entry: RoutingEntryGateReport,
+    gate: ProjectEngineeringGateResult,
+) -> None:
+    """Routed checks must replay and cover every feature admitted before routing."""
+    if gate.outcome is not ProjectGateOutcome.READY:
+        raise ValueError("routed engineering is not ready")
+    actual = {f.feature_id: f for f in gate.context.phase14_features}
+    for expected in entry.deferred_routed_features:
+        if actual.get(expected.feature_id) != expected:
+            raise ValueError("a deferred routed engineering obligation was dropped or changed")
+
+
+def mandatory_routing_review_blockers(
+    generation_root: Path,
+    engineering_gate: ProjectEngineeringGateResult,
+    placement_review: VisualReviewManifest,
+) -> tuple[str, ...]:
+    from pcbsmith.mandatory_review import require_engineering_coverage, require_mandatory_review
+    from pcbsmith.production_readiness import PublicationReadinessReceipt
+    from pcbsmith.review.visual_package import require_visual_acceptance
+
+    try:
+        receipt = PublicationReadinessReceipt.model_validate_json(
+            (generation_root / "review/design-readiness.json").read_bytes()
+        )
+        mandatory = require_mandatory_review(
+            receipt.request.predesign, generation_root / "review/readiness-inputs"
+        )
+        require_engineering_coverage(mandatory, engineering_gate)
+        require_visual_acceptance(placement_review, generation_root / "review")
+        return ()
+    except (OSError, ValueError, KeyError) as exc:
+        return (f"mandatory routing review: {exc}",)
 
 
 def evaluate_routing_entry_gate(
@@ -1627,6 +1852,9 @@ def evaluate_routing_entry_gate(
     engineering_gate: ProjectEngineeringGateResult,
     component_review_execution: ProjectComponentReviewExecution,
     budget_bindings: tuple[AlgorithmBudgetBinding, ...],
+    pre_route_integrity: PreRouteIntegrityEvidence | None = None,
+    generation_root: Path | None = None,
+    defer_routed_checks: bool = False,
 ) -> RoutingEntryGateReport:
     """Fail closed before routing unless every shared production gate passed."""
 
@@ -1634,6 +1862,30 @@ def evaluate_routing_entry_gate(
     require_sha256(saved_board_sha256, "saved_board_sha256")
     require_sha256(saved_layout_fingerprint, "saved_layout_fingerprint")
     blockers: list[str] = []
+    readiness_boards = tuple(
+        item.relative_path
+        for item in committed_review_transaction.artifacts
+        if item.role == "board" and item.content_sha256 == saved_board_sha256
+    )
+    if len(readiness_boards) != 1:
+        blockers.append("production readiness requires exactly one retained candidate board")
+    else:
+        blockers.extend(
+            readiness_blockers(
+                generation_root=generation_root,
+                project_id=context.project_id,
+                board_sha256=saved_board_sha256,
+                board_relative_path=readiness_boards[0],
+                retained_artifacts={
+                    item.relative_path: item.content_sha256
+                    for item in committed_review_transaction.artifacts
+                },
+            )
+        )
+    if generation_root is not None:
+        blockers.extend(
+            mandatory_routing_review_blockers(generation_root, engineering_gate, placement_review)
+        )
     if examination.project_id != context.project_id:
         blockers.append("prompt examination and project context identify different projects")
     if context.generation_sha256 != generation_sha256:
@@ -1681,8 +1933,15 @@ def evaluate_routing_entry_gate(
         blockers.append("engineering applicability gate targets another saved layout snapshot")
     if engineering_gate.context.inventory_status is not InventoryStatus.COMPLETE_REVIEWED:
         blockers.append("engineering component/feature inventory is not complete and reviewed")
+    deferred_features: tuple[Phase14FeatureDeclaration, ...] = ()
     if engineering_gate.outcome is not ProjectGateOutcome.READY:
-        blockers.append(f"engineering applicability gate is {engineering_gate.outcome.value}")
+        if defer_routed_checks:
+            try:
+                deferred_features = routing_engineering_deferrals(engineering_gate)
+            except ValueError as exc:
+                blockers.append(str(exc))
+        else:
+            blockers.append(f"engineering applicability gate is {engineering_gate.outcome.value}")
     if component_review_execution.project_id != context.project_id:
         blockers.append("component review execution belongs to another project")
     if (
@@ -1692,6 +1951,12 @@ def evaluate_routing_entry_gate(
         blockers.append("component review execution targets another BoardNetlist")
     if not component_review_execution.ready_for_routing:
         blockers.append(f"component review execution is {component_review_execution.outcome.value}")
+    if pre_route_integrity is None:
+        blockers.append("pre-route ERC and schematic-parity evidence is missing")
+    else:
+        if pre_route_integrity.board_sha256 != saved_board_sha256:
+            blockers.append("pre-route integrity evidence targets a different saved board")
+        blockers.extend(f"pre-route integrity: {item}" for item in pre_route_integrity.blockers)
     retained_board = tuple(
         item
         for item in committed_review_transaction.artifacts
@@ -1706,6 +1971,19 @@ def evaluate_routing_entry_gate(
             + "\n"
         ).encode("utf-8")
     )
+    if generation_root is not None:
+        retained_path = generation_root / "review/manifest.json"
+        try:
+            retained_bytes = retained_path.read_bytes()
+            retained_manifest = VisualReviewManifest.model_validate_json(retained_bytes)
+            if retained_manifest != placement_review:
+                blockers.append("retained review manifest differs from supplied review")
+            else:
+                # Bind exact retained bytes, including platform line endings.
+                # Re-serialization is not the identity of an immutable file.
+                expected_review_sha256 = _bytes_sha256(retained_bytes)
+        except (OSError, ValueError) as exc:
+            blockers.append(f"retained review manifest cannot be replayed: {exc}")
     retained_review = tuple(
         item
         for item in committed_review_transaction.artifacts
@@ -1766,13 +2044,22 @@ def evaluate_routing_entry_gate(
         "component_review_execution_fingerprint": (
             component_review_execution.execution_fingerprint
         ),
+        "pre_route_integrity_fingerprint": (
+            None if pre_route_integrity is None else pre_route_integrity.evidence_fingerprint
+        ),
         "budget_profile_name": profile_name,
     }
+    if deferred_features:
+        fields["deferred_routed_features"] = deferred_features
     provisional = RoutingEntryGateReport.model_construct(**fields, report_fingerprint="0" * 64)
     return RoutingEntryGateReport(
         **fields,
         report_fingerprint=fingerprint(
-            provisional.model_dump(mode="json", exclude={"report_fingerprint"})
+            provisional.model_dump(
+                mode="json",
+                exclude={"report_fingerprint"}
+                | ({"deferred_routed_features"} if not deferred_features else set()),
+            )
         ),
     )
 
@@ -1936,6 +2223,57 @@ class RoutedBoardReleaseGateReport(SemanticIrModel):
         return self
 
 
+def assemble_routed_release_execution(
+    manifest: ProjectApplicabilityExecutionManifest, board: Path, drc_report: Path
+) -> ProjectApplicabilityExecutionManifest:
+    """Include the actual native execution without inventing a passing result."""
+    from pcbsmith.applicability_execution import (
+        ApplicableCheckRequirement,
+        CheckExecutionRecord,
+        ProjectCheckApplicability,
+    )
+    from pcbsmith.mandatory_review import require_bound_native_report
+    from pcbsmith.manufacturing_lineage import file_sha256
+
+    if manifest.saved_design_sha256 != file_sha256(board):
+        raise ValueError("release execution targets a different saved board")
+    require_bound_native_report(board, "drc", drc_report)
+    record = CheckExecutionRecord.model_validate_json(
+        drc_report.with_suffix(".execution.json").read_bytes()
+    )
+    if (
+        record.check_id != "kicad.drc"
+        or record.producer_id != "kicad-cli.pcb.drc"
+        or record.result_sha256 != file_sha256(drc_report)
+        or file_sha256(board) not in record.exact_input_sha256s
+        or record.disposition.value != "pass"
+        or record.evaluated_object_count < 1
+    ):
+        raise ValueError("release requires the actual current native DRC execution")
+    existing = [item for item in manifest.executions if item.check_id == "kicad.drc"]
+    if existing and existing != [record]:
+        raise ValueError("supplied native DRC execution conflicts with retained producer evidence")
+    requirements = manifest.requirements
+    if not any(item.check_id == "kicad.drc" for item in requirements):
+        requirements += (
+            ApplicableCheckRequirement.build(
+                check_id="kicad.drc",
+                rule_ids=("native.drc",),
+                applicability=ProjectCheckApplicability.APPLICABLE,
+                applicability_authority_id="mandatory-review:native-drc",
+                exact_input_sha256s=record.exact_input_sha256s,
+                minimum_evaluated_objects=1,
+                rationale="Final native DRC is mandatory for every routed CAD release.",
+            ),
+        )
+    return ProjectApplicabilityExecutionManifest.build(
+        project_id=manifest.project_id,
+        saved_design_sha256=manifest.saved_design_sha256,
+        requirements=requirements,
+        executions=manifest.executions if existing else (*manifest.executions, record),
+    )
+
+
 def evaluate_routed_board_release_gate(
     *,
     board_file: Path,
@@ -1944,6 +2282,7 @@ def evaluate_routed_board_release_gate(
     committed_transaction: GenerationTransactionManifest,
     verification_evidence: RoutedBoardVerificationEvidence,
     applicability_execution: ProjectApplicabilityExecutionManifest,
+    generation_root: Path | None = None,
 ) -> RoutedBoardReleaseGateReport:
     """Require copper, connectivity, DRC, review, and transaction identity.
 
@@ -1954,6 +2293,48 @@ def evaluate_routed_board_release_gate(
     board_routing = inspect_saved_board_routing(board_file)
     kicad_drc = inspect_kicad_drc_report(drc_report_file)
     blockers: list[str] = []
+    readiness_boards = tuple(
+        item.relative_path
+        for item in committed_transaction.artifacts
+        if item.role == "board" and item.content_sha256 == board_routing.board_sha256
+    )
+    if len(readiness_boards) != 1:
+        blockers.append("production readiness requires exactly one retained candidate board")
+    else:
+        blockers.extend(
+            readiness_blockers(
+                generation_root=generation_root,
+                project_id=committed_transaction.project_id,
+                board_sha256=board_routing.board_sha256,
+                board_relative_path=readiness_boards[0],
+                retained_artifacts={
+                    item.relative_path: item.content_sha256
+                    for item in committed_transaction.artifacts
+                },
+            )
+        )
+    if generation_root is not None:
+        try:
+            from pcbsmith.mandatory_review import native_rule_blockers, require_mandatory_review
+            from pcbsmith.production_readiness import PublicationReadinessReceipt
+            from pcbsmith.review.visual_package import require_visual_acceptance
+
+            receipt = PublicationReadinessReceipt.model_validate_json(
+                (generation_root / "review/design-readiness.json").read_bytes()
+            )
+            mandatory = require_mandatory_review(
+                receipt.request.predesign, generation_root / "review/readiness-inputs"
+            )
+            require_visual_acceptance(final_review, generation_root / "review")
+            blockers.extend(
+                native_rule_blockers(
+                    mandatory,
+                    board_file.with_suffix(".kicad_pro"),
+                    {"drc": json.loads(drc_report_file.read_bytes())},
+                )
+            )
+        except (OSError, ValueError, KeyError, TypeError) as exc:
+            blockers.append(f"mandatory final review: {exc}")
     if "placement" in board_file.name.casefold():
         blockers.append("canonical handoff board is still named as a placement artifact")
     if board_routing.state is not RoutingArtifactState.ROUTED_CANDIDATE:
@@ -2021,10 +2402,38 @@ def evaluate_routed_board_release_gate(
     )
     if not retained_board:
         blockers.append("committed transaction lacks the exact routed board")
+    if not any(
+        item.role == "verification"
+        and item.relative_path == "verification/drc.json"
+        and item.content_sha256 == kicad_drc.report_sha256
+        for item in committed_transaction.artifacts
+    ):
+        blockers.append("committed transaction lacks the exact KiCad DRC report")
+    if not any(
+        record.check_id == "kicad.drc"
+        and record.producer_id == "kicad-cli.pcb.drc"
+        and record.disposition.value == "pass"
+        and record.evaluated_object_count > 0
+        and board_routing.board_sha256 in record.exact_input_sha256s
+        and record.result_sha256 == kicad_drc.report_sha256
+        for record in applicability_execution.executions
+    ):
+        blockers.append("KiCad DRC lacks an execution binding to this board and report")
     review_payload = (
         json.dumps(final_review.model_dump(mode="json", by_alias=True), indent=2) + "\n"
     ).encode("utf-8")
     review_sha256 = _bytes_sha256(review_payload)
+    if generation_root is not None:
+        try:
+            retained_bytes = (generation_root / "review/manifest.json").read_bytes()
+            retained_manifest = VisualReviewManifest.model_validate_json(retained_bytes)
+            if retained_manifest != final_review:
+                blockers.append("retained final review manifest differs from supplied review")
+            else:
+                # Immutable identity is the retained file, including platform line endings.
+                review_sha256 = _bytes_sha256(retained_bytes)
+        except (OSError, ValueError) as exc:
+            blockers.append(f"retained final review manifest cannot be replayed: {exc}")
     retained_review = tuple(
         item
         for item in committed_transaction.artifacts
@@ -2072,6 +2481,8 @@ def route_native_board(
     netlist: BoardNetlist,
     routing_gate: RoutingEntryGateReport,
     binding: AlgorithmBudgetBinding,
+    profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE,
+    net_widths: dict[str, float] | None = None,
     exact_checker: ExactRouteChecker,
     net_order: tuple[str, ...] | None = None,
     max_expansions_per_net: int | None = None,
@@ -2083,6 +2494,9 @@ def route_native_board(
     Each completed router pass updates the shared native ledger and emits a
     checkpoint-bound heartbeat.
     """
+    from pcbsmith.board_job import require_library_worker
+
+    require_library_worker()
 
     if not routing_gate.allowed:
         raise ValueError("native production routing requires an accepted routing gate")
@@ -2112,6 +2526,9 @@ def route_native_board(
     result = route_board(
         layout,
         netlist,
+        profile=profile,
+        net_widths=net_widths,
+        default_width_mm=profile.geometry.default_signal_trace_width_mm,
         net_order=net_order,
         max_restarts=max(0, (binding.maximum_passes // 2) - 1),
         max_passes=binding.maximum_passes,
@@ -2156,5 +2573,57 @@ def route_native_board(
             generation_sha256=routing_gate.generation_sha256,
             termination=termination,
             findings=findings,
+        ),
+    )
+
+
+def retained_production_release_evidence(
+    *,
+    generation_root: Path,
+    release_report_file: Path,
+    board_file: Path,
+) -> tuple[tuple[str, bytes], ...]:
+    """Replay a retained release at manufacturing time; old booleans cannot promote it."""
+    generation_root = generation_root.resolve()
+    manifest_file = generation_root / "transaction.json"
+    transaction = GenerationTransactionManifest.model_validate_json(manifest_file.read_bytes())
+    if transaction.status != "committed":
+        raise ValueError("manufacturing requires a committed production generation")
+    for artifact in transaction.artifacts:
+        path = generation_root / PurePosixPath(artifact.relative_path)
+        _require_descendant(generation_root, path)
+        if _bytes_sha256(path.read_bytes()) != artifact.content_sha256:
+            raise ValueError("manufacturing production generation has changed artifacts")
+    board_sha = _bytes_sha256(board_file.read_bytes())
+    boards = tuple(
+        generation_root / PurePosixPath(item.relative_path)
+        for item in transaction.artifacts
+        if item.role == "board" and item.content_sha256 == board_sha
+    )
+    if len(boards) != 1:
+        raise ValueError("manufacturing board differs from the released production candidate")
+    report_bytes = release_report_file.read_bytes()
+    report = RoutedBoardReleaseGateReport.model_validate_json(report_bytes)
+    review_file = generation_root / "review/manifest.json"
+    review = VisualReviewManifest.model_validate_json(review_file.read_bytes())
+    replay = evaluate_routed_board_release_gate(
+        board_file=boards[0],
+        drc_report_file=generation_root / "verification/drc.json",
+        final_review=review,
+        committed_transaction=transaction,
+        verification_evidence=report.verification_evidence,
+        applicability_execution=report.applicability_execution,
+        generation_root=generation_root,
+    )
+    if not replay.allowed or replay.report_fingerprint != report.report_fingerprint:
+        raise ValueError(
+            "manufacturing production release does not replay: " + "; ".join(replay.blockers)
+        )
+    return (
+        ("production-release.json", report_bytes),
+        ("production-transaction.json", manifest_file.read_bytes()),
+        (
+            "production-readiness.json",
+            (generation_root / "review/design-readiness.json").read_bytes(),
         ),
     )

@@ -551,19 +551,19 @@ def test_reduced_stem_full_acceptance_chain_fires_and_replays() -> None:
     assert not acceptance.thermometer_readiness_claimed
     assert "no circuit-to-board equivalence" in acceptance.authority_scope_note
     assert acceptance.authority_fingerprint == (
-        "a81f4479bc959156175b4a9e3947878ba1831f44935f3ca905924ccf683b13a9"
+        "576beee0d3398682c5165481cfb2b22fe689c59b656b42f5bbe7d088f2017a9b"
     )
     assert acceptance.candidate_search_fingerprint == (
-        "6d48a718387be3451de84de2d12d697baf9af1e3db38ca0bc76f402c947e946a"
+        "b703ed9ba056b4fa97abe1a8a09af7ee68574a6fb57f6ed49e3864eaf1a1d5bd"
     )
     assert acceptance.accepted_candidate_fingerprint == (
-        "f7ae17969195bccc5f2d64e1e54657f3341936b6d22af6647c64b75f9c7fff53"
+        "329e0d4525a8d4e05ce812becf4c13eef75d273e998a15f6346abe80d6a27583"
     )
     assert acceptance.accepted_r3_graph_fingerprint == (
-        "2438c4bf884adf4f38d7a36e759ede937618401fc6baed155ed97f851f0faa95"
+        "eede5aea493f59970908e783521a3597bdd9528b390ec7a39848f9332d19b9c9"
     )
     assert acceptance.acceptance_fingerprint == (
-        "fd7c67bdeb06cd767fcc3c0e719c0a8cb931c8e506a9f44470e6f2479a615044"
+        "d3684d91478be304bb7b88174aae4cb2fbf289aa4d36194e7857422aeacbaf7c"
     )
     assert acceptance == PlacementPilotAcceptance.model_validate_json(acceptance.model_dump_json())
 

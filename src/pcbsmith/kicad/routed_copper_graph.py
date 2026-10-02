@@ -267,6 +267,8 @@ def rederive_routed_copper_graph(
     board_netlist_snapshot_json: str,
     terminal_anchors: Sequence[CopperTerminalAnchorBinding],
     exact_filled_zones: Sequence[ExactFilledZoneCopper] = (),
+    *,
+    resolve_point_contacts: bool = False,
 ) -> dict[str, Any]:
     layout = parse_canonical_board_layout_snapshot(board_layout_snapshot_json)
     netlist = parse_canonical_board_netlist_snapshot(board_netlist_snapshot_json)
@@ -324,6 +326,22 @@ def rederive_routed_copper_graph(
         raw_edges.append(
             (source, source, "via", first, second, _decimal(via.size_mm), Fraction(0), None)
         )
+    # Native plated-through pads connect both copper layers. The caller must
+    # derive the optional diameter from the exact native pad, not a model file.
+    for anchor in anchors:
+        if anchor.through_hole_diameter_mm is None:
+            continue
+        front = _node_key(anchor.net_name, "F.Cu", anchor.x_mm, anchor.y_mm)
+        back = _node_key(anchor.net_name, "B.Cu", anchor.x_mm, anchor.y_mm)
+        source = anchor.physical_pad_source_id
+        if source in seen_sources:
+            raise ValueError("duplicate physical through-pad source")
+        seen_sources.add(source)
+        keys.update((front, back))
+        via_records.append((source, front, back))
+        raw_edges.append(
+            (source, source, "via", front, back, anchor.through_hole_diameter_mm, Fraction(0), None)
+        )
     contacts: list[RoutedCopperUnverifiedContact] = []
     for anchor in anchors:
         anchor_key = _node_key(anchor.net_name, anchor.layer, anchor.x_mm, anchor.y_mm)
@@ -376,6 +394,87 @@ def rederive_routed_copper_graph(
                         reason=reason,
                     )
                 )
+    if resolve_point_contacts:
+        unresolved = []
+        for point_contact in contacts:
+            if point_contact.reason == "collinear_track_overlap":
+                unresolved.append(point_contact)
+                continue
+            coordinates = (point_contact.x.fraction(), point_contact.y.fraction())
+            decimals = tuple(Decimal(q.numerator) / Decimal(q.denominator) for q in coordinates)
+            if any(Fraction(d) != q for d, q in zip(decimals, coordinates, strict=True)):
+                unresolved.append(
+                    point_contact
+                )  # Never round an exact intersection into existence.
+                continue
+            keys.add((point_contact.net_name, point_contact.layer, decimals[0], decimals[1]))
+        split_edges = []
+        for edge in raw_edges:
+            edge_id, source, kind, first, second, width, squared, fill_hash = edge
+            middle = [
+                key
+                for key in keys
+                if kind == "track"
+                and key[:2] == first[:2]
+                and _strictly_on_segment(_qpoint(key), _qpoint(first), _qpoint(second))
+            ]
+            if not middle:
+                split_edges.append(edge)
+                continue
+            points = sorted((first, *middle, second), key=lambda key: _squared(first, key))
+            for part_start, part_end in zip(points, points[1:], strict=False):
+                part_id = _source_id(
+                    "track-part", [source, _node_id(part_start), _node_id(part_end)]
+                )
+                split_edges.append(
+                    (
+                        part_id,
+                        source,
+                        kind,
+                        part_start,
+                        part_end,
+                        width,
+                        _squared(part_start, part_end),
+                        fill_hash,
+                    )
+                )
+        raw_edges = split_edges
+        contacts = unresolved
+    # Native pad contact edges express equipotential copper-region connectivity.
+    # Their radial witness is for topology/projected geometry only, never a
+    # fabricated track, trace width, physical current path or additional via.
+    for anchor in anchors:
+        radius = anchor.copper_contact_radius_mm
+        if radius is None:
+            continue
+        layers = (
+            ("F.Cu", "B.Cu") if anchor.through_hole_diameter_mm is not None else (anchor.layer,)
+        )
+        for layer in layers:
+            centre = _node_key(anchor.net_name, layer, anchor.x_mm, anchor.y_mm)
+            for contact_node in sorted(keys):
+                if contact_node[:2] != centre[:2] or contact_node == centre:
+                    continue
+                squared = _squared(centre, contact_node)
+                # Strictly inside the conservative inscribed pad disk; no
+                # tangencies, outside endpoints or foreign-net bridges.
+                if squared < Fraction(radius) ** 2:
+                    edge_id = _source_id(
+                        "pad-contact",
+                        [anchor.physical_pad_source_id, _node_id(centre), _node_id(contact_node)],
+                    )
+                    raw_edges.append(
+                        (
+                            edge_id,
+                            anchor.physical_pad_source_id,
+                            "pad_contact",
+                            centre,
+                            contact_node,
+                            None,
+                            squared,
+                            None,
+                        )
+                    )
     fill_by_id = {item.zone_source_id: item for item in fills}
     unknown: list[RoutedCopperUnknownZoneReason] = []
     for index, (net_name, layer, _rectangle) in enumerate(layout.zones):
@@ -490,14 +589,21 @@ def build_routed_copper_graph(
     netlist: BoardNetlist,
     terminal_anchors: Sequence[CopperTerminalAnchorBinding],
     exact_filled_zones: Sequence[ExactFilledZoneCopper] = (),
+    *,
+    resolve_point_contacts: bool = False,
 ) -> RoutedCopperGraphResult:
     layout_json = canonical_board_layout_snapshot_json(layout)
     netlist_json = canonical_board_netlist_snapshot_json(netlist)
     derived = rederive_routed_copper_graph(
-        layout_json, netlist_json, terminal_anchors, exact_filled_zones
+        layout_json,
+        netlist_json,
+        terminal_anchors,
+        exact_filled_zones,
+        resolve_point_contacts=resolve_point_contacts,
     )
     fields = {
         "board_layout_snapshot_json": layout_json,
+        "resolve_point_contacts": resolve_point_contacts,
         "board_netlist_snapshot_json": netlist_json,
         **derived,
     }

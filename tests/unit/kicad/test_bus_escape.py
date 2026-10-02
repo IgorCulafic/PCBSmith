@@ -229,10 +229,10 @@ def test_real_generated_pigtails_prefixes_and_c2_candidate_are_pinned_and_pure()
     assert ledger.semantic_fingerprint() == before
     assert ledger.committed_claims() == ()
     assert result.semantic_fingerprint() == (
-        "1ca9c2929e07b8d68758b6d3a9b5592a60e7ca3a289cbaf73a9ad516144bf9fd"
+        "4309445afd1c55abc9ee10aac203277e2e04971991b60c0950ae3f4a5cfb37ab"
     )
     assert result.input_fingerprint == (
-        "bb4ad6be02211d9f45d15afc3d6c16b8acb8b822e69362c824ef60cf4c6d8f6c"
+        "9eba65f8f0182a2507902eebc23f86c240be1dea6332f4c4137b51f66e4eeee2"
     )
     assert fixture.registry.semantic_fingerprint() == (
         "10d709ff4388f0e72edcddb8e81db39aba07bf265e9b93ad84645565c9a63892"

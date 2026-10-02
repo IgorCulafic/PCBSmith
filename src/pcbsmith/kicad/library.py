@@ -13,8 +13,10 @@ from __future__ import annotations
 
 import math
 import os
+from collections.abc import Iterator, MutableMapping
+from contextvars import ContextVar
 from dataclasses import dataclass, field
-from functools import cache
+from functools import lru_cache
 from pathlib import Path
 from uuid import UUID
 
@@ -312,6 +314,8 @@ def rotate_offset(dx: float, dy: float, rotation: float) -> tuple[float, float]:
 # Loading and measuring official footprints.
 
 VENDORED_DIR = Path(__file__).resolve().parents[3] / "ai_assets" / "kicad_footprints"
+if not VENDORED_DIR.is_dir():
+    VENDORED_DIR = Path(__file__).resolve().parents[1] / "assets" / "kicad_footprints"
 PRIVATE_ASSET_ROOT_ENV = "PCBSMITH_PRIVATE_ASSET_ROOT"
 INSTALLED_SHARE_DIRS = (
     Path(r"C:\Program Files\KiCad\10.0\share\kicad\footprints"),
@@ -355,17 +359,27 @@ def _custom_pad_source(pad: SList) -> CustomPadSource:
     )
 
 
-def _footprint_file(library_id: str) -> Path:
+def _footprint_file(
+    library_id: str, *, repository_root: Path | None = None, private_asset_root: Path | None = None
+) -> Path:
     try:
         library, name = library_id.split(":", 1)
     except ValueError as exc:
         raise FootprintLibraryError(
             f"Footprint id must be 'Library:Name', got {library_id!r}."
         ) from exc
-    vendored = VENDORED_DIR / f"{library}__{name}.kicad_mod"
+    if any(
+        not part or part in {".", ".."} or any(c in part for c in "/\\:")
+        for part in (library, name)
+    ):
+        raise FootprintLibraryError("Footprint id contains a path or invalid name")
+    vendor_root = (
+        repository_root / "ai_assets/kicad_footprints" if repository_root else VENDORED_DIR
+    )
+    vendored = vendor_root / f"{library}__{name}.kicad_mod"
     if vendored.exists():
         return vendored
-    private_root = os.environ.get(PRIVATE_ASSET_ROOT_ENV)
+    private_root = private_asset_root or os.environ.get(PRIVATE_ASSET_ROOT_ENV)
     if private_root:
         private = Path(private_root) / "footprints" / f"{library}__{name}.kicad_mod"
         if private.exists():
@@ -380,14 +394,65 @@ def _footprint_file(library_id: str) -> Path:
     )
 
 
-@cache
-def load_footprint(library_id: str) -> ImportedFootprint:
-    source = _footprint_file(library_id)
+@lru_cache(maxsize=256)
+def _load_footprint_revision(
+    library_id: str,
+    source: Path,
+    mtime_ns: int,
+    size: int,
+) -> ImportedFootprint:
+    del mtime_ns, size  # Included in the cache identity; never shared between roots.
+    return _read_footprint(library_id, source)
+
+
+def _read_footprint(library_id: str, source: Path) -> ImportedFootprint:
     tree = parse_sexpr(source.read_text(encoding="utf-8"))
     if _safe_head(tree) != "footprint":
         raise FootprintLibraryError(f"{source} is not a footprint file.")
     spec = _measure(tree, library_id)
     return ImportedFootprint(library_id=library_id, spec=spec, source_file=source, tree=tree)
+
+
+_PROJECT_FOOTPRINTS: ContextVar[dict[str, Path] | None] = ContextVar(
+    "project_footprints", default=None
+)
+
+
+_PROJECT_LIBRARY_NAMES: ContextVar[frozenset[str]] = ContextVar(
+    "project_library_names", default=frozenset()
+)
+
+
+class FootprintLoader:
+    """Revision-scoped cache. Call cache_clear after tools preserve file timestamps.
+
+    Normal edits and project-root changes invalidate automatically. This is a
+    performance cache, not a content-integrity attestation; release checks hash files.
+    """
+
+    def __call__(
+        self, library_id: str, *, source_file: Path | None = None, verify_content: bool = False
+    ) -> ImportedFootprint:
+        local = (_PROJECT_FOOTPRINTS.get() or {}).get(library_id)
+        if (
+            source_file is None
+            and local is None
+            and library_id.split(":")[0] in _PROJECT_LIBRARY_NAMES.get()
+        ):
+            raise FootprintLibraryError(
+                "Requested footprint is missing from pinned project library"
+            )
+        source = (source_file or local or _footprint_file(library_id)).resolve()
+        if verify_content:
+            return _read_footprint(library_id, source)
+        stat = source.stat()
+        return _load_footprint_revision(library_id, source, stat.st_mtime_ns, stat.st_size)
+
+    def cache_clear(self) -> None:
+        _load_footprint_revision.cache_clear()
+
+
+load_footprint = FootprintLoader()
 
 
 def _measure(tree: SList, library_id: str) -> FootprintSpec:
@@ -1268,31 +1333,92 @@ _BOARD_ONLY_IDS = frozenset(
 )
 
 
-def build_footprint_library() -> dict[str, FootprintSpec]:
-    library: dict[str, FootprintSpec] = {}
-    for library_id in LIBRARY_FOOTPRINT_IDS:
-        imported = load_footprint(library_id)
-        spec = imported.spec
-        extra = _CONNECTOR_EXTRA_MARKS.get(library_id)
-        board_only = spec.board_only or library_id in _BOARD_ONLY_IDS
-        if extra or board_only != spec.board_only:
-            marks = (*spec.silk_marks, *(extra or ()))
-            text_ys = [mark.y for mark in (extra or ()) if isinstance(mark, SilkText)]
-            spec = FootprintSpec(
-                pads=spec.pads,
-                fab_rect=spec.fab_rect,
-                silk_rect=spec.silk_rect,
-                x_min=spec.x_min,
-                x_max=spec.x_max,
-                y_min=min((spec.y_min, *[y - 0.8 for y in text_ys])),
-                y_max=max((spec.y_max, *[y + 0.8 for y in text_ys])),
-                attr=spec.attr,
-                is_connector=spec.is_connector,
-                silk_marks=marks,
-                board_only=board_only,
-                courtyard_hull=spec.courtyard_hull,
-                fab_hull=spec.fab_hull,
-                reference_label=spec.reference_label,
+def _default_footprint_spec(library_id: str) -> FootprintSpec:
+    imported = load_footprint(library_id)
+    spec = imported.spec
+    extra = _CONNECTOR_EXTRA_MARKS.get(library_id)
+    board_only = spec.board_only or library_id in _BOARD_ONLY_IDS
+    if extra or board_only != spec.board_only:
+        marks = (*spec.silk_marks, *(extra or ()))
+        text_ys = [mark.y for mark in (extra or ()) if isinstance(mark, SilkText)]
+        spec = FootprintSpec(
+            pads=spec.pads,
+            fab_rect=spec.fab_rect,
+            silk_rect=spec.silk_rect,
+            x_min=spec.x_min,
+            x_max=spec.x_max,
+            y_min=min((spec.y_min, *[y - 0.8 for y in text_ys])),
+            y_max=max((spec.y_max, *[y + 0.8 for y in text_ys])),
+            attr=spec.attr,
+            is_connector=spec.is_connector,
+            silk_marks=marks,
+            board_only=board_only,
+            courtyard_hull=spec.courtyard_hull,
+            fab_hull=spec.fab_hull,
+            reference_label=spec.reference_label,
+        )
+    return spec
+
+
+class LazyFootprintLibrary(MutableMapping[str, FootprintSpec]):
+    """Resolve only requested footprints, retaining explicit in-process overrides."""
+
+    def __init__(self) -> None:
+        self._overrides: dict[str, FootprintSpec] = {}
+        self._removed: set[str] = set()
+        self._resolved: set[str] = set()
+
+    def __getitem__(self, key: str) -> FootprintSpec:
+        if key in self._overrides:
+            return self._overrides[key]
+        if key in self._removed:
+            raise KeyError(key)
+        try:
+            spec = _default_footprint_spec(key)
+        except FootprintLibraryError as exc:
+            if key in LIBRARY_FOOTPRINT_IDS or key in self._resolved:
+                raise  # Known assets can be unavailable without becoming unknown keys.
+            raise KeyError(key) from exc
+        self._resolved.add(key)
+        return spec
+
+    def __contains__(self, key: object) -> bool:
+        if not isinstance(key, str) or key in self._removed:
+            return False
+        if key in self._overrides or key in LIBRARY_FOOTPRINT_IDS or key in self._resolved:
+            return True
+        try:
+            self[key]
+        except KeyError:
+            return False
+        return True
+
+    def __setitem__(self, key: str, value: FootprintSpec) -> None:
+        self._removed.discard(key)
+        self._overrides[key] = value
+
+    def __delitem__(self, key: str) -> None:
+        if key not in self:
+            raise KeyError(key)
+        self._overrides.pop(key, None)
+        self._removed.add(key)
+
+    def __iter__(self) -> Iterator[str]:
+        yield from dict.fromkeys(
+            (
+                *[
+                    key
+                    for key in (*LIBRARY_FOOTPRINT_IDS, *sorted(self._resolved))
+                    if key not in self._removed
+                ],
+                *self._overrides,
             )
-        library[library_id] = spec
-    return library
+        )
+
+    def __len__(self) -> int:
+        return sum(1 for _ in self)
+
+
+def build_footprint_library() -> dict[str, FootprintSpec]:
+    """Explicit eager snapshot, for callers needing the entire installed library."""
+    return {key: _default_footprint_spec(key) for key in LIBRARY_FOOTPRINT_IDS}

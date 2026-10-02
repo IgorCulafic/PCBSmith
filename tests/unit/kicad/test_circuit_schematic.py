@@ -82,7 +82,7 @@ def test_circuit_design_renders_as_non_empty_kicad_schematic() -> None:
     assert '(lib_id "PCBSmith:LED")' in body
     assert '(property "Reference" "R1"' in body
     assert '(property "Reference" "LED1"' in body
-    assert '(label "LED_A"' in body
+    assert '(global_label "LED_A"' in body
 
 
 def _fixed_uuid() -> UUID:

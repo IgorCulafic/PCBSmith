@@ -121,6 +121,42 @@ def test_standard_gate_matrix_uses_existing_tools_and_profile_scopes() -> None:
     quick = standard_verification_gates(profile_name="quick", python_executable="python")
     deep = standard_verification_gates(profile_name="deep", python_executable="python")
 
-    assert [gate.gate_id for gate in quick] == ["lock", "ruff", "mypy", "pytest-focused"]
+    assert [gate.gate_id for gate in quick] == [
+        "lock",
+        "ruff",
+        "board-workflow-audit",
+        "mypy",
+        "imports",
+        "pytest-focused",
+    ]
     assert quick[-1].environment["PYTEST_DISABLE_PLUGIN_AUTOLOAD"] == "1"
+    assert "tests/unit/test_board_job.py" in quick[-1].command
     assert deep[-1].environment["PCBSMITH_GOLDEN"] == "1"
+    assert all(
+        deep[-1].environment[name] == "1"
+        for name in (
+            "PCBSMITH_R2_KICAD_GOLDEN",
+            "PCBSMITH_R4_KICAD_GOLDEN",
+            "PCBSMITH_R5_KICAD_GOLDEN",
+            "PCBSMITH_PWLED_MICRO_KICAD_GOLDEN",
+        )
+    )
+
+
+def test_verification_refuses_to_overwrite_retained_run(tmp_path: Path) -> None:
+    prior = tmp_path / "progress.jsonl"
+    prior.write_text("retained run\n", encoding="utf-8")
+    with pytest.raises(ValueError, match="already contains a run"):
+        VerificationOrchestrator(runner=ScriptedRunner({}), wall_clock=_clock).run(
+            gates=(), profile=EXECUTION_PROFILES["quick"], output_dir=tmp_path
+        )
+    assert prior.read_text(encoding="utf-8") == "retained run\n"
+
+
+def test_standard_gate_owns_test_font_plugins_and_output_paths(tmp_path: Path) -> None:
+    gates = standard_verification_gates(profile_name="standard", output_dir=tmp_path)
+    test_gate = gates[-1]
+    assert "--pytest-worker" in test_gate.command
+    assert str(tmp_path / "tests.xml") in test_gate.command
+    assert test_gate.environment["QT_QPA_PLATFORM"] == "offscreen"
+    assert test_gate.environment["PCBSMITH_GOLDEN"] == ""

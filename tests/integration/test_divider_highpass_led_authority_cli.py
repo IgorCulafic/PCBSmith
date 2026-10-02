@@ -63,6 +63,7 @@ def test_authority_cli_writes_kicad_and_authority_bundle(
     exit_code = main(
         [
             "design-divider-highpass-led-authority",
+            "--research",
             str(tmp_path),
             "--name",
             "Slice",
@@ -133,6 +134,7 @@ def test_authority_cli_truthfully_marks_pcbs_fallback_when_kicad_spice_fails(
     exit_code = main(
         [
             "design-divider-highpass-led-authority",
+            "--research",
             str(tmp_path),
             "--name",
             "Slice",
@@ -214,6 +216,7 @@ def test_authority_cli_does_not_overstate_selected_kicad_netlist_when_ngspice_un
     exit_code = main(
         [
             "design-divider-highpass-led-authority",
+            "--research",
             str(tmp_path),
             "--name",
             "Slice",
@@ -284,6 +287,7 @@ def test_authority_cli_routes_simulation_warning_to_revision(
     exit_code = main(
         [
             "design-divider-highpass-led-authority",
+            "--research",
             str(tmp_path),
             "--name",
             "Slice",
@@ -355,6 +359,7 @@ def test_authority_cli_uses_cached_evidence_manifest(
     exit_code = main(
         [
             "design-divider-highpass-led-authority",
+            "--research",
             str(tmp_path),
             "--name",
             "Slice",

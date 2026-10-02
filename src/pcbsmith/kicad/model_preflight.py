@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import os
 import re
 from pathlib import Path
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from pcbsmith.kicad.library import QuotedString, SExpr, SList, parse_sexpr
 
@@ -20,7 +21,13 @@ ModelClassification = Literal[
     "unknown",
 ]
 ModelResolutionStatus = Literal["resolved", "unresolved", "hash_mismatch"]
-PreflightStatus = Literal["passed", "attention_required", "failed"]
+ModelApplicability = Literal["applicable", "not_applicable", "unresolved"]
+PreflightStatus = Literal[
+    "passed",
+    "not_applicable",
+    "attention_required",
+    "failed",
+]
 
 
 class ModelTransform(BaseModel):
@@ -30,9 +37,20 @@ class ModelTransform(BaseModel):
     scale_xyz: tuple[str, str, str] = ("1", "1", "1")
     rotate_xyz: tuple[str, str, str] = ("0", "0", "0")
 
+    @model_validator(mode="after")
+    def finite_coordinates(self) -> ModelTransform:
+        for values in (self.offset_xyz, self.scale_xyz, self.rotate_xyz):
+            try:
+                valid = all(math.isfinite(float(value)) for value in values)
+            except ValueError:
+                valid = False
+            if not valid:
+                raise ValueError("model transform coordinates must be finite numbers")
+        return self
+
 
 class ModelTransformTolerance(BaseModel):
-    model_config = ConfigDict(frozen=True, extra="forbid")
+    model_config = ConfigDict(frozen=True, extra="forbid", allow_inf_nan=False)
 
     offset_mm: float = Field(default=0.01, ge=0)
     scale_ratio: float = Field(default=0.001, ge=0)
@@ -76,9 +94,7 @@ class ModelResolution(BaseModel):
     source_url: str | None = None
     redistributable: bool = False
     transform: ModelTransform = ModelTransform()
-    transform_alignment: Literal["not_declared", "passed", "failed"] = (
-        "not_declared"
-    )
+    transform_alignment: Literal["not_declared", "passed", "failed"] = "not_declared"
     findings: tuple[str, ...] = ()
 
 
@@ -91,9 +107,37 @@ class ModelPreflightReport(BaseModel):
     board_file: str
     board_sha256: str
     status: PreflightStatus
+    applicability: ModelApplicability
+    applicability_rationale: str | None = None
     models: tuple[ModelResolution, ...]
     required_references: tuple[str, ...] = ()
     findings: tuple[str, ...] = ()
+
+    @model_validator(mode="after")
+    def applicability_is_non_vacuous(self) -> ModelPreflightReport:
+        if self.applicability == "applicable" and not self.required_references:
+            if self.status != "failed":
+                raise ValueError("applicable model preflight requires declared references")
+        if self.applicability == "not_applicable":
+            if not self.applicability_rationale:
+                raise ValueError("not-applicable model preflight requires a rationale")
+            if self.status != "not_applicable":
+                raise ValueError("not-applicable model preflight has a stale status")
+        if self.applicability == "unresolved" and self.status == "passed":
+            raise ValueError("unresolved model applicability cannot pass")
+        return self
+
+
+class ModelInventoryAssessment(BaseModel):
+    """Shared resolution/policy result, without claiming a saved-board identity."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+    status: PreflightStatus
+    applicability: ModelApplicability
+    applicability_rationale: str | None = None
+    models: tuple[ModelResolution, ...]
+    required_references: tuple[str, ...]
+    findings: tuple[str, ...]
 
 
 def preflight_board_models(
@@ -102,21 +146,69 @@ def preflight_board_models(
     registry: tuple[ModelRegistryEntry, ...] = (),
     requirements: tuple[ModelRequirement, ...] = (),
     variables: dict[str, str] | None = None,
+    applicability: ModelApplicability | None = None,
+    applicability_rationale: str | None = None,
 ) -> ModelPreflightReport:
     board_path = board_file.resolve()
     payload = board_path.read_bytes()
     root = parse_sexpr(payload.decode("utf-8"))
+    inventory = tuple(
+        (
+            _footprint_reference(fp),
+            _atom(fp[1]) if len(fp) > 1 else "unknown",
+            _direct_children(fp, "model"),
+        )
+        for fp in _children(root, {"footprint", "module"})
+    )
+    assessment = preflight_model_inventory(
+        inventory,
+        project_dir=board_path.parent,
+        registry=registry,
+        requirements=requirements,
+        variables=variables,
+        applicability=applicability,
+        applicability_rationale=applicability_rationale,
+    )
+    return ModelPreflightReport(
+        schema_id="pcbsmith-kicad-model-preflight-v1",
+        board_file=str(board_path),
+        board_sha256=hashlib.sha256(payload).hexdigest(),
+        **assessment.model_dump(),
+    )
+
+
+def preflight_model_inventory(
+    footprints: tuple[tuple[str, str, tuple[SList, ...]], ...],
+    *,
+    project_dir: Path,
+    registry: tuple[ModelRegistryEntry, ...] = (),
+    requirements: tuple[ModelRequirement, ...] = (),
+    variables: dict[str, str] | None = None,
+    applicability: ModelApplicability | None = None,
+    applicability_rationale: str | None = None,
+) -> ModelInventoryAssessment:
+    """Evaluate actual model clauses from selected footprints or a saved board.
+
+    Callers bind their own exact input files. This result has no board identity
+    and cannot substitute for the final saved-board preflight.
+    """
     registry_by_path = {_normalized_path(entry.raw_path): entry for entry in registry}
+    if len(registry_by_path) != len(registry):
+        raise ValueError("ambiguous duplicate model registry paths")
+    if len({item.reference for item in requirements}) != len(requirements):
+        raise ValueError("ambiguous duplicate model requirement references")
     resolution_variables = _resolution_variables(variables)
-    resolution_variables.setdefault("KIPRJMOD", str(board_path.parent))
+    resolution_variables.setdefault("KIPRJMOD", str(project_dir.resolve()))
     models: list[ModelResolution] = []
     footprint_references: set[str] = set()
 
-    for footprint in _children(root, {"footprint", "module"}):
-        reference = _footprint_reference(footprint)
-        footprint_name = _atom(footprint[1]) if len(footprint) > 1 else "unknown"
+    for reference, footprint_name, model_nodes in footprints:
+        if reference in footprint_references:
+            raise ValueError(f"ambiguous duplicate footprint reference: {reference}")
+        if reference == "<unknown>" or not reference.strip():
+            raise ValueError("model preflight requires an explicit footprint reference")
         footprint_references.add(reference)
-        for model in _direct_children(footprint, "model"):
+        for model in model_nodes:
             raw_path = _atom(model[1]) if len(model) > 1 else ""
             entry = registry_by_path.get(_normalized_path(raw_path))
             resolved: Path | None
@@ -127,7 +219,7 @@ def preflight_board_models(
             else:
                 resolved, resolve_finding = _resolve_model_path(
                     raw_path,
-                    board_dir=board_path.parent,
+                    board_dir=project_dir.resolve(),
                     variables=resolution_variables,
                 )
             findings: list[str] = []
@@ -146,9 +238,7 @@ def preflight_board_models(
             elif resolved is not None:
                 findings.append(f"Resolved model path does not exist: {resolved}")
             transform = _model_transform(model)
-            transform_alignment: Literal["not_declared", "passed", "failed"] = (
-                "not_declared"
-            )
+            transform_alignment: Literal["not_declared", "passed", "failed"] = "not_declared"
             if entry is not None and entry.expected_transform is not None:
                 transform_findings = _transform_findings(
                     actual=transform,
@@ -182,6 +272,24 @@ def preflight_board_models(
     report_findings: list[str] = []
     failed = False
     requirement_by_ref = {requirement.reference: requirement for requirement in requirements}
+    if requirement_by_ref:
+        if applicability == "not_applicable":
+            raise ValueError("declared model requirements cannot be not applicable")
+        effective_applicability: ModelApplicability = "applicable"
+    else:
+        effective_applicability = applicability or "unresolved"
+        if effective_applicability == "not_applicable" and not applicability_rationale:
+            raise ValueError("not-applicable model preflight requires a rationale")
+        if effective_applicability == "applicable":
+            failed = True
+            report_findings.append(
+                "3D models are applicable, but no required component references were declared."
+            )
+        elif effective_applicability == "unresolved":
+            report_findings.append(
+                "Required 3D-model applicability was not declared; "
+                "populated rendering is unverified."
+            )
     for reference, requirement in sorted(requirement_by_ref.items()):
         if reference not in footprint_references:
             failed = True
@@ -220,8 +328,7 @@ def preflight_board_models(
     optional_misaligned = tuple(
         item
         for item in models
-        if item.transform_alignment == "failed"
-        and item.reference not in requirement_by_ref
+        if item.transform_alignment == "failed" and item.reference not in requirement_by_ref
     )
     if optional_misaligned:
         report_findings.append(
@@ -230,17 +337,23 @@ def preflight_board_models(
         )
 
     report_status: PreflightStatus
-    if failed:
+    if effective_applicability == "not_applicable":
+        report_status = "not_applicable"
+    elif failed:
         report_status = "failed"
-    elif unresolved_optional or unregistered or optional_misaligned:
+    elif (
+        effective_applicability == "unresolved"
+        or unresolved_optional
+        or unregistered
+        or optional_misaligned
+    ):
         report_status = "attention_required"
     else:
         report_status = "passed"
-    return ModelPreflightReport(
-        schema_id="pcbsmith-kicad-model-preflight-v1",
-        board_file=str(board_path),
-        board_sha256=hashlib.sha256(payload).hexdigest(),
+    return ModelInventoryAssessment(
         status=report_status,
+        applicability=effective_applicability,
+        applicability_rationale=applicability_rationale,
         models=tuple(models),
         required_references=tuple(sorted(requirement_by_ref)),
         findings=tuple(report_findings),
@@ -333,9 +446,7 @@ def _transform_findings(
             actual_numbers = tuple(float(value) for value in actual_values)
             expected_numbers = tuple(float(value) for value in expected_values)
         except ValueError:
-            findings.append(
-                f"Registered {name} alignment contains a non-numeric value."
-            )
+            findings.append(f"Registered {name} alignment contains a non-numeric value.")
             continue
         deltas = tuple(
             (
@@ -343,9 +454,7 @@ def _transform_findings(
                 if angular
                 else abs(actual_value - expected_value)
             )
-            for actual_value, expected_value in zip(
-                actual_numbers, expected_numbers, strict=True
-            )
+            for actual_value, expected_value in zip(actual_numbers, expected_numbers, strict=True)
         )
         if any(delta > allowed for delta in deltas):
             findings.append(
@@ -361,12 +470,15 @@ def _xyz_child(
     *,
     default: tuple[str, str, str],
 ) -> tuple[str, str, str]:
-    parent = next(iter(_direct_children(node, name)), None)
-    if parent is None:
+    parents = _direct_children(node, name)
+    if not parents:
         return default
-    xyz = next(iter(_direct_children(parent, "xyz")), None)
-    if xyz is None or len(xyz) < 4:
-        return default
+    if len(parents) != 1:
+        raise ValueError(f"duplicate model transform clause: {name}")
+    coordinates = _direct_children(parents[0], "xyz")
+    if len(coordinates) != 1 or len(coordinates[0]) != 4:
+        raise ValueError(f"malformed model transform clause: {name}")
+    xyz = coordinates[0]
     return (_atom(xyz[1]), _atom(xyz[2]), _atom(xyz[3]))
 
 

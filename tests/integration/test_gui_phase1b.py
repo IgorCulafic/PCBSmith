@@ -52,9 +52,7 @@ def test_scene_tools_place_label_and_no_connect() -> None:
 
     schematic = scene.editor_state.to_schematic()
     assert [label.name for label in schematic.labels] == ["NET"]
-    assert [marker.position for marker in schematic.no_connects] == [
-        Point(x=2_540_000, y=0)
-    ]
+    assert [marker.position for marker in schematic.no_connects] == [Point(x=2_540_000, y=0)]
 
 
 def test_wire_tool_snaps_near_click_to_real_symbol_pin_anchor() -> None:
@@ -75,9 +73,7 @@ def test_wire_tool_snaps_near_click_to_real_symbol_pin_anchor() -> None:
 def test_wire_tool_preserves_off_grid_endpoint_anchor_snap() -> None:
     scene = SchematicScene()
     scene.load_editor_state(
-        EditorState.blank("main").add_wire(
-            (Point(x=mm_to_nm(1), y=0), Point(x=mm_to_nm(4), y=0))
-        )
+        EditorState.blank("main").add_wire((Point(x=mm_to_nm(1), y=0), Point(x=mm_to_nm(4), y=0)))
     )
     scene.set_tool("wire")
 
@@ -108,9 +104,7 @@ def test_scene_undo_redo_tracks_edit_commands() -> None:
     assert scene.editor_state.to_schematic().symbols[0].position == Point(x=0, y=0)
 
     scene.redo()
-    assert scene.editor_state.to_schematic().symbols[0].position == Point(
-        x=2_540_000, y=0
-    )
+    assert scene.editor_state.to_schematic().symbols[0].position == Point(x=2_540_000, y=0)
 
 
 def test_load_editor_state_resets_history() -> None:
@@ -205,29 +199,26 @@ def test_main_window_undo_redo_actions_update_scene(qtbot) -> None:  # type: ign
     assert window.scene.editor_state.to_schematic().symbols == ()
 
     window.redo()
-    assert [
-        symbol.reference
-        for symbol in window.scene.editor_state.to_schematic().symbols
-    ] == ["R1"]
+    assert [symbol.reference for symbol in window.scene.editor_state.to_schematic().symbols] == [
+        "R1"
+    ]
 
 
 def test_main_window_registers_shortcut_actions_and_toolbar_tools(qtbot) -> None:  # type: ignore[no-untyped-def]
     window = MainWindow()
     qtbot.addWidget(window)
 
-    window_actions = {action.text(): action for action in window.actions()}
+    window_actions = {
+        action.text(): action for action in (*window.actions(), *window.view.actions())
+    }
     assert window_actions["Undo"] is window.undo_action
     assert window_actions["Redo"] is window.redo_action
     assert window_actions["Delete"] is window.delete_action
     assert window_actions["Rotate"] is window.rotate_action
-    assert window.delete_action.shortcut() == QKeySequence(
-        QKeySequence.StandardKey.Delete
-    )
+    assert window.delete_action.shortcut() == QKeySequence(QKeySequence.StandardKey.Delete)
     assert window.rotate_action.shortcut() == QKeySequence("Ctrl+R")
 
-    toolbar_actions = {
-        action.text(): action for action in window.schematic_toolbar.actions()
-    }
+    toolbar_actions = {action.text(): action for action in window.schematic_toolbar.actions()}
     toolbar_actions["Label"].trigger()
     window.scene.handle_canvas_click(Point(x=0, y=0))
     toolbar_actions["No Connect"].trigger()
@@ -235,9 +226,7 @@ def test_main_window_registers_shortcut_actions_and_toolbar_tools(qtbot) -> None
 
     schematic = window.scene.editor_state.to_schematic()
     assert [label.name for label in schematic.labels] == ["NET"]
-    assert [marker.position for marker in schematic.no_connects] == [
-        Point(x=2_540_000, y=0)
-    ]
+    assert [marker.position for marker in schematic.no_connects] == [Point(x=2_540_000, y=0)]
 
 
 def test_main_window_applies_symbol_inspector_edits(qtbot) -> None:  # type: ignore[no-untyped-def]
@@ -252,9 +241,7 @@ def test_main_window_applies_symbol_inspector_edits(qtbot) -> None:  # type: ign
     assert window.inspector.item_type_label.text() == "Symbol"
     assert window.inspector.value_edit.text() == "4.7k"
 
-    window.apply_symbol_field_change(
-        (SelectionKey("symbol", "R1"), "footprint", "R_0603")
-    )
+    window.apply_symbol_field_change((SelectionKey("symbol", "R1"), "footprint", "R_0603"))
 
     symbol = window.scene.editor_state.to_schematic().symbols[0]
     assert symbol.value == "4.7k"
@@ -272,10 +259,10 @@ def test_main_window_rejects_duplicate_reference_from_inspector(qtbot) -> None: 
     window.apply_symbol_field_change((SelectionKey("symbol", "R2"), "reference", "R1"))
 
     assert errors == ["Duplicate reference designator: R1"]
-    assert [
-        symbol.reference
-        for symbol in window.scene.editor_state.to_schematic().symbols
-    ] == ["R1", "R2"]
+    assert [symbol.reference for symbol in window.scene.editor_state.to_schematic().symbols] == [
+        "R1",
+        "R2",
+    ]
 
 
 def test_main_window_applies_label_text_edits(qtbot) -> None:  # type: ignore[no-untyped-def]
@@ -286,9 +273,7 @@ def test_main_window_applies_label_text_edits(qtbot) -> None:  # type: ignore[no
 
     window.apply_label_text_change((SelectionKey("label", "0"), "VIN"))
 
-    assert [label.name for label in window.scene.editor_state.to_schematic().labels] == [
-        "VIN"
-    ]
+    assert [label.name for label in window.scene.editor_state.to_schematic().labels] == ["VIN"]
 
 
 def test_main_window_restores_selection_after_reference_rename(qtbot) -> None:  # type: ignore[no-untyped-def]
@@ -298,9 +283,7 @@ def test_main_window_restores_selection_after_reference_rename(qtbot) -> None:  
     window.scene.symbol_items()[0].setSelected(True)
     window.refresh_inspector()
 
-    window.apply_symbol_field_change(
-        (SelectionKey("symbol", "R1"), "reference", "R10")
-    )
+    window.apply_symbol_field_change((SelectionKey("symbol", "R1"), "reference", "R10"))
 
     assert window.scene.selected_key() == SelectionKey("symbol", "R10")
     assert window.inspector.item_type_label.text() == "Symbol"
@@ -342,6 +325,4 @@ def test_gui_saves_and_reopens_labels_and_no_connects(tmp_path, qtbot) -> None: 
     assert [(label.name, label.position) for label in schematic.labels] == [
         ("VIN", Point(x=0, y=0))
     ]
-    assert [marker.position for marker in schematic.no_connects] == [
-        Point(x=2_540_000, y=0)
-    ]
+    assert [marker.position for marker in schematic.no_connects] == [Point(x=2_540_000, y=0)]

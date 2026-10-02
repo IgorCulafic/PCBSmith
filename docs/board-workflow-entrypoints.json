@@ -1,0 +1,1629 @@
+{
+  "callers": {
+    "src/pcbsmith/board_job.py:_save": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Shared owner writes only the validated integrity envelope under the stable job root; it grants neither native board creation nor review acceptance."
+    },
+    "src/pcbsmith/board_job.py:authorize_annotation_completion": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Retains exact failed-edit predecessor and completed diagnostic, pins one annotation-only correction of an electrically complete candidate. Grants no runtime, routing, component, schematic or copper changes; native checks remain mandatory."
+    },
+    "src/pcbsmith/board_job.py:authorize_local_correction": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Shared owner pins the exact current continuation and hashed local evidence before retaining its predecessor and adding only the declared edit/apply pair; no runtime or correction cycles are reset."
+    },
+    "src/pcbsmith/board_job.py:bind_revision_job": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Binds native revision context to the existing stable board job; it writes job identity metadata, not a generated or accepted native board."
+    },
+    "src/pcbsmith/board_job.py:continue_authorized": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Supported continuation owner verifies the exact stopped predecessor, diagnostic and authorization. Pre-native recovery additionally requires zero prior attempts/native inputs and hash-matching approved vectors. It retains predecessor bytes and all lifetime counters; workers and normal production gates remain mandatory."
+    },
+    "src/pcbsmith/board_job.py:run_operation": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Supported worker supervisor derives operation identity, acquires the job lease, applies process-tree/time controls and retains result evidence. It delegates board work only through declared existing module boundaries."
+    },
+    "src/pcbsmith/board_job.py:run_operation.emit": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Supervisor progress writer retains process identity, worker-ready token and timestamped events; it neither edits native board geometry nor grants acceptance."
+    },
+    "src/pcbsmith/board_revision.py:_copy_context": {
+      "calls": [
+        "native-context-file-write",
+        "pcbsmith.kicad.project_dependencies.retain_native_project"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Retains the complete native project and explicitly hashed, confined substitution sources inside an isolated revision. It checks source hashes and never grants production acceptance; application uses the existing checked multi-file transaction."
+    },
+    "src/pcbsmith/board_revision.py:_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Shared candidate boundary with source preservation and replayed checks; candidate creation does not grant review or release acceptance."
+    },
+    "src/pcbsmith/board_revision.py:apply_board_revision": {
+      "calls": [
+        "pcbsmith.kicad.native_zone_edits.refill_native_edit"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Replays declared delta, refills zones and reruns exact checks before conflict-checked board/journal application; no release acceptance."
+    },
+    "src/pcbsmith/board_revision.py:create_board_revision.envelope": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "IF2 writes the declared native delta only after bounded region and protected-object checks."
+    },
+    "src/pcbsmith/board_revision.py:create_board_revision.fill": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.native_zone_edits.refill_native_edit"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "IF4 transplants verified derived fill into the isolated delta and rechecks full zone scope."
+    },
+    "src/pcbsmith/cli.py:_art_board_authority": {
+      "calls": [
+        "pcbsmith.kicad.led_art_board.generate_led_art_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_board_authority": {
+      "calls": [
+        "pcbsmith.kicad.board.generate_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_applicability_execution_manifest": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_board_diff": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_board_revision": {
+      "calls": [
+        "native-context-file-write",
+        "pcbsmith.board_revision.apply_board_revision",
+        "pcbsmith.board_revision.create_board_revision"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Public inspect/edit/apply commands consume shared source-bound revision owners, including checkpointed resume."
+    },
+    "src/pcbsmith/cli.py:_cmd_component_review_execute": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_design_clover_authority": {
+      "calls": [
+        "pcbsmith.kicad.clover_board.generate_clover_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/cli.py:_cmd_design_flyback_authority": {
+      "calls": [
+        "pcbsmith.kicad.flyback_board.generate_flyback_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/cli.py:_cmd_design_metal_detector_authority": {
+      "calls": [
+        "pcbsmith.kicad.metal_detector_board.generate_detector_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/cli.py:_cmd_design_pear_authority": {
+      "calls": [
+        "pcbsmith.kicad.pear_board.generate_pear_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/cli.py:_cmd_design_servo555_authority": {
+      "calls": [
+        "pcbsmith.kicad.servo555_board.generate_servo555_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/cli.py:_cmd_design_thermometer_authority": {
+      "calls": [
+        "pcbsmith.kicad.thermometer_board.generate_thermometer_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/cli.py:_cmd_fab_package": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_forge_topology": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_iterative_fix_dry_run": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_model_preflight": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_part_discover": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_production_component_review_repair": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_production_placement_review": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_production_routed_review": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_production_visual_inspect": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_project_engineering_gate": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_review_comment": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_revision_plan": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_routed_release_gate": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Thin release adapter retains the replayed producer-bound native execution manifest and release result. Shared owners validate source/report/receipt identities and all existing applicability requirements; assembly creates no execution result or review approval."
+    },
+    "src/pcbsmith/cli.py:_cmd_routing_audit": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_workflow_examine": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_cmd_workflow_route_gate": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/cli.py:_finish_board_authority": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/generation/bldc_esc_engineering.py:write_bldc_esc_engineering_evidence": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/aerosense_2f_board.py:_generate": {
+      "calls": [
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/aerosense_2f_board.py:compute_aerosense_routed_layout.checkpoint": {
+      "calls": [
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/aerosense_2f_board.py:register_aerosense_assets": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/bldc_esc_board.py:generate_bldc_esc_placement_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/bldc_esc_r002_board.py:generate_bldc_esc_r002_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/board.py:generate_board": {
+      "calls": [
+        "render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/board.py:render_board": {
+      "calls": [
+        "render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/board_diff.py:append_rule_suggestion": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/board_diff.py:write_layout_snapshot": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/clover_board.py:generate_clover_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/fabrication.py:export_fab_package": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/final_fill_adapter.py:refill_and_read_kicad_board": {
+      "calls": [
+        "pcbsmith.kicad.project_dependencies.retain_native_project"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Runs native refill on a complete isolated project and rejects rule/dependency mutation; its snapshot alone grants no engineering qualification."
+    },
+    "src/pcbsmith/kicad/flyback_board.py:generate_flyback_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/freerouting_production.py:route_freerouting_production": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Saved-placement production adapter requires the live shared worker, retains exact DSN/SES and source project, enforces pinned Freerouting process limits and front-only rules, and requires actual native validation; it cannot publish independently."
+    },
+    "src/pcbsmith/kicad/freerouting_production.py:route_freerouting_production.importer": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Saved-placement production adapter requires the live shared worker, retains exact DSN/SES and source project, enforces pinned Freerouting process limits and front-only rules, and requires actual native validation; it cannot publish independently."
+    },
+    "src/pcbsmith/kicad/freerouting_production.py:route_freerouting_production.native": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Saved-placement production adapter requires the live shared worker, retains exact DSN/SES and source project, enforces pinned Freerouting process limits and front-only rules, and requires actual native validation; it cannot publish independently."
+    },
+    "src/pcbsmith/kicad/kicad_validate.py:_run_check": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/led_art_board.py:generate_led_art_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/metal_detector_board.py:generate_detector_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/montenegro_env_display_board.py:write_montenegro_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/native_format.py:upgrade_generated_native_file": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Supported contained-worker helper converts only fresh working copies through installed KiCad before evidence hashes; retains actual process/version/hash receipt, fails closed on conversion errors, grants no review acceptance."
+    },
+    "src/pcbsmith/kicad/native_zone_edits.py:refill_native_edit": {
+      "calls": [
+        "pcbsmith.kicad.final_fill_adapter.refill_and_read_kicad_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Imports only declared computed zone fill from the shared final-fill owner; protected intent and non-fill objects remain intact."
+    },
+    "src/pcbsmith/kicad/pear_board.py:generate_pear_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/placement_readback.py:_stage_vendored_project_footprints": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/placement_readback.py:verify_placement_kicad_save_roundtrip": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/placement_serialization.py:build_placement_serialization_authority": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/project_dependencies.py:native_project_hashes": {
+      "calls": [
+        "retain_native_project"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Temporary complete project snapshot for read-only dependency inspection."
+    },
+    "src/pcbsmith/kicad/protocol_analyzer_8ch_board.py:_generate": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/protocol_analyzer_8ch_r002_board.py:generate_protocol_analyzer_r002_placement_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/retro_pad_3x3_board.py:generate_retro_pad_3x3_placement_board": {
+      "calls": [
+        "pcbsmith.kicad.retro_pad_board.render_retro_pad_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/retro_pad_3x3_board.py:generate_retro_pad_3x3_routed_board": {
+      "calls": [
+        "pcbsmith.kicad.retro_pad_board.render_retro_pad_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/retro_pad_board.py:generate_retro_pad_board": {
+      "calls": [
+        "render_retro_pad_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/retro_pad_board.py:generate_retro_pad_placement_board": {
+      "calls": [
+        "render_retro_pad_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/retro_pad_board.py:render_retro_pad_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/retro_pad_r003_board.py:generate_retro_pad_r003_placement_board": {
+      "calls": [
+        "pcbsmith.kicad.retro_pad_board.render_retro_pad_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/retro_pad_r003_board.py:generate_retro_pad_r003_routed_board": {
+      "calls": [
+        "pcbsmith.kicad.retro_pad_board.render_retro_pad_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/routing_benchmark_corpus.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/kicad/routing_benchmark_corpus.py:write_routing_benchmark_corpus": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/kicad/routing_candidate_transaction.py:render_native_routing_candidate": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Consumed by H0 candidate transaction. Initial routing inserts only generated copper into the saved native tree, then compares all non-copper objects exactly. It grants no validation/publication acceptance."
+    },
+    "src/pcbsmith/kicad/routing_candidate_transaction.py:require_saved_layout_matches": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "In-memory renderer comparison checks all saved geometry, nets and rules against detached inputs. Object IDs are not represented by BoardLayout; native candidate serialization separately preserves and strictly checks those exact IDs."
+    },
+    "src/pcbsmith/kicad/routing_candidate_transaction.py:run_routing_candidate_transaction": {
+      "calls": [
+        "pcbsmith.kicad.native_zone_edits.refill_native_edit",
+        "pcbsmith.kicad.native_zone_edits.refill_native_edit"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Shared isolated routing boundary; retained repair verifies original request, source closure and complete candidate hashes, applies bounded typed local deltas with exact unchanged-object inventory and native refill, reruns DRC/connectivity/parity/readback/pin equivalence, and publishes only accepted current results. No repair invokes the router. Repair request, vector identity, predecessor and delta are retained in the committed routing generation."
+    },
+    "src/pcbsmith/kicad/routing_external_adapters.py:_write_process_evidence": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/routing_external_adapters.py:run_freerouting_dsn_ses_candidate": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/routing_external_adapters.py:run_krt_board_candidate": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/routing_measured_corpus.py:build_measured_negotiated_routing_case": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/kicad/routing_measured_corpus.py:case_is_rederivable": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/kicad/routing_real_test_corpus.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/kicad/routing_real_test_corpus.py:write_real_test_corpus": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/kicad/servo555_board.py:generate_servo555_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/thermometer_board.py:generate_thermometer_board": {
+      "calls": [
+        "render_thermometer_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/thermometer_board.py:render_thermometer_board": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/kicad/thermometer_pwled_micro_pilot.py:bindings_replay_exactly": {
+      "calls": [
+        "build_thermometer_pwled_micro_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/kicad/thermometer_pwled_micro_pilot.py:build_thermometer_pwled_micro_pilot_input": {
+      "calls": [
+        "build_thermometer_pwled_micro_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/laser_artwork.py:export_laser_artwork": {
+      "calls": [
+        "pcbsmith.kicad.native_zone_edits.refill_native_edit"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Supervised read-only front-SMD rectangular-board artwork export. Native source closure is retained, existing zone fill is rechecked without applying changes, unsupported SVG shapes fail closed, and exact-size explicit removal contours have source/output hashes. Output is inspection artwork and cannot grant manufacturing approval."
+    },
+    "src/pcbsmith/native_project.py:prepare_native_project": {
+      "calls": [
+        "pcbsmith.kicad.native_format.upgrade_generated_native_file"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Supported native preparation requires the live shared worker; finalizes its new schematic through native KiCad before XML export and exact specification/connectivity closure."
+    },
+    "src/pcbsmith/operations/design_operations.py:_write_attiny_readme": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:_write_buck_readme": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:_write_calculation_report": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:_write_pcbs_symbol_library": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:_write_readme": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:_write_silkscreen_preflight_report": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:_write_silkscreen_readme": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:generate_attiny_led_controller_design": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.generators.controller_boards.render_attiny_led_controller_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:generate_buck_converter_design": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.generators.buck_converter.render_buck_converter_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:generate_led_art_design": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.generators.led_art_board.render_led_art_board"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/operations/design_operations.py:generate_silkscreen_artwork_design": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.kicad_export.render_kicad_board_items",
+        "pcbsmith.kicad.kicad_project.render_kicad_board_file"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/placement_serialization_ir.py:retained_authority_replays_exactly": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/production_generators.py:_guarded_readiness_drc": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Production-only guard consumes the existing native check runner and retains an unresolved combined ERC/DRC worklist before expensive final review. It validates exact process/source/report bindings and mandatory decisions; it never edits copper or invents approvals."
+    },
+    "src/pcbsmith/production_generators.py:_guarded_readiness_review.generate": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Shared candidate boundary with source preservation and replayed checks; candidate creation does not grant review or release acceptance."
+    },
+    "src/pcbsmith/production_generators.py:generate_nonmutating_kicad_drc": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Shared candidate boundary with source preservation and replayed checks; candidate creation does not grant review or release acceptance."
+    },
+    "src/pcbsmith/production_generators.py:generate_registered_board_candidate": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.native_format.upgrade_generated_native_file",
+        "pcbsmith.kicad.native_format.upgrade_generated_native_file",
+        "pcbsmith.kicad.project_dependencies.retain_native_project"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Supported predesign-gated registered generator isolates originals, finalizes copied schematic and generated PCB through native KiCad before floorplan checks and receipts; requires the existing live board worker and preserves rebuild obligations."
+    },
+    "src/pcbsmith/production_routing.py:route_saved_placement_candidate.validator": {
+      "calls": [
+        "pcbsmith.kicad.final_fill_adapter.refill_and_read_kicad_board"
+      ],
+      "classification": "supported_boundary",
+      "rationale": "Ordinary saved-placement adapter replays full routing entry, snapshots dependencies and uses H0. Validator executes actual KiCad DRC/parity, native save/readback and pad-net comparison. Deferred engineering stays blocked when missing; no fabricated success or release capability is supplied."
+    },
+    "src/pcbsmith/prototypes/kicad_board_builder.py:render": {
+      "calls": [
+        "pcbsmith.kicad.kicad_project.render_kicad_board_file"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/prototypes/kicad_export.py:export_pcbs_project_to_kicad": {
+      "calls": [
+        "pcbsmith.kicad.kicad_project.render_kicad_board_file",
+        "render_kicad_board_items"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/prototypes/kicad_project.py:create_kicad_project_skeleton": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "render_kicad_board_file"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "src/pcbsmith/review/visual_package.py:_add_svg_watermark": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/review/visual_package.py:_render_three_d": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/review/visual_package.py:_write_conformance_report": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/review/visual_package.py:_write_review_report": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/review/visual_package.py:complete_retained_diagnostics": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Reviewed retained-evidence completion owner: requires live shared worker, exact current board/model and all retained artifact hashes, unchanged declarations and inventoried source PNGs. Copies only missing diagnostics into an immutable successor, with no CAD edits, renderer invocation or inspection approval. Current publication and handover remain mandatory."
+    },
+    "src/pcbsmith/review/visual_package.py:generate_visual_review_package": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Existing native review package owner now writes raster timing telemetry. It binds current board/model inputs, renders or reuses exact pixel inputs, and emits an uninspected manifest. The new write is diagnostic JSON, not PCB generation, inspection approval or native-check acceptance; supported review CLI/publication callers retain their existing live-job gates."
+    },
+    "src/pcbsmith/review/visual_package.py:rasterize_svg_with_resvg": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "src/pcbsmith/review/visual_package.py:write_visual_review_manifest": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "native_primitive",
+      "rationale": "Internal builder, serializer, operation or evidence writer. Callable for diagnostics; acceptance must be established by the consuming shared workflow."
+    },
+    "tools/audit_phase17_part4.py:audit": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_handover.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_handover.py:verify_bottom_copper": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_native_check.py:<module>": {
+      "calls": [
+        "pcbnew.SaveBoard"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_r001.py:dump": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_r001.py:predesign": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_r001.py:prepare": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_r001.py:review": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_r001.py:routed": {
+      "calls": [
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_r001.py:schematic": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/boards/benchleaf_r001.py:write": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/build_phase17_two_layer_repair_corpus.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/build_phase17_two_layer_repair_corpus.py:build_corpus": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/build_w10_proof_boards.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/build_w10_proof_boards.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/check_phase17_corpus_placements.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/check_phase17_corpus_placements.py:check_case": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/clean_workspace.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/export_thermometer_review_candidate.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.thermometer_board.render_thermometer_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/filter_kicad_board_nets.py:main": {
+      "calls": [
+        "pcbnew.SaveBoard"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/finalize_aerosense_r001.py:_generate_review": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/finalize_aerosense_r001.py:_manufacturing_package": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/finalize_aerosense_r001.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/flyback_compaction.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_aerosense_r001.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_bldc_esc_r001.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.bldc_esc_board.generate_bldc_esc_placement_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_bldc_esc_r002.py:_canonical_visual_review": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_bldc_esc_r002.py:_register_mechanical_library": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_bldc_esc_r002.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.bldc_esc_r002_board.generate_bldc_esc_r002_board",
+        "pcbsmith.kicad.bldc_esc_r002_board.generate_bldc_esc_r002_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_bunny_board.py:generate": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_bunny_simple_board.py:generate": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_dejan_led_board.py:generate": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_montenegro_env_display.py:_prepare_render_models": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_montenegro_env_display.py:_write_reports": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_montenegro_env_display.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.montenegro_env_display_board.write_montenegro_board",
+        "pcbsmith.kicad.montenegro_env_display_board.write_montenegro_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_retro_pad.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.retro_pad_board.generate_retro_pad_board",
+        "pcbsmith.kicad.retro_pad_board.generate_retro_pad_placement_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_retro_pad_3x3.py:_write_predesign_record": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_retro_pad_3x3.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.retro_pad_3x3_board.generate_retro_pad_3x3_placement_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_retro_pad_r003.py:_write_predesign_record": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_retro_pad_r003.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.retro_pad_r003_board.generate_retro_pad_r003_placement_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_vir_lab_led_demo.py:_replace_blank_schematic_svgs": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_vir_lab_led_demo.py:_write_layout_first_readme": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/generate_vir_lab_led_demo.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.generators.led_art_board.render_led_art_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/kicad_copper_intent_bridge.py:apply_copper_intent": {
+      "calls": [
+        "pcbnew.SaveBoard"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/kicad_copper_topology_bridge.py:apply_copper_topology": {
+      "calls": [
+        "pcbnew.SaveBoard"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/kicad_dsn_ses_bridge.py:import_ses": {
+      "calls": [
+        "pcbnew.SaveBoard"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/kicad_move_reference_bridge.py:main": {
+      "calls": [
+        "pcbnew.SaveBoard"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/probe_thermometer_control_group.py:main": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/probe_thermometer_negotiated.py:main": {
+      "calls": [
+        "pcbsmith.kicad.board.render_board_from_layout"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/render_phase17_corpus_review.py:render_bound_case": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/render_phase17_w10_v14_review.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/route_phase17_corpus_freerouting.py:_run": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/route_phase17_corpus_freerouting.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/route_retro_pad_r003.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.retro_pad_board.render_retro_pad_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/route_retro_pad_r003.py:main.checkpoint": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "pcbsmith.kicad.retro_pad_board.render_retro_pad_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_freerouting_bunny.py:import_session": {
+      "calls": [
+        "pcbnew.SaveBoard"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_freerouting_bunny.py:prepare": {
+      "calls": [
+        "pcbnew.SaveBoard"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_if0_w10_replay.py:_write": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_copper_region_pilot.py:_run": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_copper_region_pilot.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_copper_region_pilot.py:_write_report": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_copper_region_pilot.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_copper_topology_pilot.py:_write_report": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_copper_topology_pilot.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_failure_and_placement_gates.py:_run": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_failure_and_placement_gates.py:_write": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if1_dry_run_proof.py:_fault_fixture_board": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if1_dry_run_proof.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if3_placement_proof.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if4_w10_saved_board_proof.py:_remove_route_object": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if4_w10_saved_board_proof.py:_restore_route_object": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if4_w10_saved_board_proof.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if5_w10_semantic_proof.py:_write": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if6_w10_workflow_proof.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_if6_workflow_proof.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_part4.py:_run_bridge": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_phase17_part4.py:_write": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_w10_phase17_qualification.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_w10_proof_qualification.py:_qualify_case": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_w10_proof_qualification.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_w10_upstream_validation.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/run_w3_final_fill_test.py:main": {
+      "calls": [
+        "pcbsmith.kicad.final_fill_adapter.refill_and_read_kicad_board"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Existing exact native refill diagnostic; retains unverified connectivity and does not grant ordinary board acceptance."
+    },
+    "tools/run_w9_hard_set_audit.py:main": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/summarize_phase17_real_test.py:_write_json": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/summarize_phase17_real_test.py:summarize": {
+      "calls": [
+        "native-context-file-write",
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    },
+    "tools/validate_w10_upstream.py:main": {
+      "calls": [
+        "native-context-file-write"
+      ],
+      "classification": "research_or_compatibility",
+      "rationale": "Retained research, diagnostic or compatibility caller; no independent production acceptance authority. Ordinary requested work uses shared production entry points."
+    }
+  },
+  "schema": "pcbsmith-board-caller-policy-v1",
+  "scope": "Potential native writer calls in src/pcbsmith and tools; includes conservative file-write matches. Classification is not proof or a security sandbox."
+}

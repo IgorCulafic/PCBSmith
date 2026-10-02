@@ -18,7 +18,10 @@ from pcbsmith.core.board import (
 )
 from pcbsmith.core.geom import Point
 from pcbsmith.core.schematic import NetLabel, NoConnect, Schematic, SymbolInstance, Wire
-from pcbsmith.kicad.kicad_export import export_pcbs_project_to_kicad
+from pcbsmith.kicad.kicad_export import (
+    export_pcbs_project_to_kicad,
+    render_kicad_schematic_items,
+)
 from pcbsmith.operations.project_io import create_project, save_board, save_schematic
 
 FIXTURE = Path("tests/fixtures/voltage_divider")
@@ -31,18 +34,11 @@ def _fixed_uuid() -> UUID:
 
 def _assert_hidden_label(schematic_text: str, name: str, x_mm: str, y_mm: str) -> None:
     assert re.search(
-        rf'\(label "{re.escape(name)}"\s+'
+        rf'\(global_label "{re.escape(name)}"[\s\S]*?'
         rf"\(at {re.escape(x_mm)} {re.escape(y_mm)} 0\)"
-        r"\s+\(effects\s+"
-        r"\(font\s+"
-        r"\(size 0\.01 0\.01\)"
-        r"\s+\)\s+"
-        r"\(hide yes\)"
-        r"\s+\)\s+"
-        r'\(uuid "[^"]+"\)'
-        r"\s+\)",
+        r"[\s\S]*?\(size 0\.01 0\.01\)"
+        r"[\s\S]*?\(hide yes\)",
         schematic_text,
-        re.DOTALL,
     )
 
 
@@ -219,24 +215,21 @@ def test_export_writes_native_symbols_wires_and_connected_net_labels(
     assert "(xy 142.24 104.14) (xy 147.32 104.14)" in schematic_text
     assert "(xy 157.48 104.14) (xy 162.56 104.14)" in schematic_text
     assert '(label "VCC"' not in schematic_text
-    assert '(label "OUT"' in schematic_text
+    assert '(global_label "OUT"' in schematic_text
     _assert_hidden_label(schematic_text, "GND", "157.48", "104.14")
     assert "(at 152.4 104.14 0)" in schematic_text
     assert '(net 1 "OUT")' in board_text
     assert '(net 2 "GND")' in board_text
     assert '(footprint "PCBSmith_R_0603"' in board_text
     assert (
-        '(segment (start 137.5 107.5) (end 140.5 107.5) (width 0.25) '
-        '(layer "F.Cu") (net 1)'
+        '(segment (start 137.5 107.5) (end 140.5 107.5) (width 0.25) (layer "F.Cu") (net 1)'
     ) in board_text
     assert (
-        '(segment (start 143.5 107.5) (end 146.5 107.5) (width 0.25) '
-        '(layer "F.Cu") (net 1)'
+        '(segment (start 143.5 107.5) (end 146.5 107.5) (width 0.25) (layer "F.Cu") (net 1)'
     ) in board_text
     assert "(at 127.5 111.5)" in board_text
     assert (
-        '(segment (start 130.5 111.5) (end 127.5 111.5) (width 0.25) '
-        '(layer "F.Cu") (net 2)'
+        '(segment (start 130.5 111.5) (end 127.5 111.5) (width 0.25) (layer "F.Cu") (net 2)'
     ) in board_text
     assert {
         "type": "add_wire",
@@ -267,7 +260,7 @@ def test_export_writes_project_local_pcbs_library(tmp_path: Path) -> None:
     assert '(symbol "VCC"' in library_text
     assert '(symbol "GND"' in library_text
     assert '(name "PCBSmith")' in symbol_table_text
-    assert '${KIPRJMOD}/PCBSmith.kicad_sym' in symbol_table_text
+    assert "${KIPRJMOD}/PCBSmith.kicad_sym" in symbol_table_text
 
 
 def test_export_translates_source_origin_into_visible_sheet_area(
@@ -420,12 +413,10 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
     assert "(at 127.5 107.5)" in board_text
     assert "(at 127.5 111.5)" in board_text
     assert (
-        '(segment (start 137.5 107.5) (end 140.5 107.5) (width 0.25) '
-        '(layer "F.Cu") (net 2)'
+        '(segment (start 137.5 107.5) (end 140.5 107.5) (width 0.25) (layer "F.Cu") (net 2)'
     ) in board_text
     assert (
-        '(segment (start 143.5 107.5) (end 146.5 107.5) (width 0.25) '
-        '(layer "F.Cu") (net 2)'
+        '(segment (start 143.5 107.5) (end 146.5 107.5) (width 0.25) (layer "F.Cu") (net 2)'
     ) in board_text
     assert "(gr_rect" in board_text
     assert "(start 123.5 87.5)" in board_text
@@ -443,6 +434,43 @@ def test_export_writes_visible_led_series_circuit_fixture(tmp_path: Path) -> Non
         "footprint_id": "stdlib:LED_0603",
         "mirrored_x": False,
     } in manifest["commands"]
+
+
+def test_schematic_display_offset_keeps_pin_endpoints_on_50_mil_grid() -> None:
+    schematic = Schematic(
+        id="grid-regression",
+        symbols=(
+            SymbolInstance(
+                reference="R1",
+                symbol_id="canonical:R",
+                value="10k",
+                position=Point.from_mm(66.04, 10.16),
+            ),
+            SymbolInstance(
+                reference="C1",
+                symbol_id="canonical:C",
+                value="100nF",
+                position=Point.from_mm(76.2, 33.02),
+            ),
+        ),
+    )
+
+    body = "\n".join(
+        render_kicad_schematic_items(
+            schematic,
+            project_name="Grid_Regression",
+            uuid_factory=_fixed_uuid,
+        )
+    )
+
+    symbol_positions = re.findall(
+        r'\(lib_id "[^"]+"\)\s+\(at ([0-9.]+) ([0-9.]+)',
+        body,
+    )
+    assert symbol_positions
+    for x_mm, y_mm in symbol_positions:
+        assert round(float(x_mm) / 1.27) == float(x_mm) / 1.27
+        assert round(float(y_mm) / 1.27) == float(y_mm) / 1.27
 
 
 def test_export_hides_signal_net_labels_on_wire_interiors(
@@ -556,20 +584,16 @@ def test_export_routes_non_aligned_board_nets_with_bent_tracks(
     board_text = result.skeleton.board_file.read_text(encoding="utf-8")
 
     assert (
-        '(segment (start 137.5 107.5) (end 146.5 97.34) (width 0.25) '
-        '(layer "F.Cu") (net 1)'
+        '(segment (start 137.5 107.5) (end 146.5 97.34) (width 0.25) (layer "F.Cu") (net 1)'
     ) not in board_text
     assert (
-        '(segment (start 146.5 97.34) (end 143.5 97.34) (width 0.25) '
-        '(layer "F.Cu") (net 1)'
+        '(segment (start 146.5 97.34) (end 143.5 97.34) (width 0.25) (layer "F.Cu") (net 1)'
     ) in board_text
     assert (
-        '(segment (start 142.75 97.34) (end 142 98.09) (width 0.25) '
-        '(layer "F.Cu") (net 1)'
+        '(segment (start 142.75 97.34) (end 142 98.09) (width 0.25) (layer "F.Cu") (net 1)'
     ) in board_text
     assert (
-        '(segment (start 140.5 107.5) (end 137.5 107.5) (width 0.25) '
-        '(layer "F.Cu") (net 1)'
+        '(segment (start 140.5 107.5) (end 137.5 107.5) (width 0.25) (layer "F.Cu") (net 1)'
     ) in board_text
 
 
@@ -667,8 +691,7 @@ def test_export_renders_command_authored_board_text_and_route(tmp_path: Path) ->
 
     assert '(net 1 "LED_A")' in board_text
     assert (
-        '(segment (start 127.5 118.5) (end 169.5 118.5) (width 0.25) '
-        '(layer "F.Cu") (net 1)'
+        '(segment (start 127.5 118.5) (end 169.5 118.5) (width 0.25) (layer "F.Cu") (net 1)'
     ) in board_text
     assert '(gr_text "AI LED Demo"' in board_text
     assert "(at 148.5 118.5 0)" in board_text

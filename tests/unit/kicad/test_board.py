@@ -91,6 +91,36 @@ def test_parse_board_netlist_rejects_empty_component_list() -> None:
         parse_board_netlist("<export><components/><nets/></export>")
 
 
+@pytest.mark.parametrize("pin_type", ["passive+no_connect", "no_connect"])
+def test_explicit_native_nc_is_netless_but_component_is_retained(pin_type) -> None:
+    xml = SAMPLE_NETLIST_XML.replace(
+        '<net code="3" name="/MID">\n      <node ref="R1" pin="2"/>\n'
+        '      <node ref="D1" pin="1"/>\n    </net>',
+        '<net code="3" name="unconnected-(R1-Pad2)">'
+        f'<node ref="R1" pin="2" pintype="{pin_type}"/></net>',
+    )
+    netlist = parse_board_netlist(xml)
+    assert {c.reference for c in netlist.components} == {"P1", "R1", "D1"}
+    assert [n.name for n in netlist.nets] == ["/VIN", "0"]
+    board = render_board(netlist)
+    assert "unconnected-" not in board
+    assert '(net "/VIN")' in board
+
+
+def test_no_connect_is_not_inferred_from_a_net_name() -> None:
+    xml = SAMPLE_NETLIST_XML.replace('name="/MID"', 'name="unconnected-user-net"')
+    assert "unconnected-user-net" in {n.name for n in parse_board_netlist(xml).nets}
+
+
+@pytest.mark.parametrize("name", ["/MID", "unconnected-(R1-Pad2)"])
+def test_nc_on_a_connected_net_is_rejected(name) -> None:
+    xml = SAMPLE_NETLIST_XML.replace('name="/MID"', f'name="{name}"').replace(
+        '<node ref="R1" pin="2"/>', '<node ref="R1" pin="2" pintype="passive+no_connect"/>'
+    )
+    with pytest.raises(BoardGenerationError, match="no-connect pin"):
+        parse_board_netlist(xml)
+
+
 def test_render_board_produces_footprints_tracks_and_outline() -> None:
     netlist = parse_board_netlist(SAMPLE_NETLIST_XML)
 

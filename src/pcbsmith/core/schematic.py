@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-from pcbsmith.core.geom import Point
+from pcbsmith.core.geom import Point, transform_schematic_offset
 
 
 class SymbolInstance(BaseModel):
@@ -15,6 +15,12 @@ class SymbolInstance(BaseModel):
     rotation_deg: int = 0
     footprint_id: str | None = None
     mirrored_x: bool = False
+
+    def pin_position(self, local_position: Point) -> Point:
+        offset = transform_schematic_offset(
+            local_position, self.rotation_deg, mirrored_x=self.mirrored_x
+        )
+        return Point(x=self.position.x + offset.x, y=self.position.y + offset.y)
 
 
 class Wire(BaseModel):
