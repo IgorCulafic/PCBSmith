@@ -1,0 +1,125 @@
+{
+  "note": "Original retained images copied without image edits. Status and interpretation are in README.md. No third-party model binaries or private project evidence are included.",
+  "images": [
+    {
+      "file": "images/thermometer-r006.png",
+      "sha256": "b92df0f30cacd631fb6cede39d044f60905a0dc9b4882ce491d3c751411ea830",
+      "bytes": 194919,
+      "source_name": "Thermometer_R006-perspective.png",
+      "source_revision": "thermometer-3d-model-test-r006",
+      "dimensions_px": [
+        1568,
+        984
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/thermometer-r005-routing.png",
+      "sha256": "cf43220ab31f2b41c93a427280ccf971c45fdaf1c52bcd7695c581fc37c28d5d",
+      "bytes": 358068,
+      "source_name": "Thermometer_R005-routing-review.png",
+      "source_revision": "thermometer-production-r005",
+      "dimensions_px": [
+        1968,
+        5104
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/pear-worm.png",
+      "sha256": "784b8d1884ea3b67041eee2fb5174ef922dd89b5b9ad0a29c0c07847d2e61681",
+      "bytes": 432528,
+      "source_name": "Pear Worm-perspective.png",
+      "source_revision": "pear-r001",
+      "dimensions_px": [
+        1568,
+        984
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/lucky-clover.png",
+      "sha256": "e92e56e89a9cb8f8f5f5ffc56497a99cc5e8c2aeda00a21f8d90b64ce3cfef32",
+      "bytes": 391546,
+      "source_name": "Lucky Clover-perspective.png",
+      "source_revision": "clover-r001",
+      "dimensions_px": [
+        1568,
+        984
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/protocol-analyzer-r002.png",
+      "sha256": "98f6468baa3b459ecac3686656dae56988e1ae8ef9750d05bc3a2f8af4a05967",
+      "bytes": 535549,
+      "source_name": "placement-perspective-r002.png",
+      "source_revision": "review",
+      "dimensions_px": [
+        1904,
+        1064
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/duofilter.png",
+      "sha256": "629618b20d8e58a41aa200d3163c7b8363d0e8430b076b08e2aafb34f0373c92",
+      "bytes": 2095777,
+      "source_name": "perspective.png",
+      "source_revision": "Preview",
+      "dimensions_px": [
+        3896,
+        2216
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/trace-limits.png",
+      "sha256": "f1194ddbb7928c9b39885361bc5e84d5f445d56311cf9c2f43a836e8f1e5a284",
+      "bytes": 707340,
+      "source_name": "3d-top.png",
+      "source_revision": "Preview",
+      "dimensions_px": [
+        3896,
+        3896
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/trace-limits-laser-comparison.png",
+      "sha256": "8c4a56140b043e738d2d22da70010bb988f5b53a67ce0bfcf361b42bbb887083",
+      "bytes": 85251,
+      "source_name": "comparison.png",
+      "source_revision": "Laser",
+      "dimensions_px": [
+        1440,
+        2110
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/dual-laser1.png",
+      "sha256": "027e52d8af180e3e68723a16fa6acdf23c67ddc1e33f70bca7cdb55be7b29b79",
+      "bytes": 725262,
+      "source_name": "top.png",
+      "source_revision": "Preview",
+      "dimensions_px": [
+        3896,
+        3896
+      ],
+      "kind": "retained CAD render or CAM preview"
+    },
+    {
+      "file": "images/laser-test-photo.jpg",
+      "sha256": "177d2b62c33a54e0f0fa82905bf85db9a979f935dae834bdf70dd94ceafc1177",
+      "bytes": 107585,
+      "source_name": "IMG-dbb9e8120ff3f764b7b6f62a30f550ec-V.jpg",
+      "source_revision": "Downloads",
+      "dimensions_px": [
+        900,
+        1600
+      ],
+      "kind": "user-supplied photograph"
+    }
+  ]
+}
