@@ -6,6 +6,7 @@ import pytest
 from tests.unit.production_evidence_fixtures import filled_region_example, write_empty_drc
 
 from pcbsmith.automatic_review_gate import ProductionMarkingAudit, qualify_automatic_review
+from pcbsmith.kicad.final_fill_adapter import KiCadFinalFillSnapshot
 from pcbsmith.kicad.routing_evidence import inspect_kicad_drc_report
 from pcbsmith.power_topology_ir import BoardPowerTopology
 from pcbsmith.review.visual_package import RenderProfile, ReviewArtifact, VisualReviewManifest
@@ -51,33 +52,22 @@ def test_bound_evidence_drives_filled_region_gate(tmp_path: Path) -> None:
         fill_snapshot=snapshot,
         fill_connectivity=observation,
         thermal_audit=thermal,
-        fill_source_pad_ids=("J1.2",),
+        fill_source_pad_ids=("J1.1",),
     )
     gate = next(item for item in result.gates if item.gate_id == "filled_region_connectivity")
     assert gate.disposition is QualificationDisposition.PASS
     assert gate.evaluated_object_count == 1
 
 
-def _retained_fill():
-    root = ROOT / "experiments/phase17-w3-final-fill-connectivity-real-test-2026-08-19"
-    return (
-        KiCadFinalFillSnapshot.model_validate_json(
-            (root / "classified-final-fill-snapshot.json").read_bytes()
-        ),
-        KiCadFinalFillConnectivityObservation.model_validate_json(
-            (root / "connectivity-observation.json").read_bytes()
-        ),
-        KiCadThermalSpokeAudit.model_validate_json(
-            (root / "thermal-spoke-audit.json").read_bytes()
-        ),
-    )
+def _retained_fill(tmp_path: Path):
+    return filled_region_example(tmp_path)
 
 
 @pytest.mark.parametrize("updates", [{"refilled_by_kicad": False}, {"regions": ()}])
-def test_stale_or_empty_declared_plane_cannot_pass_or_be_not_applicable(updates):
+def test_stale_or_empty_declared_plane_cannot_pass_or_be_not_applicable(updates, tmp_path):
     from pcbsmith.whole_board_qualification_adapter import _fill_gate
 
-    snapshot, observation, thermal = _retained_fill()
+    snapshot, observation, thermal = _retained_fill(tmp_path)
     excluded = {
         "snapshot_fingerprint",
         "zone_intent_unchanged",
@@ -87,16 +77,16 @@ def test_stale_or_empty_declared_plane_cannot_pass_or_be_not_applicable(updates)
     fields = {n: getattr(snapshot, n) for n in type(snapshot).model_fields if n not in excluded}
     broken = KiCadFinalFillSnapshot.build(**(fields | updates))
     result = _fill_gate(
-        broken.filled_board_sha256, broken, observation, thermal, declared_source_pad_ids=("J1.2",)
+        broken.filled_board_sha256, broken, observation, thermal, declared_source_pad_ids=("J1.1",)
     )
     assert result.disposition is QualificationDisposition.UNVERIFIED
     assert result.applicable
 
 
-def test_filled_region_classification_is_replayed_against_declared_source():
+def test_filled_region_classification_is_replayed_against_declared_source(tmp_path):
     from pcbsmith.whole_board_qualification_adapter import _fill_gate
 
-    snapshot, observation, thermal = _retained_fill()
+    snapshot, observation, thermal = _retained_fill(tmp_path)
     for sources in ((), ("nonexistent.source",)):
         gate = _fill_gate(
             snapshot.filled_board_sha256,
@@ -113,7 +103,7 @@ def test_filled_region_classification_is_replayed_against_declared_source():
             snapshot,
             missing,
             thermal,
-            declared_source_pad_ids=("J1.2",),
+            declared_source_pad_ids=("J1.1",),
         )
 
 
