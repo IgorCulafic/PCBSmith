@@ -16,6 +16,7 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from pcbsmith.copper_layers import routing_copper_layers
 from pcbsmith.design_readiness import require_design_readiness
 from pcbsmith.engineering_preview import EngineeringInputs, evaluate_engineering_inputs
 from pcbsmith.kicad.component_readiness import (
@@ -256,7 +257,7 @@ def _prepare_predesign_inputs(spec_file: Path, project: Path, output: Path) -> d
     neck = NeckSection(
         neck_id="whole-width",
         usable_width_mm=spec.width_mm - 2 * spec.profile.fab_spacing.minimum_copper_to_edge_mm,
-        routing_layers=("F.Cu", "B.Cu"),
+        routing_layers=routing_copper_layers(spec.profile.geometry.copper_layer_count),
         capacity_quantum_mm=0.1,
         source_geometry_sha256=concept.outline_sha256,
     )

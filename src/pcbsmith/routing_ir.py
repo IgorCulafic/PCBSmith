@@ -14,6 +14,8 @@ from typing import Any, Literal, Self
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from pcbsmith.copper_layers import via_copper_span
+
 
 class RoutingFailureReason(StrEnum):
     """Terminal reasons understood by routing orchestration."""
@@ -303,6 +305,44 @@ class RouteWidthConstraint(RoutingIrModel):
         return self
 
 
+class RouteNetLayerConstraint(RoutingIrModel):
+    """Hard per-net copper layers and permission to add routing vias."""
+
+    constraint_id: str = Field(min_length=1)
+    net_names: tuple[str, ...] = Field(min_length=1)
+    allowed_layers: tuple[str, ...] = Field(min_length=1)
+    allow_vias: bool = Field(strict=True)
+    allowed_trace_layers: tuple[str, ...] | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
+
+    @property
+    def effective_trace_layers(self) -> tuple[str, ...]:
+        return (
+            self.allowed_layers if self.allowed_trace_layers is None else self.allowed_trace_layers
+        )
+
+    @model_validator(mode="after")
+    def canonical(self) -> Self:
+        _require_identity(self.constraint_id, "constraint_id")
+        object.__setattr__(
+            self, "net_names", _canonical_identities(self.net_names, "net_names", allow_empty=False)
+        )
+        object.__setattr__(
+            self,
+            "allowed_layers",
+            _canonical_identities(self.allowed_layers, "allowed_layers", allow_empty=False),
+        )
+        if self.allowed_trace_layers is not None:
+            traces = _canonical_identities(
+                self.allowed_trace_layers, "allowed_trace_layers", allow_empty=False
+            )
+            if not set(traces) <= set(self.allowed_layers):
+                raise ValueError("trace layer restriction must be within permitted copper layers")
+            object.__setattr__(self, "allowed_trace_layers", traces)
+        return self
+
+
 class RouteClearanceConstraint(RoutingIrModel):
     constraint_id: str = Field(min_length=1)
     net_names: tuple[str, ...] = Field(min_length=1)
@@ -459,6 +499,9 @@ class RouteRequest(RoutingIrModel):
     width_constraints: tuple[RouteWidthConstraint, ...] = Field(min_length=1)
     clearance_constraints: tuple[RouteClearanceConstraint, ...] = Field(min_length=1)
     via_technologies: tuple[RouteViaTechnology, ...] = ()
+    net_layer_constraints: tuple[RouteNetLayerConstraint, ...] = Field(
+        default=(), exclude_if=lambda value: not value
+    )
     route_guides: tuple[RouteGuide, ...] = ()
     topology_constraints: tuple[RouteTopologyConstraint, ...] = Field(min_length=1)
     budget: RoutingBudget
@@ -498,6 +541,7 @@ class RouteRequest(RoutingIrModel):
         widths = tuple(sorted(self.width_constraints, key=lambda item: item.constraint_id))
         clearances = tuple(sorted(self.clearance_constraints, key=lambda item: item.constraint_id))
         vias = tuple(sorted(self.via_technologies, key=lambda item: item.constraint_id))
+        net_layers = tuple(sorted(self.net_layer_constraints, key=lambda item: item.constraint_id))
         guides = tuple(sorted(self.route_guides, key=lambda item: item.constraint_id))
         topologies = tuple(sorted(self.topology_constraints, key=lambda item: item.constraint_id))
         additional = _canonical_identities(
@@ -508,6 +552,7 @@ class RouteRequest(RoutingIrModel):
             tuple(item.constraint_id for item in widths)
             + tuple(item.constraint_id for item in clearances)
             + tuple(item.constraint_id for item in vias)
+            + tuple(item.constraint_id for item in net_layers)
             + tuple(item.constraint_id for item in guides)
             + tuple(item.constraint_id for item in topologies)
             + additional
@@ -515,6 +560,15 @@ class RouteRequest(RoutingIrModel):
         if len(constraints) != len(set(constraints)):
             raise ValueError("route constraint identities must be globally unique")
         target_nets = set(all_nets)
+        restricted_nets = [name for item in net_layers for name in item.net_names]
+        if len(restricted_nets) != len(set(restricted_nets)):
+            raise ValueError("net layer constraints overlap")
+        if any(
+            not set(item.net_names).issubset(target_nets)
+            or not set(item.allowed_layers).issubset(layers)
+            for item in net_layers
+        ):
+            raise ValueError("net layer constraint references an unknown net or disallowed layer")
         if any(not set(item.net_names).issubset(target_nets) for item in widths):
             raise ValueError("width constraint references a non-target net")
         if any(not set(item.net_names).issubset(target_nets) for item in clearances):
@@ -550,6 +604,7 @@ class RouteRequest(RoutingIrModel):
         object.__setattr__(self, "width_constraints", widths)
         object.__setattr__(self, "clearance_constraints", clearances)
         object.__setattr__(self, "via_technologies", vias)
+        object.__setattr__(self, "net_layer_constraints", net_layers)
         object.__setattr__(self, "route_guides", guides)
         object.__setattr__(self, "topology_constraints", topologies)
         object.__setattr__(self, "additional_constraint_ids", additional)
@@ -565,6 +620,7 @@ class RouteRequest(RoutingIrModel):
                     *(item.constraint_id for item in self.width_constraints),
                     *(item.constraint_id for item in self.clearance_constraints),
                     *(item.constraint_id for item in self.via_technologies),
+                    *(item.constraint_id for item in self.net_layer_constraints),
                     *(item.constraint_id for item in self.route_guides),
                     *(item.constraint_id for item in self.topology_constraints),
                     *self.additional_constraint_ids,
@@ -998,6 +1054,24 @@ def validate_route_candidate_result(
             continue
         if geometry.net_name not in target_nets:
             raise ValueError("route mutation targets a net outside the request")
+        restriction = next(
+            (c for c in request.net_layer_constraints if geometry.net_name in c.net_names), None
+        )
+        if restriction is not None:
+            if isinstance(geometry, RouteViaGeometry):
+                if not restriction.allow_vias or not set(
+                    via_copper_span(
+                        request.allowed_layers, geometry.start_layer, geometry.end_layer
+                    )
+                ).issubset(restriction.allowed_layers):
+                    raise ValueError("route via violates per-net layer/via constraint")
+            elif geometry.layer not in restriction.allowed_layers:
+                raise ValueError("route copper violates per-net layer constraint")
+            if (
+                isinstance(geometry, RouteSegmentGeometry)
+                and geometry.layer not in restriction.effective_trace_layers
+            ):
+                raise ValueError("route segment violates per-net trace layer constraint")
         if isinstance(geometry, RouteSegmentGeometry):
             if geometry.layer not in request.allowed_layers:
                 raise ValueError("route segment uses a disallowed layer")

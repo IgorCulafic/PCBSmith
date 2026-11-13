@@ -24,6 +24,10 @@ from pcbsmith.design_readiness import (
     review_visual_subjects,
     visual_model_state_from_preflight,
 )
+from pcbsmith.four_layer_publication import (
+    FourLayerPublicationEvidence,
+    require_four_layer_publication,
+)
 from pcbsmith.kicad.component_readiness import SelectedModelPolicy
 from pcbsmith.kicad.library import QuotedString, parse_sexpr
 from pcbsmith.kicad.model_preflight import (
@@ -217,6 +221,9 @@ class PublicationReadinessRequest(SemanticIrModel):
     visual_requirements: tuple[VisualSubjectRequirement, ...] = Field(min_length=1)
     visual_crops: dict[str, tuple[int, int, int, int]]
     model_preflight: ModelPreflightReport
+    four_layer: FourLayerPublicationEvidence | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
 
 
 def require_publication_request(
@@ -245,7 +252,24 @@ def require_publication_request(
         if isinstance(node, list) and len(node) > 2 and node[2] == "signal"
     }
     if copper_layers != {"F.Cu", "B.Cu"}:
-        raise ValueError("supported production scope requires exactly two copper layers")
+        if copper_layers == {"F.Cu", "In1.Cu", "In2.Cu", "B.Cu"}:
+            if request.four_layer is None:
+                raise ValueError(
+                    "four-layer publication requires source-bound "
+                    "multilayer engineering qualification"
+                )
+            require_four_layer_publication(
+                board_file,
+                request.four_layer,
+                artifact_root,
+                {f.relative_path: f.sha256 for f in request.predesign.evidence_files.values()},
+            )
+        else:
+            raise ValueError(
+                "supported production scope requires two or qualified four copper layers"
+            )
+    elif request.four_layer is not None:
+        raise ValueError("two-layer publication cannot carry four-layer plane evidence")
     references = {row.reference for row in saved_assembly_rows(board_file) if row.in_bom}
     if set(request.reference_intents) != references:
         raise ValueError("component intent coverage differs from populated board references")

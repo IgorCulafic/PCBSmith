@@ -56,8 +56,8 @@ def _sha(value: str | bytes) -> str:
     return hashlib.sha256(payload).hexdigest()
 
 
-def _profile() -> FabricationElectricalProfile:
-    return FabricationElectricalProfile.build(
+def _profile(layer_count: int = 2) -> FabricationElectricalProfile:
+    profile = FabricationElectricalProfile.build(
         profile_id="prototype-2layer",
         minimum_trace_width_mm=0.15,
         minimum_copper_clearance_mm=0.15,
@@ -126,12 +126,39 @@ def _profile() -> FabricationElectricalProfile:
             limitations=("requires correlation before current-rating claim",),
         ),
     )
+    if layer_count == 2:
+        return profile
+    front_mask, front, dielectric, back, back_mask = profile.stackup
+    stack = (
+        front_mask,
+        front,
+        dielectric.model_copy(
+            update={"layer_id": "prepreg-front", "sequence": 2, "thickness_um": 200}
+        ),
+        front.model_copy(update={"layer_id": "In1.Cu", "sequence": 3}),
+        dielectric.model_copy(update={"sequence": 4, "thickness_um": 1020}),
+        front.model_copy(update={"layer_id": "In2.Cu", "sequence": 5}),
+        dielectric.model_copy(
+            update={"layer_id": "prepreg-back", "sequence": 6, "thickness_um": 200}
+        ),
+        back.model_copy(update={"sequence": 7}),
+        back_mask.model_copy(update={"sequence": 8}),
+    )
+    return FabricationElectricalProfile.build(
+        **{
+            **profile.model_dump(exclude={"profile_fingerprint", "stackup"}),
+            "stackup": stack,
+            "ipc2152_context": profile.ipc2152_context,
+            "profile_id": "synthetic-4layer-no-physical-qualification",
+        }
+    )
 
 
 def _board(path: Path) -> Path:
     path.write_text(
         """(kicad_pcb
   (version 20250101)
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal))
   (footprint "Package_SO:SOIC-8_3.9x4.9mm_P1.27mm"
     (layer "F.Cu")
     (uuid "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")
@@ -510,6 +537,7 @@ def test_annotated_panelization_requires_exact_source_identities(
     board.write_text(
         """(kicad_pcb
   (version 20250101)
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal))
   (footprint "kikit:Tab"
     (layer "F.Cu")
     (at 10 20)
@@ -699,11 +727,19 @@ def test_interactive_bom_launcher_forces_cli_mode_without_plugin_registration(
     assert retained_environment["INTERACTIVE_HTML_BOM_CLI_MODE"] == "1"
 
 
+@pytest.mark.parametrize("layer_count", [2, 4])
 def test_neutral_export_retains_gerber_job_without_misclassifying_it(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
+    layer_count: int,
 ) -> None:
     board = _board(tmp_path / "board.kicad_pcb")
+    if layer_count == 4:
+        board.write_text(
+            board.read_text().replace(
+                '(31 "B.Cu" signal)', '(1 "In1.Cu" signal) (2 "In2.Cu" signal) (31 "B.Cu" signal)'
+            )
+        )
     interactive_bom = tmp_path / "interactive.html"
     interactive_bom.write_text(
         "<html><body>fixture</body></html>",
@@ -718,11 +754,20 @@ def test_neutral_export_retains_gerber_job_without_misclassifying_it(
             return subprocess.CompletedProcess(command, 0, b"10.0.3\n", b"")
         output = Path(command[command.index("--output") + 1])
         if "gerbers" in command:
+            for inner in range(1, layer_count - 1):
+                assert f"In{inner}.Cu" in command[command.index("--layers") + 1]
             output.mkdir(parents=True, exist_ok=True)
             (output / "board-F_Cu.gbr").write_text(
-                "G04 copper*\n%FSLAX46Y46*%\nM02*\n",
+                "G04 copper*\n%TF.FileFunction,Copper,L1,Top*%\n%FSLAX46Y46*%\nM02*\n",
                 encoding="utf-8",
             )
+            (output / "board-B_Cu.gbr").write_text(
+                f"%TF.FileFunction,Copper,L{layer_count},Bot*%\nM02*\n"
+            )
+            for inner in range(1, layer_count - 1):
+                (output / f"board-In{inner}_Cu.gbr").write_text(
+                    f"%TF.FileFunction,Copper,L{inner + 1},Inr*%\nM02*\n"
+                )
             (output / "board-F_Paste.gtp").write_text(
                 "G04 paste*\n%FSLAX46Y46*%\nM02*\n",
                 encoding="utf-8",
@@ -757,7 +802,7 @@ def test_neutral_export_retains_gerber_job_without_misclassifying_it(
     sources, tool = export_kicad_neutral_sources(
         board_file=board,
         output_directory=tmp_path / "neutral",
-        profile=_profile(),
+        profile=_profile(layer_count),
         identities=extract_saved_board_manufacturing_identities(board),
         interactive_bom_file=interactive_bom,
         kicad_cli=Path("fixture-kicad-cli"),
@@ -765,7 +810,10 @@ def test_neutral_export_retains_gerber_job_without_misclassifying_it(
     )
 
     assert tool.status is ManufacturingToolStatus.AVAILABLE
-    assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.GERBER]) == (".gbr",)
+    assert (
+        tuple(path.suffix for path in sources[ManufacturingArtifactRole.GERBER])
+        == (".gbr",) * layer_count
+    )
     assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.DRILL_MAP]) == (".pdf",)
     assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.PASTE]) == (".gtp",)
     assert tuple(path.suffix for path in sources[ManufacturingArtifactRole.OTHER][:2]) == (

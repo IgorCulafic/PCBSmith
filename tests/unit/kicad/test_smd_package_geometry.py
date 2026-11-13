@@ -181,3 +181,18 @@ def test_smd_tag_roundtrips_without_losing_contact_evidence(smd_inventory):
     parsed = parse_package_geometry(evidence)
     assert isinstance(parsed, SmdPackageGeometryEvidence)
     assert parse_package_geometry(parsed.model_dump(mode="json")) == parsed
+
+
+@pytest.mark.parametrize(
+    "layers,accepted", [(("F.Paste",), True), (("F.Paste", "F.Cu"), False), ((), False)]
+)
+def test_unnumbered_paste_apertures_are_not_electrical_pins(smd_inventory, layers, accepted):
+    _, _, fp, _, evidence = smd_inventory
+    footprint = _measure(parse_sexpr(fp.read_text(encoding="utf-8")), "Test:DIP")
+    aperture = replace(footprint.pads[0], name="", layers=layers)
+    with_aperture = replace(footprint, pads=(*footprint.pads, aperture))
+    if accepted:
+        _check_package_geometry(with_aperture, parse_package_geometry(evidence))
+    else:
+        with pytest.raises(ValueError, match="numbered pads"):
+            _check_package_geometry(with_aperture, parse_package_geometry(evidence))

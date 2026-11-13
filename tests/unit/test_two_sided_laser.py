@@ -80,6 +80,46 @@ def test_each_face_contains_native_lands_and_tracks(tmp_path, layer, mirror):
     assert result["mirror_x"] == mirror
 
 
+@pytest.mark.parametrize("layer,mirror", [("F.Cu", False), ("B.Cu", True)])
+@pytest.mark.parametrize(
+    "fault", [None, "numbered", "drilled", "mask", "copper", "empty", "padstack"]
+)
+def test_paste_apertures_do_not_change_copper_enclosure(tmp_path, layer, mirror, fault):
+    board, _, removal = fixture(tmp_path, layer, mirror)
+    aperture = '(pad "" smd rect (at 2 2) (size 1 1) (layers "F.Paste"))'
+    if fault == "numbered":
+        aperture = aperture.replace('pad ""', 'pad "7"')
+    elif fault == "drilled":
+        aperture = aperture[:-1] + " (drill 0.5))"
+    elif fault == "mask":
+        aperture = aperture.replace("F.Paste", "F.Mask")
+    elif fault == "copper":
+        aperture = aperture.replace("F.Paste", "B.Cu")
+    elif fault == "empty":
+        aperture = aperture.replace('"F.Paste"', "")
+    elif fault == "padstack":
+        aperture = aperture[:-1] + " (padstack))"
+    board.write_text(
+        board.read_text().replace(
+            '(footprint "smd" (layer "F.Cu") (at 3 7)',
+            '(footprint "smd" (layer "F.Cu") (at 3 7) ' + aperture,
+        )
+    )
+    args = dict(
+        minimum_clearance_mm=0.5,
+        minimum_edge_clearance_mm=0,
+        two_sided=True,
+        copper_layer=layer,
+        mirror_x=mirror,
+    )
+    if fault:
+        with pytest.raises(ValueError, match="front SMD"):
+            verify_actual_copper_isolation(board, removal, **args)
+    else:
+        result = verify_actual_copper_isolation(board, removal, **args)
+        assert result["actual_clearance_lower_bound_mm"] >= 0.5
+
+
 def test_wrong_face_or_wrong_flip_is_rejected(tmp_path):
     board, _, removal = fixture(tmp_path)
     for layer, mirrored in [("F.Cu", False), ("B.Cu", False)]:
@@ -93,6 +133,23 @@ def test_wrong_face_or_wrong_flip_is_rejected(tmp_path):
                 copper_layer=layer,
                 mirror_x=mirrored,
             )
+
+
+@pytest.mark.parametrize("number,expected", [("", "KiCad is unavailable"), ("7", "front SMD")])
+def test_export_preflight_classifies_paste_only_pads(tmp_path, monkeypatch, number, expected):
+    board, _, _ = fixture(tmp_path)
+    board.write_text(
+        board.read_text().replace(
+            '(footprint "smd" (layer "F.Cu") (at 3 7)',
+            '(footprint "smd" (layer "F.Cu") (at 3 7) '
+            f'(pad "{number}" smd rect (at 2 2) (size 1 1) (layers "F.Paste"))',
+        )
+    )
+    monkeypatch.setattr("pcbsmith.board_job.require_library_worker", lambda: None)
+    monkeypatch.setattr("pcbsmith.laser_artwork.find_kicad_cli", lambda: None)
+    with pytest.raises((ValueError, RuntimeError), match=expected):
+        export_laser_artwork(board, tmp_path / "not-created", two_sided=True)
+    assert not (tmp_path / "not-created").exists()
 
 
 @pytest.mark.parametrize(

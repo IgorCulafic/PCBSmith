@@ -9,6 +9,7 @@ from typing import Any, Literal, Self
 from pydantic import Field, field_validator, model_validator
 
 from pcbsmith.antenna_clearance_ir import QualifiedExactZoneFillProvenance
+from pcbsmith.copper_layers import CopperLayer, ordered_copper_layers, routing_copper_layers
 from pcbsmith.placement_geometry import ExactPlanarCompound
 from pcbsmith.routed_copper_graph_ir import (
     ExactRational,
@@ -73,21 +74,19 @@ class ReturnSignalClass(StrEnum):
 class ReturnLayerPair(SemanticIrModel):
     schema_id: Literal["pcbsmith-return-layer-pair"] = "pcbsmith-return-layer-pair"
     schema_version: Literal[1] = 1
-    signal_layer: Literal["F.Cu", "B.Cu"]
-    reference_layer: Literal["F.Cu", "B.Cu"]
+    signal_layer: CopperLayer
+    reference_layer: CopperLayer
 
 
 class StackupReferenceContext(SemanticIrModel):
-    """Verified two-layer adjacency only; no impedance/material inference."""
+    """Explicit source-bound adjacency; no impedance/material inference."""
 
-    schema_id: Literal["pcbsmith-stackup-reference-context"] = (
-        "pcbsmith-stackup-reference-context"
-    )
+    schema_id: Literal["pcbsmith-stackup-reference-context"] = "pcbsmith-stackup-reference-context"
     schema_version: Literal[1] = 1
     context_id: str
     status: Literal["verified", "unknown"]
     board_layout_snapshot_fingerprint: str
-    copper_layer_order: tuple[Literal["F.Cu", "B.Cu"], ...]
+    copper_layer_order: tuple[CopperLayer, ...]
     adjacent_reference_pairs: tuple[ReturnLayerPair, ...]
     reference_net_names: tuple[str, ...]
     intended_consumer: str
@@ -107,9 +106,7 @@ class StackupReferenceContext(SemanticIrModel):
                 key=lambda item: (item.signal_layer, item.reference_layer),
             )
         )
-        if len(pairs) != len(
-            {(item.signal_layer, item.reference_layer) for item in pairs}
-        ):
+        if len(pairs) != len({(item.signal_layer, item.reference_layer) for item in pairs}):
             raise ValueError("stack-up adjacent reference pairs must be unique")
         object.__setattr__(self, "adjacent_reference_pairs", pairs)
         object.__setattr__(
@@ -126,12 +123,20 @@ class StackupReferenceContext(SemanticIrModel):
             ):
                 raise ValueError("unknown stack-up cannot invent layer/reference authority")
             return self
-        if self.copper_layer_order != ("F.Cu", "B.Cu"):
-            raise ValueError("current verified stack-up authority supports exact two-layer order")
+        if self.copper_layer_order != ordered_copper_layers(self.copper_layer_order):
+            raise ValueError("verified stack-up requires physical copper layer order")
         if not pairs or not self.reference_net_names or self.evidence_binding is None:
             raise ValueError("verified stack-up requires adjacency, reference nets, and evidence")
         if any(item.signal_layer == item.reference_layer for item in pairs):
             raise ValueError("a signal layer cannot be its own adjacent reference layer")
+        order = self.copper_layer_order
+        if any(
+            pair.signal_layer not in order
+            or pair.reference_layer not in order
+            or abs(order.index(pair.signal_layer) - order.index(pair.reference_layer)) != 1
+            for pair in pairs
+        ):
+            raise ValueError("reference pair must be physically adjacent in the declared stackup")
         binding = self.evidence_binding
         if not complete_hard_binding(binding):
             raise ValueError("verified stack-up requires revisioned pinned applicable evidence")
@@ -360,13 +365,14 @@ class ReturnPathDeclaration(SemanticIrModel):
             ):
                 raise ValueError("unknown stack-up permits advisory return guidance only")
         else:
+            if self.stackup_context.copper_layer_order != self.graph.copper_layer_order:
+                raise ValueError("return stack-up order differs from routed graph authority")
             stackup_pairs = {
                 (item.signal_layer, item.reference_layer)
                 for item in self.stackup_context.adjacent_reference_pairs
             }
             if any(
-                (item.signal_layer, item.reference_layer) not in stackup_pairs
-                for item in pairs
+                (item.signal_layer, item.reference_layer) not in stackup_pairs for item in pairs
             ):
                 raise ValueError("declared reference layer is not adjacent in verified stack-up")
             if self.reference_net_name not in self.stackup_context.reference_net_names:
@@ -413,7 +419,7 @@ class QualifiedReferenceFill(SemanticIrModel):
     reference_fill_id: str
     zone_source_id: str
     reference_net_name: str
-    layer: Literal["F.Cu", "B.Cu"]
+    layer: CopperLayer
     exact_geometry: ExactPlanarCompound
     provenance: QualifiedExactZoneFillProvenance
     routed_graph_final_fill_record_sha256: str
@@ -441,7 +447,7 @@ class ReferenceStitchEvidence(SemanticIrModel):
     source_id: str
     source_kind: Literal["reference_via"] = "reference_via"
     reference_net_name: str
-    reference_layers: tuple[Literal["F.Cu", "B.Cu"], Literal["F.Cu", "B.Cu"]]
+    reference_layers: tuple[CopperLayer, CopperLayer]
     x_mm: Decimal
     y_mm: Decimal
     exact_source_authority_json: str
@@ -469,7 +475,11 @@ class ReferenceStitchEvidence(SemanticIrModel):
         )
         if self.reference_layers[0] == self.reference_layers[1]:
             raise ValueError("reference stitch must explicitly join two reference layers")
-        object.__setattr__(self, "reference_layers", ("F.Cu", "B.Cu"))
+        object.__setattr__(
+            self,
+            "reference_layers",
+            tuple(sorted(self.reference_layers, key=routing_copper_layers(4).index)),
+        )
         object.__setattr__(self, "x_mm", canonical_decimal(self.x_mm, "x_mm"))
         object.__setattr__(self, "y_mm", canonical_decimal(self.y_mm, "y_mm"))
         expected = canonical_json(self.authority_payload())
@@ -487,7 +497,7 @@ class ReferenceStitchEvidence(SemanticIrModel):
         source_id: str,
         source_kind: Literal["reference_via"] = "reference_via",
         reference_net_name: str,
-        reference_layers: tuple[Literal["F.Cu", "B.Cu"], Literal["F.Cu", "B.Cu"]],
+        reference_layers: tuple[CopperLayer, CopperLayer],
         x_mm: Decimal,
         y_mm: Decimal,
     ) -> Self:
@@ -496,7 +506,7 @@ class ReferenceStitchEvidence(SemanticIrModel):
             "source_id": source_id,
             "source_kind": source_kind,
             "reference_net_name": reference_net_name,
-            "reference_layers": ("F.Cu", "B.Cu"),
+            "reference_layers": tuple(sorted(reference_layers, key=routing_copper_layers(4).index)),
             "x_mm": canonical_decimal(x_mm, "x_mm"),
             "y_mm": canonical_decimal(y_mm, "y_mm"),
         }

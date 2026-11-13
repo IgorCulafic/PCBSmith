@@ -27,7 +27,12 @@ from pcbsmith.return_adjacency_ir import (
     ReturnTransitionEvidence,
     TransitionStitchSelection,
 )
-from pcbsmith.routed_copper_graph_ir import ExactRational, fingerprint
+from pcbsmith.routed_copper_graph_ir import (
+    ExactRational,
+    RoutedCopperEdge,
+    RoutedCopperNode,
+    fingerprint,
+)
 from pcbsmith.semantic_ir import SemanticDisposition
 from pcbsmith.sensor_copper_removal_ir import ExactFilledZoneCopper
 
@@ -240,21 +245,22 @@ def _validate_inputs(
             != replayed_geometry.semantic_fingerprint()
         ):
             raise ValueError("caller reference geometry differs from replayed graph final fill")
-    edge_by_source = {item.source_id: item for item in retained.graph.edges}
+    graph_nodes = {item.node_id: item for item in retained.graph.nodes}
     for stitch in stitches:
         if stitch.reference_net_name != retained.reference_net_name:
             raise ValueError("reference stitch belongs to another net")
-        edge = edge_by_source.get(stitch.source_id)
-        if edge is None or edge.kind != "via" or edge.net_name != retained.reference_net_name:
+        spans = [
+            item
+            for item in retained.graph.edges
+            if item.source_id == stitch.source_id and item.kind == "via"
+        ]
+        if not spans or any(edge.net_name != retained.reference_net_name for edge in spans):
             raise ValueError("explicit reference-via source is absent from routed graph authority")
-        first = next(item for item in retained.graph.nodes if item.node_id == edge.start_node_id)
-        second = next(item for item in retained.graph.nodes if item.node_id == edge.end_node_id)
-        if (
-            set(stitch.reference_layers) != {first.layer, second.layer}
-            or Fraction(stitch.x_mm) != Fraction(first.x_mm)
-            or Fraction(stitch.y_mm) != Fraction(first.y_mm)
-            or Fraction(first.x_mm) != Fraction(second.x_mm)
-            or Fraction(first.y_mm) != Fraction(second.y_mm)
+        endpoints = [
+            graph_nodes[n] for edge in spans for n in (edge.start_node_id, edge.end_node_id)
+        ]
+        if not set(stitch.reference_layers).issubset({node.layer for node in endpoints}) or any(
+            (node.x_mm, node.y_mm) != (stitch.x_mm, stitch.y_mm) for node in endpoints
         ):
             raise ValueError("reference-via geometry differs from routed graph authority")
     edge_by_id = {item.edge_id: item for item in retained.graph.edges}
@@ -301,10 +307,24 @@ def rederive_return_adjacency(
 
     for leg in retained.legs:
         path = leg.complete_selected_path
+        steps: list[tuple[RoutedCopperEdge, RoutedCopperNode, RoutedCopperNode]] = []
         for index, edge_id in enumerate(path.ordered_edge_ids):
             edge = edge_map[edge_id]
             first = node_map[path.ordered_node_ids[index]]
             second = node_map[path.ordered_node_ids[index + 1]]
+            # Consecutive star edges are one physical barrel transition. Do not
+            # demand fictitious reference changes at its intermediate graph hub.
+            if (
+                steps
+                and edge.kind == "via"
+                and steps[-1][0].kind == "via"
+                and (steps[-1][0].source_id == edge.source_id)
+            ):
+                previous, start, _ = steps[-1]
+                steps[-1] = (previous, start, second)
+            else:
+                steps.append((edge, first, second))
+        for edge, first, second in steps:
             if edge.kind == "via":
                 before_layer, after_layer = first.layer, second.layer
                 before_reference = layer_map.get(before_layer)

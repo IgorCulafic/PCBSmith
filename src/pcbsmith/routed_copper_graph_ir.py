@@ -10,6 +10,7 @@ from typing import Any, Literal, Self
 
 from pydantic import Field, field_validator, model_validator
 
+from pcbsmith.copper_layers import CopperLayer
 from pcbsmith.semantic_ir import SemanticIrModel, SemanticVerification
 from pcbsmith.sensor_copper_removal_ir import ExactFilledZoneCopper
 
@@ -92,7 +93,7 @@ class CopperTerminalAnchorBinding(SemanticIrModel):
     component_reference: str = Field(min_length=1)
     pad_number: str = Field(min_length=1)
     net_name: str = Field(min_length=1)
-    layer: Literal["F.Cu", "B.Cu"]
+    layer: CopperLayer
     x_mm: Decimal
     y_mm: Decimal
     through_hole_diameter_mm: Decimal | None = Field(
@@ -123,7 +124,7 @@ class RoutedCopperNode(SemanticIrModel):
     schema_version: Literal[1] = 1
     node_id: str
     net_name: str
-    layer: Literal["F.Cu", "B.Cu"]
+    layer: CopperLayer
     x_mm: Decimal
     y_mm: Decimal
     anchor_ids: tuple[str, ...] = ()
@@ -253,6 +254,14 @@ class RoutedCopperUnverifiedContact(SemanticIrModel):
         return self
 
 
+class NativeFilledCopperInput(SemanticIrModel):
+    """Retained native authority for plane topology, deliberately without path metrics."""
+
+    board_text: str = Field(min_length=1)
+    snapshot_json: str = Field(min_length=1)
+    contacts_json: str = Field(min_length=1)
+
+
 class RoutedCopperGraphResult(SemanticIrModel):
     schema_id: Literal["pcbsmith-routed-copper-graph-result"] = (
         "pcbsmith-routed-copper-graph-result"
@@ -264,7 +273,13 @@ class RoutedCopperGraphResult(SemanticIrModel):
     board_netlist_snapshot_fingerprint: str
     terminal_anchors: tuple[CopperTerminalAnchorBinding, ...]
     exact_filled_zones: tuple[ExactFilledZoneCopper, ...]
+    native_filled_copper: NativeFilledCopperInput | None = Field(
+        default=None, exclude_if=lambda value: value is None
+    )
     resolve_point_contacts: bool = Field(default=False, exclude_if=lambda value: not value)
+    copper_layer_order: tuple[CopperLayer, ...] = Field(
+        default=("F.Cu", "B.Cu"), exclude_if=lambda value: value == ("F.Cu", "B.Cu")
+    )
     nodes: tuple[RoutedCopperNode, ...]
     edges: tuple[RoutedCopperEdge, ...]
     unknown_zone_reasons: tuple[RoutedCopperUnknownZoneReason, ...]
@@ -292,6 +307,8 @@ class RoutedCopperGraphResult(SemanticIrModel):
             self.terminal_anchors,
             self.exact_filled_zones,
             resolve_point_contacts=self.resolve_point_contacts,
+            copper_layer_order=self.copper_layer_order,
+            native_filled_copper=self.native_filled_copper,
         )
         compared = (
             "board_layout_snapshot_fingerprint",

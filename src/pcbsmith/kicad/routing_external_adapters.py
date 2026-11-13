@@ -313,8 +313,11 @@ def _engine_identity(
 
 def _translation_ledger(
     request: RouteRequest,
+    *,
+    net_layers_supported: bool = False,
 ) -> tuple[tuple[ConstraintConsumption, ...], tuple[RouteFailureEvidence, ...]]:
     unsupported = {
+        *(c.constraint_id for c in request.net_layer_constraints if not net_layers_supported),
         *(item.constraint_id for item in request.route_guides),
         *(
             item.constraint_id
@@ -435,7 +438,9 @@ def _run_pinned_external_candidate(
     completion_verifier: Callable[[], bool] | None = None,
 ) -> RouteCandidateResult:
     engine = _engine_identity(spec, binding)
-    ledger, translation_failures = _translation_ledger(request)
+    ledger, translation_failures = _translation_ledger(
+        request, net_layers_supported=spec == FREEROUTING_V2_3_0
+    )
     if translation_failures:
         return _failed_result(
             request=request,
@@ -633,7 +638,9 @@ def run_freerouting_dsn_ses_candidate(
     ):
         raise ValueError("Freerouting adapter received an incompatible engine spec")
     engine = _engine_identity(spec, binding)
-    ledger, translation_failures = _translation_ledger(request)
+    ledger, translation_failures = _translation_ledger(
+        request, net_layers_supported=spec == FREEROUTING_V2_3_0
+    )
     if spec.version == "2.2.4":
         return _failed_result(
             request=request,

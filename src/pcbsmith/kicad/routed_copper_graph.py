@@ -8,6 +8,7 @@ from decimal import Decimal
 from fractions import Fraction
 from typing import Any
 
+from pcbsmith.copper_layers import CopperLayer, ordered_copper_layers
 from pcbsmith.kicad.board import BoardLayout, BoardNetlist, TrackSegment, ViaSpec
 from pcbsmith.kicad.board_serialization import (
     board_layout_snapshot_fingerprint,
@@ -24,6 +25,7 @@ from pcbsmith.routed_copper_graph_ir import (
     CopperTerminalAnchorBinding,
     DeclaredCopperPathSelection,
     ExactRational,
+    NativeFilledCopperInput,
     ResolvedCopperPathResult,
     RoutedCopperEdge,
     RoutedCopperGraphResult,
@@ -269,12 +271,22 @@ def rederive_routed_copper_graph(
     exact_filled_zones: Sequence[ExactFilledZoneCopper] = (),
     *,
     resolve_point_contacts: bool = False,
+    copper_layer_order: tuple[CopperLayer, ...] = ("F.Cu", "B.Cu"),
+    native_filled_copper: NativeFilledCopperInput | None = None,
 ) -> dict[str, Any]:
+    if copper_layer_order != ordered_copper_layers(copper_layer_order):
+        raise ValueError("routed graph requires physical copper layer order")
     layout = parse_canonical_board_layout_snapshot(board_layout_snapshot_json)
     netlist = parse_canonical_board_netlist_snapshot(board_netlist_snapshot_json)
     anchors = _validate_anchors(terminal_anchors, netlist)
     fills = _validate_fills(exact_filled_zones, layout)
+    if fills and native_filled_copper is not None:
+        raise ValueError("native and legacy exact-fill authorities cannot be mixed")
     known_nets = {item.name for item in netlist.nets}
+    if any(a.layer not in copper_layer_order for a in anchors) or any(
+        layer not in copper_layer_order for _, layer, _ in layout.zones
+    ):
+        raise ValueError("anchor/zone layer is absent from routed graph authority")
     node_anchors: dict[NodeKey, list[str]] = defaultdict(list)
     keys: set[NodeKey] = set()
     for anchor in anchors:
@@ -287,7 +299,7 @@ def rederive_routed_copper_graph(
     seen_sources: set[str] = set()
     track_records: list[tuple[str, NodeKey, NodeKey]] = []
     for segment in layout.segments:
-        if segment.net_name not in known_nets or segment.layer not in {"F.Cu", "B.Cu"}:
+        if segment.net_name not in known_nets or segment.layer not in copper_layer_order:
             raise ValueError("track segment net/layer is absent from routed graph authority")
         first = _node_key(segment.net_name, segment.layer, segment.x1, segment.y1)
         second = _node_key(segment.net_name, segment.layer, segment.x2, segment.y2)
@@ -316,32 +328,47 @@ def rederive_routed_copper_graph(
         if via.net_name not in known_nets:
             raise ValueError("via net is absent from routed graph authority")
         first = _node_key(via.net_name, "F.Cu", via.x, via.y)
-        second = _node_key(via.net_name, "B.Cu", via.x, via.y)
         source = _source_id("via", _via_payload(via))
         if source in seen_sources:
             raise ValueError("duplicate physical via geometry has ambiguous source identity")
         seen_sources.add(source)
-        keys.update((first, second))
-        via_records.append((source, first, second))
-        raw_edges.append(
-            (source, source, "via", first, second, _decimal(via.size_mm), Fraction(0), None)
-        )
-    # Native plated-through pads connect both copper layers. The caller must
+        for layer in copper_layer_order[1:]:
+            second = _node_key(via.net_name, layer, via.x, via.y)
+            edge_id = source if layer == "B.Cu" else _source_id("via-span", [source, layer])
+            keys.update((first, second))
+            via_records.append((source, first, second))
+            raw_edges.append(
+                (edge_id, source, "via", first, second, _decimal(via.size_mm), Fraction(0), None)
+            )
+    # The star edges model one equipotential through barrel, not extra vias or
+    # a claim about its vertical length. Native plated pads likewise span the stack.
+    # The caller must
     # derive the optional diameter from the exact native pad, not a model file.
     for anchor in anchors:
         if anchor.through_hole_diameter_mm is None:
             continue
         front = _node_key(anchor.net_name, "F.Cu", anchor.x_mm, anchor.y_mm)
-        back = _node_key(anchor.net_name, "B.Cu", anchor.x_mm, anchor.y_mm)
         source = anchor.physical_pad_source_id
         if source in seen_sources:
             raise ValueError("duplicate physical through-pad source")
         seen_sources.add(source)
-        keys.update((front, back))
-        via_records.append((source, front, back))
-        raw_edges.append(
-            (source, source, "via", front, back, anchor.through_hole_diameter_mm, Fraction(0), None)
-        )
+        for layer in copper_layer_order[1:]:
+            back = _node_key(anchor.net_name, layer, anchor.x_mm, anchor.y_mm)
+            edge_id = source if layer == "B.Cu" else _source_id("via-span", [source, layer])
+            keys.update((front, back))
+            via_records.append((source, front, back))
+            raw_edges.append(
+                (
+                    edge_id,
+                    source,
+                    "via",
+                    front,
+                    back,
+                    anchor.through_hole_diameter_mm,
+                    Fraction(0),
+                    None,
+                )
+            )
     contacts: list[RoutedCopperUnverifiedContact] = []
     for anchor in anchors:
         anchor_key = _node_key(anchor.net_name, anchor.layer, anchor.x_mm, anchor.y_mm)
@@ -358,21 +385,22 @@ def rederive_routed_copper_graph(
                         reason="anchor_on_track_interior",
                     )
                 )
-    for via_source, front, back in via_records:
-        for via_key in (front, back):
-            for track_source, first, second in track_records:
-                if first[:2] == via_key[:2] and _strictly_on_segment(
-                    _qpoint(via_key), _qpoint(first), _qpoint(second)
-                ):
-                    contacts.append(
-                        _contact_issue(
-                            net_name=via_key[0],
-                            layer=via_key[1],
-                            source_ids=(via_source, track_source),
-                            point=_qpoint(via_key),
-                            reason="via_on_track_interior",
-                        )
+    for via_source, via_key in sorted(
+        {(source, key) for source, front, back in via_records for key in (front, back)}
+    ):
+        for track_source, first, second in track_records:
+            if first[:2] == via_key[:2] and _strictly_on_segment(
+                _qpoint(via_key), _qpoint(first), _qpoint(second)
+            ):
+                contacts.append(
+                    _contact_issue(
+                        net_name=via_key[0],
+                        layer=via_key[1],
+                        source_ids=(via_source, track_source),
+                        point=_qpoint(via_key),
+                        reason="via_on_track_interior",
                     )
+                )
     for index, (first_source, first_start, first_end) in enumerate(track_records):
         for second_source, second_start, second_end in track_records[index + 1 :]:
             if first_start[:2] != second_start[:2]:
@@ -448,7 +476,7 @@ def rederive_routed_copper_graph(
         if radius is None:
             continue
         layers = (
-            ("F.Cu", "B.Cu") if anchor.through_hole_diameter_mm is not None else (anchor.layer,)
+            copper_layer_order if anchor.through_hole_diameter_mm is not None else (anchor.layer,)
         )
         for layer in layers:
             centre = _node_key(anchor.net_name, layer, anchor.x_mm, anchor.y_mm)
@@ -477,27 +505,37 @@ def rederive_routed_copper_graph(
                     )
     fill_by_id = {item.zone_source_id: item for item in fills}
     unknown: list[RoutedCopperUnknownZoneReason] = []
-    for index, (net_name, layer, _rectangle) in enumerate(layout.zones):
-        source = f"zone:{index}:copper:{layer}"
+    if native_filled_copper is not None:
+        from pcbsmith.kicad.native_fill_graph import native_fill_graph_edges
+
+        native_keys, native_edges = native_fill_graph_edges(
+            native_filled_copper, layout, netlist, anchors, copper_layer_order
+        )
+        keys.update(native_keys)
+        raw_edges.extend(native_edges)
+    for index, (net_name, zone_layer, _rectangle) in enumerate(layout.zones):
+        if native_filled_copper is not None:
+            continue  # Exact inventory and source bindings were replayed above.
+        source = f"zone:{index}:copper:{zone_layer}"
         fill = fill_by_id.get(source)
         if fill is None:
             unknown.append(
                 RoutedCopperUnknownZoneReason(
                     zone_source_id=source,
                     net_name=net_name,
-                    layer=layer,
+                    layer=zone_layer,
                     reason="zone_intent_without_exact_fill",
                 )
             )
             continue
-        candidates = sorted(key for key in keys if key[0] == net_name and key[1] == layer)
+        candidates = sorted(key for key in keys if key[0] == net_name and key[1] == zone_layer)
         containment = [(key, _point_in_supported_fill(fill, key)) for key in candidates]
         if any(value is None for _, value in containment):
             unknown.append(
                 RoutedCopperUnknownZoneReason(
                     zone_source_id=source,
                     net_name=net_name,
-                    layer=layer,
+                    layer=zone_layer,
                     reason="exact_fill_geometry_not_supported_for_point_connectivity",
                 )
             )
@@ -569,6 +607,16 @@ def rederive_routed_copper_graph(
             "edges": [item.model_dump(mode="json") for item in canonical_edges],
             "unknown": [item.model_dump(mode="json") for item in unknown_tuple],
             "unverified_contacts": [item.model_dump(mode="json") for item in contact_tuple],
+            **(
+                {"native_filled_copper": fingerprint(native_filled_copper.model_dump(mode="json"))}
+                if native_filled_copper is not None
+                else {}
+            ),
+            **(
+                {"copper_layer_order": copper_layer_order}
+                if copper_layer_order != ("F.Cu", "B.Cu")
+                else {}
+            ),
         }
     )
     return {
@@ -591,6 +639,8 @@ def build_routed_copper_graph(
     exact_filled_zones: Sequence[ExactFilledZoneCopper] = (),
     *,
     resolve_point_contacts: bool = False,
+    copper_layer_order: tuple[CopperLayer, ...] = ("F.Cu", "B.Cu"),
+    native_filled_copper: NativeFilledCopperInput | None = None,
 ) -> RoutedCopperGraphResult:
     layout_json = canonical_board_layout_snapshot_json(layout)
     netlist_json = canonical_board_netlist_snapshot_json(netlist)
@@ -600,11 +650,15 @@ def build_routed_copper_graph(
         terminal_anchors,
         exact_filled_zones,
         resolve_point_contacts=resolve_point_contacts,
+        copper_layer_order=copper_layer_order,
+        native_filled_copper=native_filled_copper,
     )
     fields = {
         "board_layout_snapshot_json": layout_json,
         "resolve_point_contacts": resolve_point_contacts,
+        "copper_layer_order": copper_layer_order,
         "board_netlist_snapshot_json": netlist_json,
+        "native_filled_copper": native_filled_copper,
         **derived,
     }
     provisional = RoutedCopperGraphResult.model_construct(**fields, result_fingerprint="0" * 64)
@@ -789,8 +843,8 @@ def rederive_copper_path(
         "ordered_edge_ids": edge_ids,
         "ordered_node_ids": nodes,
         "ordered_source_ids": source_ids,
-        "via_count": len(vias),
-        "via_source_ids": tuple(item.source_id for item in vias),
+        "via_count": len({item.source_id for item in vias}),
+        "via_source_ids": tuple(dict.fromkeys(item.source_id for item in vias)),
         "minimum_width_mm": minimum,
         "neck_edge_ids": necks,
         "radical_length_terms": terms,

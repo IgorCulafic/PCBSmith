@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from itertools import permutations
 from pathlib import Path
 
+from pcbsmith.copper_layers import native_copper_layers
 from pcbsmith.kicad.board_mask import (
     mask_aperture_render_identity,
     render_board_mask_aperture,
@@ -1612,8 +1613,8 @@ def _zone(
     return f"""  (zone
     (net {_q(net_name)})
     (layer "{layer}")
-    (uuid "{item_uuid}"){priority_clause}
-    (hatch edge 0.5)
+    (uuid "{item_uuid}")
+    (hatch edge 0.5){priority_clause}
     (connect_pads yes
       (clearance 0.5))
     (min_thickness 0.25)
@@ -1631,6 +1632,13 @@ def _zone(
 
 
 def _render_header(profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE) -> str:
+    copper_layers = native_copper_layers(profile.geometry.copper_layer_count)
+    # This serializer targets the declared legacy file version; KiCad maps
+    # these IDs on native save. Names and physical order remain authoritative.
+    copper_table = "\n".join(
+        f'    ({31 if name == "B.Cu" else index} "{name}" signal)'
+        for index, name in enumerate(copper_layers)
+    )
     expansion = profile.geometry.default_pad_solder_mask_expansion_mm
     mask_setup = (
         ""
@@ -1650,8 +1658,7 @@ def _render_header(profile: PcbRuleProfile = DEFAULT_PCB_RULE_PROFILE) -> str:
   (paper "A4")
 
   (layers
-    (0 "F.Cu" signal)
-    (31 "B.Cu" signal)
+{copper_table}
     (32 "B.Adhes" user)
     (33 "F.Adhes" user)
     (34 "B.Paste" user)

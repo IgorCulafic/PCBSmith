@@ -3,6 +3,8 @@ from __future__ import annotations
 import hashlib
 from pathlib import Path
 
+import pytest
+
 from pcbsmith.kicad.final_fill_adapter import (
     FillReachability,
     parse_kicad_final_fill_snapshot,
@@ -77,6 +79,84 @@ def test_missing_refill_or_changed_intent_is_stale(tmp_path: Path) -> None:
     assert snapshot.stale_fill
 
 
+@pytest.mark.parametrize("mutation", [None, "priority", "uuid", "layer", "clearance"])
+def test_native_zone_reordering_preserves_uuid_bound_intent_only(tmp_path, mutation):
+    from pcbsmith.kicad.library import _children, parse_sexpr, serialize_sexpr
+
+    tree = parse_sexpr(
+        BOARD.format(filled='(filled_polygon (layer "B.Cu") (pts (xy 0 0) (xy 4 0) (xy 4 4)))')
+    )
+    second = parse_sexpr(
+        serialize_sexpr(_children(tree, "zone")[0]).replace(
+            "00000000-0000-0000-0000-000000000001", "00000000-0000-0000-0000-000000000002"
+        )
+    )
+    tree.append(second)
+    source, filled = tmp_path / "source.kicad_pcb", tmp_path / "filled.kicad_pcb"
+    source.write_text(serialize_sexpr(tree))
+    tree[-2:] = reversed(tree[-2:])
+    text = serialize_sexpr(tree)
+    if mutation:
+        before, after = {
+            "priority": ("(priority 2)", "(priority 3)"),
+            "uuid": (
+                "00000000-0000-0000-0000-000000000002",
+                "00000000-0000-0000-0000-000000000003",
+            ),
+            "layer": ('(layer "B.Cu")', '(layer "In1.Cu")'),
+            "clearance": ("(clearance 0.3)", "(clearance 0.4)"),
+        }[mutation]
+        text = text.replace(before, after)
+    filled.write_text(text)
+    snapshot = parse_kicad_final_fill_snapshot(
+        source, filled, kicad_version="test", refilled_by_kicad=True
+    )
+    assert snapshot.zone_identity_authority == "uuid-bound-zone-intent-v2"
+    assert snapshot.zone_intent_unchanged == (mutation is None)
+    assert snapshot.stale_fill == (mutation is not None)
+
+
+@pytest.mark.parametrize("clause", ['(layers "F.Cu" "B.Cu")', "(keepout (tracks not_allowed))"])
+def test_unsupported_zone_inventory_cannot_be_reported_as_missing_or_clean(tmp_path, clause):
+    board = tmp_path / "unsupported.kicad_pcb"
+    board.write_text(BOARD.format(filled="").replace("(priority 2)", clause))
+    with pytest.raises(ValueError, match="one copper layer per non-rule-area zone"):
+        parse_kicad_final_fill_snapshot(
+            board, board, kicad_version="10.0.6", refilled_by_kicad=True
+        )
+
+
+@pytest.mark.parametrize(
+    "field,value",
+    [("layer", "In1.Cu"), ("net_name", "OTHER"), ("source_artifact_sha256", "f" * 64)],
+)
+def test_snapshot_rejects_region_from_another_authority(tmp_path, field, value):
+    from pcbsmith.kicad.final_fill_adapter import KiCadFilledCopperRegion, KiCadFinalFillSnapshot
+
+    board = tmp_path / "fixture.kicad_pcb"
+    board.write_text(
+        BOARD.format(filled='(filled_polygon (layer "B.Cu") (pts (xy 0 0) (xy 4 0) (xy 4 4)))')
+    )
+    snapshot = parse_kicad_final_fill_snapshot(
+        board, board, kicad_version="10.0.6", refilled_by_kicad=True
+    )
+    region = snapshot.regions[0].model_dump(exclude={"region_fingerprint"})
+    region[field] = value
+    foreign = KiCadFilledCopperRegion.build(**region)
+    values = snapshot.model_dump(
+        exclude={
+            "snapshot_fingerprint",
+            "zone_intent_unchanged",
+            "stale_fill",
+            "unverified_region_ids",
+            "regions",
+            "zones",
+        }
+    )
+    with pytest.raises(ValueError, match="zone and board authority"):
+        KiCadFinalFillSnapshot.build(**values, regions=(foreign,), zones=snapshot.zones)
+
+
 def test_native_refill_retains_rules_and_rejects_context_mutation(tmp_path, monkeypatch):
     import json
 
@@ -135,8 +215,18 @@ def test_native_refill_retains_rules_and_rejects_context_mutation(tmp_path, monk
         )
 
     monkeypatch.setattr(adapter, "run_kicad_process", run)
-    _, snapshot = adapter.refill_and_read_kicad_board(source, tmp_path / "good")
+    candidate, snapshot = adapter.refill_and_read_kicad_board(source, tmp_path / "good")
     assert not snapshot.stale_fill
+    report = candidate.parent / "fill-drc.json"
+    execution = adapter.verify_native_fill_execution(candidate, report)
+    assert execution["board_sha256"] == snapshot.filled_board_sha256
+    candidate.with_suffix(".kicad_dru").write_text("changed after native execution")
+    with pytest.raises(ValueError, match="inputs or report changed"):
+        adapter.verify_native_fill_execution(candidate, report)
+    candidate.with_suffix(".kicad_dru").write_text("(version 1)")
+    report.write_text(report.read_text() + "\n")
+    with pytest.raises(ValueError, match="inputs or report changed"):
+        adapter.verify_native_fill_execution(candidate, report)
     corrupt = True
     with pytest.raises(ValueError, match="rules or dependencies"):
         adapter.refill_and_read_kicad_board(source, tmp_path / "bad")

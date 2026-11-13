@@ -6,12 +6,19 @@ from collections.abc import Sequence
 
 from pcbsmith.automatic_review_gate import AutomaticReviewGate
 from pcbsmith.kicad.final_fill_adapter import FillReachability, KiCadFinalFillSnapshot
-from pcbsmith.kicad.final_fill_connectivity import KiCadFinalFillConnectivityObservation
+from pcbsmith.kicad.final_fill_connectivity import (
+    KiCadFinalFillConnectivityObservation,
+    classify_final_fill_reachability,
+    thermal_contact_inventory,
+)
 from pcbsmith.kicad.final_fill_thermal import (
     KiCadThermalSpokeAudit,
     ThermalSpokeDisposition,
 )
-from pcbsmith.kicad.reference_continuity import ReferenceContinuityEvidence
+from pcbsmith.kicad.reference_continuity import (
+    ReferenceContinuityContext,
+    ReferenceContinuityEvidence,
+)
 from pcbsmith.kicad.routing_evidence import KiCadDrcEvidence, SavedBoardRoutingEvidence
 from pcbsmith.manufacturing_ir import (
     CurrentPathAuthority,
@@ -44,6 +51,9 @@ def qualify_production_board(
     reference_continuity: ReferenceContinuityEvidence | None = None,
     automatic_review: AutomaticReviewGate | None = None,
     craft: RoutingCraftAssessment | None = None,
+    fill_source_pad_ids: tuple[str, ...] = (),
+    reference_context: ReferenceContinuityContext | None = None,
+    thermal_rules_sha256: str | None = None,
 ) -> WholeBoardQualification:
     """Build all required W7 gates without accepting caller-authored gate dispositions."""
 
@@ -58,14 +68,22 @@ def qualify_production_board(
         paths,
         automatic_review,
         craft,
+        reference_context,
     )
     gates = (
         _drc_gate(refilled_board_sha256, drc_evidence, drc_board_sha256),
         _routing_gate(refilled_board_sha256, routing_evidence),
-        _fill_gate(refilled_board_sha256, fill_snapshot, fill_connectivity, thermal_audit),
+        _fill_gate(
+            refilled_board_sha256,
+            fill_snapshot,
+            fill_connectivity,
+            thermal_audit,
+            declared_source_pad_ids=fill_source_pad_ids,
+            thermal_rules_sha256=thermal_rules_sha256,
+        ),
         _current_path_gate(refilled_board_sha256, topology, paths),
         _current_environment_gate(refilled_board_sha256, topology, paths, fabrication_profile),
-        _reference_gate(refilled_board_sha256, topology, reference_continuity),
+        _reference_gate(refilled_board_sha256, topology, reference_continuity, reference_context),
         _topology_gate(refilled_board_sha256, topology),
         _marking_gate(refilled_board_sha256, automatic_review),
         _visual_gate(refilled_board_sha256, automatic_review),
@@ -131,7 +149,9 @@ def _gate(
 
 
 def _drc_gate(
-    board: str, evidence: KiCadDrcEvidence | None, bound: str | None,
+    board: str,
+    evidence: KiCadDrcEvidence | None,
+    bound: str | None,
 ) -> QualificationGate:
     if evidence is None or bound is None:
         return _gate(board, "kicad_integrity", QualificationDisposition.UNVERIFIED, count=0)
@@ -176,27 +196,78 @@ def _routing_gate(board: str, evidence: SavedBoardRoutingEvidence | None) -> Qua
 
 
 def _fill_gate(
-    board: str, snapshot: KiCadFinalFillSnapshot | None,
+    board: str,
+    snapshot: KiCadFinalFillSnapshot | None,
     observation: KiCadFinalFillConnectivityObservation | None,
     thermal: KiCadThermalSpokeAudit | None,
+    *,
+    declared_source_pad_ids: tuple[str, ...] = (),
+    thermal_rules_sha256: str | None = None,
 ) -> QualificationGate:
     gate_id = "filled_region_connectivity"
     if snapshot is None or observation is None or thermal is None:
         return _gate(board, gate_id, QualificationDisposition.UNVERIFIED, count=0)
-    if not snapshot.regions:
+    _require_hashes(board, snapshot, observation, thermal)
+    if not snapshot.refilled_by_kicad or not snapshot.zone_intent_unchanged:
+        return _gate(
+            board,
+            gate_id,
+            QualificationDisposition.UNVERIFIED,
+            count=0,
+            notes=("stale_or_unverified_final_fill",),
+        )
+    missing_zones = {zone.zone_id for zone in snapshot.zones} - {
+        r.zone_id for r in snapshot.regions
+    }
+    if missing_zones:
+        return _gate(
+            board,
+            gate_id,
+            QualificationDisposition.UNVERIFIED,
+            count=len(snapshot.regions),
+            notes=tuple(f"zone_without_filled_copper:{z}" for z in sorted(missing_zones)),
+        )
+    replayed = classify_final_fill_reachability(
+        snapshot, observation, declared_source_pad_ids=declared_source_pad_ids
+    )
+    expected_thermal, expected_unresolved = thermal_contact_inventory(observation)
+    if (
+        thermal.evaluated_pad_ids != expected_thermal
+        or thermal.unresolved_pad_ids != expected_unresolved
+    ):
+        raise ValueError("thermal applicability differs from final-fill contact inventory")
+    if thermal.native_rules_sha256 is not None and thermal_rules_sha256 is not None:
+        if thermal.native_rules_sha256 != thermal_rules_sha256:
+            raise ValueError("thermal evidence targets another native rule baseline")
+    if not snapshot.zones and not snapshot.regions and not thermal.starved_thermal_violation_ids:
         return _gate(
             board, gate_id, QualificationDisposition.NOT_APPLICABLE, count=0, applicable=False
         )
     findings = tuple(
         [
             f"floating_region:{item.region_id}"
-            for item in snapshot.regions
+            for item in replayed.regions
             if item.reachability is FillReachability.FLOATING
         ]
         + [f"starved_thermal:{item}" for item in thermal.starved_thermal_violation_ids]
+        + [
+            f"unconnected_pad_zone:{c.contact_id}"
+            for c in observation.pad_zone_contacts or ()
+            if c.mode in {"thermal", "solid"} and c.flashed and not c.contacting_region_ids
+        ]
     )
-    unresolved = bool(snapshot.unverified_region_ids) or (
-        thermal.disposition is ThermalSpokeDisposition.UNVERIFIED
+    unresolved = (
+        snapshot.stale_fill
+        or bool(replayed.unverified_region_ids)
+        or (thermal.disposition is ThermalSpokeDisposition.UNVERIFIED)
+        or (
+            bool(expected_thermal or expected_unresolved)
+            and (
+                thermal.native_rules_sha256 is None
+                or thermal_rules_sha256 is None
+                or thermal.native_execution_fingerprint is None
+            )
+        )
     )
     disposition = (
         QualificationDisposition.FAIL
@@ -211,7 +282,7 @@ def _fill_gate(
         disposition,
         count=len(snapshot.regions) + thermal.evaluated_object_count,
         evidence=(
-            snapshot.snapshot_fingerprint,
+            replayed.snapshot_fingerprint,
             fingerprint(observation.model_dump(mode="json")),
             thermal.evidence_fingerprint,
         ),
@@ -220,7 +291,9 @@ def _fill_gate(
 
 
 def _current_path_gate(
-    board: str, topology: BoardPowerTopology | None, paths: tuple[CurrentPathRecord, ...],
+    board: str,
+    topology: BoardPowerTopology | None,
+    paths: tuple[CurrentPathRecord, ...],
 ) -> QualificationGate:
     gate_id = "current_path_ledger"
     if topology is None:
@@ -267,7 +340,9 @@ def _current_path_gate(
 
 
 def _current_environment_gate(
-    board: str, topology: BoardPowerTopology | None, paths: tuple[CurrentPathRecord, ...],
+    board: str,
+    topology: BoardPowerTopology | None,
+    paths: tuple[CurrentPathRecord, ...],
     profile: FabricationElectricalProfile | None,
 ) -> QualificationGate:
     gate_id = "current_environment_model"
@@ -301,9 +376,17 @@ def _current_environment_gate(
 
 
 def _reference_gate(
-    board: str, topology: BoardPowerTopology | None, evidence: ReferenceContinuityEvidence | None,
+    board: str,
+    topology: BoardPowerTopology | None,
+    evidence: ReferenceContinuityEvidence | None,
+    context: ReferenceContinuityContext | None = None,
 ) -> QualificationGate:
     gate_id = "reference_continuity"
+    if evidence is not None and evidence.context is not None:
+        if evidence.context.board_sha256 != board or (
+            context is not None and evidence.context != context
+        ):
+            raise ValueError("reference evidence targets another board, stackup, rules or policy")
     if topology is not None and topology.applicability == "unresolved":
         return _gate(
             board,
@@ -319,6 +402,14 @@ def _reference_gate(
         )
     if evidence is None:
         return _gate(board, gate_id, QualificationDisposition.UNVERIFIED, count=0)
+    if context is None or evidence.context is None:
+        return _gate(
+            board,
+            gate_id,
+            QualificationDisposition.UNVERIFIED,
+            count=0,
+            notes=("exact_reference_context_missing",),
+        )
     findings = tuple(
         sorted(str(item.get("finding_id", fingerprint(item))) for item in evidence.findings)
     )

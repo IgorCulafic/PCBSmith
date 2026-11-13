@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import math
 import os
 import shutil
 import subprocess
@@ -49,13 +50,17 @@ def run_kicad_process(
     command: Sequence[str | Path],
     *,
     runner: Callable[..., subprocess.CompletedProcess[str]] = subprocess.run,
+    timeout_seconds: float = 180,
 ) -> KiCadProcessResult:
+    if not math.isfinite(timeout_seconds) or timeout_seconds <= 0:
+        raise ValueError("KiCad execution requires a positive finite timeout")
     command_text = tuple(str(part) for part in command)
     completed = runner(
         list(command_text),
         text=True,
         capture_output=True,
         check=False,
+        timeout=timeout_seconds,
     )
     return KiCadProcessResult(
         command=command_text,

@@ -141,6 +141,27 @@ def test_source_bytes_are_pinned_before_evaluation(tmp_path):
         read_engineering_source(p, "0" * 64, "fixture", ())
 
 
+@pytest.mark.parametrize("layer", ["F.Cu", "B.Cu"])
+@pytest.mark.parametrize(
+    "angle,expected", [(0, (7, 8)), (90, (8, 4)), (180, (4, 3)), (270, (3, 7))]
+)
+def test_native_saved_pad_position_uses_serialized_offsets_on_either_face(
+    tmp_path, layer, angle, expected
+):
+    from pcbsmith.production_decoupling import native_terminal_anchors
+
+    part = BoardComponent("R1", "fixture", "Fixture:R", "R1")
+    netlist = BoardNetlist((part,), (BoardNet("SIG", (("R1", "1"),)),))
+    board = tmp_path / "pad.kicad_pcb"
+    board.write_text(f'''(kicad_pcb (footprint "Fixture:R" (layer "{layer}")
+        (at 25.5 25.5 {angle}) (property "Reference" "R1")
+        (pad "1" smd rect (at 1.5 2.5) (size 1 2) (layers "{layer}") (net 1 "SIG"))))''')
+    (anchor,) = native_terminal_anchors(board, netlist)
+    assert (anchor.x_mm, anchor.y_mm) == expected
+    assert anchor.layer == layer
+    assert anchor.through_hole_diameter_mm is None
+
+
 def test_distinct_physical_switch_pads_are_not_merged(tmp_path):
     from pcbsmith.kicad.routed_copper_graph import build_routed_copper_graph
     from pcbsmith.production_decoupling import native_terminal_anchors

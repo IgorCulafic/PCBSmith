@@ -168,10 +168,22 @@ def _check_smd_package_geometry(
 ) -> None:
     # Require all copper pads to be numbered; extra unnamed SMD copper needs
     # an explicit future adapter, not silent omission from terminal coverage.
-    if any(not pad.name for pad in footprint.pads):
+    electrical_pads = tuple(
+        pad
+        for pad in footprint.pads
+        if not (
+            not pad.name
+            and pad.kind == "smd"
+            and pad.layers
+            and set(pad.layers) <= {"F.Paste", "B.Paste"}
+            and pad.drill_mm == 0
+            and pad.hole is None
+        )
+    )
+    if any(not pad.name for pad in electrical_pads):
         raise ValueError("SMD geometry screen requires numbered pads")
-    pads = {pad.name: pad for pad in footprint.pads}
-    if len(pads) != len(footprint.pads):
+    pads = {pad.name: pad for pad in electrical_pads}
+    if len(pads) != len(electrical_pads):
         raise ValueError("package geometry screen does not support repeated physical pad numbers")
     if set(pads) != {pin.number for pin in evidence.pins}:
         raise ValueError("package geometry pin coverage differs from footprint")

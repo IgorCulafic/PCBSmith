@@ -38,6 +38,7 @@ def _board(tmp_path: Path) -> Path:
     path.write_text(
         """(kicad_pcb
   (version 20241229)
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal))
   (generator pcbnew)
   (net 1 "SIG")
   (footprint "Sensor"
@@ -62,6 +63,7 @@ def _bottom_hole_board(tmp_path: Path) -> Path:
     path.write_text(
         """(kicad_pcb
   (version 20241229)
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal))
   (generator pcbnew)
   (footprint "BottomPart"
     (layer "B.Cu")
@@ -79,6 +81,7 @@ def _unrouted_board(tmp_path: Path) -> Path:
     path.write_text(
         """(kicad_pcb
   (version 20241229)
+  (layers (0 "F.Cu" signal) (31 "B.Cu" signal))
   (generator pcbnew)
   (net 1 "SIG")
   (footprint "A" (layer "F.Cu") (at 1 1)
@@ -101,6 +104,39 @@ def _model_report(board: Path, status: str = "passed") -> ModelPreflightReport:
         models=(),
         required_references=("U1",),
     )
+
+
+@pytest.mark.parametrize("fault", ["missing-inner", "hide-layer-count"])
+def test_four_layer_review_requires_inner_views_bound_to_native_stack(tmp_path, fault):
+    board = _board(tmp_path)
+    board.write_text(
+        board.read_text().replace(
+            '(31 "B.Cu" signal)', '(1 "In1.Cu" signal) (2 "In2.Cu" signal) (31 "B.Cu" signal)'
+        )
+    )
+    runner = FakeRunner()
+    manifest = generate_visual_review_package(
+        board_file=board,
+        output_dir=tmp_path / "out",
+        stage="final",
+        features=ReviewFeatures(),
+        model_preflight=_model_report(board),
+        finder=lambda: KiCadInstall(path=Path("kicad-cli"), source="fixture"),
+        runner=runner,
+        rasterizer=_rasterize,
+        conformance_date=date(2026, 10, 10),
+    )
+    inner = [a for a in manifest.artifacts if a.artifact_id.startswith("2d:inner-")]
+    assert len(inner) == 4 and all(a.required and a.state != "missing" for a in inner)
+    assert all(not a.mirrored for a in inner)
+    path = tmp_path / "out/review/manifest.json"
+    if fault == "missing-inner":
+        (path.parent / inner[0].relative_path).unlink()
+    else:
+        manifest = manifest.model_copy(update={"copper_layers": ("F.Cu", "B.Cu")})
+        write_visual_review_manifest(path, manifest)
+    report = audit_visual_review_package(path, evaluated_on=date(2026, 10, 10))
+    assert report.disposition is ConformanceDisposition.NONCONFORMANT
 
 
 def _png(path, width, height):

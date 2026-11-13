@@ -16,6 +16,8 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from pcbsmith.kicad.cli import KiCadInstall, KiCadProcessResult, find_kicad_cli
+from pcbsmith.kicad.copper_layers import saved_copper_layers
+from pcbsmith.kicad.library import parse_sexpr
 from pcbsmith.rule_profiles import DEFAULT_PCB_RULE_PROFILE, PcbRuleProfile
 
 
@@ -68,7 +70,7 @@ def _board_facts(board_file: Path) -> dict[str, str]:
             f"{width:.1f} x {height:.1f} mm "
             f"({width / 0.0254:.0f} x {height / 0.0254:.0f} mil)"
         )
-    facts["copper_layers"] = "2"
+    facts["copper_layers"] = str(len(saved_copper_layers(parse_sexpr(text))))
     facts["has_mask_opening"] = (
         "yes" if '(layer "F.Mask")' in text and "(gr_poly" in text else "no"
     )
@@ -220,6 +222,10 @@ def export_fab_package(
     if install is None:
         raise FabricationError("KiCad CLI was not found; cannot export gerbers.")
     run = runner or _default_runner
+    if profile.geometry.copper_layer_count > 2:
+        raise FabricationError(
+            "Four-layer export requires the neutral manufacturing owner with explicit stackup"
+        )
 
     fab_dir = board_file.parent / "fab"
     work_dir = fab_dir / "files"

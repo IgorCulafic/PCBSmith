@@ -146,6 +146,79 @@ def test_exact_two_layer_path_retains_via_width_sources_and_rational_length() ->
     assert tuple(item.kind for item in graph.edges).count("via") == 1
 
 
+@pytest.mark.parametrize("layers", [("F.Cu", "In1.Cu"), ("In1.Cu", "In2.Cu"), ("In2.Cu", "B.Cu")])
+def test_four_layer_barrel_connects_inner_tracks_as_one_physical_via(layers) -> None:
+    first, second = layers
+    layout = _layout(
+        segments=(
+            TrackSegment(0, 0, 5, 0, first, "VDD", 0.2),
+            TrackSegment(5, 0, 10, 0, second, "VDD", 0.15),
+        )
+    )
+    graph = build_routed_copper_graph(
+        layout,
+        _netlist(),
+        _anchors(start_point=(first, "0", "0"), end_point=(second, "10", "0")),
+        copper_layer_order=("F.Cu", "In1.Cu", "In2.Cu", "B.Cu"),
+    )
+    result = resolve_copper_path(graph, _selection(graph))
+    assert result.connectivity_state == "connected"
+    assert result.verification is SemanticVerification.EXACT
+    assert result.via_count == len(result.via_source_ids) == 1
+    assert result.exact_rational_planar_length_mm.fraction() == 10
+    assert {node.layer for node in graph.nodes} == {"F.Cu", "In1.Cu", "In2.Cu", "B.Cu"}
+    assert RoutedCopperGraphResult.model_validate_json(graph.model_dump_json()) == graph
+
+
+def test_inner_layers_require_explicit_stack_and_stack_is_replay_bound() -> None:
+    layout = _layout(segments=(TrackSegment(0, 0, 10, 0, "In1.Cu", "VDD", 0.2),), vias=())
+    anchors = _anchors(start_point=("In1.Cu", "0", "0"), end_point=("In1.Cu", "10", "0"))
+    with pytest.raises(ValueError):
+        build_routed_copper_graph(layout, _netlist(), anchors)
+    empty = _layout(segments=(), vias=())
+    two = build_routed_copper_graph(empty, _netlist(), _anchors())
+    four = build_routed_copper_graph(
+        empty, _netlist(), _anchors(), copper_layer_order=("F.Cu", "In1.Cu", "In2.Cu", "B.Cu")
+    )
+    assert two.graph_fingerprint != four.graph_fingerprint
+    assert "copper_layer_order" not in two.model_dump()
+    changed = four.model_dump(mode="json")
+    changed["copper_layer_order"] = ["F.Cu", "B.Cu"]
+    with pytest.raises(ValidationError):
+        RoutedCopperGraphResult.model_validate(changed)
+
+
+def test_through_pad_connects_inner_layer_without_inventing_cross_layer_contacts() -> None:
+    layout = _layout(segments=(TrackSegment(0, 0, 10, 0, "In2.Cu", "VDD", 0.2),), vias=())
+    anchors = _anchors(end_point=("In2.Cu", "10", "0"))
+    stack = ("F.Cu", "In1.Cu", "In2.Cu", "B.Cu")
+    isolated = build_routed_copper_graph(layout, _netlist(), anchors, copper_layer_order=stack)
+    assert resolve_copper_path(isolated, _selection(isolated)).connectivity_state == "disconnected"
+    plated = (
+        anchors[0].model_copy(update={"through_hole_diameter_mm": Decimal("0.8")}),
+        anchors[1],
+    )
+    connected = build_routed_copper_graph(layout, _netlist(), plated, copper_layer_order=stack)
+    assert resolve_copper_path(connected, _selection(connected)).connectivity_state == "connected"
+
+
+def test_inner_via_interior_contact_requires_exact_splitting() -> None:
+    layout = _layout(segments=(TrackSegment(0, 0, 10, 0, "In1.Cu", "VDD", 0.2),))
+    anchors = _anchors(start_point=("In1.Cu", "0", "0"), end_point=("In2.Cu", "5", "0"))
+    options = {"copper_layer_order": ("F.Cu", "In1.Cu", "In2.Cu", "B.Cu")}
+    unresolved = build_routed_copper_graph(layout, _netlist(), anchors, **options)
+    assert (
+        resolve_copper_path(unresolved, _selection(unresolved)).connectivity_state == "unverified"
+    )
+    graph = build_routed_copper_graph(
+        layout, _netlist(), anchors, resolve_point_contacts=True, **options
+    )
+    result = resolve_copper_path(graph, _selection(graph))
+    assert result.connectivity_state == "connected"
+    assert result.exact_rational_planar_length_mm.fraction() == 5
+    assert result.via_count == 1
+
+
 def test_terminal_anchor_requires_exact_netlist_node_and_nearest_is_not_substituted() -> None:
     layout = _layout()
     wrong_nearest = _anchors(

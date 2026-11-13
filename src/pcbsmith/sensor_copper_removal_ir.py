@@ -17,6 +17,7 @@ from typing import Any, Literal, Self
 from pydantic import Field, field_validator, model_validator
 
 from pcbsmith.copper_exposure import CopperGeometryVerification
+from pcbsmith.copper_layers import CopperLayer
 from pcbsmith.mask_geometry import ApertureRelation, MaskGeometry
 from pcbsmith.semantic_ir import (
     EvidenceApplicabilityBinding,
@@ -156,7 +157,7 @@ class ExactFilledZoneCopper(SemanticIrModel):
     zone_source_id: str = Field(min_length=1)
     zone_index: int = Field(ge=0)
     zone_net_name: str
-    layer: Literal["F.Cu", "B.Cu"]
+    layer: CopperLayer
     geometry: MaskGeometry
     reader_id: str = Field(min_length=1)
     reader_version: str = Field(min_length=1)
@@ -227,7 +228,7 @@ class ExactFilledZoneCopper(SemanticIrModel):
         zone_source_id: str,
         zone_index: int,
         zone_net_name: str,
-        layer: Literal["F.Cu", "B.Cu"],
+        layer: CopperLayer,
         geometry: MaskGeometry,
         reader_id: str,
         reader_version: str,

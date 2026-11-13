@@ -183,6 +183,9 @@ class VisualReviewManifest(BaseModel):
     board_file: str
     board_sha256: str
     copper_sha256: str
+    copper_layers: tuple[str, ...] = Field(
+        default=("F.Cu", "B.Cu"), exclude_if=lambda value: value == ("F.Cu", "B.Cu")
+    )
     routing_evidence: SavedBoardRoutingEvidence | None = None
     source_revision: str | None = None
     kicad_version: str
@@ -249,6 +252,25 @@ _COMPARISON_SIDES: tuple[tuple[Literal["front", "back"], tuple[str, ...], bool],
 )
 
 
+def _two_d_profiles(
+    copper_layers: tuple[str, ...],
+) -> tuple[tuple[str, str, tuple[str, ...], Literal["front", "back", "both"], bool], ...]:
+    from pcbsmith.copper_layers import ordered_copper_layers
+
+    ordered = ordered_copper_layers(copper_layers)
+    profiles = tuple(
+        (category, name, (*ordered, "Edge.Cuts"), side, mirrored)
+        if name in {"combined-copper", "holes-vias"}
+        else (category, name, layers, side, mirrored)
+        for category, name, layers, side, mirrored in _TWO_D_PROFILES
+    )
+    # Inner copper is viewed from the front, without a fabrication mirror.
+    return profiles + tuple(
+        ("routing", f"inner-{index}-copper", (layer, "Edge.Cuts"), "both", False)
+        for index, layer in enumerate(ordered[1:-1], start=1)
+    )
+
+
 def generate_visual_review_package(
     *,
     board_file: Path,
@@ -283,6 +305,9 @@ def generate_visual_review_package(
     if model_preflight.board_sha256 != board_sha256:
         raise ValueError("3D model preflight belongs to a different saved board revision.")
     board_root = parse_sexpr(board_payload.decode("utf-8"))
+    from pcbsmith.kicad.copper_layers import saved_copper_layers
+
+    copper_layers = saved_copper_layers(board_root)
     routing_evidence = inspect_saved_board_routing(board)
     features = _augment_features_from_board(features, board_root)
     artifacts: list[ReviewArtifact] = []
@@ -300,7 +325,7 @@ def generate_visual_review_package(
     kicad_version = _kicad_version(install, runner)
 
     base_svg_by_side: dict[str, Path] = {}
-    for category, name, layers, side, mirrored in _TWO_D_PROFILES:
+    for category, name, layers, side, mirrored in _two_d_profiles(copper_layers):
         report_progress(f"2D profile {name}: exporting vector and raster evidence")
         required = _profile_required(name, features)
         svg_path = review_dir / category / f"{name}.svg"
@@ -477,6 +502,7 @@ def generate_visual_review_package(
         stage=stage,
         board_file=str(board),
         board_sha256=board_sha256,
+        copper_layers=copper_layers,
         copper_sha256=_copper_hash(board_root),
         routing_evidence=routing_evidence,
         source_revision=source_revision,
@@ -872,7 +898,7 @@ def build_visual_review_workflow_profile(
         ),
     ]
     expected_artifacts = {"package:manifest", "package:report"}
-    for _category, name, layers, side, mirrored in _TWO_D_PROFILES:
+    for _category, name, layers, side, mirrored in _two_d_profiles(manifest.copper_layers):
         if not _profile_required(name, features):
             continue
         for extension, media_type in (("svg", "image/svg+xml"), ("png", "image/png")):
@@ -1072,6 +1098,15 @@ def _visual_observations(
     board_integrity = board.is_file() and hashlib.sha256(board.read_bytes()).hexdigest() == (
         manifest.board_sha256
     )
+    if board_integrity:
+        from pcbsmith.kicad.copper_layers import saved_copper_layers
+
+        try:
+            board_integrity = saved_copper_layers(
+                parse_sexpr(board.read_text(encoding="utf-8"))
+            ) == manifest.copper_layers
+        except ValueError:
+            board_integrity = False
     observations = [
         _package_observation(
             artifact_id="package:manifest",

@@ -3,6 +3,8 @@ from __future__ import annotations
 import subprocess
 from pathlib import Path
 
+import pytest
+
 from pcbsmith.kicad.cli import KiCadInstall, find_kicad_cli, run_kicad_process
 
 
@@ -16,6 +18,7 @@ def test_find_kicad_cli_uses_environment_override(tmp_path: Path, monkeypatch) -
 
 def test_run_kicad_process_captures_command_output() -> None:
     def fake_runner(command, **_kwargs):
+        assert _kwargs["timeout"] == 180
         return subprocess.CompletedProcess(command, 0, stdout="10.0.2\n", stderr="")
 
     result = run_kicad_process(
@@ -27,6 +30,12 @@ def test_run_kicad_process_captures_command_output() -> None:
     assert result.command == ("kicad-cli.exe", "version")
     assert result.stdout == "10.0.2\n"
     assert result.stderr == ""
+
+
+@pytest.mark.parametrize("timeout", [0, -1, float("nan"), float("inf")])
+def test_native_process_requires_finite_positive_timeout(timeout):
+    with pytest.raises(ValueError, match="positive finite timeout"):
+        run_kicad_process(("unused-native-executable",), timeout_seconds=timeout)
 
 
 def test_run_kicad_erc_rejects_path_traversal_report_names() -> None:

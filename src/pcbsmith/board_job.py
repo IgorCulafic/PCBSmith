@@ -167,11 +167,17 @@ class ContinuationRequest(Record):
     native_preparation_input_retry: str | None = Field(default=None, exclude_if=lambda v: v is None)
     blocker_resolution: str | None = None
     resolved_evidence: dict[str, str] = Field(default_factory=dict)
+    completion_allowances: dict[str, Literal[1, 2]] = Field(
+        default_factory=dict, exclude_if=lambda v: not v
+    )
     retry_failed_operations: dict[str, str] = Field(default_factory=dict)
     retrospective_diagnostic: bool = Field(default=False, exclude_if=lambda v: not v)
     edit_retry_request: str | None = Field(default=None, exclude_if=lambda v: v is None)
     local_completion_board: str | None = Field(default=None, exclude_if=lambda v: v is None)
     placement_followup_plan: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    automatic_retry_plan: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    routing_constraints_plan: str | None = Field(default=None, exclude_if=lambda v: v is None)
+    cam_export_repair_plan: str | None = Field(default=None, exclude_if=lambda v: v is None)
     final_render_plan: str | None = Field(default=None, exclude_if=lambda v: v is None)
     routing_backend_config: str | None = Field(default=None, exclude_if=lambda v: v is None)
     routing_attempt_limit: Literal[3, 4, 5] = Field(default=3, exclude_if=lambda v: v == 3)
@@ -189,6 +195,72 @@ class ContinuationRequest(Record):
         if not self.authorization_reference.strip():
             raise ValueError("explicit user authorization reference is required")
         preparation = {"native-preparation", "predesign-prepare"}
+        if self.cam_export_repair_plan is not None and (
+            self.cam_export_repair_plan not in self.resolved_evidence
+            or not self.blocker_resolution
+            or self.evaluation_seconds is None
+            or self.build_operations
+            or self.retry_failed_operations
+            or self.completion_allowances
+            or self.automatic_retry_plan
+            or self.routing_constraints_plan
+            or self.final_render_plan
+            or self.retrospective_diagnostic
+        ):
+            raise ValueError("CAM repair requires a bounded verification-only completion")
+        if self.routing_constraints_plan is not None and (
+            self.routing_constraints_plan not in self.resolved_evidence
+            or self.routing_adapter_repair_sha256 is None
+            or self.evaluation_seconds is None
+            or self.completion_allowances
+            or self.automatic_retry_plan
+            or self.final_render_plan
+            or self.placement_followup_plan
+            or self.retrospective_diagnostic
+        ):
+            raise ValueError("constraint recovery requires one evidenced adapter repair scope")
+        if self.automatic_retry_plan is not None and (
+            self.automatic_retry_plan not in self.resolved_evidence
+            or not self.blocker_resolution
+            or self.evaluation_seconds is None
+            or set(self.build_operations)
+            != {"native-preparation", "predesign-refresh", "predesign-reapprove", "edit", "routing"}
+            or set(self.retry_failed_operations) != {"routing"}
+            or self.completion_allowances
+            or self.placement_followup_plan
+            or self.pre_native_recovery
+            or self.final_render_plan
+        ):
+            raise ValueError("automatic retry requires one exact pose recovery scope")
+        if self.completion_allowances:
+            allowed = {value[0] for value in CLI_OPERATIONS.values()} | {
+                "native-preparation",
+                "predesign-prepare",
+                "predesign-approve",
+                "predesign-refresh",
+                "predesign-reapprove",
+                "routing",
+                "laser-artwork",
+            }
+            if (
+                not self.blocker_resolution
+                or not self.resolved_evidence
+                or self.evaluation_seconds is None
+                or not set(self.completion_allowances) <= allowed
+                or not set(self.build_operations) <= set(self.completion_allowances)
+                or sum(self.completion_allowances.values()) > 20
+                or any(
+                    n != 1
+                    for op, n in self.completion_allowances.items()
+                    if op not in {"visual-render", "visual-inspect", "placement-review"}
+                )
+                or self.pre_native_recovery
+                or self.retry_failed_operations
+                or self.placement_followup_plan
+                or self.final_render_plan
+                or self.retrospective_diagnostic
+            ):
+                raise ValueError("completion requires a finite evidenced operation inventory")
         input_retry = self.native_preparation_input_retry
         if input_retry is not None and (
             self.pre_native_recovery is None
@@ -208,7 +280,9 @@ class ContinuationRequest(Record):
                 raise ValueError(
                     "pre-native recovery requires bounded initial stages and resolution"
                 )
-        elif preparation & set(self.build_operations):
+        elif preparation & set(self.build_operations) and not (
+            self.completion_allowances or self.automatic_retry_plan
+        ):
             raise ValueError("preparation recovery requires explicit pre-native scope")
         if not self.seconds * 0.2 <= self.reserve_seconds < self.seconds:
             raise ValueError("continuation must reserve at least twenty percent for verification")
@@ -290,6 +364,141 @@ class ContinuationRequest(Record):
         return self
 
 
+def _operation_inventory(request: ContinuationRequest) -> dict[str, int]:
+    if request.cam_export_repair_plan:
+        return dict.fromkeys(("routed-review", "visual-inspect", "laser-artwork"), 1)
+    if request.routing_constraints_plan:
+        return dict.fromkeys(
+            ("routing", "visual-render", "routed-review", "visual-inspect", "laser-artwork"), 1
+        )
+    if request.automatic_retry_plan:
+        return {
+            "native-preparation": 1,
+            "predesign-refresh": 1,
+            "predesign-reapprove": 1,
+            "edit": 1,
+            "routing": 1,
+            "visual-render": 2,
+            "placement-review": 1,
+            "routed-review": 1,
+            "visual-inspect": 2,
+            "laser-artwork": 1,
+        }
+    return dict(request.completion_allowances)
+
+
+def _validate_automatic_retry(
+    root: Path,
+    prior: Sequence[Attempt],
+    request: ContinuationRequest,
+    *,
+    operation: str | None = None,
+    command: Sequence[str] = (),
+) -> None:
+    """One explicitly authorized pose correction; keep source and two-route limit."""
+    from pcbsmith.board_revision import BoardRevisionRequest, _require_unrouted_annotations
+    from pcbsmith.kicad.native_edits import NativeEdit, inspect_edit_objects
+    from pcbsmith.native_project import NativeProjectSpec
+    from pcbsmith.operations.file_transaction import project_path
+
+    assert request.automatic_retry_plan is not None
+    path = project_path(root, request.automatic_retry_plan)
+    if hashlib.sha256(path.read_bytes()).hexdigest() != request.resolved_evidence.get(
+        request.automatic_retry_plan
+    ):
+        raise JobStopped("automatic retry plan changed")
+    plan = json.loads(path.read_bytes())
+    if set(plan) != {"source_spec", "revised_spec", "board", "source_inputs", "edits"}:
+        raise JobStopped("automatic retry plan fields invalid")
+    for key in ("source_spec", "revised_spec", "board"):
+        if plan[key] not in plan["source_inputs"]:
+            raise JobStopped("automatic retry source not pinned")
+    for relative, digest in plan["source_inputs"].items():
+        if hashlib.sha256(project_path(root, relative).read_bytes()).hexdigest() != digest:
+            raise JobStopped("automatic retry source changed")
+    routes = [a for a in prior if a.operation == "routing"]
+    if (
+        len(routes) != 1
+        or routes[0].status != "failed"
+        or request.retry_failed_operations.get("routing") != routes[0].token
+    ):
+        raise JobStopped("automatic retry requires exactly one failed route")
+    old = NativeProjectSpec.model_validate_json(
+        project_path(root, plan["source_spec"]).read_bytes()
+    )
+    new = NativeProjectSpec.model_validate_json(
+        project_path(root, plan["revised_spec"]).read_bytes()
+    )
+    normalized = new.model_copy(
+        update={
+            "parts": tuple(
+                p.model_copy(update={"board_at": q.board_at})
+                for p, q in zip(new.parts, old.parts, strict=True)
+            )
+        }
+    )
+    if normalized != old or new == old:
+        raise JobStopped("automatic retry may change only component poses")
+    edits = tuple(NativeEdit.model_validate(e) for e in plan["edits"])
+    if len(edits) != 1 or edits[0].kind != "component":
+        raise JobStopped("automatic retry requires exactly one component pose")
+    changed = [
+        (p, q) for p, q in zip(old.parts, new.parts, strict=True) if p.board_at != q.board_at
+    ]
+    if (
+        len(changed) != 1
+        or sum(
+            (a - b) ** 2
+            for a, b in zip(changed[0][0].board_at[:2], changed[0][1].board_at[:2], strict=True)
+        )
+        > 25
+    ):
+        raise JobStopped("automatic retry pose must be one local move within 5 mm")
+    board = project_path(root, plan["board"])
+    _require_unrouted_annotations(board)
+    previous_part, next_part = changed[0]
+    obj = next(
+        (
+            o
+            for o in inspect_edit_objects(board.read_bytes())
+            if o["reference"] == previous_part.reference
+        ),
+        None,
+    )
+    if obj is None or not isinstance(obj["at"], list):
+        raise JobStopped("automatic retry native component missing")
+    at = [float(v) for v in obj["at"]]
+    expected = tuple(at[i] + next_part.board_at[i] - previous_part.board_at[i] for i in (0, 1))
+    expected_rotation = (
+        (at[2] if len(at) > 2 else 0) + next_part.board_at[2] - previous_part.board_at[2]
+    ) % 360
+    actual_rotation = edits[0].rotation_deg
+    if (
+        edits[0].target != obj["id"]
+        or edits[0].position_mm != expected
+        or (actual_rotation is None and next_part.board_at[2] != previous_part.board_at[2])
+        or (actual_rotation is not None and actual_rotation % 360 != expected_rotation)
+    ):
+        raise JobStopped("automatic retry native move differs from revised specification")
+    if operation == "native-preparation" and (
+        len(command) < 2 or Path(command[1]).resolve() != project_path(root, plan["revised_spec"])
+    ):
+        raise JobStopped("automatic retry requires pinned specification")
+    if operation == "edit":
+        if "--request" not in command or Path(command[2]).resolve() != board:
+            raise JobStopped("automatic retry targets another board")
+        revision = BoardRevisionRequest.model_validate_json(
+            Path(command[command.index("--request") + 1]).read_bytes()
+        )
+        if (
+            revision.validation_stage != "unrouted_placement"
+            or revision.edits != edits
+            or revision.substitutions
+            or revision.zero_ohm_links
+        ):
+            raise JobStopped("automatic retry differs from approved pose plan")
+
+
 def _validate_routing_adapter_repair(root: Path, request: ContinuationRequest) -> None:
     """Permit only an explicitly diagnosed, hash-bound adapter repair, never a budget retry."""
     from pcbsmith.operations.file_transaction import project_path
@@ -298,7 +507,8 @@ def _validate_routing_adapter_repair(root: Path, request: ContinuationRequest) -
     if hashlib.sha256(assessment).hexdigest() != request.assessment_sha256:
         raise JobStopped("adapter repair assessment changed")
     recommendation = DiagnosticRecommendation.model_validate_json(assessment)
-    if recommendation.cause != "platform" or recommendation.action != "platform_work":
+    causes = {"platform", "constraints"} if request.routing_constraints_plan else {"platform"}
+    if recommendation.cause not in causes or recommendation.action != "platform_work":
         raise JobStopped("adapter repair requires a diagnosed platform integration failure")
     adapter = _IMPLEMENTATION_ROOT / "kicad/freerouting_production.py"
     if hashlib.sha256(adapter.read_bytes()).hexdigest() != request.routing_adapter_repair_sha256:
@@ -306,6 +516,146 @@ def _validate_routing_adapter_repair(root: Path, request: ContinuationRequest) -
     for relative, expected in request.resolved_evidence.items():
         if hashlib.sha256(project_path(root, relative).read_bytes()).hexdigest() != expected:
             raise JobStopped("adapter repair resolution evidence changed")
+
+
+def _validate_constraint_recovery(
+    root: Path,
+    prior: Sequence[Attempt],
+    request: ContinuationRequest,
+    command: Sequence[str] | None = None,
+) -> None:
+    """One post-diagnosis route adding restrictions, with unchanged CAD and search settings."""
+    from pcbsmith.operations.file_transaction import project_path
+    from pcbsmith.routing_ir import RouteNetLayerConstraint
+    from pcbsmith.routing_policy import resolve_freerouting_config
+
+    assert request.routing_constraints_plan is not None
+    _validate_routing_adapter_repair(root, request)
+    plan = json.loads(project_path(root, request.routing_constraints_plan).read_bytes())
+    if set(plan) != {
+        "command",
+        "source_inputs",
+        "qualified_implementation",
+        "router_config_sha256",
+    }:
+        raise JobStopped("constraint recovery plan fields invalid")
+    routes = [a for a in prior if a.operation == "routing"]
+    if len(routes) != 2 or routes[-1].status != "failed":
+        raise JobStopped("constraint recovery requires two retained routes and a failed last route")
+    old, new = list(routes[-1].command), list(plan["command"])
+    if not old or old[0] != "pcbsmith.production_routing" or len(old) != len(new):
+        raise JobStopped("constraint recovery requires the existing production routing boundary")
+    for flag in ("--output", "--routing-options"):
+        if old.count(flag) != 1 or new.count(flag) != 1:
+            raise JobStopped("constraint recovery requires exact options and output")
+    comparable = new.copy()
+    for flag in ("--output", "--routing-options"):
+        comparable[old.index(flag) + 1] = old[old.index(flag) + 1]
+    if comparable != old or (command is not None and list(command) != new):
+        raise JobStopped("constraint recovery changed the qualified routing command")
+    inputs = plan["source_inputs"]
+    for relative, digest in inputs.items():
+        if hashlib.sha256(project_path(root, relative).read_bytes()).hexdigest() != digest:
+            raise JobStopped("constraint recovery source changed")
+
+    def pinned(path: Path) -> None:
+        resolved = path.resolve()
+        if not resolved.is_relative_to(root.resolve()):
+            raise JobStopped("constraint recovery input outside retained root")
+        if resolved.relative_to(root.resolve()).as_posix() not in inputs:
+            raise JobStopped("constraint recovery input not pinned")
+
+    for flag in ("--board", "--layout", "--netlist", "--profile", "--gate-inputs"):
+        if old.count(flag) != 1:
+            raise JobStopped("constraint recovery missing exact routing input")
+        pinned(Path(old[old.index(flag) + 1]))
+    config = resolve_freerouting_config(Path(old[old.index("--board") + 1]))
+    if config is None:
+        raise JobStopped("constraint recovery missing pinned router configuration")
+    if hashlib.sha256(config.read_bytes()).hexdigest() != plan["router_config_sha256"]:
+        raise JobStopped("constraint recovery router settings changed")
+    old_options = Path(old[old.index("--routing-options") + 1])
+    new_options = Path(new[new.index("--routing-options") + 1])
+    pinned(old_options)
+    pinned(new_options)
+    before, after = json.loads(old_options.read_bytes()), json.loads(new_options.read_bytes())
+    restrictions = after.pop("net_layer_constraints", [])
+    if before != after or "net_layer_constraints" in before or not restrictions:
+        raise JobStopped("constraint recovery may only add nonempty net layer restrictions")
+    for constraint in restrictions:
+        RouteNetLayerConstraint.model_validate(constraint)
+    output = Path(new[new.index("--output") + 1]).resolve()
+    old_output = Path(old[old.index("--output") + 1]).resolve()
+    if not output.is_relative_to(root.resolve()) or output == old_output:
+        raise JobStopped("constraint recovery must retain the old output")
+    required = {
+        "routing_ir.py",
+        "production_routing.py",
+        "kicad/freerouting_production.py",
+        "kicad/routing_external_adapters.py",
+        "kicad/routing_candidate_adapter.py",
+    }
+    if set(plan["qualified_implementation"]) != required:
+        raise JobStopped("constraint recovery requires all qualified routing owners")
+    for relative, digest in plan["qualified_implementation"].items():
+        if hashlib.sha256((_IMPLEMENTATION_ROOT / relative).read_bytes()).hexdigest() != digest:
+            raise JobStopped("constraint recovery qualified implementation changed")
+
+
+def _validate_cam_recovery(
+    root: Path,
+    prior: Sequence[Attempt],
+    request: ContinuationRequest,
+    command: Sequence[str] | None = None,
+) -> None:
+    """Resume a diagnosed export defect once, preserving accepted CAD and all renders."""
+    from pcbsmith.operations.file_transaction import project_path
+
+    assert request.cam_export_repair_plan is not None
+    for relative, expected in request.resolved_evidence.items():
+        if hashlib.sha256(project_path(root, relative).read_bytes()).hexdigest() != expected:
+            raise JobStopped("CAM repair resolution evidence changed")
+    plan = json.loads(project_path(root, request.cam_export_repair_plan).read_bytes())
+    if set(plan) != {"command", "source_inputs", "exporter_sha256"}:
+        raise JobStopped("CAM repair plan fields invalid")
+    assessment = project_path(root, request.assessment_file).read_bytes()
+    recommendation = DiagnosticRecommendation.model_validate_json(assessment)
+    if recommendation.cause != "platform" or recommendation.action != "platform_work":
+        raise JobStopped("CAM repair requires a diagnosed export integration failure")
+    exporter = _IMPLEMENTATION_ROOT / "laser_artwork.py"
+    if hashlib.sha256(exporter.read_bytes()).hexdigest() != plan["exporter_sha256"]:
+        raise JobStopped("CAM repair qualified exporter changed")
+    attempts = [a for a in prior if a.operation == "laser-artwork"]
+    if len(attempts) != 1 or attempts[0].status != "failed":
+        raise JobStopped("CAM repair requires exactly one failed export")
+    old, new = list(attempts[0].command), list(plan["command"])
+    if not old or old[0] != "pcbsmith.laser_artwork" or len(old) != len(new):
+        raise JobStopped("CAM repair requires the existing export boundary")
+    if old.count("--output") != 1 or new.count("--output") != 1:
+        raise JobStopped("CAM repair requires an exact output argument")
+    comparable = new.copy()
+    comparable[old.index("--output") + 1] = old[old.index("--output") + 1]
+    if comparable != old or (command is not None and list(command) != new):
+        raise JobStopped("CAM repair command changed beyond output retention")
+    inputs = plan["source_inputs"]
+    for relative, digest in inputs.items():
+        if hashlib.sha256(project_path(root, relative).read_bytes()).hexdigest() != digest:
+            raise JobStopped("CAM repair source changed")
+    for flag in ("--board", "--variants"):
+        if old.count(flag) != 1:
+            raise JobStopped("CAM repair requires an exact board and variants")
+        path = Path(old[old.index(flag) + 1]).resolve()
+        if (
+            not path.is_relative_to(root.resolve())
+            or path.relative_to(root.resolve()).as_posix() not in inputs
+        ):
+            raise JobStopped("CAM repair input not pinned")
+    output = Path(new[new.index("--output") + 1]).resolve()
+    if (
+        not output.is_relative_to(root.resolve())
+        or output == Path(old[old.index("--output") + 1]).resolve()
+    ):
+        raise JobStopped("CAM repair must retain the failed output")
 
 
 class Continuation(Record):
@@ -464,7 +814,15 @@ class JobState(Record):
                 if len(attempts) > 1 and not (
                     len(attempts) == 2
                     and attempts[0].status == "failed"
-                    and c.request.retry_failed_operations.get(operation) == attempts[0].token
+                    and (
+                        c.request.retry_failed_operations.get(operation) == attempts[0].token
+                        or any(
+                            e.get("event")
+                            in {"completion_annotation_followup", "completion_input_restored"}
+                            and e.get("attempt_token") == attempts[0].token
+                            for e in self.events
+                        )
+                    )
                 ):
                     repeated_invalid = True
             if repeated_invalid or any(
@@ -531,24 +889,83 @@ class JobState(Record):
                     in {"edit", "apply-edit", "predesign-refresh", "predesign-reapprove"}
                     and previous in self.attempts[: scope.prior_attempt_count]
                 )
-                if not explicit_retry and not placement_followup:
+                completion = (
+                    scope is not None
+                    and attempt.operation in _operation_inventory(scope.request)
+                    and previous in self.attempts[: scope.prior_attempt_count]
+                )
+                annotation_followup = any(
+                    e.get("event")
+                    in {"completion_annotation_followup", "completion_input_restored"}
+                    and e.get("attempt_token") == previous.token
+                    and attempt.operation
+                    == (
+                        "edit"
+                        if e.get("event") == "completion_annotation_followup"
+                        else "predesign-approve"
+                    )
+                    for e in self.events
+                )
+                if (
+                    not explicit_retry
+                    and not placement_followup
+                    and not completion
+                    and not annotation_followup
+                ):
                     raise ValueError("duplicate build operation in one correction cycle")
             seen[key] = attempt
         routing_limit = (
-            2
+            3
+            if any(c.request.routing_constraints_plan for c in scopes)
+            else 2
             if self.routing_policy
             else max((c.request.routing_attempt_limit for c in scopes), default=3)
         )
+        if sum(c.request.routing_constraints_plan is not None for c in scopes) > 1:
+            raise ValueError("constraint recovery cannot renew itself")
+        if sum(c.request.cam_export_repair_plan is not None for c in scopes) > 1:
+            raise ValueError("CAM repair cannot renew itself")
         final_scopes = [c for c in scopes if c.request.final_render_plan is not None]
+        completions = [c for c in scopes if c.request.completion_allowances]
+        if len(completions) > 1:
+            raise ValueError("completion inventory cannot renew itself")
+        inventories = [c for c in scopes if _operation_inventory(c.request)]
+        if sum(c.request.automatic_retry_plan is not None for c in scopes) > 1:
+            raise ValueError("automatic pose recovery cannot renew itself")
+        for c in inventories:
+            end = (
+                scopes[scopes.index(c) + 1].prior_attempt_count
+                if scopes.index(c) + 1 < len(scopes)
+                else len(self.attempts)
+            )
+            scoped = self.attempts[c.prior_attempt_count : end]
+            for op in {a.operation for a in scoped}:
+                count = sum(a.operation == op for a in scoped)
+                extra = int(
+                    op == "edit"
+                    and any(e.get("event") == "completion_annotation_followup" for e in self.events)
+                )
+                extra += int(
+                    op == "predesign-approve"
+                    and any(e.get("event") == "completion_input_restored" for e in self.events)
+                )
+                if count > _operation_inventory(c.request).get(op, 0) + (
+                    extra if c.request.completion_allowances else 0
+                ) + int(
+                    op == "visual-inspect"
+                    and c.request.automatic_retry_plan is not None
+                    and any(e.get("event") == "inspection_argument_preflight" for e in self.events)
+                ):
+                    raise ValueError("completion exceeds retained operation inventory")
         if len(final_scopes) > 1:
             raise ValueError("final render completion is available only once")
         if final_scopes:
-            completion = final_scopes[0]
-            before = self.attempts[: completion.prior_attempt_count]
+            final_completion = final_scopes[0]
+            before = self.attempts[: final_completion.prior_attempt_count]
             renders = [a for a in before if a.operation == "visual-render"]
             after = [
                 a
-                for a in self.attempts[completion.prior_attempt_count :]
+                for a in self.attempts[final_completion.prior_attempt_count :]
                 if a.operation == "visual-render"
             ]
             if (
@@ -568,6 +985,39 @@ class JobState(Record):
                 if a.operation == "routing"
                 else 4
                 if a.operation == "visual-render" and final_scopes
+                else max(
+                    3,
+                    *(
+                        sum(
+                            b.operation == a.operation
+                            for b in self.attempts[: c.prior_attempt_count]
+                        )
+                        + _operation_inventory(c.request).get(a.operation, 0)
+                        + int(
+                            a.operation == "visual-inspect"
+                            and c.request.automatic_retry_plan is not None
+                            and any(
+                                e.get("event") == "inspection_argument_preflight"
+                                for e in self.events
+                            )
+                        )
+                        + int(
+                            a.operation == "edit"
+                            and any(
+                                e.get("event") == "completion_annotation_followup"
+                                for e in self.events
+                            )
+                        )
+                        + int(
+                            a.operation == "predesign-approve"
+                            and any(
+                                e.get("event") == "completion_input_restored" for e in self.events
+                            )
+                        )
+                        for c in inventories
+                    ),
+                )
+                if inventories
                 else 3
             )
             for a in self.attempts
@@ -712,6 +1162,18 @@ class BoardJob:
             state = JobState.model_validate(envelope["state"])
             if state.root != str(self.root):
                 raise JobStopped("job copied to another root")
+            if request.completion_allowances:
+                old_scopes = [*state.continuation_history]
+                if state.continuation:
+                    old_scopes.append(state.continuation)
+                if any(c.request.completion_allowances for c in old_scopes):
+                    raise JobStopped("completion inventory cannot renew itself")
+                if state.active_diagnostic is None or state.active_diagnostic.status != "complete":
+                    raise JobStopped("completion requires a completed source-bound diagnostic")
+                if "placement" in request.build_operations and any(
+                    a.operation == "placement" for a in state.attempts
+                ):
+                    raise JobStopped("completion cannot regenerate an existing placement")
             if state.continuation is not None:
                 if request.blocker_resolution is None:
                     raise JobStopped(
@@ -810,6 +1272,40 @@ class BoardJob:
                     raise JobStopped("recovery assessment differs from completed diagnostic")
             if request.routing_adapter_repair_sha256 is not None:
                 _validate_routing_adapter_repair(self.root, request)
+            if request.cam_export_repair_plan is not None:
+                if any(
+                    c.request.cam_export_repair_plan
+                    for c in [
+                        *state.continuation_history,
+                        *([state.continuation] if state.continuation else []),
+                    ]
+                ):
+                    raise JobStopped("CAM repair cannot renew itself")
+                _validate_cam_recovery(self.root, state.attempts, request)
+            if request.routing_constraints_plan is not None:
+                if state.routing_policy != NEW_JOB_ROUTING_POLICY or any(
+                    c.request.routing_constraints_plan is not None
+                    for c in [
+                        *state.continuation_history,
+                        *([state.continuation] if state.continuation else []),
+                    ]
+                ):
+                    raise JobStopped(
+                        "constraint recovery requires the automatic policy and cannot renew itself"
+                    )
+                _validate_constraint_recovery(self.root, state.attempts, request)
+            if request.automatic_retry_plan is not None:
+                if any(
+                    c.request.automatic_retry_plan is not None
+                    for c in [
+                        *state.continuation_history,
+                        *([state.continuation] if state.continuation else []),
+                    ]
+                ):
+                    raise JobStopped("automatic pose recovery cannot renew itself")
+                if state.routing_policy != NEW_JOB_ROUTING_POLICY:
+                    raise JobStopped("automatic pose recovery requires the pinned automatic policy")
+                _validate_automatic_retry(self.root, state.attempts, request)
             if request.placement_followup_plan is not None:
                 _validate_placement_followup(self.root, state.attempts, request)
             if request.final_render_plan is not None:
@@ -834,7 +1330,7 @@ class BoardJob:
             unstarted = set(request.build_operations) & (approval_operations | {"placement"})
             if request.pre_native_recovery is not None:
                 _validate_pre_native_recovery(self.root, state, request, recommendation)
-            elif unstarted:
+            elif unstarted and not request.completion_allowances:
                 if not request.blocker_resolution or recommendation.cause != "platform":
                     raise JobStopped(
                         "unstarted-stage recovery requires a diagnosed platform blocker"
@@ -877,7 +1373,9 @@ class BoardJob:
                 if actual != expected:
                     raise JobStopped("continuation diagnostic evidence changed")
             if request.retrospective_diagnostic:
-                if request.build_operations or request.retry_failed_operations:
+                if (
+                    request.build_operations or request.retry_failed_operations
+                ) and request.automatic_retry_plan is None:
                     raise JobStopped(
                         "retrospective recovery permits verification/retained repair only"
                     )
@@ -1367,6 +1865,205 @@ class BoardJob:
                 state.diagnostic = None
             self._check(state, phase="verify")
 
+    def resolve_inspection_argument_preflight(self, corrected_command: Sequence[str]) -> None:
+        """Retain one argparse-only verification failure; allow its exact invocation."""
+        from pcbsmith.production_workflow import resolve_current_generation
+
+        with self._access() as state:
+            self._check(state, phase="verify")
+            c = state.continuation
+            if (
+                c is None
+                or c.request.automatic_retry_plan is None
+                or c.diagnostic is None
+                or any(e.get("event") == "inspection_argument_preflight" for e in state.events)
+            ):
+                raise JobStopped("inspection preflight recovery requires one pose scope")
+            a = state.attempts[-1]
+            if (
+                a.operation != "visual-inspect"
+                or a.status != "failed"
+                or a.command[:2] != ("pcbsmith.cli", "production-visual-inspect")
+            ):
+                raise JobStopped("inspection preflight requires exact failed command")
+            log = self.root / ".pcbsmith/job-runs" / a.token / "logs/visual-inspect.stderr.txt"
+            error = log.read_text(encoding="utf-8").strip()
+            if not error.endswith(
+                "pcbsmith production-visual-inspect: error: the following arguments are required: "
+                "--generation-sha256, --reviewer, --mechanism"
+            ):
+                raise JobStopped("inspection failure is not the exact argparse preflight")
+            suffix = tuple(corrected_command[len(a.command) :])
+            if (
+                tuple(corrected_command[: len(a.command)]) != a.command
+                or len(suffix) != 6
+                or suffix[::2] != ("--generation-sha256", "--reviewer", "--mechanism")
+                or not all(suffix[1::2])
+            ):
+                raise JobStopped("inspection retry may only supply the three missing arguments")
+            root = Path(a.command[2]).resolve()
+            current = resolve_current_generation(root)
+            generation = a.command[a.command.index("--generation-id") + 1]
+            if (
+                not root.is_relative_to(self.root)
+                or suffix[1] != current.generation_sha256
+                or (root / "generations" / generation).exists()
+                or Path(a.command[a.command.index("--output") + 1]).exists()
+            ):
+                raise JobStopped("inspection preflight must have no published output")
+            decisions = Path(a.command[a.command.index("--decisions") + 1])
+            state.events.append(
+                {
+                    "event": "inspection_argument_preflight",
+                    "at": self._now(),
+                    "attempt_token": a.token,
+                    "checkpoint": c.diagnostic.model_dump(),
+                    "command": list(corrected_command),
+                    "decisions_sha256": hashlib.sha256(decisions.read_bytes()).hexdigest(),
+                    "transaction_fingerprint": current.transaction_fingerprint,
+                    "additional_seconds": 0,
+                    "additional_routing_attempts": 0,
+                }
+            )
+            c.diagnostic = None
+
+    def authorize_completion_annotation(self, *, request_file: str, authorization: str) -> None:
+        """One diagnosed annotation-only follow-up, with no new time or routing allowance."""
+        from pcbsmith.board_revision import BoardRevisionRequest
+        from pcbsmith.operations.file_transaction import project_path
+
+        with self._access() as state:
+            self._check(state, phase="verify")
+            c = state.continuation
+            if (
+                not authorization.strip()
+                or c is None
+                or not c.request.completion_allowances
+                or c.diagnostic is None
+                or c.diagnostic.status != "complete"
+                or any(e.get("event") == "completion_annotation_followup" for e in state.events)
+            ):
+                raise JobStopped("annotation completion requires one diagnosed authorized scope")
+            a = state.attempts[-1]
+            if a.operation != "edit" or a.status != "failed":
+                raise JobStopped("annotation completion must follow a failed native edit")
+            output = Path(a.command[a.command.index("--output") + 1]).resolve()
+            if not output.is_relative_to(self.root):
+                raise JobStopped("annotation predecessor is outside job")
+            summary = json.loads((output / "checks/summary.json").read_bytes())
+            drc = json.loads((output / "checks/drc.json").read_bytes())
+            if (
+                summary["erc_findings"]
+                or drc["schematic_parity"]
+                or not drc["violations"]
+                or any(
+                    v["type"] not in {"silk_overlap", "silk_over_copper", "silk_edge_clearance"}
+                    for v in drc["violations"]
+                )
+            ):
+                raise JobStopped(
+                    "annotation completion cannot waive an electrical or copper defect"
+                )
+            path = project_path(self.root, request_file)
+            request = BoardRevisionRequest.model_validate_json(path.read_bytes())
+            revision = json.loads((output / "revision.json").read_bytes())
+            if (
+                request.validation_stage != "unrouted_annotations"
+                or request.source_inputs != revision["candidate_inputs"]
+            ):
+                raise JobStopped("annotation request must preserve the exact failed candidate")
+            for relative, expected in request.source_inputs.items():
+                if (
+                    hashlib.sha256(
+                        project_path(output / "design", relative).read_bytes()
+                    ).hexdigest()
+                    != expected
+                ):
+                    raise JobStopped("annotation candidate changed")
+            state.events.append(
+                {
+                    "event": "completion_annotation_followup",
+                    "at": self._now(),
+                    "attempt_token": a.token,
+                    "checkpoint": c.diagnostic.model_dump(),
+                    "request_file": request_file,
+                    "request_sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
+                    "authorization_reference": authorization,
+                    "additional_seconds": 0,
+                    "additional_routing_attempts": 0,
+                    "additional_annotation_edits": 1,
+                }
+            )
+            c.diagnostic = None
+
+    def authorize_restored_predesign_input(self, *, authorization: str) -> None:
+        """Retry one restored preflight input; preserve deadlines and all failed attempts."""
+        from pcbsmith.kicad.component_readiness import require_component_readiness_snapshot
+        from pcbsmith.operations.file_transaction import project_path
+
+        with self._access() as state:
+            self._check(state, phase="verify")
+            c = state.continuation
+            if (
+                not authorization.strip()
+                or c is None
+                or not c.request.completion_allowances
+                or c.diagnostic is None
+                or c.diagnostic.status != "complete"
+                or any(e.get("event") == "completion_input_restored" for e in state.events)
+            ):
+                raise JobStopped("restored input requires one diagnosed authorized completion")
+            a = state.attempts[-1]
+            if (
+                a.operation != "predesign-approve"
+                or a.status != "failed"
+                or len(a.command) != 5
+                or a.command[:2] != ("pcbsmith.predesign_preparation", "approve")
+            ):
+                raise JobStopped("restored input must follow a failed predesign approval")
+            error = (
+                self.root / ".pcbsmith/job-runs" / a.token / "logs/predesign-approve.stderr.txt"
+            ).read_text(encoding="utf-8")
+            if not error.rstrip().endswith(
+                "ValueError: Missing or stale native input closure: netlist_sha256"
+            ):
+                raise JobStopped("restored input requires the exact netlist cache failure")
+            prepared = Path(a.command[2]).resolve()
+            if (
+                not prepared.is_relative_to(self.root)
+                or (prepared / "predesign.json").exists()
+                or (prepared / "floorplan-review.json").exists()
+            ):
+                raise JobStopped("restored input must have no approval output")
+            fields = json.loads((prepared / "prepared-inputs.json").read_bytes())
+            native = Path(fields["native_project_path"]).resolve()
+            if not native.is_relative_to(self.root):
+                raise JobStopped("restored native input is outside job")
+            require_component_readiness_snapshot(
+                prepared, native, fields["component_readiness_sha256"], require_selected_models=True
+            )
+            files = [p for d in (prepared, native) for p in d.rglob("*") if p.is_file()]
+            bindings = {
+                p.relative_to(self.root).as_posix(): hashlib.sha256(p.read_bytes()).hexdigest()
+                for p in files
+            }
+            for relative in bindings:
+                project_path(self.root, relative)
+            state.events.append(
+                {
+                    "event": "completion_input_restored",
+                    "at": self._now(),
+                    "attempt_token": a.token,
+                    "checkpoint": c.diagnostic.model_dump(),
+                    "command": list(a.command),
+                    "input_bindings": bindings,
+                    "authorization_reference": authorization,
+                    "additional_seconds": 0,
+                    "additional_routing_attempts": 0,
+                }
+            )
+            c.diagnostic = None
+
     def claim(
         self, *, operation: str, phase: str, input_sha256: str, command: Sequence[str]
     ) -> Attempt:
@@ -1386,6 +2083,50 @@ class BoardJob:
                     and scope_attempts[-1].status == "failed"
                     and c.request.retry_failed_operations.get(operation) == scope_attempts[-1].token
                 )
+                restored = next(
+                    (e for e in state.events if e.get("event") == "completion_input_restored"), None
+                )
+                if (
+                    operation == "predesign-approve"
+                    and restored
+                    and scope_attempts
+                    and scope_attempts[-1].token == restored["attempt_token"]
+                ):
+                    from pcbsmith.operations.file_transaction import project_path
+
+                    bindings = restored["input_bindings"]
+                    if not isinstance(bindings, dict):
+                        raise JobStopped("restored approval bindings are invalid")
+                    if list(command) != restored["command"] or any(
+                        hashlib.sha256(project_path(self.root, str(p)).read_bytes()).hexdigest()
+                        != h
+                        for p, h in bindings.items()
+                    ):
+                        raise JobStopped("restored approval inputs changed")
+                    scoped_retry = True
+                annotation = next(
+                    (e for e in state.events if e.get("event") == "completion_annotation_followup"),
+                    None,
+                )
+                if (
+                    operation == "edit"
+                    and annotation
+                    and scope_attempts
+                    and scope_attempts[-1].token == annotation["attempt_token"]
+                ):
+                    from pcbsmith.operations.file_transaction import project_path
+
+                    path = project_path(self.root, str(annotation["request_file"]))
+                    if (
+                        "--request" not in command
+                        or Path(command[command.index("--request") + 1]).resolve() != path
+                        or hashlib.sha256(path.read_bytes()).hexdigest()
+                        != annotation["request_sha256"]
+                    ):
+                        raise JobStopped(
+                            "annotation completion requires its exact reviewed request"
+                        )
+                    scoped_retry = True
                 if scope_attempts and not scoped_retry:
                     self._request_diagnostic(state, "continuation operation allowance exhausted")
                     raise JobStopped("continuation operation allowance is one attempt")
@@ -1404,15 +2145,85 @@ class BoardJob:
                     old_args[index] = str(recovery["successor_id"])
                     if list(command) != old_args:
                         raise JobStopped("review collision retry may change only successor ID")
+            preflight = next(
+                (e for e in state.events if e.get("event") == "inspection_argument_preflight"), None
+            )
+            if preflight and state.attempts[-1].token == preflight["attempt_token"]:
+                from pcbsmith.production_workflow import resolve_current_generation
+
+                if (
+                    list(command) != preflight["command"]
+                    or hashlib.sha256(
+                        Path(command[command.index("--decisions") + 1]).read_bytes()
+                    ).hexdigest()
+                    != preflight["decisions_sha256"]
+                    or resolve_current_generation(Path(command[2])).transaction_fingerprint
+                    != preflight["transaction_fingerprint"]
+                ):
+                    raise JobStopped("inspection retry differs from exact preflight recovery")
             previous = [
                 a
                 for a in state.attempts
                 if a.operation == operation
                 or (operation == "native-repair" and "--native-repair" in a.command)
             ]
+            completion_limit = None
+            if state.continuation and _operation_inventory(state.continuation.request):
+                c = state.continuation
+                allowance = _operation_inventory(c.request).get(operation, 0)
+                allowance += int(
+                    operation == "visual-inspect"
+                    and c.request.automatic_retry_plan is not None
+                    and any(e.get("event") == "inspection_argument_preflight" for e in state.events)
+                )
+                allowance += int(
+                    operation == "edit"
+                    and bool(c.request.completion_allowances)
+                    and any(
+                        e.get("event") == "completion_annotation_followup" for e in state.events
+                    )
+                )
+                allowance += int(
+                    operation == "predesign-approve"
+                    and bool(c.request.completion_allowances)
+                    and any(e.get("event") == "completion_input_restored" for e in state.events)
+                )
+                used = sum(
+                    a.operation == operation for a in state.attempts[c.prior_attempt_count :]
+                )
+                if used >= allowance:
+                    self._request_diagnostic(state, "completion operation allowance exhausted")
+                    raise JobStopped("operation outside or exhausted completion inventory")
+                completion_limit = len(previous) - used + allowance
+            if state.continuation and state.continuation.request.automatic_retry_plan:
+                _validate_automatic_retry(
+                    self.root,
+                    state.attempts[: state.continuation.prior_attempt_count],
+                    state.continuation.request,
+                    operation=operation,
+                    command=command,
+                )
             design_sha256 = None
+            if state.continuation and state.continuation.request.cam_export_repair_plan:
+                _validate_cam_recovery(
+                    self.root,
+                    state.attempts[: state.continuation.prior_attempt_count],
+                    state.continuation.request,
+                    command if operation == "laser-artwork" else None,
+                )
             if operation == "routing" and state.routing_policy:
-                if len(previous) >= 2:
+                constraint_recovery = bool(
+                    state.continuation and state.continuation.request.routing_constraints_plan
+                )
+                if constraint_recovery:
+                    assert state.continuation is not None
+                    _validate_constraint_recovery(
+                        self.root,
+                        state.attempts[: state.continuation.prior_attempt_count],
+                        state.continuation.request,
+                        command,
+                    )
+                if len(previous) >= (3 if constraint_recovery else 2):
                     self._request_diagnostic(
                         state, "automatic routing permits one initial run and one retry"
                     )
@@ -1451,11 +2262,13 @@ class BoardJob:
                             "Routing retry requires a placement or netlist change; "
                             "changing budgets/order is not a correction"
                         )
-            limit = (
+            limit: int = (
                 state.continuation.request.routing_attempt_limit
                 if operation == "routing" and state.continuation
                 else 3
             )
+            if completion_limit is not None and operation != "routing":
+                limit = completion_limit
             if (
                 operation == "visual-render"
                 and state.continuation
@@ -1487,7 +2300,7 @@ class BoardJob:
                     and operation
                     in {"edit", "apply-edit", "predesign-refresh", "predesign-reapprove"}
                 )
-                if not explicit_retry and not placement_followup:
+                if not explicit_retry and not placement_followup and completion_limit is None:
                     raise JobStopped(
                         "operation already attempted; record a bounded correction first"
                     )
@@ -1544,7 +2357,16 @@ class BoardJob:
                 expected = self.root / state.continuation.request.local_completion_board
                 if len(command) < 3 or Path(command[2]).resolve() != expected:
                     raise JobStopped("local completion command targets another native board")
-            if previous and previous[-1].input_sha256 == input_sha256:
+            restored_retry = (
+                operation == "predesign-approve"
+                and previous
+                and any(
+                    e.get("event") == "completion_input_restored"
+                    and e.get("attempt_token") == previous[-1].token
+                    for e in state.events
+                )
+            )
+            if previous and previous[-1].input_sha256 == input_sha256 and not restored_retry:
                 raise JobStopped("identical effective inputs; output directory is not a correction")
             attempt = Attempt(
                 routing_design_sha256=design_sha256,
@@ -2250,11 +3072,7 @@ def input_identity(
         if check is not None:
             check()
         normalized.append(
-            {
-                "laser_native_inputs": native_project_hashes(
-                    Path(args[args.index("--board") + 1])
-                )
-            }
+            {"laser_native_inputs": native_project_hashes(Path(args[args.index("--board") + 1]))}
         )
         if check is not None:
             check()

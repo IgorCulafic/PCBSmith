@@ -16,6 +16,8 @@ from typing import Any, Literal, Self
 
 from pydantic import Field, model_validator
 
+from pcbsmith.kicad.copper_layers import saved_copper_layers
+from pcbsmith.kicad.library import parse_sexpr
 from pcbsmith.kicad.routing_evidence import KiCadDrcEvidence, inspect_kicad_drc_report
 from pcbsmith.manufacturing_ir import (
     CurrentPathAuthority,
@@ -30,6 +32,7 @@ from pcbsmith.manufacturing_ir import (
     ManufacturingIdentityKind,
     ManufacturingIdentityRegistry,
     ManufacturingReleaseStatus,
+    StackupLayerKind,
     derive_release_status,
 )
 from pcbsmith.manufacturing_lineage import (
@@ -1144,6 +1147,12 @@ def assemble_neutral_manufacturing_package(
         ):
             raise ValueError(f"export receipt lacks matching tool evidence: {tool_id}")
     _validate_source_assembly(board_file, identities, source_artifacts)
+    # Recheck four-layer coverage independently at packaging, including when a
+    # caller supplies a retained receipt. Two-layer historical receipts retain
+    # their existing validation contract.
+    copper_layers = _require_copper_stackup(board_file, profile)
+    if len(copper_layers) == 4:
+        _require_copper_gerbers(source_artifacts[ManufacturingArtifactRole.GERBER], copper_layers)
     source_hashes = {
         source.resolve(): file_sha256(source)
         for paths in source_artifacts.values()
@@ -1303,6 +1312,41 @@ def assemble_neutral_manufacturing_package(
     return manifest, archive
 
 
+def _require_copper_stackup(
+    board_file: Path, profile: FabricationElectricalProfile
+) -> tuple[str, ...]:
+    layers = saved_copper_layers(parse_sexpr(board_file.read_text(encoding="utf-8")))
+    declared = tuple(
+        layer.layer_id for layer in profile.stackup if layer.kind is StackupLayerKind.COPPER
+    )
+    if declared != layers:
+        raise ValueError("fabrication stackup copper order differs from saved board")
+    return layers
+
+
+def _require_copper_gerbers(paths: Sequence[Path], layers: tuple[str, ...]) -> None:
+    """Require one X2 copper file per physical layer; filenames are not evidence."""
+    observed: list[tuple[int, str]] = []
+    for path in paths:
+        if path.suffix.casefold() == ".gbrjob":
+            continue
+        functions = re.findall(
+            r"%TF\.FileFunction,Copper,L(\d+),(Top|Bot|Inr)(?:,[^*]*)?\*%",
+            path.read_text(encoding="utf-8-sig"),
+        )
+        if len(functions) > 1:
+            raise ValueError("Gerber copper coverage requires separate files for each layer")
+        observed.extend((int(index), side) for index, side in functions)
+    expected = [
+        (i, "Top" if i == 1 else "Bot" if i == len(layers) else "Inr")
+        for i in range(1, len(layers) + 1)
+    ]
+    if sorted(observed) != expected:
+        raise ValueError(
+            "Gerber copper coverage differs from saved stackup (missing/duplicate layer)"
+        )
+
+
 def export_kicad_neutral_sources(
     *,
     board_file: Path,
@@ -1322,6 +1366,7 @@ def export_kicad_neutral_sources(
     if output_directory.exists():
         raise ValueError(f"neutral export target already exists: {output_directory}")
     initial_inputs = native_input_hashes(board_file)
+    copper_layers = _require_copper_stackup(board_file, profile)
     if identities != extract_saved_board_manufacturing_identities(board_file):
         raise ValueError("manufacturing identities do not match the saved board")
     ibom_receipt_file = interactive_bom_file.with_suffix(".receipt.json")
@@ -1350,7 +1395,18 @@ def export_kicad_neutral_sources(
             "export",
             "gerbers",
             "--layers",
-            "F.Cu,B.Cu,F.Mask,B.Mask,F.Silkscreen,B.Silkscreen,Edge.Cuts,F.Paste,B.Paste",
+            ",".join(
+                (
+                    *copper_layers,
+                    "F.Mask",
+                    "B.Mask",
+                    "F.Silkscreen",
+                    "B.Silkscreen",
+                    "Edge.Cuts",
+                    "F.Paste",
+                    "B.Paste",
+                )
+            ),
             "--check-zones",
             "--output",
             str(gerber_dir) + os.sep,
@@ -1462,6 +1518,7 @@ def export_kicad_neutral_sources(
     ordinary_gerbers = tuple(
         path for path in gerbers if path not in paste and path not in gerber_jobs
     )
+    _require_copper_gerbers(ordinary_gerbers, copper_layers)
     drill_files = tuple(
         path for path in drill_dir.glob("*") if path.suffix.casefold() in {".drl", ".xln"}
     )

@@ -412,10 +412,11 @@
     },
     "src/pcbsmith/kicad/freerouting_production.py:route_freerouting_production.importer": {
       "calls": [
+        "native-context-file-write",
         "native-context-file-write"
       ],
       "classification": "supported_boundary",
-      "rationale": "Saved-placement production adapter requires the live shared worker, retains exact DSN/SES and source project, enforces pinned Freerouting process limits and front-only rules, and requires actual native validation; it cannot publish independently."
+      "rationale": "Live-worker Freerouting importer preserves native dependencies, validates declared net/layer/width and through-via rules, and records serialized-edge normalization. Only collapsed edges whose serialized copper is fully covered by retained same-net/layer tracks are omitted; all other microedges block. Actual import and final native checks remain mandatory; no independent publication."
     },
     "src/pcbsmith/kicad/freerouting_production.py:route_freerouting_production.native": {
       "calls": [
@@ -857,7 +858,7 @@
         "pcbsmith.kicad.final_fill_adapter.refill_and_read_kicad_board"
       ],
       "classification": "supported_boundary",
-      "rationale": "Ordinary saved-placement adapter replays full routing entry, snapshots dependencies and uses H0. Validator executes actual KiCad DRC/parity, native save/readback and pad-net comparison. Deferred engineering stays blocked when missing; no fabricated success or release capability is supplied."
+      "rationale": "Ordinary saved-placement adapter replays the routing entry and snapshots dependencies. Pinned Freerouting remains the default; an explicit post-route plan can append inner zones without changing external tracks/vias. Validator executes native DRC/parity/readback/pad-net checks plus actual filled-region/source/thermal/reference checks and deferred electrical replay. Exact native-save preservation and atomic transaction acceptance remain mandatory; synthetic pre-route test authority cannot qualify a board."
     },
     "src/pcbsmith/prototypes/kicad_board_builder.py:render": {
       "calls": [

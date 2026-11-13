@@ -29,6 +29,42 @@ def external_request():
     )
 
 
+def test_collapsed_ses_edge_is_removed_only_when_serialized_copper_is_redundant():
+    from pcbsmith.kicad.freerouting_production import normalize_serialized_route_segments
+
+    tiny = TrackSegment(36.4749, 38.1749, 36.475, 38.1749, "F.Cu", "/SIG", 0.8)
+    keeper = TrackSegment(36.475, 38.175, 40, 38.175, "F.Cu", "/SIG", 0.8)
+    assert normalize_serialized_route_segments([tiny, keeper]) == (keeper,)
+    assert normalize_serialized_route_segments([keeper, tiny]) == (keeper,)
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"net_name": "/OTHER"},
+        {"layer": "B.Cu"},
+        {"width_mm": 0.6},
+        {"y1": 38.176, "y2": 38.176},
+    ],
+)
+def test_collapsed_ses_edge_without_full_same_net_layer_coverage_blocks(change):
+    from pcbsmith.kicad.freerouting_production import normalize_serialized_route_segments
+
+    tiny = TrackSegment(36.4749, 38.1749, 36.475, 38.1749, "F.Cu", "/SIG", 0.8)
+    keeper = TrackSegment(36.475, 38.175, 40, 38.175, "F.Cu", "/SIG", 0.8)
+    with pytest.raises(ValueError, match="without redundant copper"):
+        normalize_serialized_route_segments([tiny, replace(keeper, **change)])
+
+
+def test_short_noncollapsed_ses_edges_and_source_objects_remain_unchanged():
+    from pcbsmith.kicad.freerouting_production import normalize_serialized_route_segments
+
+    tiny = TrackSegment(1, 2, 1.001, 2, "F.Cu", "/SIG", 0.4)
+    supplied = [tiny]
+    assert normalize_serialized_route_segments(supplied) == (tiny,)
+    assert supplied == [tiny]
+
+
 def test_external_budget_cannot_claim_native_expansions():
     with pytest.raises(ValueError, match="no expansion claim"):
         RoutingBudget(

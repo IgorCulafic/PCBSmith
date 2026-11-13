@@ -307,7 +307,9 @@ def _collect_items(
     items preserve the parsed drill axes, offset, pad rotation, placement
     rotation, and front/back transform; clearance policy is applied later.
     """
-    del profile  # Geometry is nominal; profile distances belong to checks.
+    from pcbsmith.copper_layers import native_copper_layers
+
+    stack_layers = native_copper_layers(profile.geometry.copper_layer_count)
     net_of = {(reference, pin): net.name for net in netlist.nets for reference, pin in net.nodes}
     items: list[_Stadium] = []
     for component, anchor_x in layout.placements:
@@ -348,7 +350,7 @@ def _collect_items(
                 a = _placed(anchor, rotation, ends_local[0], flipped)
                 b = _placed(anchor, rotation, ends_local[1], flipped)
                 copper_layers = (
-                    ("F.Cu", "B.Cu")
+                    stack_layers
                     if pad.hole is not None
                     else (("B.Cu",) if flipped else ("F.Cu",))
                 )
@@ -374,7 +376,7 @@ def _collect_items(
             if pad.hole is not None:
                 hole_kind = _PhysicalItemKind.BARE_HOLE if is_bare_hole else _PhysicalItemKind.HOLE
                 qualifier = "bare" if is_bare_hole else "plated"
-                for layer in ("F.Cu", "B.Cu"):
+                for layer in stack_layers:
                     items.append(
                         _hole_item(
                             pad,
@@ -409,7 +411,7 @@ def _collect_items(
         )
     for via_index, via in enumerate(layout.vias):
         parent_source_id = f"via:{via_index}"
-        for layer in ("F.Cu", "B.Cu"):
+        for layer in stack_layers:
             items.extend(
                 (
                     _Stadium(
