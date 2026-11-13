@@ -18,6 +18,7 @@ from typing import Literal
 from pydantic import Field
 
 from pcbsmith.circuit.models import EvidenceRef
+from pcbsmith.copper_layers import native_copper_layers
 from pcbsmith.decoupling_loop_ir import (
     DecouplingLoopDeclaration,
     DecouplingLoopEvaluationResult,
@@ -36,6 +37,7 @@ from pcbsmith.routed_copper_graph_ir import (
     CopperTerminalAnchorBinding,
     DeclaredCopperPathSelection,
     ExactRational,
+    NativeFilledCopperInput,
     ResolvedCopperPathResult,
     RoutedCopperGraphResult,
 )
@@ -153,10 +155,16 @@ def read_engineering_source(
 def native_terminal_anchors(
     board: Path, netlist: BoardNetlist
 ) -> tuple[CopperTerminalAnchorBinding, ...]:
+    return native_terminal_anchors_from_text(board.read_text(encoding="utf-8"), netlist)
+
+
+def native_terminal_anchors_from_text(
+    board_text: str, netlist: BoardNetlist
+) -> tuple[CopperTerminalAnchorBinding, ...]:
     expected = {(r, p): n.name for n in netlist.nets for r, p in n.nodes}
     found: dict[tuple[str, str], list[CopperTerminalAnchorBinding]] = {}
     origin = Decimal(str(BOARD_SHEET_ORIGIN_MM))
-    for fp in _children(parse_sexpr(board.read_text(encoding="utf-8")), "footprint"):
+    for fp in _children(parse_sexpr(board_text), "footprint"):
         props = {_atom(n[1]): _atom(n[2]) for n in _children(fp, "property")}
         ref = props["Reference"]
         at = _children(fp, "at")[0]
@@ -164,8 +172,8 @@ def native_terminal_anchors(
         angle = Decimal(_atom(at[3])) % 360 if len(at) > 3 else Decimal(0)
         angle = (angle + 360) % 360
         layer = _atom(_children(fp, "layer")[0][1])
-        if layer != "F.Cu" or angle not in {0, 90, 180, 270}:
-            raise ValueError("native loop adapter requires front-side orthogonal footprints")
+        if layer not in {"F.Cu", "B.Cu"} or angle not in {0, 90, 180, 270}:
+            raise ValueError("native loop adapter requires outer-side orthogonal footprints")
         for pad in _children(fp, "pad"):
             pin = _atom(pad[1])
             key = (ref, pin)
@@ -176,10 +184,13 @@ def native_terminal_anchors(
                 raise ValueError("native terminal net mismatch")
             pos = _children(pad, "at")[0]
             dx, dy = Decimal(_atom(pos[1])), Decimal(_atom(pos[2]))
+            # Saved pad offsets already include a footprint flip. Apply only
+            # the native footprint rotation; mirroring B.Cu again moves pads.
             dx, dy = {0: (dx, dy), 90: (dy, -dx), 180: (-dx, -dy), 270: (-dy, dx)}[int(angle)]
             layers = {_atom(v) for v in _children(pad, "layers")[0][1:]}
             through = _atom(pad[2]) == "thru_hole" and "*.Cu" in layers
-            if not through and "F.Cu" not in layers:
+            copper_layers = {value for value in layers if value.endswith(".Cu")}
+            if not through and copper_layers != {layer}:
                 raise ValueError("unsupported native terminal copper layers")
             shape = _atom(pad[3])
             if shape not in {"circle", "oval", "rect", "roundrect"}:
@@ -197,7 +208,7 @@ def native_terminal_anchors(
                     component_reference=ref,
                     pad_number=pin,
                     net_name=expected[key],
-                    layer="F.Cu",
+                    layer=layer,
                     x_mm=x + dx,
                     y_mm=y + dy,
                     through_hole_diameter_mm=diameter,
@@ -219,7 +230,9 @@ def _select_path(
         if edge.net_name != net:
             continue
         if edge.kind == "exact_zone_fill":
-            raise ValueError("native loop selection does not support zone shortcuts")
+            # Select an actual trace/barrel path when one exists. A plane-only
+            # connection remains non-metric and cannot pass the loop-area gate.
+            continue
         if edge.kind != "via" and edge.planar_squared_length is None:
             raise ValueError("track edge has no exact length")
         weight = (
@@ -249,6 +262,19 @@ def _select_path(
         for neighbor, edge_id, weight in sorted(adjacency.get(node, ())):
             if neighbor not in visited:
                 heapq.heappush(queue, (distance + weight, (*path, edge_id), neighbor))
+    if selected is None and graph.native_filled_copper is not None:
+        from pcbsmith.kicad.routed_copper_graph import _find_path
+
+        topology: dict[str, list[tuple[str, str]]] = {}
+        for edge in graph.edges:
+            if edge.net_name == net:
+                topology.setdefault(edge.start_node_id, []).append((edge.end_node_id, edge.edge_id))
+                topology.setdefault(edge.end_node_id, []).append((edge.start_node_id, edge.edge_id))
+        connection = _find_path(nodes[start], nodes[end], topology)
+        # This diagnostic topology walk necessarily includes non-metric plane
+        # edges. The shared resolver marks its length/loop qualification unverified.
+        if connection is not None:
+            selected = connection[1]
     return resolve_copper_path(
         graph,
         DeclaredCopperPathSelection(
@@ -270,14 +296,27 @@ def execute_native_loops(
     profile: PcbRuleProfile,
     source: RoutedEngineeringSource,
     source_sha256: str,
+    native_filled_copper: NativeFilledCopperInput | None = None,
 ) -> tuple[DecouplingLoopEvaluationResult, ...]:
-    if layout.zones:
+    if layout.zones and native_filled_copper is None:
         raise ValueError(
             "native loop adapter requires routed tracks; zone support is not qualified"
         )
     require_saved_layout_matches(board.read_text(encoding="utf-8"), layout, netlist, profile)
+    if (
+        native_filled_copper is not None
+        and native_filled_copper.board_text != board.read_bytes().decode("utf-8")
+    ):
+        raise ValueError("native plane evidence targets another saved loop board")
     anchors = native_terminal_anchors(board, netlist)
-    graph = build_routed_copper_graph(layout, netlist, anchors, resolve_point_contacts=True)
+    graph = build_routed_copper_graph(
+        layout,
+        netlist,
+        anchors,
+        resolve_point_contacts=True,
+        copper_layer_order=native_copper_layers(profile.geometry.copper_layer_count),
+        native_filled_copper=native_filled_copper,
+    )
     by_id = {a.anchor_id: a for a in anchors}
     results = []
     for item in source.loops:

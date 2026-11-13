@@ -1,0 +1,36 @@
+{
+  "project_id": "functional_blocks",
+  "title": "Functional schematic presentation - platform demonstration",
+  "user_request": "Synthetic renderer fixture; not a reviewed or released board design",
+  "width_mm": 70,
+  "height_mm": 100,
+  "notes": ["Editable native KiCad wiring and annotations. Nominal values are illustrative; no physical test is claimed."],
+  "driven_power_nets": ["+5V", "GND"],
+  "parts": [
+    {"reference":"J1","symbol":"Connector_Generic:Conn_01x02","value":"5V INPUT","footprint":"Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical","mpn":"fixture","role":"external supply","pins":{"1":"+5V","2":"GND"},"schematic_at":[40.64,86.36],"schematic_reference_at":[40.64,66.04],"schematic_value_at":[40.64,69.85],"board_at":[10,10,0]},
+    {"reference":"C2","symbol":"Device:C","value":"100n","footprint":"Capacitor_SMD:C_1206_3216Metric","mpn":"fixture","role":"input bypass","pins":{"1":"+5V","2":"GND"},"schematic_at":[63.5,114.3],"board_at":[20,10,0]},
+    {"reference":"R1","symbol":"Device:R","value":"10k","footprint":"Resistor_SMD:R_1206_3216Metric","mpn":"fixture","role":"divider upper leg","pins":{"1":"+5V","2":"FILTERED"},"schematic_at":[152.4,88.9],"schematic_rotation":90,"schematic_reference_at":[152.4,78.74],"schematic_value_at":[152.4,82.55],"board_at":[30,10,0]},
+    {"reference":"R2","symbol":"Device:R","value":"10k","footprint":"Resistor_SMD:R_1206_3216Metric","mpn":"fixture","role":"divider lower leg","pins":{"1":"FILTERED","2":"GND"},"schematic_at":[177.8,114.3],"board_at":[40,10,0]},
+    {"reference":"C1","symbol":"Device:C","value":"100n","footprint":"Capacitor_SMD:C_1206_3216Metric","mpn":"fixture","role":"filter capacitor","pins":{"1":"FILTERED","2":"GND"},"schematic_at":[203.2,114.3],"board_at":[50,10,0]},
+    {"reference":"J2","symbol":"Connector_Generic:Conn_01x02","value":"OUTPUT","footprint":"Connector_PinHeader_2.54mm:PinHeader_1x02_P2.54mm_Vertical","mpn":"fixture","role":"filtered output","pins":{"1":"FILTERED","2":"GND"},"schematic_at":[228.6,88.9],"board_at":[60,10,0]},
+    {"reference":"R3","symbol":"Device:R","value":"330","footprint":"Resistor_SMD:R_1206_3216Metric","mpn":"fixture","role":"LED current limiting","pins":{"1":"+5V","2":"LED_A"},"schematic_at":[317.5,88.9],"board_at":[10,30,0]},
+    {"reference":"D1","symbol":"Device:LED","value":"RED LED","footprint":"LED_SMD:LED_1206_3216Metric","mpn":"fixture","role":"power indicator","pins":{"1":"GND","2":"LED_A"},"schematic_at":[317.5,114.3],"schematic_rotation":90,"schematic_reference_at":[330.2,111.76],"schematic_value_at":[330.2,116.84],"board_at":[20,30,0]}
+  ],
+  "schematic_presentation": {
+    "blocks": [
+      {"id":"supply","title":"Power input","explanation":"J1 supplies 5 V and return. C2 provides local bypassing across the input rails.","members":["J1","C2"],"bounds_mm":[20,35,90,155]},
+      {"id":"filter","title":"Divider and low-pass filter","explanation":"R1 and R2 set 2.5 V nominal with an unloaded output. C1 filters this node: tau = (R1 || R2) x C1 = 0.5 ms. J2 exposes the filtered signal and its return.","members":["R1","R2","C1","J2"],"bounds_mm":[100,35,260,155]},
+      {"id":"indicator","title":"Power indicator","explanation":"R3 limits current through D1. Expected LED current depends on its forward voltage; this drawing does not claim a measured value.","members":["R3","D1"],"bounds_mm":[270,35,390,155]}
+    ],
+    "wires": [
+      {"start":["J1","1"],"end":["C2","1"],"via_mm":[[30.48,86.36],[30.48,76.2],[63.5,76.2]]},
+      {"start":["J1","2"],"end":["C2","2"],"via_mm":[[30.48,88.9],[30.48,134.62],[63.5,134.62]]},
+      {"start":["R1","2"],"end":["R2","1"],"via_mm":[[177.8,88.9]]},
+      {"start":["R1","2"],"end":["C1","1"],"via_mm":[[203.2,88.9]]},
+      {"start":["R1","2"],"end":["J2","1"]},
+      {"start":["R2","2"],"end":["C1","2"],"via_mm":[[177.8,134.62],[203.2,134.62]]},
+      {"start":["C1","2"],"end":["J2","2"],"via_mm":[[203.2,134.62],[218.44,134.62],[218.44,91.44]]},
+      {"start":["R3","2"],"end":["D1","2"]}
+    ]
+  }
+}

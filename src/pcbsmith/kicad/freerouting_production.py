@@ -1,9 +1,12 @@
-"""One/two-layer rectangular production Freerouting bridge; native validation stays mandatory."""
+"""One/two/four-layer rectangular Freerouting bridge; native validation stays mandatory."""
 
 from __future__ import annotations
 
+import hashlib
 import json
+import math
 import subprocess
+from copy import deepcopy
 from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
@@ -11,8 +14,15 @@ from typing import Any, Literal
 
 from pydantic import Field
 
-from pcbsmith.kicad.board import BOARD_SHEET_ORIGIN_MM, BoardLayout, TrackSegment, ViaSpec
-from pcbsmith.kicad.library import QuotedString, _atom, _children, parse_sexpr, serialize_sexpr
+from pcbsmith.kicad.board import BOARD_SHEET_ORIGIN_MM, BoardLayout, TrackSegment, ViaSpec, _mm
+from pcbsmith.kicad.library import (
+    QuotedString,
+    SList,
+    _atom,
+    _children,
+    parse_sexpr,
+    serialize_sexpr,
+)
 from pcbsmith.kicad.placement_readback import extract_kicad_board_readback
 from pcbsmith.kicad.routing_backend_registry import run_registered_freerouting_candidate
 from pcbsmith.kicad.routing_evidence import inspect_kicad_drc_report
@@ -43,9 +53,10 @@ class FreeroutingProductionConfig(SemanticIrModel):
 def constrain_freerouting_dsn(
     payload: str, layout: BoardLayout, request: RouteRequest, edge_mm: float
 ) -> bytes:
-    single = request.allowed_layers == ("F.Cu",)
-    if not single and set(request.allowed_layers) != {"F.Cu", "B.Cu"}:
-        raise ValueError("Freerouting bridge supports F.Cu or F.Cu/B.Cu")
+    from pcbsmith.copper_layers import ordered_copper_layers
+
+    copper_layers = ordered_copper_layers(request.allowed_layers)
+    single = copper_layers == ("F.Cu",)
     if (single and request.via_technologies) or (
         not single
         and (
@@ -55,7 +66,7 @@ def constrain_freerouting_dsn(
         )
     ):
         raise ValueError(
-            "Freerouting requires no vias for F.Cu and one through-via technology for two layers"
+            "Freerouting requires no vias for F.Cu and one through-via technology otherwise"
         )
     if layout.outline is not None or layout.cutouts or layout.zones or layout.segments:
         raise ValueError("production DSN translation requires an unrouted rectangle")
@@ -64,6 +75,11 @@ def constrain_freerouting_dsn(
     if _atom(_children(tree, "unit")[0][1]) != "um":
         raise ValueError("DSN unit must be micrometres")
     structure = _children(tree, "structure")[0]
+    source_layers = tuple(_atom(n[1]) for n in _children(structure, "layer"))
+    expected_source = ("F.Cu", "B.Cu") if single else copper_layers
+    allowed_source_stacks = (("F.Cu",), expected_source) if single else (expected_source,)
+    if source_layers not in allowed_source_stacks:
+        raise ValueError("DSN copper layers differ from physical stack order")
     structure[:] = [
         n
         for n in structure
@@ -74,6 +90,8 @@ def constrain_freerouting_dsn(
     ]
     if {_atom(n[1]) for n in _children(structure, "layer")} != set(request.allowed_layers):
         raise ValueError("DSN requested copper layers missing")
+    if tuple(_atom(n[1]) for n in _children(structure, "layer")) != copper_layers:
+        raise ValueError("DSN copper layers differ from physical stack order")
     old_vias = {_atom(v) for n in _children(structure, "via") for v in n[1:]}
     structure[:] = [
         n for n in structure if not isinstance(n, list) or not n or _atom(n[0]) != "via"
@@ -116,19 +134,21 @@ def constrain_freerouting_dsn(
     else:
         technology = request.via_technologies[0]
         diameter, drill = technology.diameter_mm * 1000, technology.drill_mm * 1000
-        via_name = f"Via[0-1]_{diameter:g}:{drill:g}_um"
+        via_name = f"Via[0-{len(copper_layers) - 1}]_{diameter:g}:{drill:g}_um"
         library = _children(tree, "library")[0]
         library[:] = [
             n
             for n in library
             if not isinstance(n, list) or not n or n[0] != "padstack" or _atom(n[1]) not in old_vias
         ]
+        via_shapes: list[SList] = [
+            ["shape", ["circle", name, str(diameter)]] for name in copper_layers
+        ]
         library.append(
             [
                 "padstack",
                 QuotedString(via_name),
-                ["shape", ["circle", "F.Cu", str(diameter)]],
-                ["shape", ["circle", "B.Cu", str(diameter)]],
+                *via_shapes,
                 ["attach", "off"],
             ]
         )
@@ -167,6 +187,62 @@ def constrain_freerouting_dsn(
     gaps(tree)
     # Each exported class must carry exactly the requested width for its nets.
     network = _children(tree, "network")[0]
+    restrictions = {n: c for c in request.net_layer_constraints for n in c.net_names}
+    if restrictions:
+        if _children(network, "class_class"):
+            raise ValueError("per-net restrictions cannot split DSN class-pair rules")
+        expanded = []
+        for cls in _children(network, "class"):
+            nets = [_atom(n) for n in cls[2:] if not isinstance(n, list)]
+            groups: dict[tuple[Any, ...], list[str]] = {}
+            for name in nets:
+                restriction = restrictions.get(name)
+                key = (
+                    widths.get(name),
+                    restriction.allowed_layers if restriction else request.allowed_layers,
+                    restriction.effective_trace_layers if restriction else request.allowed_layers,
+                    restriction.allow_vias if restriction else True,
+                )
+                groups.setdefault(key, []).append(name)
+            if len(groups) <= 1:
+                expanded.append(cls)
+                continue
+            for names in groups.values():
+                suffix = hashlib.sha256(json.dumps(sorted(names)).encode()).hexdigest()[:16]
+                expanded.append(
+                    [
+                        "class",
+                        QuotedString(_atom(cls[1]) + "__pcbsmith_" + suffix),
+                        *(QuotedString(n) for n in names),
+                        *(deepcopy(n) for n in cls[2:] if isinstance(n, list)),
+                    ]
+                )
+        network[:] = [n for n in network if not (isinstance(n, list) and n and n[0] == "class")]
+        for restriction in restrictions.values():
+            if restriction.allow_vias:
+                continue
+            if len(restriction.effective_trace_layers) != 1:
+                raise ValueError("Freerouting no-via nets must select exactly one copper layer")
+            layer = restriction.effective_trace_layers[0]
+            no_via_name = "PCBSMITH_NoVia_" + layer
+            compatibility_stack: list[Any] = [
+                "padstack",
+                QuotedString(no_via_name),
+                ["shape", ["circle", QuotedString(layer), "600"]],
+                ["attach", "off"],
+            ]
+            existing = [n for n in _children(library, "padstack") if _atom(n[1]) == no_via_name]
+            if existing and existing != [compatibility_stack]:
+                raise ValueError("reserved no-via padstack conflicts with DSN input")
+            if not existing:
+                # Same inert one-layer compatibility padstack used by the
+                # front-only bridge. It cannot span copper faces. Post-import
+                # validation still rejects every actual via on this net.
+                library.append(compatibility_stack)
+            via_node = _children(structure, "via")[0]
+            if no_via_name not in {_atom(n) for n in via_node[1:]}:
+                via_node.append(QuotedString(no_via_name))
+        network.extend(expanded)
     covered: set[str] = set()
     for cls in _children(network, "class"):
         if single:
@@ -181,13 +257,49 @@ def constrain_freerouting_dsn(
             continue
         if len(chosen) != 1:
             raise ValueError("DSN class mixes distinct requested widths")
+        if covered.intersection(n for n in nets if n in widths):
+            raise ValueError("DSN assigns a requested net to multiple classes")
         covered.update(n for n in nets if n in widths)
+        if restrictions and len(_children(cls, "rule")) != 1:
+            raise ValueError("per-net DSN classes require one unambiguous rule scope")
         rule = _children(cls, "rule")[0]
         rule[:] = [
             "rule",
             ["width", str(chosen.pop() * 1000)],
             ["clearance", str(clearance * 1000)],
         ]
+        policies = [restrictions[n] for n in nets if n in restrictions]
+        if policies:
+            policy = policies[0]
+            if _children(cls, "layer_rule"):
+                raise ValueError("per-net restrictions cannot override DSN layer-specific rules")
+            circuits = _children(cls, "circuit")
+            if not circuits:
+                cls.append(["circuit"])
+                circuits = _children(cls, "circuit")
+            for circuit in circuits:
+                circuit[:] = [
+                    n
+                    for n in circuit
+                    if not (isinstance(n, list) and n and n[0] in {"use_layer", "use_via"})
+                ]
+            circuits[0].append(
+                ["use_layer", *(QuotedString(v) for v in policy.effective_trace_layers)]
+            )
+            cls[:] = [n for n in cls if not (isinstance(n, list) and n and n[0] == "via_rule")]
+            if policy.allow_vias:
+                circuits[0].append(["use_via", QuotedString(via_name)])
+            else:
+                circuits[0].append(
+                    ["use_via", QuotedString("PCBSMITH_NoVia_" + policy.effective_trace_layers[0])]
+                )
+        elif restrictions:
+            # An empty named rule must never become the default for other nets.
+            circuits = _children(cls, "circuit")
+            if not circuits:
+                cls.append(["circuit", ["use_via", QuotedString(via_name)]])
+            elif not any(_children(c, "use_via") for c in circuits):
+                circuits[0].append(["use_via", QuotedString(via_name)])
     if covered != set(widths):
         raise ValueError("DSN classes omit requested nets")
     return (
@@ -204,11 +316,54 @@ def constrain_single_sided_dsn(
     return constrain_freerouting_dsn(payload, layout, request, edge_mm)
 
 
+def normalize_serialized_route_segments(tracks: list[TrackSegment]) -> tuple[TrackSegment, ...]:
+    """Drop collapsed edges only when their serialized copper is exactly redundant.
+
+    The native writer rounds board coordinates to micrometres. A shorter SES edge
+    can therefore become a zero-length track. Its circular copper must be fully
+    covered by a retained same-net/layer stadium before it can be omitted.
+    """
+
+    def point(x: float, y: float) -> tuple[float, float]:
+        return (float(_mm(x + BOARD_SHEET_ORIGIN_MM)), float(_mm(y + BOARD_SHEET_ORIGIN_MM)))
+
+    geometry = [(t, point(t.x1, t.y1), point(t.x2, t.y2)) for t in tracks]
+    retained = [(t, a, b) for t, a, b in geometry if a != b]
+    for track, start, end in geometry:
+        if start != end:
+            continue
+        covered = False
+        for other, a, b in retained:
+            if other.net_name != track.net_name or other.layer != track.layer:
+                continue
+            dx, dy = b[0] - a[0], b[1] - a[1]
+            fraction = max(
+                0.0,
+                min(1.0, ((start[0] - a[0]) * dx + (start[1] - a[1]) * dy) / (dx * dx + dy * dy)),
+            )
+            distance = math.hypot(start[0] - a[0] - fraction * dx, start[1] - a[1] - fraction * dy)
+            if distance + float(_mm(track.width_mm)) / 2 <= float(_mm(other.width_mm)) / 2:
+                covered = True
+                break
+        if not covered:
+            raise ValueError("SES edge collapses at native precision without redundant copper")
+    return tuple(t for t, _, _ in retained)
+
+
 def read_single_sided_routes(
     board: Path, source: Path, layout: BoardLayout, request: RouteRequest
 ) -> BoardLayout:
     from pcbsmith.production_routing import native_save_readback_matches
 
+    if len(request.allowed_layers) == 4:
+        from pcbsmith.copper_layers import ordered_copper_layers
+        from pcbsmith.kicad.copper_layers import saved_copper_layers
+
+        for path in (source, board):
+            if saved_copper_layers(parse_sexpr(path.read_text(encoding="utf-8"))) != (
+                ordered_copper_layers(request.allowed_layers)
+            ):
+                raise ValueError("SES copper stack differs from the routing request")
     old = extract_kicad_board_readback(source.read_text(encoding="utf-8"))
     new = extract_kicad_board_readback(board.read_text(encoding="utf-8"))
     if new.zones or (new.vias and not request.via_technologies):
@@ -219,6 +374,7 @@ def read_single_sided_routes(
     nets = {_atom(n[1]): _atom(n[2]) for n in _children(tree, "net") if len(n) > 2}
     widths = {name: c.preferred_width_mm for c in request.width_constraints for name in c.net_names}
     tracks = []
+    restrictions = {n: c for c in request.net_layer_constraints for n in c.net_names}
 
     def coordinate(value: Any) -> float:
         return float(Decimal(_atom(value)) - Decimal(str(BOARD_SHEET_ORIGIN_MM)))
@@ -235,6 +391,8 @@ def read_single_sided_routes(
             or width + 0.000001 < widths[net]
         ):
             raise ValueError("SES route violates layer or requested minimum width")
+        if net in restrictions and layer not in restrictions[net].effective_trace_layers:
+            raise ValueError(f"SES route violates per-net layer constraint: {net} on {layer}")
         tracks.append(
             TrackSegment(
                 coordinate(start[1]),
@@ -263,9 +421,14 @@ def read_single_sided_routes(
             or abs(drill - technology.drill_mm) > 0.000001
         ):
             raise ValueError("SES via violates the declared through-via technology")
+        if net in restrictions and (
+            not restrictions[net].allow_vias
+            or not set(request.allowed_layers).issubset(restrictions[net].allowed_layers)
+        ):
+            raise ValueError(f"SES via violates per-net layer/via constraint: {net}")
         at = _children(via, "at")[0]
         vias.append(ViaSpec(coordinate(at[1]), coordinate(at[2]), net, size, drill))
-    return replace(layout, segments=tuple(tracks), vias=tuple(vias))
+    return replace(layout, segments=normalize_serialized_route_segments(tracks), vias=tuple(vias))
 
 
 def route_freerouting_production(
@@ -335,6 +498,23 @@ def route_freerouting_production(
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes((board.parent / relative).read_bytes())
         result = read_single_sided_routes(imported, board, layout, request)
+        (work / "serialized-segment-normalization.json").write_text(
+            json.dumps(
+                {
+                    "policy": "drop-only-fully-covered-native-collapsed-edges-v1",
+                    "imported_board_sha256": hashlib.sha256(imported.read_bytes()).hexdigest(),
+                    "imported_segments": len(
+                        _children(parse_sexpr(imported.read_text(encoding="utf-8")), "segment")
+                    ),
+                    "retained_segments": len(result.segments),
+                    "native_copper_preserved": True,
+                    "native_checks_still_required": True,
+                },
+                indent=2,
+            )
+            + "\n",
+            encoding="utf-8",
+        )
         report = work / "import-drc.json"
         generate_nonmutating_kicad_drc(imported, report)
         checked = inspect_kicad_drc_report(report).clean

@@ -116,6 +116,154 @@ def test_old_state_without_policy_keeps_legacy_semantics(tmp_path):
     assert old.routing_policy is None and "routing_policy" not in old.model_dump()
 
 
+@pytest.mark.parametrize(
+    "case", ["valid", "command", "source", "config", "implementation", "renew"]
+)
+def test_constraint_recovery_is_one_exact_third_route(tmp_path, design, monkeypatch, case):
+    import hashlib
+    import json
+
+    from tests.unit.test_board_job import Clock
+    from tests.unit.test_board_job_diagnostic import assessment
+
+    from pcbsmith.board_job import ContinuationRequest
+
+    def sha(p):
+        return hashlib.sha256(p.read_bytes()).hexdigest()
+
+    lp, np, layout, _ = design
+    clock = Clock()
+    job = BoardJob(tmp_path, clock=clock, monotonic=clock)
+    job.start(complexity="simple", rationale="Synthetic constrained recovery")
+    command = ["pcbsmith.production_routing", "--layout", str(lp), "--netlist", str(np)]
+    for flag in ("board", "profile", "gate-inputs", "routing-options"):
+        p = tmp_path / (flag + ".json")
+        p.write_text("{}")
+        command.extend(("--" + flag, str(p)))
+    command.extend(("--output", str(tmp_path / "old-output")))
+    for i in range(2):
+        if i:
+            job.correction(reason="Placement defect", change="Move one fixture part")
+            lp.write_text(
+                canonical_board_layout_snapshot_json(
+                    replace(layout, placements=((layout.placements[0][0], 12),))
+                )
+            )
+        attempt = job.claim(
+            operation="routing", phase="build", input_sha256=str(i) * 64, command=command
+        )
+        job.finish_attempt(attempt.token, status="failed", result={}, failure_signature=str(i))
+    job.begin_diagnostic("Inspect missing routing restrictions")
+    report = assessment(tmp_path).model_copy(update={"cause": "constraints"})
+    job.complete_diagnostic(report)
+    report_file = tmp_path / "assessment.json"
+    report_file.write_text(report.model_dump_json())
+    implementation = tmp_path / "implementation"
+    names = [
+        "routing_ir.py",
+        "production_routing.py",
+        "kicad/freerouting_production.py",
+        "kicad/routing_external_adapters.py",
+        "kicad/routing_candidate_adapter.py",
+    ]
+    for name in names:
+        p = implementation / name
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text("synthetic qualified " + name)
+    monkeypatch.setattr("pcbsmith.board_job._IMPLEMENTATION_ROOT", implementation)
+    config = tmp_path / "config.json"
+    config.write_text("{}")
+    monkeypatch.setenv("PCBSMITH_FREEROUTING_CONFIG", str(config))
+    options = tmp_path / "restricted.json"
+    options.write_text(
+        json.dumps(
+            {
+                "net_layer_constraints": [
+                    {
+                        "constraint_id": "front",
+                        "net_names": ["/SIG"],
+                        "allowed_layers": ["F.Cu"],
+                        "allow_vias": False,
+                    }
+                ]
+            }
+        )
+    )
+    new = command.copy()
+    new[new.index("--routing-options") + 1] = str(options)
+    new[new.index("--output") + 1] = str(tmp_path / "new-output")
+    sources = {p.name: sha(p) for p in tmp_path.glob("*.json")}
+    plan = tmp_path / "plan.json"
+    plan.write_text(
+        json.dumps(
+            {
+                "command": new,
+                "source_inputs": sources,
+                "qualified_implementation": {n: sha(implementation / n) for n in names},
+                "router_config_sha256": sha(config),
+            }
+        )
+    )
+    adapter = implementation / "kicad/freerouting_production.py"
+    request = ContinuationRequest(
+        predecessor_sha256=sha(job.path),
+        assessment_file=report_file.name,
+        assessment_sha256=sha(report_file),
+        authorization_reference="Explicit constraint repair",
+        seconds=600,
+        reserve_seconds=120,
+        evaluation_seconds=600,
+        build_operations=("routing",),
+        blocker_resolution="Qualified missing restrictions",
+        resolved_evidence={
+            plan.name: sha(plan),
+            adapter.relative_to(tmp_path).as_posix(): sha(adapter),
+        },
+        retry_failed_operations={"routing": attempt.token},
+        routing_adapter_repair_sha256=sha(adapter),
+        routing_constraints_plan=plan.name,
+    )
+    clock.now += 2000
+    job.continue_authorized(request)
+    if case == "command":
+        new.extend(("--budget-profile", "deep"))
+    elif case == "source":
+        lp.write_text("changed")
+    elif case == "config":
+        config.write_text('{"max_passes":999}')
+    elif case == "implementation":
+        (implementation / "routing_ir.py").write_text("changed")
+    if case not in {"valid", "renew"}:
+        with pytest.raises(JobStopped, match="constraint recovery"):
+            job.claim(operation="routing", phase="build", input_sha256="c" * 64, command=new)
+        assert len(job.snapshot().attempts) == 2
+        return
+    third = job.claim(operation="routing", phase="build", input_sha256="c" * 64, command=new)
+    job.finish_attempt(
+        third.token,
+        status="failed" if case == "renew" else "passed",
+        result={},
+        failure_signature="constraint fixture" if case == "renew" else None,
+    )
+    assert len(job.snapshot().attempts) == 3
+    if case == "renew":
+        job.begin_diagnostic("Retain hypothetical third failure")
+        job.complete_diagnostic(report)
+        clock.now += 2000
+        renewed = request.model_copy(
+            update={
+                "predecessor_sha256": sha(job.path),
+                "authorization_reference": "Another scope",
+                "retry_failed_operations": {"routing": third.token},
+            }
+        )
+        with pytest.raises(JobStopped, match="lifetime operation allowance|cannot renew"):
+            job.continue_authorized(renewed)
+    else:
+        with pytest.raises(JobStopped, match="one attempt|inventory"):
+            job.claim(operation="routing", phase="build", input_sha256="d" * 64, command=new)
+
+
 def test_external_failure_never_calls_native_router(tmp_path, monkeypatch):
     monkeypatch.setattr("pcbsmith.board_job.require_library_worker", lambda: None)
     calls = []

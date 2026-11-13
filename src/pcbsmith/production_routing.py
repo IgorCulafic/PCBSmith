@@ -52,6 +52,7 @@ from pcbsmith.kicad.routing_candidate_transaction import (
     apply_declared_route_deltas,
     freeze_native_routing_inputs,
     immutable_readback_matches,
+    native_saved_immutable_readback_matches,
     require_saved_layout_matches,
     run_routing_candidate_transaction,
 )
@@ -63,6 +64,11 @@ from pcbsmith.production_decoupling import (
     read_envelope_revision,
 )
 from pcbsmith.production_generators import generate_nonmutating_kicad_drc
+from pcbsmith.production_planes import (
+    PostRoutePlanePlan,
+    append_post_route_planes,
+    verify_post_route_planes,
+)
 from pcbsmith.production_workflow import (
     AlgorithmBudgetBinding,
     ArtifactRole,
@@ -87,6 +93,7 @@ from pcbsmith.routing_ir import (
     ProtectedRouteObjectPolicy,
     RouteCandidateResult,
     RouteClearanceConstraint,
+    RouteNetLayerConstraint,
     RouteRequest,
     RouteTopologyConstraint,
     RouteViaTechnology,
@@ -147,6 +154,17 @@ def _pin_nets(board: Path) -> dict[tuple[str, str], str]:
     for footprint in _children(tree, "footprint"):
         props = {_atom(n[1]): _atom(n[2]) for n in _children(footprint, "property")}
         for pad in _children(footprint, "pad"):
+            layers = _children(pad, "layers")
+            if (
+                len(pad) > 2
+                and not _atom(pad[1])
+                and _atom(pad[2]) == "smd"
+                and len(layers) == 1
+                and len(layers[0]) > 1
+                and {_atom(layer) for layer in layers[0][1:]} <= {"F.Paste", "B.Paste"}
+                and not _children(pad, "drill")
+            ):
+                continue
             names = _children(pad, "net")
             if not names or len(names[0]) < 2:
                 continue
@@ -248,6 +266,7 @@ def _request(
     net_order: Sequence[str] = (),
     net_widths: Mapping[str, float] | None = None,
     plane_pour: NativePlanePour | None = None,
+    net_layer_constraints: Sequence[RouteNetLayerConstraint] = (),
 ) -> RouteRequest:
     names = tuple(n.name for n in netlist.nets if len(n.nodes) > 1)
     order = tuple(net_order) if net_order else tuple(sorted(names))
@@ -264,9 +283,9 @@ def _request(
         )
         for name in names
     }
-    from pcbsmith.kicad.astar_router import routing_copper_layers
+    from pcbsmith.copper_layers import routing_copper_layers
 
-    layers = routing_copper_layers(profile)
+    layers = routing_copper_layers(profile.geometry.copper_layer_count)
     geometry = profile.geometry
     budget = next(
         b
@@ -290,6 +309,7 @@ def _request(
         ),
         protected_policy=ProtectedRouteObjectPolicy(),
         allowed_layers=layers,
+        net_layer_constraints=tuple(net_layer_constraints),
         additional_constraint_ids=() if plane_pour is None else (plane_pour.constraint_id,),
         width_constraints=tuple(
             RouteWidthConstraint(
@@ -320,7 +340,7 @@ def _request(
                 drill_mm=geometry.routing_via_drill_mm,
             ),
         )
-        if len(layers) == 2
+        if len(layers) > 1
         else (),
         topology_constraints=tuple(
             RouteTopologyConstraint(
@@ -441,6 +461,8 @@ def route_saved_placement_candidate(
     net_order: Sequence[str] = (),
     net_widths: Mapping[str, float] | None = None,
     plane_pour: NativePlanePour | None = None,
+    post_route_planes: PostRoutePlanePlan | None = None,
+    net_layer_constraints: Sequence[RouteNetLayerConstraint] = (),
     revalidate_result: Path | None = None,
     revalidate_sha256: str | None = None,
     repair_plane_clearance_mm: float | None = None,
@@ -457,6 +479,22 @@ def route_saved_placement_candidate(
     with project_footprint_scope(board.parent):
         if output.exists():
             raise ValueError("routing candidate output must be fresh")
+        if post_route_planes is not None:
+            if any(
+                value is not None
+                for value in (
+                    legacy_native_reason,
+                    plane_pour,
+                    revalidate_result,
+                    native_repair_file,
+                    repair_plane_clearance_mm,
+                )
+            ):
+                raise ValueError(
+                    "post-route planes require a fresh external route without manual repair"
+                )
+            if post_route_planes.edge_inset_mm < profile.fab_spacing.minimum_copper_to_edge_mm:
+                raise ValueError("post-route plane inset violates the fabrication edge rule")
         from pcbsmith.kicad.freerouting_production import FreeroutingProductionConfig
         from pcbsmith.routing_policy import (
             require_manual_routing_authorization,
@@ -561,6 +599,10 @@ def route_saved_placement_candidate(
             payloads["evidence/routed-engineering-source.json"] = engineering_payload
         if plane_pour is not None:
             payloads["evidence/plane-pour.json"] = plane_pour.model_dump_json(indent=2).encode()
+        if post_route_planes is not None:
+            payloads["evidence/post-route-plane-plan.json"] = post_route_planes.model_dump_json(
+                indent=2
+            ).encode()
         retained_budget = None
         if revalidate_result is not None:
             metadata, retained_budget = _retained_routing_parameters(
@@ -596,8 +638,18 @@ def route_saved_placement_candidate(
             profile=profile,
         )
         request = _request(
-            snapshot, layout, netlist, profile, entry, net_order, net_widths, plane_pour
+            snapshot,
+            layout,
+            netlist,
+            profile,
+            entry,
+            net_order,
+            net_widths,
+            plane_pour,
+            net_layer_constraints,
         )
+        if post_route_planes is not None:
+            post_route_planes.zones(layout, request)
         if external is not None:
             request = RouteRequest.model_validate(
                 {
@@ -648,7 +700,7 @@ def route_saved_placement_candidate(
             raise ValueError("engineering revision hash requires its source file")
 
         def engine(req: RouteRequest, work: Path) -> RouteCandidateResult:
-            return _dispatch_routing_candidate(
+            candidate = _dispatch_routing_candidate(
                 req,
                 work,
                 board=board,
@@ -659,6 +711,10 @@ def route_saved_placement_candidate(
                 plane_pour=plane_pour,
                 legacy_native_reason=legacy_native_reason,
             )
+            if post_route_planes is not None:
+                _write(work / "external-candidate-result.json", candidate)
+                candidate = append_post_route_planes(req, candidate, layout, post_route_planes)
+            return candidate
 
         def validator(
             candidate_board: Path,
@@ -695,6 +751,30 @@ def route_saved_placement_candidate(
                 },
             )
             sha = _sha(candidate_board.read_bytes())
+            native_fill = None
+            plane_checks = []
+            if post_route_planes is not None:
+                native_fill, plane_gate, reference = verify_post_route_planes(
+                    candidate_board,
+                    native,
+                    fill,
+                    post_route_planes,
+                    checks,
+                )
+                plane_checks = [
+                    (
+                        "native-inner-plane-connectivity",
+                        plane_gate.disposition.value == "pass",
+                        plane_gate.evaluated_object_count,
+                        checks / "plane-fill-gate.json",
+                    ),
+                    (
+                        "native-adjacent-reference",
+                        reference.exact_pass_authorized,
+                        reference.signal_segment_count + reference.signal_transition_count,
+                        checks / "plane-reference.json",
+                    ),
+                ]
             records = []
             for kind, ok, report in [
                 (RoutedVerificationKind.EXACT_ROUTE, drc.clean, drc_path),
@@ -750,6 +830,7 @@ def route_saved_placement_candidate(
                     profile=profile,
                     source=engineering_source,
                     source_sha256=validation_source_sha256,
+                    native_filled_copper=native_fill,
                 )
                 original = gate_inputs.engineering_gate
                 final_context = ProjectEngineeringContext.build(
@@ -774,6 +855,31 @@ def route_saved_placement_candidate(
                 _write(checks / "engineering-gate.json", final_gate)
             requirements = []
             executions = []
+            for check_id, accepted, count, report in plane_checks:
+                requirements.append(
+                    ApplicableCheckRequirement.build(
+                        check_id=check_id,
+                        rule_ids=(check_id,),
+                        applicability=ProjectCheckApplicability.APPLICABLE,
+                        applicability_authority_id="native-post-route-plane-plan-v1",
+                        exact_input_sha256s=(sha,),
+                        minimum_evaluated_objects=1,
+                        rationale="Source-bound native inner-plane and reference validation.",
+                    )
+                )
+                executions.append(
+                    CheckExecutionRecord.build(
+                        check_id=check_id,
+                        exact_input_sha256s=(sha,),
+                        producer_id="pcbsmith.production_planes",
+                        tool_version="1",
+                        evaluated_object_count=count,
+                        disposition=ProjectCheckDisposition.PASS
+                        if accepted
+                        else ProjectCheckDisposition.FAIL,
+                        result_sha256=_sha(report.read_bytes()),
+                    )
+                )
             for record in records:
                 requirements.append(
                     ApplicableCheckRequirement.build(
@@ -843,7 +949,11 @@ def route_saved_placement_candidate(
                 kicad_drc=drc,
                 verification=verification,
                 applicability_execution=applicability,
-                semantic_readback_accepted=immutable_readback_matches(source, readback),
+                semantic_readback_accepted=(
+                    native_saved_immutable_readback_matches
+                    if post_route_planes is not None
+                    else immutable_readback_matches
+                )(source, readback),
             )
             _write(checks / "candidate-validation.json", validation)
             return validation
@@ -865,6 +975,7 @@ def route_saved_placement_candidate(
             revalidate_sha256=revalidate_sha256,
             repair_plane_clearance_mm=repair_plane_clearance_mm,
             native_repair=native_repair,
+            retain_native_saved_fill=post_route_planes is not None,
         )
         if native_project_hashes(board) != closure:
             raise ValueError("routing changed source project inputs")
@@ -908,10 +1019,24 @@ def main() -> None:
         if args.routing_options is None
         else json.loads(args.routing_options.read_text(encoding="utf-8"))
     )
-    if set(options) - {"net_order", "net_widths", "plane_pour"}:
+    if set(options) - {
+        "net_order",
+        "net_widths",
+        "plane_pour",
+        "post_route_planes",
+        "net_layer_constraints",
+    }:
         raise ValueError("unsupported routing option")
+    if "net_layer_constraints" in options:
+        options["net_layer_constraints"] = tuple(
+            RouteNetLayerConstraint.model_validate(c) for c in options["net_layer_constraints"]
+        )
     if "plane_pour" in options:
         options["plane_pour"] = NativePlanePour.model_validate(options["plane_pour"])
+    if "post_route_planes" in options:
+        options["post_route_planes"] = PostRoutePlanePlan.model_validate(
+            options["post_route_planes"]
+        )
     result = route_saved_placement_candidate(
         board=args.board,
         freerouting_config=args.freerouting_config,

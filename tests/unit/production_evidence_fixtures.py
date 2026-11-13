@@ -39,9 +39,12 @@ def write_marking_example(root: Path) -> tuple[Path, Path]:
     return board, report
 
 
-def write_empty_drc(root: Path) -> Path:
+def write_empty_drc(root: Path, source: str = "synthetic-filled.kicad_pcb") -> Path:
     report = root / "synthetic-drc.json"
     report.write_text(json.dumps({
+        "$schema": "https://schemas.kicad.org/drc.v1.json",
+        "source": source,
+        "kicad_version": "synthetic-unit-test",
         "violations": [], "unconnected_items": [], "schematic_parity": [],
     }), encoding="utf-8")
     return report

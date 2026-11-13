@@ -84,3 +84,6 @@ old_files/
 .pcbsmith/**/*.stderr.*
 /Old Chat Logs/
 /tmp/
+
+# KiCad 10 local file history (an embedded git repository).
+.history/

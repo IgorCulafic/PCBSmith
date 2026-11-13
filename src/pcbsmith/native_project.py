@@ -15,9 +15,16 @@ import math
 import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    model_serializer,
+    model_validator,
+)
 
 from pcbsmith.kicad.asset_resolution import AssetPin, resolve_pinned_asset
 from pcbsmith.kicad.board import BoardNetlist, export_kicad_netlist_xml, parse_board_netlist
@@ -34,6 +41,11 @@ from pcbsmith.kicad.library import (
     serialize_sexpr,
 )
 from pcbsmith.rule_profiles import PcbRuleProfile
+from pcbsmith.schematic_presentation import (
+    SchematicPresentation,
+    compile_presentation,
+    placed_pin,
+)
 
 
 class ProjectPart(BaseModel):
@@ -48,6 +60,21 @@ class ProjectPart(BaseModel):
     schematic_at: tuple[float, float]
     board_at: tuple[float, float, float]
     populated: bool = True
+    schematic_rotation: Literal[0, 90, 180, 270] = 0
+    schematic_reference_at: tuple[float, float] | None = None
+    schematic_value_at: tuple[float, float] | None = None
+
+    @model_serializer(mode="wrap")
+    def retain_legacy_identity(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        for name, empty in (
+            ("schematic_rotation", 0),
+            ("schematic_reference_at", None),
+            ("schematic_value_at", None),
+        ):
+            if data.get(name) == empty:
+                data.pop(name, None)
+        return data
 
 
 class NativeProjectSpec(BaseModel):
@@ -65,6 +92,14 @@ class NativeProjectSpec(BaseModel):
     notes: tuple[str, ...] = ()
     floorplan_corridors: tuple[FloorplanCorridor, ...] = ()
     asset_pins: tuple[AssetPin, ...] = ()
+    schematic_presentation: SchematicPresentation | None = None
+
+    @model_serializer(mode="wrap")
+    def retain_legacy_identity(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        data: dict[str, Any] = handler(self)
+        if data.get("schematic_presentation") is None:
+            data.pop("schematic_presentation", None)
+        return data
 
     @model_validator(mode="after")
     def coherent(self) -> Self:
@@ -309,6 +344,29 @@ def prepare_native_project(spec: NativeProjectSpec, output: Path, symbol_root: P
     flag, flag_source = resolve_symbol(
         "power:PWR_FLAG", symbol_root, source_file=pinned_sources.get(("symbol", "power:PWR_FLAG"))
     )
+    pin_geometry = {}
+    for part in spec.parts:
+        for number, pin in symbol_pins(resolved[part.symbol][0]).items():
+            at = _children(pin, "at")[0]
+            pin_geometry[part.reference, number] = placed_pin(
+                part.schematic_at,
+                (float(_atom(at[1])), float(_atom(at[2]))),
+                float(_atom(at[3])),
+                part.schematic_rotation,
+                part.pins[number],
+            )
+    presentation = (
+        compile_presentation(
+            spec.schematic_presentation,
+            pin_geometry,
+            {p.reference: p.schematic_at for p in spec.parts},
+            identity=spec.project_id,
+            page_notes_bottom=20 + len(spec.notes) * 5,
+        )
+        if spec.schematic_presentation is not None else None
+    )
+    if presentation is not None and spec.power_flag_positions:
+        raise ValueError("Functional presentation places power flags on its verified wire anchors")
     output.mkdir(parents=True)
     (output / "design-spec.json").write_text(
         spec.model_dump_json(indent=2) + "\n", encoding="utf-8"
@@ -414,9 +472,10 @@ def prepare_native_project(spec: NativeProjectSpec, output: Path, symbol_root: P
             spec.project_id,
             pin_numbers=tuple(part.pins) or ("1",),
             footprint=part.footprint,
+            rotation=part.schematic_rotation,
             in_bom=part.populated,
-            reference_at=ref_at,
-            value_at=value_at,
+            reference_at=part.schematic_reference_at or ref_at,
+            value_at=part.schematic_value_at or value_at,
             extra_properties=(("MPN", part.mpn), ("Design_role", part.role)),
         )
         if not part.pins:
@@ -424,11 +483,9 @@ def prepare_native_project(spec: NativeProjectSpec, output: Path, symbol_root: P
             tree = [n for n in tree if not (isinstance(n, list) and n and n[0] == "pin")]
             rendered = serialize_sexpr(tree)
         items.append(rendered)
-        for number, pin in symbol_pins(resolved[part.symbol][0]).items():
-            at = _children(pin, "at")[0]
-            px = x + float(_atom(at[1]))
-            py = y - float(_atom(at[2]))
-            a = math.radians(float(_atom(at[3])))
+        for number in symbol_pins(resolved[part.symbol][0]):
+            geometry = pin_geometry[part.reference, number]
+            px, py = geometry.at
             net = part.pins[number]
             if net is None:
                 items.append(
@@ -436,14 +493,18 @@ def prepare_native_project(spec: NativeProjectSpec, output: Path, symbol_root: P
                     f'(uuid "{stable_kicad_uuid(spec.project_id, part.reference, number, "nc")}"))'
                 )
                 continue
-            ex = round(px - 5.08 * math.cos(a), 5)
-            ey = round(py + 5.08 * math.sin(a), 5)
+            if presentation is not None:
+                continue
+            ex, ey = geometry.stub_end
             items.append(_wire((px, py), (ex, ey)))
             label = parse_sexpr(_label(net, ex, ey))
             effects = _children(label, "effects")[0]
             effects.append(["justify", "right" if ex < px else "left"])
             items.append(serialize_sexpr(label))
             power_anchors.setdefault(net, (ex, ey))
+    if presentation is not None:
+        items.extend(presentation.items)
+        power_anchors = presentation.power_anchors
     for index, net in enumerate(spec.driven_power_nets, 1):
         anchor = spec.power_flag_positions.get(net, power_anchors[net])
         if net in spec.power_flag_positions:

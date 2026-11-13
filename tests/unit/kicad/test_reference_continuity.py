@@ -2,11 +2,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import subprocess
+from pathlib import Path
 
 import pytest
 from pydantic import ValidationError
 
-from pcbsmith.kicad.reference_continuity import ReferenceContinuityEvidence
+from pcbsmith.kicad.reference_continuity import (
+    ReferenceContinuityEvidence,
+    observe_reference_continuity,
+    reference_continuity_context,
+)
 from pcbsmith.kicad.reference_continuity_geometry import segment_fully_covered
 
 
@@ -90,3 +96,72 @@ def test_adjacent_zone_union_is_continuous() -> None:
         (((5, 0), (10, 0), (10, 10), (5, 10)), ()),
     )
     assert segment_fully_covered((1, 5), (9, 5), polygons)
+
+
+def _native_files(tmp_path):
+    board = tmp_path / "board.kicad_pcb"
+    board.write_text(
+        '(kicad_pcb (layers (0 "F.Cu" signal) (2 "In1.Cu" power) '
+        '(4 "In2.Cu" power) (31 "B.Cu" signal)) '
+        '(setup (stackup (layer "dielectric 1" (thickness 0.2)))))'
+    )
+    board.with_suffix(".kicad_pro").write_text("{}")
+    policy = tmp_path / "policy.json"
+    policy.write_text('{"reference_net_names": ["GND"]}')
+    return board, policy
+
+
+@pytest.mark.parametrize("changed", ["board", "rules", "stackup", "policy"])
+def test_context_changes_for_each_material_input(tmp_path, changed):
+    board, policy = _native_files(tmp_path)
+    before = reference_continuity_context(board, policy)
+    target = {
+        "board": board,
+        "rules": board.with_suffix(".kicad_pro"),
+        "stackup": board,
+        "policy": policy,
+    }[changed]
+    original = target.read_text()
+    target.write_text(original.replace("0.2", "0.4") if changed == "stackup" else original + "\n")
+    after = reference_continuity_context(board, policy)
+    assert after != before
+    assert (after.stackup_sha256 != before.stackup_sha256) == (changed == "stackup")
+
+
+@pytest.mark.parametrize("mutate", [False, True])
+def test_fresh_native_observer_binds_context_only_when_inputs_unchanged(
+    tmp_path, monkeypatch, mutate
+):
+    board, policy = _native_files(tmp_path)
+
+    def run(command, **kwargs):
+        assert kwargs["timeout"] == 60
+        assert not Path(command[-1]).exists()
+        Path(command[-1]).write_text(
+            json.dumps(
+                {
+                    "reference_continuity": _evidence(
+                        copper_layer_count=4,
+                        exact_pass_authorized=False,
+                        disposition="unsupported_stackup_unverified",
+                    )
+                }
+            )
+        )
+        if mutate:
+            board.with_suffix(".kicad_pro").write_text('{"modified": true}')
+        return subprocess.CompletedProcess(command, 0, b"observed", b"")
+
+    monkeypatch.setattr("pcbsmith.kicad.reference_continuity.subprocess.run", run)
+    out = tmp_path / "observation"
+    if mutate:
+        with pytest.raises(ValueError, match="changed board, rules, stackup or policy"):
+            observe_reference_continuity(board, policy, out, kicad_python=Path("native-python"))
+        assert not (out / "reference-continuity.json").exists()
+    else:
+        evidence = observe_reference_continuity(
+            board, policy, out, kicad_python=Path("native-python")
+        )
+        assert evidence.context == reference_continuity_context(board, policy)
+        with pytest.raises(FileExistsError):
+            observe_reference_continuity(board, policy, out, kicad_python=Path("native-python"))

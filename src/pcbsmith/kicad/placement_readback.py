@@ -294,7 +294,9 @@ def _canonical_layers(root: list[SExpr]) -> tuple[str, ...]:
             layer_type = _scalar(entry[2])
             if name is not None and layer_type is not None:
                 declared[name] = layer_type
-    used: set[str] = {"F.Cu", "B.Cu"}
+    # Retain unused internal copper too: dropping an empty inner layer changes
+    # the manufactured stackup and must never compare as an unchanged save.
+    used: set[str] = {"F.Cu", "B.Cu"} | {name for name in declared if name.endswith(".Cu")}
     for item in _walk_lists(root):
         head = _head(item)
         if head == "layer" and len(item) >= 2:

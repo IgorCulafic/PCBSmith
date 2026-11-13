@@ -133,6 +133,9 @@ class KiCadFinalFillSnapshot(SemanticIrModel):
     regions: tuple[KiCadFilledCopperRegion, ...]
     unverified_region_ids: tuple[str, ...]
     snapshot_fingerprint: str
+    zone_identity_authority: Literal["uuid-bound-zone-intent-v2"] | None = Field(
+        default=None, exclude_if=lambda v: v is None
+    )
 
     @model_validator(mode="after")
     def snapshot_is_replay_bound(self) -> Self:
@@ -144,6 +147,24 @@ class KiCadFinalFillSnapshot(SemanticIrModel):
         ):
             require_sha256(getattr(self, name), name)
         require_identity(self.kicad_version, "kicad_version")
+        zones = {zone.zone_id: zone for zone in self.zones}
+        if len(zones) != len(self.zones) or len({r.region_id for r in self.regions}) != len(
+            self.regions
+        ):
+            raise ValueError("final-fill zone and region identities must be unique")
+        if self.filled_zone_intent_fingerprint != _zone_set_fingerprint(
+            self.zones, identity_authority=self.zone_identity_authority
+        ):
+            raise ValueError("final-fill zone intent inventory is stale")
+        for region in self.regions:
+            zone = zones.get(region.zone_id)
+            if (
+                zone is None
+                or (region.zone_uuid, region.net_name, region.layer)
+                != (zone.zone_uuid, zone.net_name, zone.layer)
+                or region.source_artifact_sha256 != self.filled_board_sha256
+            ):
+                raise ValueError("filled region does not match its zone and board authority")
         expected_unchanged = (
             self.source_zone_intent_fingerprint == self.filled_zone_intent_fingerprint
         )
@@ -264,6 +285,8 @@ def zone_intent_node(zone: Sequence[SExpr]) -> SList:
 def _parse_zone_intents(tree: Sequence[SExpr]) -> tuple[KiCadZoneIntentRecord, ...]:
     records: list[KiCadZoneIntentRecord] = []
     for index, zone in enumerate(_children(tree, "zone")):
+        if _children(zone, "layers") or _children(zone, "keepout"):
+            raise ValueError("final fill requires one copper layer per non-rule-area zone")
         uuid = _first_atom(zone, "uuid") or f"index-{index}"
         net = _first_atom(zone, "net") or "<no-net>"
         layer = _first_atom(zone, "layer") or "<unknown-layer>"
@@ -311,7 +334,20 @@ def _parse_zone_intents(tree: Sequence[SExpr]) -> tuple[KiCadZoneIntentRecord, .
     return tuple(records)
 
 
-def _zone_set_fingerprint(zones: tuple[KiCadZoneIntentRecord, ...]) -> str:
+def _zone_set_fingerprint(
+    zones: tuple[KiCadZoneIntentRecord, ...],
+    *,
+    identity_authority: str | None = None,
+) -> str:
+    if identity_authority == "uuid-bound-zone-intent-v2":
+        # KiCad may reorder zone objects on save. UUID, priority, net, layer,
+        # geometry and every intent clause remain exact; file index is not intent.
+        return fingerprint(
+            tuple(
+                item.model_dump(mode="json", exclude={"zone_index", "intent_fingerprint"})
+                for item in sorted(zones, key=lambda zone: zone.zone_uuid)
+            )
+        )
     return fingerprint(tuple(item.intent_fingerprint for item in zones))
 
 
@@ -359,8 +395,13 @@ def parse_kicad_final_fill_snapshot(
         source_board_sha256=hashlib.sha256(source_board.read_bytes()).hexdigest(),
         filled_board_sha256=filled_sha,
         kicad_version=kicad_version,
-        source_zone_intent_fingerprint=_zone_set_fingerprint(source_zones),
-        filled_zone_intent_fingerprint=_zone_set_fingerprint(filled_zones),
+        source_zone_intent_fingerprint=_zone_set_fingerprint(
+            source_zones, identity_authority="uuid-bound-zone-intent-v2"
+        ),
+        filled_zone_intent_fingerprint=_zone_set_fingerprint(
+            filled_zones, identity_authority="uuid-bound-zone-intent-v2"
+        ),
+        zone_identity_authority="uuid-bound-zone-intent-v2",
         refilled_by_kicad=refilled_by_kicad,
         zones=filled_zones,
         regions=tuple(regions),
@@ -410,26 +451,55 @@ def refill_and_read_kicad_board(
     )
     if result.returncode != 0 or not report.is_file():
         raise RuntimeError("native final-fill execution failed; retained process log available")
-    drc_sections(validate_native_header(json.loads(report.read_bytes()), "DRC", candidate))
+    report_data = validate_native_header(json.loads(report.read_bytes()), "DRC", candidate)
+    drc_sections(report_data)
     expected = dict(inputs)
     expected[candidate.name] = hashlib.sha256(candidate.read_bytes()).hexdigest()
     if native_project_hashes(candidate) != expected:
         raise ValueError("native refill changed project rules or dependencies")
     if native_project_hashes(source_board) != inputs or source_board.read_bytes() != source_before:
         raise ValueError("final-fill transaction changed its source")
-    version_result = run_kicad_process((install.path, "--version"))
-    kicad_version = (
-        version_result.stdout.strip()
-        if version_result.returncode == 0 and version_result.stdout.strip()
-        else f"unavailable:{install.source}"
-    )
+    kicad_version = str(report_data["kicad_version"])
     snapshot = parse_kicad_final_fill_snapshot(
         source_board,
         candidate,
         kicad_version=kicad_version,
         refilled_by_kicad=True,
     )
+    execution = {
+        "authority": "native-final-fill-execution-v1",
+        "native_inputs": expected,
+        "board_sha256": snapshot.filled_board_sha256,
+        "report_sha256": hashlib.sha256(report.read_bytes()).hexdigest(),
+        "snapshot_fingerprint": snapshot.snapshot_fingerprint,
+        "kicad_version": kicad_version,
+    }
+    execution["fingerprint"] = fingerprint(execution)
+    (transaction_dir / "final-fill-execution.json").write_text(
+        json.dumps(execution, indent=2), encoding="utf-8"
+    )
     return candidate, snapshot
+
+
+def verify_native_fill_execution(board: Path, report: Path) -> dict[str, Any]:
+    """Replay an execution receipt against its exact board, dependencies and native report."""
+    receipt = report.parent / "final-fill-execution.json"
+    if not receipt.is_file():
+        raise ValueError("native final-fill execution receipt is missing")
+    data = json.loads(receipt.read_bytes())
+    if not isinstance(data, dict):
+        raise ValueError("native final-fill execution receipt must be an object")
+    if data.get("authority") != "native-final-fill-execution-v1" or data.get(
+        "fingerprint"
+    ) != fingerprint({k: v for k, v in data.items() if k != "fingerprint"}):
+        raise ValueError("native final-fill execution receipt is invalid")
+    if (
+        data.get("native_inputs") != native_project_hashes(board)
+        or data.get("board_sha256") != hashlib.sha256(board.read_bytes()).hexdigest()
+        or data.get("report_sha256") != hashlib.sha256(report.read_bytes()).hexdigest()
+    ):
+        raise ValueError("native final-fill execution inputs or report changed")
+    return data
 
 
 __all__ = [

@@ -68,14 +68,19 @@ def _stackup_context(
     pairs: tuple[ReturnLayerPair, ...] | None = None,
     reference_net_names: tuple[str, ...] = ("GND",),
     intended_consumer: str = "return-path continuity acceptance",
+    copper_layer_order: tuple[str, ...] = ("F.Cu", "B.Cu"),
 ) -> StackupReferenceContext:
     conditions = ("fabricator-stackup=fixture-two-layer",)
     fields = {
         "context_id": "stackup:fixture-two-layer",
         "status": "verified",
         "board_layout_snapshot_fingerprint": layout_fingerprint,
-        "copper_layer_order": ("F.Cu", "B.Cu"),
-        "adjacent_reference_pairs": pairs
+        "copper_layer_order": copper_layer_order,
+        "adjacent_reference_pairs": tuple(
+            sorted(pairs, key=lambda item: (item.signal_layer, item.reference_layer))
+        )
+        if pairs
+        else None
         or (
             ReturnLayerPair(signal_layer="B.Cu", reference_layer="F.Cu"),
             ReturnLayerPair(signal_layer="F.Cu", reference_layer="B.Cu"),
@@ -124,7 +129,10 @@ def _unknown_stackup(layout_fingerprint: str) -> StackupReferenceContext:
     )
 
 
-def _fixture(*, diagonal: bool = False, fill_kind: str = "full"):
+def _fixture(*, diagonal: bool = False, fill_kind: str = "full", four_layer: bool = False):
+    reference_layer = "In1.Cu" if four_layer else "B.Cu"
+    stack = ("F.Cu", "In1.Cu", "In2.Cu", "B.Cu") if four_layer else ("F.Cu", "B.Cu")
+    pairs = (ReturnLayerPair(signal_layer="F.Cu", reference_layer=reference_layer),)
     components = (_component("U1"), _component("U2"), _component("G1"))
     netlist = BoardNetlist(
         components=components,
@@ -140,7 +148,7 @@ def _fixture(*, diagonal: bool = False, fill_kind: str = "full"):
         vias=(),
         width_mm=12.0,
         height_mm=6.0,
-        zones=(("GND", "B.Cu", (-1.0, -2.0, 11.0, 3.0)),),
+        zones=(("GND", reference_layer, (-1.0, -2.0, 11.0, 3.0)),),
     )
     policy = ExactFilledZoneReaderPolicy(
         policy_id="policy:return-fill",
@@ -164,10 +172,10 @@ def _fixture(*, diagonal: bool = False, fill_kind: str = "full"):
     }[fill_kind]
     graph_fill = ExactFilledZoneCopper.build(
         board_layout_fingerprint=board_layout_fingerprint(layout),
-        zone_source_id="zone:0:copper:B.Cu",
+        zone_source_id=f"zone:0:copper:{reference_layer}",
         zone_index=0,
         zone_net_name="GND",
-        layer="B.Cu",
+        layer=reference_layer,
         geometry=fill_geometry,
         reader_id=policy.reader_id,
         reader_version=policy.reader_version,
@@ -197,7 +205,9 @@ def _fixture(*, diagonal: bool = False, fill_kind: str = "full"):
             y_mm=str(end[1]),
         ),
     )
-    graph = build_routed_copper_graph(layout, netlist, anchors, (graph_fill,))
+    graph = build_routed_copper_graph(
+        layout, netlist, anchors, (graph_fill,), copper_layer_order=stack
+    )
     path = resolve_copper_path(
         graph,
         DeclaredCopperPathSelection(
@@ -218,8 +228,12 @@ def _fixture(*, diagonal: bool = False, fill_kind: str = "full"):
         signal_class=ReturnSignalClass.CLOCK,
         exact_net_class_id="netclass:clock",
         reference_net_name="GND",
-        stackup_context=_stackup_context(graph.board_layout_snapshot_fingerprint),
-        layer_pairs=(ReturnLayerPair(signal_layer="F.Cu", reference_layer="B.Cu"),),
+        stackup_context=_stackup_context(
+            graph.board_layout_snapshot_fingerprint,
+            pairs=pairs if four_layer else None,
+            copper_layer_order=stack,
+        ),
+        layer_pairs=pairs,
         legs=(
             ReturnPathLeg(
                 leg_id="leg:sig",
@@ -254,7 +268,7 @@ def _reference_fill(
     )
     provenance = QualifiedExactZoneFillProvenance.build(
         fill_provenance_id=f"fill:return:{fill_kind}:{'forged' if forged else 'exact'}",
-        zone_source_provenance_id="zone:0:copper:B.Cu",
+        zone_source_provenance_id=graph_fill.zone_source_id,
         board_layout_snapshot_fingerprint=board_layout_snapshot_fingerprint(
             canonical_board_layout_snapshot_json(layout)
         ),
@@ -267,9 +281,9 @@ def _reference_fill(
     )
     return QualifiedReferenceFill(
         reference_fill_id=f"reference:{fill_kind}:{'forged' if forged else 'exact'}",
-        zone_source_id="zone:0:copper:B.Cu",
+        zone_source_id=graph_fill.zone_source_id,
         reference_net_name="GND",
-        layer="B.Cu",
+        layer=graph_fill.layer,
         exact_geometry=geometry,
         provenance=provenance,
         routed_graph_final_fill_record_sha256=graph_fill.final_fill_record_sha256,
@@ -311,6 +325,31 @@ def test_missing_fill_and_diagonal_fail_closed_without_endpoint_sampling() -> No
     result = evaluate_return_adjacency(diagonal, (_reference_fill(layout, policy, graph_fill),))
     assert result.findings[-1].disposition is SemanticDisposition.UNVERIFIED
     assert result.segment_evidence[0].relation == "unsupported"
+
+
+def test_four_layer_reference_uses_adjacent_inner_fill_and_preserves_slots() -> None:
+    layout, policy, fill, declaration = _fixture(four_layer=True)
+    result = evaluate_return_adjacency(declaration, (_reference_fill(layout, policy, fill),))
+    assert result.segment_evidence[0].reference_layer == "In1.Cu"
+    assert result.segment_evidence[0].state == "covered"
+    assert result.findings[-1].disposition is SemanticDisposition.PASS
+    layout, policy, fill, declaration = _fixture(four_layer=True, fill_kind="slot")
+    result = evaluate_return_adjacency(
+        declaration, (_reference_fill(layout, policy, fill, fill_kind="slot"),)
+    )
+    assert result.findings[-1].disposition is SemanticDisposition.UNVERIFIED
+    assert result.discontinuities[0].reference_fill_source_ids == ("zone:0:copper:In1.Cu",)
+
+
+def test_four_layer_reference_context_cannot_reuse_outer_pair_or_two_layer_graph() -> None:
+    stack = ("F.Cu", "In1.Cu", "In2.Cu", "B.Cu")
+    with pytest.raises(ValueError, match="physically adjacent"):
+        _stackup_context("a" * 64, copper_layer_order=stack)
+    _, _, _, declaration = _fixture(four_layer=True)
+    data = declaration.model_dump(mode="python")
+    data["stackup_context"] = _stackup_context(declaration.graph.board_layout_snapshot_fingerprint)
+    with pytest.raises(ValueError, match="differs from routed graph"):
+        ReturnPathDeclaration(**data)
 
 
 def test_graph_fill_geometry_cannot_be_replaced_and_end_caps_are_conservative() -> None:
@@ -362,9 +401,7 @@ def test_advisory_model_ids_are_distinct_and_never_hard_fail() -> None:
 def test_unknown_stackup_is_explicit_and_permits_advisory_guidance_only() -> None:
     layout, policy, graph_fill, declaration = _fixture(fill_kind="slot")
     fields = declaration.model_dump(mode="python")
-    fields["stackup_context"] = _unknown_stackup(
-        declaration.board_layout_snapshot_fingerprint
-    )
+    fields["stackup_context"] = _unknown_stackup(declaration.board_layout_snapshot_fingerprint)
     fields["adjacency_model_id"] = ADVISORY_3W_MODEL_ID
     advisory = ReturnPathDeclaration(**fields)
     result = evaluate_return_adjacency(
@@ -525,7 +562,9 @@ def test_hard_threshold_cannot_survive_a_verified_stackup_context_change() -> No
         ReturnPathDeclaration(**fields)
 
 
-def _transition_fixture():
+def _transition_fixture(*, four_layer: bool = False):
+    first, second = ("In1.Cu", "In2.Cu") if four_layer else ("F.Cu", "B.Cu")
+    stack = ("F.Cu", "In1.Cu", "In2.Cu", "B.Cu") if four_layer else ("F.Cu", "B.Cu")
     components = tuple(_component(item) for item in ("U1", "U2", "G1"))
     netlist = BoardNetlist(
         components=components,
@@ -537,8 +576,8 @@ def _transition_fixture():
     layout = BoardLayout(
         placements=tuple((item, float(index)) for index, item in enumerate(components)),
         segments=(
-            TrackSegment(0.0, 0.0, 5.0, 0.0, "F.Cu", "SIG", 0.2),
-            TrackSegment(5.0, 0.0, 10.0, 0.0, "B.Cu", "SIG", 0.2),
+            TrackSegment(0.0, 0.0, 5.0, 0.0, first, "SIG", 0.2),
+            TrackSegment(5.0, 0.0, 10.0, 0.0, second, "SIG", 0.2),
         ),
         vias=(ViaSpec(5.0, 0.0, "SIG"), ViaSpec(5.0, 0.0, "GND")),
         width_mm=12.0,
@@ -551,7 +590,7 @@ def _transition_fixture():
             component_reference="U1",
             pad_number="1",
             net_name="SIG",
-            layer="F.Cu",
+            layer=first,
             x_mm="0",
             y_mm="0",
         ),
@@ -561,12 +600,12 @@ def _transition_fixture():
             component_reference="U2",
             pad_number="1",
             net_name="SIG",
-            layer="B.Cu",
+            layer=second,
             x_mm="10",
             y_mm="0",
         ),
     )
-    graph = build_routed_copper_graph(layout, netlist, anchors)
+    graph = build_routed_copper_graph(layout, netlist, anchors, copper_layer_order=stack)
     path = resolve_copper_path(
         graph,
         DeclaredCopperPathSelection(
@@ -582,10 +621,19 @@ def _transition_fixture():
         ReturnPathLeg(leg_id="leg:transition", signal_net_name="SIG", complete_selected_path=path),
     )
     pairs = (
-        ReturnLayerPair(signal_layer="F.Cu", reference_layer="B.Cu"),
-        ReturnLayerPair(signal_layer="B.Cu", reference_layer="F.Cu"),
+        (
+            ReturnLayerPair(signal_layer="In1.Cu", reference_layer="F.Cu"),
+            ReturnLayerPair(signal_layer="In2.Cu", reference_layer="B.Cu"),
+        )
+        if four_layer
+        else (
+            ReturnLayerPair(signal_layer="F.Cu", reference_layer="B.Cu"),
+            ReturnLayerPair(signal_layer="B.Cu", reference_layer="F.Cu"),
+        )
     )
-    stackup_context = _stackup_context(graph.board_layout_snapshot_fingerprint)
+    stackup_context = _stackup_context(
+        graph.board_layout_snapshot_fingerprint, pairs=pairs, copper_layer_order=stack
+    )
     context = return_requirement_context_fingerprint(
         declaration_id="return:transition",
         graph=graph,
@@ -675,6 +723,19 @@ def test_unstitched_transition_fires_independently_and_explicit_stitch_passes() 
     passing = evaluate_return_adjacency(declaration, (), (stitch,), (selection,))
     assert passing.transitions[0].stitch_state == "stitched"
     assert not any(item.kind == "transition_stitch" for item in passing.findings)
+
+
+def test_inner_transition_counts_physical_barrel_once_without_false_hub_transition() -> None:
+    declaration, stitch, selection = _transition_fixture(four_layer=True)
+    result = evaluate_return_adjacency(declaration, (), (stitch,), (selection,))
+    assert len(result.transitions) == 1
+    transition = result.transitions[0]
+    assert (transition.from_signal_layer, transition.to_signal_layer) == ("In1.Cu", "In2.Cu")
+    assert (transition.from_reference_layer, transition.to_reference_layer) == ("F.Cu", "B.Cu")
+    assert transition.stitch_state == "stitched"
+    assert declaration.legs[0].complete_selected_path.via_count == 1
+    # This is only transition proximity evidence, not approval of missing planes.
+    assert result.findings[-1].disposition is SemanticDisposition.UNVERIFIED
 
 
 def test_transition_selections_are_exhaustively_graph_and_leg_bound() -> None:

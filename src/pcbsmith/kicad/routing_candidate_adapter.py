@@ -382,6 +382,8 @@ def _translation_consumption(
                 via_constraint.constraint_id,
                 "native A* supports only the operative two-layer through-via technology",
             )
+    for restriction in request.net_layer_constraints:
+        unsupported(restriction.constraint_id, "native A* has no per-net layer/via translation")
     for guide in request.route_guides:
         unsupported(
             guide.constraint_id,

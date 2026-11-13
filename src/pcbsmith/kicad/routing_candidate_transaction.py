@@ -850,6 +850,23 @@ def immutable_readback_matches(
     )
 
 
+def native_saved_immutable_readback_matches(
+    source: KiCadBoardReadbackSnapshot,
+    candidate: KiCadBoardReadbackSnapshot,
+) -> bool:
+    """Native-save normalization only; every pre-existing non-route object stays bound."""
+    from pcbsmith.production_routing import native_save_readback_matches
+
+    nonroute = candidate.model_copy(
+        update={
+            "segments": source.segments,
+            "vias": source.vias,
+            "zones": source.zones,
+        }
+    )
+    return native_save_readback_matches(source, nonroute)
+
+
 def _pointer_sha256(root: Path) -> str | None:
     pointer = root / "CURRENT.json"
     return _sha256(pointer.read_bytes()) if pointer.exists() else None
@@ -895,6 +912,7 @@ def run_routing_candidate_transaction(
     revalidate_sha256: str | None = None,
     repair_plane_clearance_mm: float | None = None,
     native_repair: RetainedNativeRepair | None = None,
+    retain_native_saved_fill: bool = False,
 ) -> RoutingCandidateTransactionResult:
     """Run, validate, retain, and conditionally publish one route candidate."""
 
@@ -1070,6 +1088,20 @@ def run_routing_candidate_transaction(
                     filled_payload, _ = refill_native_edit(
                         board_file, work_root / "final-fill", zone_ids
                     )
+                    if retain_native_saved_fill:
+                        from pcbsmith.production_routing import native_save_readback_matches
+
+                        native_payload = (
+                            work_root / "final-fill" / "native" / board_file.name
+                        ).read_bytes()
+                        if not native_save_readback_matches(
+                            extract_kicad_board_readback(filled_payload.decode("utf-8")),
+                            extract_kicad_board_readback(native_payload.decode("utf-8")),
+                        ):
+                            raise ValueError(
+                                "native saved plane candidate changed retained objects"
+                            )
+                        filled_payload = native_payload
                     board_text = filled_payload.decode("utf-8")
                     board_file.write_bytes(filled_payload)
                 if previous_board is not None and board_text.encode("utf-8") != previous_board:
@@ -1131,7 +1163,11 @@ def run_routing_candidate_transaction(
                         encoding="utf-8",
                     )
                 candidate_readback = extract_kicad_board_readback(board_text)
-                semantic_accepted = immutable_readback_matches(
+                semantic_accepted = (
+                    native_saved_immutable_readback_matches
+                    if retain_native_saved_fill
+                    else immutable_readback_matches
+                )(
                     source_readback,
                     candidate_readback,
                 )

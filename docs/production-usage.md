@@ -9,6 +9,40 @@ production_workflow.py. Historical raw builders remain research utilities; invok
 one directly does not produce an accepted production candidate.
 
 Run pcbsmith --help or pcbsmith COMMAND --help for exact argument syntax.
+
+### Connected functional schematics
+
+For new native preparations, supply `schematic_presentation` in the existing
+`NativeProjectSpec` when the circuit has distinct functions. This produces
+editable KiCad annotations and actual local wires through the same supervised
+`pcbsmith.native_project` command. It does not change PCB routing policy.
+
+Each block has `id`, `title`, `explanation`, `members` (component references),
+and `bounds_mm: [left, top, right, bottom]` on the A3 sheet. Provide a concise,
+reviewed explanation of purpose and relevant operating assumptions. Each wire
+has `start: [reference, pin]`, `end: [reference, pin]` and optional `via_mm`
+waypoints on the 1.27 mm grid. The owner resolves actual native pin coordinates
+and checks exact declared nets; use local wires inside blocks and automatically
+derived net labels between blocks. All same-net pins in a block must be wired
+together. Power flags use these verified anchors.
+
+Parts may additionally declare `schematic_rotation` (0/90/180/270),
+`schematic_reference_at` and `schematic_value_at`. Inspect the resulting native
+SVG for readability and symbol/text collisions; title boxes and passing ERC
+alone are insufficient. Supported bounds/wiring checks do not replace that
+review. Keep formulas and thresholds grounded in the reviewed design.
+
+The complete input example is
+`tests/fixtures/schematic_presentation/functional-blocks.json`; the test injects
+the ordinary default rule profile. For production use provide the actual
+reviewed `profile`, part identities and board requirements. This is a platform
+fixture, not an approved circuit template. Omitting presentation preserves the
+legacy pin-stub mode and serialized input identity. Read the
+[verification and limits](implementation/schematic-presentation-2026-10-21.md)
+before using the new scope. Hierarchy and automatic graph layout are deferred.
+
+### Maintained production sequence
+
 The maintained sequence is:
 
 1. Prepare a PredesignReadinessBundle: approved overlays/brief, replayable component
@@ -52,6 +86,27 @@ Use `pcbsmith board-job run ROOT --module pcbsmith.production_routing --args ...
 New jobs record policy `freerouting-one-retry-v1`: at most two routing invocations across the job. The retry requires changed component placement/footprints or connectivity, such as approved jumper planning. Budget/order changes, cosmetic edits and fresh directories do not qualify. Old job records retain their exact historical policy and counters. No automatic engine switch or manual finishing follows a partial result or failure. Preserve the result and diagnose the placement/jumper blocker once.
 
 The production DSN bridge supports unrouted rectangular F.Cu-only and F.Cu/B.Cu boards. Single-sided jobs prohibit vias; two-layer jobs use the declared through-via geometry. Nonrectangular outlines, cutouts, existing routed copper/zones and native plane-pour routing constraints remain unsupported by this bridge and produce explicit blockers. Do not silently relax rules or select another engine. Source-bound native import/readback, DRC, opens, parity and existing review/release obligations remain required. Generate and inspect requested isolation channels after final routing; an autorouter result alone is not manufacturing acceptance.
+
+**Four-layer implementation (October 10):** F.Cu/In1.Cu/In2.Cu/B.Cu now has a scoped automatic route/fill/publication path. Supply `post_route_planes` in routing options using `PostRoutePlanePlan`: one reference net, two inner rectangular planes, explicit edge inset and a `NativeReferencePolicy` bound to actual source-pad UUIDs. This is a post-Freerouting declaration, not the legacy `plane_pour` constraint. The shared transaction preserves the external tracks/vias, fills natively, and requires actual region, thermal, source and adjacent-reference checks. No native/manual routing fallback is introduced. Through-vias span all four layers; `allowed_layers` still controls that entire copper span. Optional `allowed_trace_layers` further restricts straight tracks (for example to F.Cu/B.Cu) without granting extra via or plane permissions. Omission retains historical semantics.
+
+Four-layer `PublicationReadinessRequest` also requires `four_layer: FourLayerPublicationEvidence`. An unrouted placement carries the explicit plan and retained reference policy. A routed board additionally carries the exact native filled-copper input and reference result, plus paths to the native fill DRC and its `final-fill-execution.json` receipt. Include those three policy/report/receipt files in `predesign.evidence_files`; the existing readiness owner retains and hash-checks them. Publication recomputes plane source/thermal/reference acceptance, exact zone-plan geometry and execution bindings against the actual board. Missing or stale proof still blocks publication. The first scope uses outer straight signal tracks and two inner reference planes on the same net; signal plated pads, inner signal tracks, arcs and blind/buried vias are not qualified by this reference checker. Native source, request and fabrication stackup must match, with separate inner-layer views/Gerbers. The user selected factory fabrication; surface laser CAM remains one/two-sided only. Synthetic tests are not a released board. See the [foundation](implementation/four-layer-foundation-2026-10-10.md) and [electrical/integration evidence](implementation/four-layer-electrical-2026-10-10.md).
+
+**Per-net power routing (October 4):** `--routing-options` accepts typed `net_layer_constraints`. Declare the reviewed restriction explicitly; trace width alone does not imply a layer or via rule:
+
+```json
+{
+  "net_layer_constraints": [
+    {
+      "constraint_id": "power-front-no-vias",
+      "net_names": ["/P12", "/DRAIN"],
+      "allowed_layers": ["F.Cu"],
+      "allow_vias": false
+    }
+  ]
+}
+```
+
+These constraints become part of the immutable routing request and its fingerprint. The pinned Freerouting 2.3.0 DSN bridge splits classes when nets have different restrictions, exports `use_layer`, and limits no-via nets to an inert single-layer compatibility padstack. Native import and engine-neutral candidate validation independently reject forbidden layers or vias. Other nets retain their declared via permission. No-via nets currently require exactly one allowed copper layer; class-pair rules and conflicting layer-specific class rules are explicit blockers. These are whole-net restrictions, not terminal-to-terminal branch constraints: a shared ground net with a power branch and low-current rear branches still needs source-based path review. Native/research adapters without this translation reject the constraint. Old requests without restrictions retain their fingerprints. [Implementation and actual tests](implementation/power-routing-constraints-fix-2026-10-04.md).
 
 Manual segment/via edits and the existing copper-cutting zero-ohm-link revision adapter require `BoardRevisionRequest.manual_routing_authorization` containing the user's actual explicit request. Retained routing repair additionally requires `--manual-routing-authorization` and an existing `--revalidate-result`. Placement and annotation edits retain their supported owners. These fields record authorization; software cannot authenticate a human statement. Historical accepted revisions still replay unchanged. `--legacy-native-reason` is an explicit research/reproduction escape hatch, never an ordinary fallback.
 

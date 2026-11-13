@@ -6,6 +6,7 @@ import pytest
 from tests.unit.production_evidence_fixtures import filled_region_example, write_empty_drc
 
 from pcbsmith.automatic_review_gate import ProductionMarkingAudit, qualify_automatic_review
+from pcbsmith.kicad.final_fill_adapter import KiCadFinalFillSnapshot
 from pcbsmith.kicad.routing_evidence import inspect_kicad_drc_report
 from pcbsmith.power_topology_ir import BoardPowerTopology
 from pcbsmith.review.visual_package import RenderProfile, ReviewArtifact, VisualReviewManifest
@@ -51,10 +52,89 @@ def test_bound_evidence_drives_filled_region_gate(tmp_path: Path) -> None:
         fill_snapshot=snapshot,
         fill_connectivity=observation,
         thermal_audit=thermal,
+        fill_source_pad_ids=("J1.1",),
     )
     gate = next(item for item in result.gates if item.gate_id == "filled_region_connectivity")
     assert gate.disposition is QualificationDisposition.PASS
     assert gate.evaluated_object_count == 1
+
+
+def _retained_fill(tmp_path: Path):
+    return filled_region_example(tmp_path)
+
+
+@pytest.mark.parametrize("updates", [{"refilled_by_kicad": False}, {"regions": ()}])
+def test_stale_or_empty_declared_plane_cannot_pass_or_be_not_applicable(updates, tmp_path):
+    from pcbsmith.whole_board_qualification_adapter import _fill_gate
+
+    snapshot, observation, thermal = _retained_fill(tmp_path)
+    excluded = {
+        "snapshot_fingerprint",
+        "zone_intent_unchanged",
+        "stale_fill",
+        "unverified_region_ids",
+    }
+    fields = {n: getattr(snapshot, n) for n in type(snapshot).model_fields if n not in excluded}
+    broken = KiCadFinalFillSnapshot.build(**(fields | updates))
+    result = _fill_gate(
+        broken.filled_board_sha256, broken, observation, thermal, declared_source_pad_ids=("J1.1",)
+    )
+    assert result.disposition is QualificationDisposition.UNVERIFIED
+    assert result.applicable
+
+
+def test_filled_region_classification_is_replayed_against_declared_source(tmp_path):
+    from pcbsmith.whole_board_qualification_adapter import _fill_gate
+
+    snapshot, observation, thermal = _retained_fill(tmp_path)
+    for sources in ((), ("nonexistent.source",)):
+        gate = _fill_gate(
+            snapshot.filled_board_sha256,
+            snapshot,
+            observation,
+            thermal,
+            declared_source_pad_ids=sources,
+        )
+        assert gate.disposition is QualificationDisposition.UNVERIFIED
+    missing = observation.model_copy(update={"records": ()})
+    with pytest.raises(ValueError, match="exact region set"):
+        _fill_gate(
+            snapshot.filled_board_sha256,
+            snapshot,
+            missing,
+            thermal,
+            declared_source_pad_ids=("J1.1",),
+        )
+
+
+def test_reference_evidence_requires_exact_current_context():
+    from tests.unit.kicad.test_reference_continuity import _evidence
+
+    from pcbsmith.kicad.reference_continuity import (
+        ReferenceContinuityContext,
+        ReferenceContinuityEvidence,
+    )
+    from pcbsmith.whole_board_qualification_adapter import _reference_gate
+
+    context = ReferenceContinuityContext(
+        board_sha256=BOARD,
+        native_inputs_sha256="b" * 64,
+        stackup_sha256="c" * 64,
+        policy_sha256="d" * 64,
+    )
+    legacy = ReferenceContinuityEvidence.model_validate(_evidence())
+    assert (
+        _reference_gate(BOARD, None, legacy, context).disposition
+        is QualificationDisposition.UNVERIFIED
+    )
+    bound = ReferenceContinuityEvidence.model_validate(
+        _evidence(context=context.model_dump(mode="json"))
+    )
+    assert _reference_gate(BOARD, None, bound, context).disposition is QualificationDisposition.PASS
+    for field in type(context).model_fields:
+        changed = context.model_copy(update={field: "f" * 64})
+        with pytest.raises(ValueError, match="another board, stackup, rules or policy"):
+            _reference_gate(BOARD, None, bound, changed)
 
 
 def test_explicitly_not_applicable_topology_marks_all_topology_gates_not_applicable() -> None:

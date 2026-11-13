@@ -22,6 +22,21 @@ from pcbsmith.kicad.library import _atom, _children, parse_sexpr
 from pcbsmith.kicad.project_dependencies import native_project_hashes
 
 
+def _non_copper_paste_aperture(pad: list[Any]) -> bool:
+    """Ignore only explicit non-electrical paste geometry, never an unknown pad."""
+    layers = _children(pad, "layers")
+    return (
+        len(pad) >= 4
+        and _atom(pad[1]) == ""
+        and _atom(pad[2]) == "smd"
+        and len(layers) == 1
+        and len(layers[0]) > 1
+        and {_atom(v) for v in layers[0][1:]} <= {"F.Paste", "B.Paste"}
+        and not _children(pad, "drill")
+        and not _children(pad, "padstack")
+    )
+
+
 def _paths(data: str) -> list[tuple[list[tuple[float, float]], bool]]:
     tokens = re.findall(r"[MLZmlz]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?", data)
     remainder = re.sub(r"[MLZmlz]|[-+]?(?:\d*\.\d+|\d+)(?:[eE][-+]?\d+)?|[\s,]", "", data)
@@ -301,16 +316,15 @@ def verify_actual_copper_isolation(
         values = _children(node, "remove_unused_layers")
         return bool(values and (len(values[0]) != 2 or _atom(values[0][1]) != "no"))
 
-    if two_sided:
-        layer_tables = _children(tree, "layers")
-        if layer_tables:
-            copper_names = {
-                _atom(v[1])
-                for v in layer_tables[0][1:]
-                if isinstance(v, list) and _atom(v[1]).endswith(".Cu")
-            }
-            if copper_names != {"F.Cu", "B.Cu"}:
-                raise ValueError("Two-sided CAM requires exactly F.Cu and B.Cu")
+    layer_tables = _children(tree, "layers")
+    if layer_tables:
+        copper_names = {
+            _atom(v[1])
+            for v in layer_tables[0][1:]
+            if isinstance(v, list) and _atom(v[1]).endswith(".Cu")
+        }
+        if copper_names != {"F.Cu", "B.Cu"}:
+            raise ValueError("Laser CAM requires exactly F.Cu and B.Cu; multilayer CAM unsupported")
 
     if any(
         _children(tree, kind) for kind in (("arc", "zone") if two_sided else ("via", "arc", "zone"))
@@ -359,6 +373,8 @@ def verify_actual_copper_isolation(
             ):
                 raise ValueError("Unsupported footprint copper graphic")
         for pad in _children(footprint, "pad"):
+            if _non_copper_paste_aperture(pad):
+                continue
             layers = [_atom(v) for v in _children(pad, "layers")[0][1:]]
             kind = _atom(pad[3])
             plated = two_sided and _atom(pad[2]) == "thru_hole" and "*.Cu" in layers
@@ -530,6 +546,8 @@ def export_laser_artwork(
                 raise ValueError("single-sided laser export rejects rear copper")
     for footprint in _children(tree, "footprint"):
         for pad in _children(footprint, "pad"):
+            if _non_copper_paste_aperture(pad):
+                continue
             layers = [_atom(v) for v in _children(pad, "layers")[0][1:]]
             plated = two_sided and _atom(pad[2]) == "thru_hole" and "*.Cu" in layers
             if not plated and (_atom(pad[2]) != "smd" or "F.Cu" not in layers or "B.Cu" in layers):

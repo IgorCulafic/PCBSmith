@@ -746,5 +746,16 @@ def test_publication_rejects_extra_copper_layer(tmp_path, monkeypatch):
         "tests.unit.test_production_readiness.BOARD",
         BOARD.replace('(31 "B.Cu" signal)', '(2 "B.Cu" signal) (4 "In1.Cu" signal)'),
     )
-    with pytest.raises(ValueError, match="exactly two copper layers"):
+    with pytest.raises(ValueError, match="two or qualified four copper layers"):
+        publish_fixture(tmp_path)
+
+
+def test_four_layer_publication_requires_explicit_native_plane_authority(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "tests.unit.test_production_readiness.BOARD",
+        BOARD.replace(
+            '(31 "B.Cu" signal)', '(2 "B.Cu" signal) (4 "In1.Cu" signal) (6 "In2.Cu" signal)'
+        ),
+    )
+    with pytest.raises(ValueError, match="source-bound multilayer engineering qualification"):
         publish_fixture(tmp_path)
